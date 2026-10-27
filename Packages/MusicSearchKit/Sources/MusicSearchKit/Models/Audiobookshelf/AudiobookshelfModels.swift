@@ -31,6 +31,13 @@ public struct AudiobookshelfStatus: Decodable, Sendable {
     public let serverVersion: String?
     /// `local` for a username and password; `openid` for single sign-on.
     public let authMethods: [String]?
+    public let authFormData: AuthFormData?
+
+    /// What the server's own sign-in page says.
+    public struct AuthFormData: Decodable, Sendable {
+        /// The single sign-on button's title ("Login with Authentik").
+        public let authOpenIDButtonText: String?
+    }
 }
 
 public struct AudiobookshelfLibrariesResponse: Decodable, Sendable {
@@ -223,5 +230,19 @@ struct AudiobookshelfSeriesPage: Decodable, Sendable {
 public struct AudiobookshelfSeries: Decodable, Sendable, Identifiable {
     public let id: String
     public let name: String
+    public let books: [AudiobookshelfItem]?
+}
+
+/// `GET /api/libraries/<id>/collections`.
+struct AudiobookshelfCollectionsPage: Decodable, Sendable {
+    let results: [AudiobookshelfCollection]
+}
+
+/// A collection someone on the server made: books in the order they put
+/// them, from one library.
+public struct AudiobookshelfCollection: Decodable, Sendable, Identifiable {
+    public let id: String
+    public let name: String
+    public let description: String?
     public let books: [AudiobookshelfItem]?
 }

@@ -126,6 +126,9 @@ final class AudiobookPlayer {
     private static let arrivalGrace: TimeInterval = 5
 
     private init() {
+        SonosService.shared.beforePlay = { ip in
+            await AudiobookPlayer.shared.smartResumeOnSpeaker(ip: ip)
+        }
         leftBook = UserDefaults.standard.data(forKey: Self.leftBookKey).flatMap { try? JSONDecoder().decode(LeftBook.self, from: $0) }
         current = Self.loadCurrent()
         updateChapter()
@@ -374,6 +377,51 @@ final class AudiobookPlayer {
         let target = SmartResume.resumeTime(from: time, afterPausing: pause, chapters: current.chapters, heard: heard?.shifted(by: fileStart))
         logSmartResume(from: time, to: target, afterPausing: pause, heard: heard != nil, chapters: current.chapters)
         return max(target - fileStart, 0)
+    }
+
+    /// Where and when a book on a speaker paused, for Smart Resume there
+    /// (`smartResumeOnSpeaker`): this device's player stamps its own pause
+    /// (`LocalPlaybackService.bookPause`); a speaker is only seen to have
+    /// stopped, within a reading or two.
+    @ObservationIgnored private var speakerPause: (at: Date, time: TimeInterval, coordinatorIP: String)?
+
+    private func noteSpeakerPause(time: TimeInterval, playing: Bool, on controller: any PlaybackController) {
+        guard let ip = controller.group?.coordinatorRoom.ip, !playing else {
+            speakerPause = nil
+            return
+        }
+        if wasPlaying {
+            speakerPause = (.now, time, ip)
+        } else if let pause = speakerPause, abs(time - pause.time) > Self.speakerPlaceSlack {
+            // Moved while paused (a chapter, a scrub): it plays from there.
+            speakerPause = nil
+        }
+    }
+
+    /// How far a paused speaker's reading may wander and still be where it
+    /// paused: its position comes back rounded to the second.
+    private static let speakerPlaceSlack: TimeInterval = 2
+
+    /// Smart Resume on a speaker: a book paused there goes back a little
+    /// before it's told to play again, as on this device — by how long it
+    /// was paused, never past the start of its chapter, into a pause in the
+    /// speech when its file is downloaded here. Within the file playing
+    /// only: a speaker moving to another file for a few seconds would be a
+    /// new track. `SonosService` calls it before every Play it sends
+    /// (`beforePlay`).
+    func smartResumeOnSpeaker(ip: String) async {
+        guard let pause = speakerPause, pause.coordinatorIP == ip, let current else { return }
+        speakerPause = nil
+        let controller = PlaybackRoute.shared.presented
+        guard controller.group?.coordinatorRoom.ip == ip, !controller.isPlaying,
+              let part = current.partIndex(of: controller.nowPlayingDisplay) else { return }
+        let time = current.time(part: part, offset: controller.position())
+        guard abs(time - pause.time) <= Self.speakerPlaceSlack else { return }
+        let target = await resumeTime(for: current, from: time, afterPausing: Date.now.timeIntervalSince(pause.at))
+        let location = current.timeline.location(at: target)
+        guard target < time, location.part == part else { return }
+        Self.log.info("smart resume on a speaker: back \(String(format: "%.1f", time - target)) s")
+        await controller.seek(to: location.offset)
     }
 
     /// Smart Resume for a book played again from a kept place, `place`,
@@ -662,10 +710,19 @@ final class AudiobookPlayer {
         graceUntil = .now.addingTimeInterval(15)
         misses = 0
 
-        let group: GroupRoom? = switch target {
+        var group: GroupRoom? = switch target {
         case .route: PlaybackRoute.shared.group
         case .device: nil
         case let .group(group): group
+        }
+        // A book in the Files folder plays here alone, since no speaker can
+        // reach it. The route comes to this device, so the player shows the
+        // book and is what this follows; a speaker keeps its own queue.
+        if audiobook.book.content.service.playsOnDeviceOnly {
+            if group != nil || PlaybackRoute.shared.destination != .device {
+                PlaybackRoute.shared.switchTo(.device, carrying: false)
+            }
+            group = nil
         }
         if !OfflineMode.shared.isActive, let group {
             guard await playOnSpeaker(audiobook, part: location.part, offset: location.offset, group: group) else {
@@ -956,6 +1013,7 @@ final class AudiobookPlayer {
         }
         position = time
         notePlace(time: time, playing: playing, of: current)
+        noteSpeakerPause(time: time, playing: playing, on: controller)
         let paused = wasPlaying && !playing
         let reading = AudiobookProgress(position: time, duration: current.duration, isFinished: finished)
         if lastStoredPosition == nil, !playing, !paused {
@@ -1002,9 +1060,12 @@ final class AudiobookPlayer {
     /// and once on a pause.
     private func syncServer(_ audiobook: Audiobook, part: Int, time: TimeInterval, playing: Bool, onSpeaker: Bool) {
         // Offline the server isn't asked, even with a network up (the
-        // listener's switch); what's heard meanwhile goes with the first
-        // sync after, counted from the last one made.
-        guard !OfflineMode.shared.isActive else { return }
+        // listener's switch). Audiobookshelf's listening is kept for it
+        // meanwhile, a local session a day sent once it answers again
+        // (`AudiobookshelfAPI.noteUnsentListening`); a place goes to either
+        // server when the book is next read (`AudiobookLibrary.sendNewerPlace`).
+        let offline = OfflineMode.shared.isActive
+        guard !offline || audiobook.book.content.service == .audiobookshelf else { return }
         let paused = wasPlaying && !playing
         guard paused || (playing && Date.now.timeIntervalSince(lastServerSync) >= Self.serverSyncInterval) else { return }
         // What was heard since the last sync, for the server's listening
@@ -1016,6 +1077,10 @@ final class AudiobookPlayer {
         case .audiobookshelf:
             let itemID = audiobook.book.content.id
             let duration = audiobook.duration
+            if offline {
+                AudiobookshelfAPI.noteUnsentListening(itemID: itemID, currentTime: time, timeListened: listened, duration: duration)
+                return
+            }
             Task {
                 await AudiobookshelfAPI.shared.sync(itemID: itemID, currentTime: time, timeListened: listened, duration: duration)
             }

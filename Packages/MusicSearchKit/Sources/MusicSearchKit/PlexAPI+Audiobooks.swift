@@ -75,6 +75,35 @@ extension PlexAPI {
         await audiobookLibraryChoices().filter(\.isBooks).map(\.section)
     }
 
+    private static func knownAudiobookLibrariesKey(serverID: String) -> String {
+        "com.cue.plexServer.knownAudiobookLibraries.\(serverID)"
+    }
+
+    /// The keys of the libraries whose albums are books, read from the
+    /// server, or as last read when it doesn't answer: search sorts what it
+    /// finds by them, and a server that's slow to list its libraries
+    /// shouldn't turn books back into albums.
+    public func audiobookLibraryKeys() async -> Set<String> {
+        guard let sections = await musicLibraries() else { return knownAudiobookLibraryKeys }
+        let keys = Set(audiobookLibraryChoices(from: sections).filter(\.isBooks).map(\.section.key))
+        knownAudiobookLibraryKeys = keys
+        return keys
+    }
+
+    /// The book libraries' keys as `audiobookLibraryKeys()` last read them,
+    /// for a check that can't wait on the server (an artist page deciding
+    /// whether it's an author's). Kept per server.
+    public internal(set) var knownAudiobookLibraryKeys: Set<String> {
+        get {
+            guard let serverID else { return [] }
+            return Set(UserDefaults.standard.stringArray(forKey: Self.knownAudiobookLibrariesKey(serverID: serverID)) ?? [])
+        }
+        set {
+            guard let serverID else { return }
+            UserDefaults.standard.set(newValue.sorted(), forKey: Self.knownAudiobookLibrariesKey(serverID: serverID))
+        }
+    }
+
     /// Whether the selected server has any books to show: a library kept
     /// for them, or an audiobook genre in the music library.
     public func hasAudiobooks() async -> Bool {
@@ -126,6 +155,27 @@ extension PlexAPI {
         return books.sorted {
             ($0.titleSort ?? $0.title).localizedStandardCompare($1.titleSort ?? $1.title) == .orderedAscending
         }
+    }
+
+    private static func audiobookGenresKey(serverID: String, sectionKey: String) -> String {
+        "com.cue.plexServer.audiobookGenres.\(serverID).\(sectionKey)"
+    }
+
+    /// The filters that leave the music library's books out of its album
+    /// lists: one `genre!=` for each audiobook genre, none while those
+    /// books aren't read as books (`includesGenreTaggedAudiobooks`). A
+    /// list's first page (`fresh`) reads the genres from the server; the
+    /// pages after use them as kept then, so every page of a list agrees
+    /// and paging costs no extra request.
+    func audiobookGenreExclusions(sectionKey: String, base: URL, fresh: Bool) async -> [URLQueryItem] {
+        guard includesGenreTaggedAudiobooks, let serverID else { return [] }
+        let storeKey = Self.audiobookGenresKey(serverID: serverID, sectionKey: sectionKey)
+        var keys = UserDefaults.standard.stringArray(forKey: storeKey)
+        if fresh || keys == nil, let genres = await audiobookGenres(sectionKey: sectionKey, base: base) {
+            keys = genres.map(\.key)
+            UserDefaults.standard.set(keys, forKey: storeKey)
+        }
+        return (keys ?? []).map { URLQueryItem(name: "genre!", value: $0) }
     }
 
     /// The music library's album genres that mark books; nil when they

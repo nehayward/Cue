@@ -2,6 +2,7 @@ import Defaults
 import MusicSearchKit
 import SonosKit
 import SwiftUI
+import VibesDS
 
 /// A chapter's row: a bookmark, its title, where it starts and how long it
 /// runs. `isHere` marks the listener's chapter: its bookmark in the accent,
@@ -55,36 +56,44 @@ struct AudiobookChapterRowLabel: View {
 }
 
 /// The listener's chapter, filled behind its row as far as it's been heard:
-/// the row's width is the chapter. A view of its own because it reads the
-/// place, which moves every couple of seconds while the book plays, so only
-/// the fill redraws, not the list; it eases between readings rather than
-/// stepping. The player's place while it has the book, else the place kept
-/// for it.
+/// the row's width is the chapter. Drawn from the player's running clock
+/// (`PlaybackTimeline`, once per pixel of the chapter while it plays), so
+/// it's where the book is the moment it shows and lands at once on a jump,
+/// a skip or From Start, rather than easing there between the player's
+/// readings. A view of its own, so only the fill redraws, not the list.
+/// The player's place while it has the book, else the place kept for it.
 struct AudiobookChapterProgressFill: View {
     let chapter: AudiobookChapter
     let book: PlayableContent
 
+    @Environment(\.displayScale) private var displayScale
     @State private var player = AudiobookPlayer.shared
     @State private var store = AudiobookProgressStore.shared
+    @State private var width: CGFloat = 0
 
-    private var fraction: Double {
-        let position = player.isLoaded(book) ? player.position : store.progress(for: book)?.position
+    private var route: PlaybackRoute { .shared }
+
+    private func fraction(at position: TimeInterval?) -> Double {
         guard let position, chapter.duration > 0 else { return 0 }
         return min(max((position - chapter.start) / chapter.duration, 0), 1)
     }
 
     var body: some View {
-        let fraction = fraction
+        let isLoaded = player.isLoaded(book)
         let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
-        GeometryReader { geo in
+        PlaybackTimeline(
+            isRunning: isLoaded && route.presented.isClockRunning,
+            minimumInterval: ProgressRedraw.interval(forDuration: chapter.duration * 1000, length: width, scale: displayScale),
+            position: { (isLoaded ? player.heardPosition : store.progress(for: book)?.position) ?? 0 }
+        ) { position in
             Rectangle()
                 .fill(Color.accent.opacity(0.25))
-                .frame(width: geo.size.width * fraction)
+                .frame(width: width * fraction(at: position))
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         .background(Color.accent.opacity(0.08))
         .clipShape(shape)
-        .animation(.linear(duration: 2), value: fraction)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }

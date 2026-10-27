@@ -156,6 +156,9 @@ public final class FilesLibraryService {
     public var albums: [PlayableContent] { catalog.albums }
     public var artists: [PlayableContent] { catalog.artists }
     public var playlists: [PlayableContent] { catalog.playlists }
+    /// The albums that are books (`FilesIndex`), by title: `.audiobook`s
+    /// whose files are their album's tracks (`albumTracks(albumID:)`).
+    public var books: [PlayableContent] { catalog.books }
     /// Bumped every time the index is rebuilt — a scan publishing, a
     /// playlist edit — so a list that took a snapshot knows to take another.
     public private(set) var indexVersion = 0
@@ -1075,6 +1078,7 @@ public final class FilesLibraryService {
 
     public func track(id: String) -> PlayableContent? { catalog.songsByID[id] }
     public func album(id: String) -> PlayableContent? { catalog.albumsByID[id] }
+    public func book(id: String) -> PlayableContent? { catalog.booksByID[id] }
     public func artist(id: String) -> PlayableContent? { catalog.artistsByID[id] }
 
     /// The song's lyrics as its files hold them (`FilesLyrics`), read off
@@ -1146,7 +1150,7 @@ public final class FilesLibraryService {
     }
 
     public func search(query: String) -> [PlayableContent] {
-        Self.matching(query, in: [artists, albums, playlists, songs])
+        Self.matching(query, in: [artists, albums, books, playlists, songs])
     }
 
     /// `search(query:)` off the main thread. It runs up to three
@@ -1154,7 +1158,7 @@ public final class FilesLibraryService {
     /// in the folder, which for a library of thousands held up typing; the
     /// lists are values, so it searches a copy.
     public func searchInBackground(query: String) async -> [PlayableContent] {
-        let lists = [artists, albums, playlists, songs]
+        let lists = [artists, albums, books, playlists, songs]
         return await Task.detached(priority: .userInitiated) {
             Self.matching(query, in: lists)
         }.value

@@ -119,6 +119,7 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
         Self.setTokens(nil)
         Self.forgetStoredLogin()
         Self.sessionCache.withLock { $0 = [:] }
+        Self.forgetUnsentListening()
         serverAddress = ""
         username = ""
         defaultLibraryID = nil
@@ -205,11 +206,156 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
             // password login to answer.
             if let status = await status(base: base), status.app == "audiobookshelf" {
                 if let methods = status.authMethods, !methods.contains("local") {
-                    return .refused("This server only signs in through single sign-on, which Cue doesn't support yet. Ask its admin to turn on password login.")
+                    return .refused("This server only signs in through single sign-on. Use Sign In with Single Sign-On.")
                 }
                 return .refused("The server turned down the sign-in (\(http.statusCode)).")
             }
             return .unreachable("That address answered, but not as an Audiobookshelf server. Check the port, and the path if it's behind a proxy.")
+        }
+    }
+
+    // MARK: - Single sign-on
+
+    /// How a server lets listeners in, from its status page.
+    public struct SignInMethods: Equatable, Sendable {
+        /// A username and password.
+        public let password: Bool
+        /// Single sign-on (OpenID Connect).
+        public let singleSignOn: Bool
+        /// What the server's own sign-in page calls single sign-on.
+        public let singleSignOnTitle: String?
+    }
+
+    /// The scheme single sign-on comes back to Cue on, for the web sign-in
+    /// session to catch (`signInWithSingleSignOn`).
+    public static let singleSignOnCallbackScheme = AudiobookshelfPKCE.callbackScheme
+
+    /// The ways in `address` offers; nil when it doesn't answer as an
+    /// Audiobookshelf server.
+    public func signInMethods(address: String) async -> SignInMethods? {
+        for candidate in Self.candidateAddresses(for: address) {
+            guard let base = URL(string: candidate), let status = await status(base: base), status.app == "audiobookshelf" else { continue }
+            let methods = status.authMethods ?? ["local"]
+            return SignInMethods(
+                password: methods.contains("local"),
+                singleSignOn: methods.contains("openid"),
+                singleSignOnTitle: status.authFormData?.authOpenIDButtonText.flatMap { $0.isEmpty ? nil : $0 }
+            )
+        }
+        return nil
+    }
+
+    /// Signs in through the server's single sign-on, the way its own apps
+    /// do (OpenID Connect with PKCE, the server's "mobile" flow), and keeps
+    /// the login as a password sign-in's is kept.
+    ///
+    /// The first step and the last are Cue's own requests, not the
+    /// browser's: the server keeps the sign-in's state in a session cookie,
+    /// set on the first and needed on the last, and only this app's
+    /// requests share it. In between, `authorize` shows the identity
+    /// provider's page at the URL it's given and returns the address the
+    /// sign-in comes back on (`audiobookshelf://oauth?code=…`), or nil if
+    /// the listener closed it.
+    @MainActor
+    public func signInWithSingleSignOn(address: String, authorize: @MainActor (URL) async -> URL?) async -> LoginCheck {
+        var check = LoginCheck(result: .failure("Enter a server address."), address: nil)
+        for candidate in Self.candidateAddresses(for: address) {
+            guard let base = URL(string: candidate) else { continue }
+            switch await singleSignOn(base: base, authorize: authorize) {
+            case let .signedIn(tokens, defaultLibrary, username):
+                store(address: candidate, username: username, tokens: tokens, defaultLibrary: defaultLibrary)
+                return LoginCheck(result: .success, address: candidate)
+            case let .refused(message):
+                return LoginCheck(result: .failure(message), address: candidate)
+            case let .unreachable(message):
+                check = LoginCheck(result: .failure(message), address: candidate)
+            }
+        }
+        return check
+    }
+
+    private enum SingleSignOnOutcome {
+        case signedIn(Tokens, defaultLibrary: String?, username: String)
+        case refused(String)
+        case unreachable(String)
+    }
+
+    @MainActor
+    private func singleSignOn(base: URL, authorize: @MainActor (URL) async -> URL?) async -> SingleSignOnOutcome {
+        let proof = AudiobookshelfPKCE()
+        guard var start = URLComponents(url: base.appending(path: "/auth/openid"), resolvingAgainstBaseURL: false) else {
+            return .unreachable("Enter a server address.")
+        }
+        start.queryItems = [
+            URLQueryItem(name: "code_challenge", value: proof.challenge),
+            URLQueryItem(name: "code_challenge_method", value: "S256"),
+            URLQueryItem(name: "redirect_uri", value: AudiobookshelfPKCE.redirectURI),
+            URLQueryItem(name: "client_id", value: Self.clientName),
+            URLQueryItem(name: "response_type", value: "code"),
+            URLQueryItem(name: "state", value: proof.state)
+        ]
+        guard let startURL = start.url else { return .unreachable("Enter a server address.") }
+        var request = URLRequest(url: startURL)
+        request.timeoutInterval = 15
+        // The server answers with the identity provider's page to go to,
+        // which goes to the browser rather than being followed here.
+        let answer: HTTPURLResponse
+        do {
+            let (_, response) = try await session.data(for: request, delegate: RedirectRefusal())
+            guard let response = response as? HTTPURLResponse else { return .unreachable("The server didn't answer.") }
+            answer = response
+        } catch {
+            return .unreachable(SubsonicAPI.message(forConnectionError: error))
+        }
+        guard (300...399).contains(answer.statusCode),
+              let location = answer.value(forHTTPHeaderField: "Location"),
+              let page = URL(string: location, relativeTo: base)?.absoluteURL else {
+            guard let status = await status(base: base), status.app == "audiobookshelf" else {
+                return .unreachable("That address answered, but not as an Audiobookshelf server. Check the port, and the path if it's behind a proxy.")
+            }
+            if status.authMethods?.contains("openid") != true {
+                return .refused("This server doesn't offer single sign-on. Sign in with your username and password.")
+            }
+            // Turned away before the provider: the sign-in address isn't one
+            // the server allows.
+            return .refused("The server turned down Cue's sign-in (\(answer.statusCode)). Its admin may need to add \(AudiobookshelfPKCE.redirectURI) to the allowed mobile redirect URIs in its authentication settings.")
+        }
+        guard let callback = await authorize(page) else {
+            return .refused("Sign-in was cancelled.")
+        }
+        let items = URLComponents(url: callback, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        if let error = items.first(where: { $0.name == "error" })?.value {
+            return .refused("The sign-in didn't go through (\(error)).")
+        }
+        guard items.first(where: { $0.name == "state" })?.value == proof.state,
+              let code = items.first(where: { $0.name == "code" })?.value, !code.isEmpty else {
+            return .refused("The sign-in didn't come back as expected. Try again.")
+        }
+        guard var finish = URLComponents(url: base.appending(path: "/auth/openid/callback"), resolvingAgainstBaseURL: false) else {
+            return .unreachable("Enter a server address.")
+        }
+        finish.queryItems = [
+            URLQueryItem(name: "state", value: proof.state),
+            URLQueryItem(name: "code", value: code),
+            URLQueryItem(name: "code_verifier", value: proof.verifier)
+        ]
+        guard let finishURL = finish.url else { return .unreachable("Enter a server address.") }
+        var exchange = URLRequest(url: finishURL)
+        exchange.timeoutInterval = 30
+        // The refresh token in the body, as for a password sign-in.
+        exchange.addValue("true", forHTTPHeaderField: "x-return-tokens")
+        do {
+            let (data, response) = try await session.data(for: exchange)
+            guard let http = response as? HTTPURLResponse else { return .unreachable("The server didn't answer.") }
+            guard http.statusCode == 200,
+                  let login = try? decoder.decode(AudiobookshelfLoginResponse.self, from: data),
+                  let access = login.user.accessToken ?? login.user.token else {
+                Self.log.error("single sign-on: the server turned the code down (\(http.statusCode))")
+                return .refused("The server turned down the sign-in (\(http.statusCode)). Try again.")
+            }
+            return .signedIn(Tokens(access: access, refresh: login.user.refreshToken), defaultLibrary: login.userDefaultLibraryId, username: login.user.username ?? "")
+        } catch {
+            return .unreachable(SubsonicAPI.message(forConnectionError: error))
         }
     }
 
@@ -280,6 +426,16 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
             URLQueryItem(name: "limit", value: "\(limit)"),
             URLQueryItem(name: "sort", value: "name"),
             URLQueryItem(name: "minified", value: "1")
+        ])
+        return page?.results
+    }
+
+    /// A library's collections, each with its books in its order. Nil when
+    /// they couldn't be read.
+    public func collections(libraryID: String, limit: Int = 100) async -> [AudiobookshelfCollection]? {
+        let page: AudiobookshelfCollectionsPage? = await get("/api/libraries/\(libraryID)/collections", query: [
+            URLQueryItem(name: "limit", value: "\(limit)"),
+            URLQueryItem(name: "page", value: "0")
         ])
         return page?.results
     }
@@ -363,14 +519,21 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
     /// Tells the server where the book is and how much was heard since the
     /// last time. With no session open (or one the server has since
     /// dropped), the place is set directly instead, which keeps it but
-    /// counts nothing in the stats.
+    /// counts nothing in the stats: what was heard then goes as a local
+    /// session (`noteUnsentListening`), as it does when the server doesn't
+    /// answer at all.
     public func sync(itemID: String, currentTime: TimeInterval, timeListened: TimeInterval, duration: TimeInterval) async {
         if let sessionID = Self.sessionID(for: itemID) {
             let body: [String: Any] = ["currentTime": currentTime, "timeListened": timeListened, "duration": duration]
-            // No answer: the network, not the session. Kept for the next.
-            guard let (_, status) = await send("POST", "/api/session/\(sessionID)/sync", json: body) else { return }
+            // No answer: the network, not the session, which is kept for
+            // the next. What was heard waits for the server.
+            guard let (_, status) = await send("POST", "/api/session/\(sessionID)/sync", json: body) else {
+                Self.noteUnsentListening(itemID: itemID, currentTime: currentTime, timeListened: timeListened, duration: duration)
+                return
+            }
             if status == 200 {
                 Self.touchSession(for: itemID)
+                await sendUnsentListening()
                 return
             }
             // Gone on the server: a restart, or too long unheard.
@@ -378,7 +541,189 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
                 Self.rememberSession(nil, for: itemID)
             }
         }
-        await updateProgress(itemID: itemID, currentTime: currentTime, duration: duration, isFinished: false)
+        Self.noteUnsentListening(itemID: itemID, currentTime: currentTime, timeListened: timeListened, duration: duration)
+        if await updateProgress(itemID: itemID, currentTime: currentTime, duration: duration, isFinished: false) {
+            await sendUnsentListening()
+        }
+    }
+
+    // MARK: - Listening the server wasn't told of
+
+    /// Listening the server couldn't be told of as it happened — heard in
+    /// Offline Mode, with no network, or with no session open — kept as a
+    /// local session a book and day, the way the server's own apps keep
+    /// what's heard offline, and sent as one (`/api/session/local`) once
+    /// the server answers again. Its listening stats count them as any
+    /// other session; the place itself goes by the progress, as before.
+    struct LocalSession: Codable, Sendable, Equatable {
+        let id: String
+        let itemID: String
+        /// Milliseconds since 1970.
+        var startedAt: Double
+        var updatedAt: Double
+        /// Book time, seconds.
+        var startTime: Double
+        var currentTime: Double
+        var timeListening: Double
+        var duration: Double
+        /// The day it was heard on, as the server's stats file it.
+        let date: String
+        let dayOfWeek: String
+    }
+
+    private static let unsentListening = OSAllocatedUnfairLock<[LocalSession]?>(initialState: nil)
+    private static let isSendingUnsent = OSAllocatedUnfairLock(initialState: false)
+
+    /// Keeps `timeListened` seconds heard in a book, ending at
+    /// `currentTime`, for the server to be told of later: added to the
+    /// book's local session for today, or one begun for it.
+    public static func noteUnsentListening(itemID: String, currentTime: TimeInterval, timeListened: TimeInterval, duration: TimeInterval, at now: Date = .now) {
+        guard timeListened > 0 else { return }
+        let day = dayKey(now)
+        let nowMS = now.timeIntervalSince1970 * 1000
+        unsentListening.withLock { cached in
+            var sessions = cached ?? readUnsentListening()
+            if let index = sessions.lastIndex(where: { $0.itemID == itemID && $0.date == day.date }) {
+                sessions[index].timeListening += timeListened
+                sessions[index].currentTime = currentTime
+                sessions[index].updatedAt = nowMS
+                sessions[index].duration = duration
+            } else {
+                sessions.append(LocalSession(
+                    id: UUID().uuidString.lowercased(),
+                    itemID: itemID,
+                    startedAt: nowMS - timeListened * 1000,
+                    updatedAt: nowMS,
+                    startTime: max(currentTime - timeListened, 0),
+                    currentTime: currentTime,
+                    timeListening: timeListened,
+                    duration: duration,
+                    date: day.date,
+                    dayOfWeek: day.weekday
+                ))
+            }
+            cached = sessions
+            writeUnsentListening(sessions)
+        }
+    }
+
+    /// Sends the listening kept for the server (`noteUnsentListening`), each
+    /// book's day as a local session. One the server takes, or turns away
+    /// for good (a book it no longer has), isn't sent again; with no answer
+    /// the rest wait for the next time.
+    public func sendUnsentListening() async {
+        guard Self.isSendingUnsent.withLock({ sending in
+            guard !sending else { return false }
+            sending = true
+            return true
+        }) else { return }
+        defer { Self.isSendingUnsent.withLock { $0 = false } }
+        // Taken out while they're sent, so listening noted meanwhile starts
+        // a session of its own rather than being lost with one sent.
+        let pending = Self.unsentListening.withLock { cached -> [LocalSession] in
+            let sessions = cached ?? Self.readUnsentListening()
+            cached = []
+            if !sessions.isEmpty { Self.writeUnsentListening([]) }
+            return sessions
+        }
+        guard !pending.isEmpty else { return }
+        var unsent: [LocalSession] = []
+        for (index, session) in pending.enumerated() {
+            guard let (_, status) = await send("POST", "/api/session/local", json: Self.body(of: session)) else {
+                unsent = Array(pending[index...])
+                break
+            }
+            if (200...299).contains(status) {
+                Self.log.info("sent \(Int(session.timeListening)) s heard offline in \(session.itemID, privacy: .public)")
+            } else {
+                Self.log.error("listening heard offline in \(session.itemID, privacy: .public) turned away (\(status))")
+            }
+        }
+        guard !unsent.isEmpty else { return }
+        let kept = unsent
+        Self.unsentListening.withLock { cached in
+            let sessions = kept + (cached ?? [])
+            cached = sessions
+            Self.writeUnsentListening(sessions)
+        }
+    }
+
+    /// The listening waiting for the server, as kept.
+    static func pendingUnsentListening() -> [LocalSession] {
+        unsentListening.withLock { cached in
+            if cached == nil { cached = readUnsentListening() }
+            return cached ?? []
+        }
+    }
+
+    /// Forgets the listening waiting for the server, for a sign-out.
+    static func forgetUnsentListening() {
+        unsentListening.withLock { cached in
+            cached = []
+            writeUnsentListening([])
+        }
+    }
+
+    /// A local session as the server reads one.
+    static func body(of session: LocalSession) -> [String: Any] {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+        return [
+            "id": session.id,
+            "libraryItemId": session.itemID,
+            "mediaType": "book",
+            "displayTitle": "",
+            "displayAuthor": "",
+            "duration": session.duration,
+            // A local file, the server's own apps' kind for this.
+            "playMethod": 3,
+            "mediaPlayer": "AVPlayer",
+            "deviceInfo": [
+                "deviceId": deviceID,
+                "clientName": clientName,
+                "clientVersion": version,
+                "manufacturer": "Apple"
+            ],
+            "startTime": session.startTime,
+            "currentTime": session.currentTime,
+            "timeListening": session.timeListening,
+            "startedAt": session.startedAt,
+            "updatedAt": session.updatedAt,
+            "date": session.date,
+            "dayOfWeek": session.dayOfWeek
+        ]
+    }
+
+    /// The day as the server's stats file it: "2026-10-27", "Tuesday".
+    static func dayKey(_ date: Date) -> (date: String, weekday: String) {
+        let calendar = Calendar(identifier: .gregorian)
+        let parts = calendar.dateComponents([.year, .month, .day, .weekday], from: date)
+        let day = String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+        let names = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+        let weekday = names.indices.contains((parts.weekday ?? 1) - 1) ? names[(parts.weekday ?? 1) - 1] : "Sunday"
+        return (day, weekday)
+    }
+
+    private static var unsentListeningURL: URL? {
+        guard let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return nil }
+        try? FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
+        return support.appendingPathComponent("AudiobookshelfUnsentListening.json")
+    }
+
+    /// In a file of its own, not the defaults: it's written every sync
+    /// while offline, and in Cue every defaults write redraws every view
+    /// holding an `@AppStorage`.
+    private static func readUnsentListening() -> [LocalSession] {
+        guard let url = unsentListeningURL, let data = try? Data(contentsOf: url) else { return [] }
+        return (try? JSONDecoder().decode([LocalSession].self, from: data)) ?? []
+    }
+
+    private static func writeUnsentListening(_ sessions: [LocalSession]) {
+        guard let url = unsentListeningURL else { return }
+        if sessions.isEmpty {
+            try? FileManager.default.removeItem(at: url)
+        } else if let data = try? JSONEncoder().encode(sessions) {
+            try? data.write(to: url, options: .atomic)
+        }
     }
 
     /// Ends the book's session, with a last word on where it got to.
@@ -760,5 +1105,13 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
         // the phone is locked.
         attributes[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
         return SecItemAdd(attributes as CFDictionary, nil) == errSecSuccess
+    }
+}
+
+/// Hands a redirect back rather than following it: single sign-on's first
+/// step answers with the provider's page, for the browser to open.
+private final class RedirectRefusal: NSObject, URLSessionTaskDelegate {
+    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest) async -> URLRequest? {
+        nil
     }
 }

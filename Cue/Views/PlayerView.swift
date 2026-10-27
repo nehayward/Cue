@@ -1025,7 +1025,9 @@ private struct EmptyPlayerArtwork: View {
 /// quality / remaining, monospaced, redrawn from the running clock once per
 /// pixel of progress (see `PlaybackTimeline`). Reads
 /// `PlaybackRoute.presented`, in seconds whichever it is, so a route switch
-/// changes what it reads and nothing else.
+/// changes what it reads and nothing else. While a book with chapters
+/// plays, it spans the chapter playing, its times the chapter's
+/// (`AudiobookPlayer.chapterSpan`).
 private struct PlayerScrubber: View {
     private var route: PlaybackRoute { .shared }
 
@@ -1063,17 +1065,19 @@ private struct PlayerScrubber: View {
         // way out, and the bar follows what's heard (`HeldPlaybackController`).
         let controller = route.presented
         let duration = range(of: controller)
+        // A book's chapter, in the file's time; else the whole file.
+        let span = AudiobookPlayer.shared.chapterSpan(on: controller).flatMap { $0.upperBound <= duration ? $0 : nil } ?? 0...duration
         // Paused under a finger, while nothing plays, and off screen (see
         // `PlaybackTimeline`). A seek or a new song lands at once rather than
         // sweeping, hence no value animation.
         PlaybackTimeline(
             isRunning: controller.isClockRunning && scrubPosition == nil,
             minimumInterval: ProgressRedraw.interval(
-                forDuration: duration * 1000,
+                forDuration: (span.upperBound - span.lowerBound) * 1000,
                 length: barWidth,
                 scale: displayScale
             ),
-            position: { clamped(scrubPosition ?? controller.position(), to: duration) }
+            position: { min(max(clamped(scrubPosition ?? controller.position(), to: duration), span.lowerBound), span.upperBound) }
         ) { position in
             VStack(spacing: 0) {
                 VibeSlider(
@@ -1081,7 +1085,7 @@ private struct PlayerScrubber: View {
                         get: { position },
                         set: { scrubPosition = $0 }
                     ),
-                    in: 0...duration,
+                    in: span,
                     step: 1,
                     baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24,
                     delayDrag: false,
@@ -1094,7 +1098,7 @@ private struct PlayerScrubber: View {
                 .frame(height: 40)
                 .foregroundStyle(.primary)
                 .accessibilityLabel("Playback Position")
-                .accessibilityValue(Duration.seconds(position).formatted(.time(pattern: .minuteSecond)))
+                .accessibilityValue(Duration.seconds(position - span.lowerBound).formatted(.time(pattern: .minuteSecond)))
                 // Nothing to seek on a live stream, or while a hand-off holds
                 // the player on its source.
                 .disabled(!controller.canScrub)
@@ -1105,10 +1109,10 @@ private struct PlayerScrubber: View {
                 .zIndex(1)
 
                 HStack {
-                    let elapsed = Duration.seconds(position)
-                    let remaining = Duration.seconds(max(0, duration - position))
+                    let elapsed = Duration.seconds(max(0, position - span.lowerBound))
+                    let remaining = Duration.seconds(max(0, span.upperBound - position))
                     let pattern: Duration.TimeFormatStyle.Pattern =
-                        duration > 3600 ? .hourMinuteSecond : .minuteSecond
+                        span.upperBound - span.lowerBound > 3600 ? .hourMinuteSecond : .minuteSecond
 
                     Text(elapsed.formatted(.time(pattern: pattern)))
                         .contentTransition(.identity)

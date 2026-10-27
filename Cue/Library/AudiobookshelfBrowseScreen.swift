@@ -56,6 +56,29 @@ struct AudiobookshelfBrowseScreen: View {
                         }
                     }
 
+                    // Collections made on the server, each opening its books
+                    // in its order.
+                    if !browse.collections.isEmpty {
+                        Section {
+                            ForEach(browse.collections) { collection in
+                                NavigationLink(value: collection.destination) {
+                                    HStack(spacing: 12) {
+                                        AudiobookCoverStack(books: collection.books, size: 56)
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(collection.name)
+                                                .lineLimit(1)
+                                            Text("^[\(collection.books.count) book](inflect: true)")
+                                                .font(.footnote)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                }
+                            }
+                        } header: {
+                            Text("Collections")
+                        }
+                    }
+
                     if browse.selectedLibrary != nil {
                         // As the Apple library shows it: the title opens every
                         // book by when it was added, the newest under it out

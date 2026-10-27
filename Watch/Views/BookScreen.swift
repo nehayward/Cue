@@ -20,6 +20,7 @@ struct BookScreen: View {
     let key: String
 
     @State private var isChoosingSpeed = false
+    @State private var isChoosingSleep = false
 
     var body: some View {
         if let pick = store.picks.pick(key: key) {
@@ -32,6 +33,12 @@ struct BookScreen: View {
                     SpeedPicker(current: books.rate(for: key)) { rate in
                         isChoosingSpeed = false
                         player.setRate(rate, for: pick)
+                    }
+                }
+                .sheet(isPresented: $isChoosingSleep) {
+                    SleepTimerPicker(current: player.sleepTimer) { timer in
+                        isChoosingSleep = false
+                        player.setSleepTimer(timer)
                     }
                 }
         } else {
@@ -75,6 +82,16 @@ struct BookScreen: View {
                     isChoosingSpeed = true
                 } label: {
                     LabeledContent("Speed", value: WatchBookFormat.rate(books.rate(for: key)))
+                }
+                // While it's the book loaded: the timer is the player's.
+                if isLoaded {
+                    Button {
+                        isChoosingSleep = true
+                    } label: {
+                        LabeledContent("Sleep Timer") {
+                            SleepTimerValue(timer: player.sleepTimer)
+                        }
+                    }
                 }
                 if isStarted {
                     Button {
@@ -256,6 +273,57 @@ struct SpeedPicker: View {
                 }
             }
             .navigationTitle("Speed")
+        }
+    }
+}
+
+/// How long the sleep timer has left, counting down, or End of Chapter.
+private struct SleepTimerValue: View {
+    let timer: WatchPlayer.SleepTimer?
+
+    var body: some View {
+        switch timer {
+        case let .at(date):
+            Text(date, style: .timer)
+                .monospacedDigit()
+        case .endOfChapter:
+            Text("End of Chapter")
+        case nil:
+            Text("Off")
+        }
+    }
+}
+
+/// The sleep timer's choices: off, the end of the chapter, or a while.
+struct SleepTimerPicker: View {
+    let current: WatchPlayer.SleepTimer?
+    let choose: (WatchPlayer.SleepTimer?) -> Void
+
+    var body: some View {
+        NavigationStack {
+            List {
+                row("Off", isOn: current == nil) { choose(nil) }
+                row("End of Chapter", isOn: current == .endOfChapter) { choose(.endOfChapter) }
+                ForEach(WatchPlayer.sleepChoices, id: \.self) { minutes in
+                    row("\(minutes) min", isOn: false) {
+                        choose(.at(.now.addingTimeInterval(TimeInterval(minutes * 60))))
+                    }
+                }
+            }
+            .navigationTitle("Sleep Timer")
+        }
+    }
+
+    private func row(_ title: String, isOn: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                Text(title)
+                Spacer(minLength: 0)
+                if isOn {
+                    Image(systemName: "checkmark")
+                        .foregroundStyle(.tint)
+                }
+            }
         }
     }
 }
