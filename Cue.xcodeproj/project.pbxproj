@@ -1430,7 +1430,7 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_LSBackgroundOnly = YES;
 				INFOPLIST_KEY_LSUIElement = YES;
-				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Cue searches and plays Apple Music and your music library, on this device and on your Sonos speakers.";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1472,7 +1472,7 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_LSBackgroundOnly = YES;
 				INFOPLIST_KEY_LSUIElement = YES;
-				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Cue searches and plays Apple Music and your music library, on this device and on your Sonos speakers.";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1516,7 +1516,7 @@
 				INFOPLIST_FILE = TV/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Cue;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
-				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Cue searches and plays Apple Music and your music library, on this device and on your Sonos speakers.";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -1571,7 +1571,7 @@
 				INFOPLIST_FILE = TV/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Cue;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
-				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Cue searches and plays Apple Music and your music library, on this device and on your Sonos speakers.";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -1670,7 +1670,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CueAction/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Listen with Cue";
-				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Cue searches and plays Apple Music and your music library, on this device and on your Sonos speakers.";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1710,7 +1710,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CueAction/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Listen with Cue";
-				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Cue searches and plays Apple Music and your music library, on this device and on your Sonos speakers.";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1754,7 +1754,7 @@
 				INFOPLIST_FILE = Cue/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "$(NAME)";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
-				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Cue searches and plays Apple Music and your music library, on this device and on your Sonos speakers.";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Live Transcription writes out what is said in the music and radio playing on this device, on the device itself.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -1808,7 +1808,7 @@
 				INFOPLIST_FILE = Cue/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "$(NAME)";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
-				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Cue searches and plays Apple Music and your music library, on this device and on your Sonos speakers.";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Live Transcription writes out what is said in the music and radio playing on this device, on the device itself.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -1857,7 +1857,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PlayAction/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Play on Cue";
-				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Cue searches and plays Apple Music and your music library, on this device and on your Sonos speakers.";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1897,7 +1897,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PlayAction/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Play on Cue";
-				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Cue searches and plays Apple Music and your music library, on this device and on your Sonos speakers.";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1957,8 +1957,8 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
-				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Cue searches and plays Apple Music and your music library, on this device and on your Sonos speakers.";
-				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Cue finds your Sonos speakers and plays from your Plex, Subsonic and Audiobookshelf servers on this network.";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Live Transcription writes out what is said in the music and radio playing on this device, on the device itself.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -2027,8 +2027,8 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
-				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Cue searches and plays Apple Music and your music library, on this device and on your Sonos speakers.";
-				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Cue finds your Sonos speakers and plays from your Plex, Subsonic and Audiobookshelf servers on this network.";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Live Transcription writes out what is said in the music and radio playing on this device, on the device itself.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -2384,8 +2384,8 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
-				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Cue searches and plays Apple Music and your music library, on this device and on your Sonos speakers.";
-				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Cue finds your Sonos speakers and plays from your Plex, Subsonic and Audiobookshelf servers on this network.";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Live Transcription writes out what is said in the music and radio playing on this device, on the device itself.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -2438,8 +2438,8 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
-				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Cue searches and plays Apple Music and your music library, on this device and on your Sonos speakers.";
-				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Cue finds your Sonos speakers and plays from your Plex, Subsonic and Audiobookshelf servers on this network.";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Live Transcription writes out what is said in the music and radio playing on this device, on the device itself.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";

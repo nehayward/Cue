@@ -32,10 +32,9 @@ is in `Website/README.md`; this note is the to-do list.
   Store" becomes a download button everywhere, the header gets one, and the
   Smart App Banner turns on.
 - [ ] Add the release date to 2026.1 in `Website/src/content/releases.js`.
-- [x] Ship the app as **2026.1**. `Configuration/Version.xcconfig` says
-  2026.1, the version the site's release page has; the What's New banner asks
-  the site for the app's own version and stays hidden when the site doesn't
-  have it.
+- [ ] Ship the app as **2026.1**. `Configuration/Version.xcconfig` says
+  2026.8; the What's New banner asks the site for the app's own version and
+  stays hidden when the site doesn't have it.
 
 ## Screenshots wanted
 

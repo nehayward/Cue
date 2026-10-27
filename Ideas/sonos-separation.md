@@ -81,13 +81,9 @@ Measured at the start of this work:
   Done when: no target ships the bars artwork.
 
 - [ ] **Release notes for Beta 1** — `claude/beta1-release-notes`
-  Cue's section is now 2026.1 (`claude/release-prep`), and Clic's own 2026.1
-  in `ReleaseNotes.md` reads "2026.1 (Clic)". Left: move Clic's history
-  (2026.7 and older) to an archive file. Wait until the branches cut before
-  mid-October are merged or dropped: both files merge with `merge=union`,
-  and a merge test showed `claude/confident-carson-l5tfbv` and
-  `claude/port-play-on-clic-fht48n` putting Clic's 2026.7 changelog back,
-  with no conflict, once the history was cut.
+  `ReleaseNotes.md` and `Changelog.md` carry 63 versions of Clic's history
+  (back to 2023). Start a "Cue Beta 1" section and move the old history to
+  an archive file.
 
 - [ ] **Sonos Radio "not working"** — reported, not yet looked into. First find
   out which: the Sonos logo (`Image("Sonos Radio", bundle:
