@@ -149,9 +149,10 @@ final class DownloadManager {
         let artwork: URL?
         let createdAt: Date
         var trackKeys: [String]
-        /// Songs taken out of it since it came down whole, kept so it can
-        /// offer them again and take one back when it's downloaded again.
-        /// Nil when nothing was, and on manifests from before trimming.
+        /// Songs taken out of it since it came down whole, or that the free
+        /// limit kept from coming down, kept so it can offer them again and
+        /// take one back when it's downloaded again. Nil when nothing was,
+        /// and on manifests from before trimming.
         var removedKeys: [String]?
 
         var id: String { key }
@@ -726,6 +727,10 @@ final class DownloadManager {
         var updated = items
         var added: Set<String> = []
         var freeSlots = isBook ? nil : remainingFreeSlots
+        // The songs the free limit kept from coming down: the container is
+        // kept without them, as missing (`removedKeys`), so it lists and
+        // plays what's here and offers the rest again.
+        var heldBackKeys: [String] = []
         for track in downloadable {
             let key = Self.key(for: track)
             if var existing = updated[key] {
@@ -742,6 +747,7 @@ final class DownloadManager {
                 if let free = freeSlots {
                     guard free > 0 else {
                         result.heldBack += 1
+                        heldBackKeys.append(key)
                         continue
                     }
                     freeSlots = free - 1
@@ -756,7 +762,13 @@ final class DownloadManager {
         items = updated
         rejoinContainers(keys: added)
         admit()
-        if result.heldBack == 0 {
+        // Kept whenever any of it is here or coming, the songs the free
+        // limit held back as missing: a playlist cut short by the limit
+        // went unrecorded, its songs loose, and the Downloads tab didn't
+        // list it.
+        let held = Set(heldBackKeys)
+        let kept = downloadable.map { Self.key(for: $0) }.filter { !held.contains($0) }
+        if !kept.isEmpty {
             let key = containerKey
             containers[key] = Container(
                 key: key,
@@ -767,7 +779,8 @@ final class DownloadManager {
                 subtitle: container.metadata?.artist ?? container.subtitle,
                 artwork: container.thumbnail ?? container.artwork,
                 createdAt: containers[key]?.createdAt ?? .now,
-                trackKeys: downloadable.map { Self.key(for: $0) }
+                trackKeys: kept,
+                removedKeys: heldBackKeys.isEmpty ? nil : heldBackKeys
             )
         }
         scheduleSave()

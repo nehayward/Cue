@@ -26,7 +26,7 @@ struct ContainerDownloadButton: View {
                         Button {
                             downloadWhole()
                         } label: {
-                            Label(removed == 1 ? "Download 1 Removed Song" : "Download \(removed) Removed Songs", systemImage: "arrow.down.circle")
+                            Label(removed == 1 ? "Download 1 More Song" : "Download \(removed) More Songs", systemImage: "arrow.down.circle")
                         }
                     }
                     Button {

@@ -415,28 +415,26 @@ enum OnDeviceLibrary {
         return (artists, albums, searchSongs(query))
     }
 
-    /// The songs of one album, playlist or artist that are here. An album
-    /// or playlist opens on its page, as a server's does, filled from the
-    /// device (`MediaDetailView`); an artist as a list with a Play All. All
-    /// read live, so a download removed inside one leaves the screen too.
+    /// The songs of one album, playlist or artist that are here. Each opens
+    /// on its page, as a server's does, filled from the device: an album or
+    /// playlist on `MediaDetailView`, an artist on `ArtistDetailView` with
+    /// their songs and albums here. All read live, so a download removed
+    /// inside one leaves the screen too.
     static func destination(for group: Group) -> RouterDestination {
         let container = group.container
         if [.album, .playlist].contains(container.content.type) {
             return .mediaDetail(content: container, group: nil)
         }
-        return .playableList(
-            title: group.title,
-            playAllItem: container,
-            showSectionIndex: false,
-            loadingStatus: {
-                let count = tracks(inContainer: container)?.count ?? 0
-                return count == 0 ? nil : (count == 1 ? "1 song" : "\(count) songs")
-            },
-            changeToken: { changeToken },
-            action: { offset in
-                offset == 0 ? (tracks(inContainer: container) ?? []) : []
-            }
-        )
+        return .artistDetail(content: container, group: nil)
+    }
+
+    /// The albums here with a song of `artist` (an artist container minted
+    /// here) on them, by title: their own albums and those they're on.
+    static func albums(ofArtist artist: PlayableContent) -> [Group] {
+        let ids = Set((tracks(inContainer: artist) ?? []).map(\.id))
+        guard !ids.isEmpty else { return [] }
+        return groups(.albums, sortedBy: .title, descending: false)
+            .filter { album in album.tracks.contains { ids.contains($0.id) } }
     }
 
     // MARK: - Containers
