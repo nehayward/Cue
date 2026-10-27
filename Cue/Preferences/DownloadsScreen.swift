@@ -50,10 +50,11 @@ struct DownloadsScreen: View {
 
     /// Opens on the books rather than the songs.
     var opensOnBooks = false
-    /// Storage from Settings, the caches at the foot of its Settings tab
-    /// making it the place for everything that takes room here; Downloads
-    /// from the library, Home and Audiobooks.
-    var title: LocalizedStringKey = "Downloads"
+    /// Storage wherever it opens, the caches at the foot of its Settings
+    /// tab making it the place for everything that takes room here: the
+    /// Downloads tab is the music on this device, and a screen of the same
+    /// name inside it read as the tab again.
+    var title: LocalizedStringKey = "Storage"
 
     private var tab: Tab {
         picked ?? (opensOnBooks ? .books : .songs)

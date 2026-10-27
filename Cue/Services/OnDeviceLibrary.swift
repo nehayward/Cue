@@ -353,7 +353,10 @@ enum OnDeviceLibrary {
                   service == nil || playlist.service == service else { return nil }
             let tracks = playlist.trackKeys.compactMap { here[$0]?.playableContent }
             guard !tracks.isEmpty else { return nil }
-            let subtitle = playlist.subtitle.isEmpty ? (tracks.count == 1 ? "1 song" : "\(tracks.count) songs") : playlist.subtitle
+            // A playlist with no line of its own is named by its service in
+            // lists; its page has no line, as the server's page has none.
+            // Not the song count, which both already show.
+            let subtitle = playlist.subtitle.isEmpty ? playlist.service.title : playlist.subtitle
             return Group(
                 id: "playlist|\(playlist.key)",
                 title: playlist.title,
@@ -367,7 +370,7 @@ enum OnDeviceLibrary {
                     thumbnail: playlist.artwork,
                     artwork: playlist.artwork,
                     content: .init(service: playlist.service, id: containerID(.playlists, key: playlist.key), type: .playlist, location: nil),
-                    metadata: .init(artist: subtitle)
+                    metadata: .init(artist: playlist.subtitle.isEmpty ? nil : playlist.subtitle)
                 )
             )
         }

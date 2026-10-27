@@ -137,7 +137,7 @@ struct RouterDestinationView: View {
                 case .sonos: SonosSettingsScreen()
                 case .appearance: AppearanceSettingsScreen()
                 case .about: AboutSettingsScreen()
-                case .storage: DownloadsScreen(title: "Storage")
+                case .storage: DownloadsScreen()
                 }
             }
         }

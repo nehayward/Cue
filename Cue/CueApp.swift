@@ -1575,18 +1575,6 @@ private struct AdaptiveTabViewStyle: ViewModifier {
     }
 }
 
-
-/// The thin elapsed-time line under the mini player's track text. Units are
-/// the caller's (seconds on the device, milliseconds from a speaker) — only
-/// the ratio is drawn. A live stream reports no duration, so the line keeps
-/// its height but stays hidden rather than showing an empty track.
-///
-/// Drawn from a running estimate (`Room.estimatedPlaybackPosition()` for a
-/// speaker, `LocalPlaybackService.progress` for this device) through
-/// `PlaybackTimeline`, so it redraws once per pixel of progress and only
-/// while it's on screen, the scene is visible and playback is moving. It used
-/// to run its own clock on every frame of a `TimelineView` that kept going
-/// behind the Lock Screen, since the audio session keeps the app alive there.
 /// The Downloads tab's icon while songs or books come down: a ring that
 /// fills with the run, round the download arrow. A template image, tinted
 /// by the tab bar like a symbol, since the tab bar takes only a plain image
@@ -1631,6 +1619,17 @@ private enum DownloadRingIcon {
     }
 }
 
+/// The thin elapsed-time line under the mini player's track text. Units are
+/// the caller's (seconds on the device, milliseconds from a speaker) — only
+/// the ratio is drawn. A live stream reports no duration, so the line keeps
+/// its height but stays hidden rather than showing an empty track.
+///
+/// Drawn from a running estimate (`Room.estimatedPlaybackPosition()` for a
+/// speaker, `LocalPlaybackService.progress` for this device) through
+/// `PlaybackTimeline`, so it redraws once per pixel of progress and only
+/// while it's on screen, the scene is visible and playback is moving. It used
+/// to run its own clock on every frame of a `TimelineView` that kept going
+/// behind the Lock Screen, since the audio session keeps the app alive there.
 private struct MiniPlayerProgressLine: View {
     let duration: TimeInterval
     /// Whether the position is moving on its own right now.
