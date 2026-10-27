@@ -25,11 +25,17 @@ public enum OnDeviceCollection: Hashable, Sendable {
 /// What plays with no connection at all: the download manager's finished
 /// Plex and Subsonic songs, the Apple Music songs the Music app has
 /// downloaded, and the songs of the Files folder that are on this device
-/// rather than only in iCloud. While `OfflineMode` is active the Home tab
-/// browses just these — as Artists, Albums and Songs, the way a provider's
-/// library reads, grouped and searched here rather than on a server none
-/// of them can reach. Each provider's own Downloaded page reads the same
-/// library narrowed to that `service`.
+/// rather than only in iCloud. The Downloads tab browses these, as does
+/// the Home tab while `OfflineMode` is active — as Artists, Albums and
+/// Songs, the way a provider's library reads, grouped and searched here
+/// rather than on a server none of them can reach. Narrowed to one
+/// `service`, it's that provider's songs here (Apple Music's, from
+/// Settings ▸ Storage).
+///
+/// Cue's downloads are read from `DownloadManager.songsHere`, which moves
+/// only as songs land or go, not with every byte of progress; a view
+/// reading this library is redrawn through `changeToken`, or by reading
+/// `DownloadManager.musicSummary` itself.
 ///
 /// Album and artist containers minted here carry an `ondevice|` id that
 /// `LocalPlaybackService` and `QueueManager` recognise and expand back into
@@ -42,7 +48,7 @@ enum OnDeviceLibrary {
     /// player finds the file through the download manager, so these play
     /// with the server unreachable.
     static var downloadedSongs: [PlayableContent] {
-        DownloadManager.shared.completedSongs
+        DownloadManager.shared.songsHere
             .map(\.playableContent)
             .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
     }
@@ -79,8 +85,8 @@ enum OnDeviceLibrary {
         switch service {
         case .apple: appleSongs.isEmpty
         case .files: fileSongs.isEmpty
-        case .plex, .subsonic: !DownloadManager.shared.completedSongs.contains { $0.service == service }
-        case nil: DownloadManager.shared.completedSongs.isEmpty && appleSongs.isEmpty && fileSongs.isEmpty
+        case .plex, .subsonic: !DownloadManager.shared.songsHere.contains { $0.service == service }
+        case nil: DownloadManager.shared.songsHere.isEmpty && appleSongs.isEmpty && fileSongs.isEmpty
         default: true
         }
     }
@@ -90,7 +96,7 @@ enum OnDeviceLibrary {
     /// rebuilding — for the lists that took a snapshot to know to take
     /// another.
     static var changeToken: Int {
-        (DownloadManager.shared.completed.count &* 31 &+ FilesLibraryService.shared.indexVersion) &* 31
+        (DownloadManager.shared.musicSummary.revision &* 31 &+ FilesLibraryService.shared.indexVersion) &* 31
             &+ AppleDownloadsIndex.shared.version
     }
 
@@ -147,7 +153,7 @@ enum OnDeviceLibrary {
     private static var songs: [Song] {
         let apple = AppleDownloadsIndex.shared
         let places = albumPlaces
-        return DownloadManager.shared.completedSongs.map { Song(track: numbered($0, places: places), added: $0.createdAt) }
+        return DownloadManager.shared.songsHere.map { Song(track: numbered($0, places: places), added: $0.createdAt) }
             + appleSongs.map { Song(track: $0, added: apple.addedDate(for: $0) ?? .distantPast) }
             + fileSongs.map { Song(track: $0, added: .distantPast) }
     }
@@ -377,7 +383,7 @@ enum OnDeviceLibrary {
     }
 
     /// Every song on the device from one provider — or all of them for
-    /// nil — as one container, behind a Downloaded page's Play All.
+    /// nil — as one container, behind the Downloads tab's Play All.
     static func allSongsContainer(in service: MusicService?) -> PlayableContent {
         let first = songs(in: service).first?.track
         let artwork = first.flatMap { $0.thumbnail ?? $0.artwork }

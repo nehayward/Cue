@@ -7,7 +7,6 @@ enum AppleLibrarySection: String, Codable, CaseIterable {
     case artists
     case albums
     case songs
-    case downloaded
     case playlistFolders
     case playlists
     case recentlyPlayed
@@ -126,10 +125,27 @@ final class SectionConfigurationStore<SectionID: Codable & Hashable & CaseIterab
         // Try to load from UserDefaults, otherwise use default
         if let data = UserDefaults.standard.data(forKey: key),
            let decoded = try? JSONDecoder().decode(SectionConfiguration<SectionID>.self, from: data) {
-            self.configuration = Self.addingNewSections(to: decoded, defaults: defaultSections)
+            self.configuration = Self.addingNewSections(to: Self.droppingRetiredSections(from: decoded), defaults: defaultSections)
         } else {
             self.configuration = SectionConfiguration(defaultSections: defaultSections)
         }
+    }
+
+    /// A saved configuration without the sections the app no longer has
+    /// (Apple Music's Downloaded, now the Downloads tab), which the reorder
+    /// sheet would otherwise still list from the saved copy.
+    private static func droppingRetiredSections(from saved: SectionConfiguration<SectionID>) -> SectionConfiguration<SectionID> {
+        var configuration = saved
+        configuration.sections = saved.sections
+            .filter { SectionID(rawValue: $0.id) != nil }
+            .sorted { $0.order < $1.order }
+            .enumerated()
+            .map { index, item in
+                var item = item
+                item.order = index
+                return item
+            }
+        return configuration
     }
 
     /// A saved configuration with any section added since it was saved
@@ -148,9 +164,9 @@ final class SectionConfigurationStore<SectionID: Codable & Hashable & CaseIterab
         var configuration = saved
         var ordered = saved.sections.sorted { $0.order < $1.order }
         for item in missing {
-            // After the default that precedes it, so Downloaded lands under
-            // Songs the way it does for a fresh install; at the end when
-            // no earlier default is in the saved list.
+            // After the default that precedes it, so it lands where it
+            // does for a fresh install; at the end when no earlier default
+            // is in the saved list.
             let defaultIndex = defaults.firstIndex { $0.section == item.section } ?? 0
             let predecessors = defaults[..<defaultIndex].map { $0.section.rawValue }
             let insertAt = ordered.lastIndex { predecessors.contains($0.id) }.map { $0 + 1 } ?? ordered.count
@@ -187,7 +203,6 @@ final class SectionConfigurationStores {
             (.artists, "Artists", "Apple Music"),
             (.albums, "Albums", "Apple Music"),
             (.songs, "Songs", "Apple Music"),
-            (.downloaded, "Downloaded", "Apple Music"),
             (.playlistFolders, "Playlist Folders", "Apple Music"),
             (.playlists, "Playlists", "Apple Music"),
             (.recentlyPlayed, "Recently Played", "Apple Music"),

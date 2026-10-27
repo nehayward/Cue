@@ -35,8 +35,8 @@ public enum RouterDestination: Hashable, Identifiable {
     /// The same, open on the books downloaded whole.
     case bookDownloads
     /// What's on this device from one provider — or every provider for
-    /// nil — as a small library: Artists, Albums and Songs. A provider's
-    /// Downloaded row opens its own.
+    /// nil, the Downloads tab — as a small library: Artists, Albums and
+    /// Songs. Settings ▸ Storage opens Apple Music's.
     case downloaded(service: MusicService?)
     /// One grouped page of the on-device library: what's here by album or
     /// by artist, from one provider or — for Offline Mode — all of them.

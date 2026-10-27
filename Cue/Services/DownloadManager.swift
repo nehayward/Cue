@@ -259,6 +259,7 @@ final class DownloadManager {
         reconcileWithDisk()
         trimContainers()
         reattachSessionTasks()
+        refreshMusicSummary()
         pathMonitor.pathUpdateHandler = { [weak self] path in
             let network: Connectivity = path.status != .satisfied
                 ? .none
@@ -295,6 +296,60 @@ final class DownloadManager {
 
     var completedBytes: Int64 {
         completed.reduce(0) { $0 + ($1.fileSize ?? 0) }
+    }
+
+    // MARK: - Music here
+
+    /// The songs here and coming down at a glance, for what shows only
+    /// that: the Downloads tab, its badge and the on-device library's
+    /// lists. `items` changes several times a second while songs come
+    /// down; this changes only when one is queued, lands, stops or goes.
+    struct MusicSummary: Equatable {
+        /// Songs on the device.
+        var downloaded = 0
+        /// Songs queued, coming down, or waiting for a network they may use.
+        var remaining = 0
+        /// Every song in the run coming down now, landed or not: a run
+        /// starts when a song is queued with none coming down and ends
+        /// when the last lands. Zero between runs.
+        var runTotal = 0
+        /// Bumped whenever the songs on the device change, so a list over
+        /// them reads them again even when their count doesn't.
+        var revision = 0
+
+        var hasSongs: Bool { downloaded + remaining > 0 }
+        /// How many of the run have landed (or stopped, or gone).
+        var runSettled: Int { runTotal - remaining }
+    }
+
+    private(set) var musicSummary = MusicSummary()
+
+    /// The finished songs as of `musicSummary`, newest first: what the
+    /// on-device library reads, so a list over them isn't tied to every
+    /// byte of progress. Read `musicSummary` alongside to be redrawn when
+    /// it changes.
+    @ObservationIgnored private(set) var songsHere: [Item] = []
+
+    private func refreshMusicSummary() {
+        let songs = completedSongs
+        let remaining = items.values.filter { $0.isBookFile != true && $0.isActive }.count
+        var summary = musicSummary
+        if songs.map(\.key) != songsHere.map(\.key) {
+            summary.revision &+= 1
+        }
+        songsHere = songs
+        summary.downloaded = songs.count
+        // More queued grows the run by as many; songs landing leave its
+        // total as it was.
+        if remaining == 0 {
+            summary.runTotal = 0
+        } else {
+            summary.runTotal = max(musicSummary.runTotal, musicSummary.runSettled + remaining)
+        }
+        summary.remaining = remaining
+        if summary != musicSummary {
+            musicSummary = summary
+        }
     }
 
     var hasActiveDownloads: Bool {
@@ -1921,6 +1976,7 @@ final class DownloadManager {
                 guard let self else { return }
                 self.presenceRefreshPending = false
                 self.refreshContainerPresence()
+                self.refreshMusicSummary()
             }
         }
         saveTask?.cancel()

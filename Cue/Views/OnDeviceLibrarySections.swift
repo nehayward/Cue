@@ -4,8 +4,9 @@ import SwiftUI
 /// The on-device library as sections for a `List`: Play and Shuffle across
 /// everything here, then Artists, Albums and Songs, the way a provider's
 /// front page reads, each filtered to what's on the device and searchable
-/// without a network. Narrowed to one provider's songs on its Downloaded
-/// page; everything, whatever the provider, for Offline Mode.
+/// without a network. Everything, whatever the provider, in the Downloads
+/// tab and for Offline Mode; narrowed to one provider's songs from
+/// Settings ▸ Storage.
 ///
 /// Shows nothing when the library is empty — the screen around it says
 /// what to download.
@@ -19,8 +20,9 @@ struct OnDeviceLibrarySections: View {
 
     var body: some View {
         // Read here so a download finishing or an index rebuilding
-        // recounts the rows; the library itself is static.
-        let _ = downloads.completed.count
+        // recounts the rows; the library itself is static. The summary,
+        // not the downloads themselves, which move with every byte.
+        let _ = downloads.musicSummary
         let _ = apple.version
         let _ = files.indexVersion
         let songCount = OnDeviceLibrary.allSongs(in: service).count
@@ -99,8 +101,8 @@ struct OnDeviceLibrarySections: View {
     /// folder — so the counts above have a source.
     private var sourcesLine: String {
         let downloaded = service == nil
-            ? downloads.completedSongs.count
-            : downloads.completedSongs.filter { $0.service == service }.count
+            ? downloads.songsHere.count
+            : downloads.songsHere.filter { $0.service == service }.count
         let appleCount = service == nil || service == .apple ? OnDeviceLibrary.appleSongs.count : 0
         let fileCount = service == nil || service == .files ? OnDeviceLibrary.fileSongs.count : 0
 

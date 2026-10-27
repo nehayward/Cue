@@ -228,8 +228,8 @@ struct DownloadsScreen: View {
 
     /// The Music app's downloads, counted rather than listed: they're the
     /// system's, not the manager's — nothing here to pause, remove or count
-    /// against the free limit — and they're browsed as a library of their
-    /// own under Downloaded on the Apple Library page.
+    /// against the free limit — and they're browsed in the Downloads tab
+    /// with everything else here, or on their own from this row.
     private var appleSection: some View {
         Section {
             NavigationLink(value: RouterDestination.downloaded(service: .apple)) {

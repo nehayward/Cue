@@ -105,10 +105,6 @@ struct PlexBrowseScreen: View {
                         }
                     }
 
-                    NavigationLink(value: RouterDestination.downloaded(service: .plex)) {
-                        Label("Downloaded", systemImage: "arrow.down.circle")
-                    }
-
                     if hasAudiobooks ?? hadAudiobooks {
                         NavigationLink(value: RouterDestination.playableList(
                             title: "Audiobooks",

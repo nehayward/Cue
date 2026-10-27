@@ -22,7 +22,7 @@ struct OnDeviceCollectionScreen: View {
     var body: some View {
         // Read here so a download finishing or an index rebuilding re-runs
         // the grouping; the library itself is static.
-        _ = downloads.completed.count
+        _ = downloads.musicSummary
         _ = apple.version
         _ = files.indexVersion
         let groups = OnDeviceLibrary.groups(collection, matching: searchText, sortedBy: sort, descending: isDescending, in: service)

@@ -17,7 +17,7 @@ struct OfflineSections: View {
     var body: some View {
         // Read here so a download finishing or an index rebuilding
         // re-decides between the empty note and the library.
-        let _ = downloads.completed.count
+        let _ = downloads.musicSummary
         let _ = apple.version
         let _ = files.indexVersion
 

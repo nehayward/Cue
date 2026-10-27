@@ -20,6 +20,10 @@ enum AppTab: Hashable, Codable {
     /// partway through, and every book on Plex and Audiobookshelf. Shown
     /// while either has books.
     case audiobooks
+    /// The music on this device, every provider's, with what's still
+    /// coming down. Shown while there's any downloaded or on its way, and
+    /// badged with the songs still to come.
+    case downloads
     /// A provider the user added to the tab view, as one tab: its library's
     /// front page (Artists, Albums, … as rows). This is the tab bar's entry
     /// on iPhone, where a section's worth of tabs would overflow the bar.
@@ -32,7 +36,7 @@ enum AppTab: Hashable, Codable {
     /// take its selection with it.
     var provider: MediaSearchService? {
         switch self {
-        case .home, .search, .browse, .radio, .audiobooks: nil
+        case .home, .search, .browse, .radio, .audiobooks, .downloads: nil
         case let .provider(service): service
         case let .providerCollection(service, _): service
         }
@@ -105,7 +109,7 @@ enum AppTab: Hashable, Codable {
     func handleReselection(of tab: AppTab) {
         switch tab {
         case .search: SearchActivator.shared.requestFocus()
-        case .home, .browse, .radio, .audiobooks, .provider, .providerCollection: break
+        case .home, .browse, .radio, .audiobooks, .downloads, .provider, .providerCollection: break
         }
     }
 

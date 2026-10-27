@@ -395,6 +395,16 @@ struct CueApp: App {
             || hasFilesBooks
     }
 
+    /// Whether the Downloads tab has anything to show: songs Cue downloaded
+    /// or is downloading, or Apple Music songs the Music app keeps
+    /// downloaded. Read through the download manager's summary, which
+    /// moves as songs land rather than with every byte of progress, so the
+    /// tab bar isn't redrawn while they come down.
+    private var showsDownloadsTab: Bool {
+        DownloadManager.shared.musicSummary.hasSongs
+            || (coreFeatures.isEnabled(.apple) && !AppleDownloadsIndex.shared.songs.isEmpty)
+    }
+
     /// Search. The search role only on the phone, where it draws the tab as
     /// the bar's separate search bubble. Elsewhere the role exists to hoist
     /// a `.searchable` out of the tab, and `SearchScreen` draws its own
@@ -426,6 +436,19 @@ struct CueApp: App {
             Tab("Audiobooks", systemImage: "book", value: AppTab.audiobooks) {
                 Screens.audiobooks
             }
+        }
+    }
+
+    /// Downloads, last, while there's music here (`showsDownloadsTab`),
+    /// badged with the songs still coming down: the badge goes when the
+    /// last lands.
+    @TabContentBuilder<AppTab>
+    private var downloadsTab: some TabContent<AppTab> {
+        if showsDownloadsTab {
+            Tab("Downloads", systemImage: "arrow.down.circle", value: AppTab.downloads) {
+                Screens.downloads
+            }
+            .badge(DownloadManager.shared.musicSummary.remaining)
         }
     }
 
@@ -527,6 +550,9 @@ struct CueApp: App {
         if showsAudiobooksTab {
             tabs.insert(.audiobooks)
         }
+        if showsDownloadsTab {
+            tabs.insert(.downloads)
+        }
         if showsLibrarySections {
             tabs.insert(.home)
             for service in tabProviders {
@@ -584,6 +610,7 @@ struct CueApp: App {
                     searchTab
                     radioTab
                     audiobooksTab
+                    downloadsTab
                 } else {
                     Tab("Home", image: "home.fill", value: AppTab.home) {
                         Screens.home
@@ -594,6 +621,7 @@ struct CueApp: App {
                     }
                     radioTab
                     audiobooksTab
+                    downloadsTab
 
                     // The providers twice over, both driven by the switched-on
                     // set: once as tabs in one section, which is how the
