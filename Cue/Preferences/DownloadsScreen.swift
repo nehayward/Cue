@@ -40,9 +40,12 @@ struct DownloadsScreen: View {
     @State private var apple = AppleDownloadsIndex.shared
     @State private var files = FilesLibraryService.shared
     @State private var cloudSummary: (local: Int, remote: Int)?
+    /// The room left on the device, read as Storage opens.
+    @State private var freeBytes: Int64?
     @State private var isConfirmingClearCache = false
     @State private var isConfirmingRemoveAll = false
     @State private var isConfirmingRemoveAllBooks = false
+    @State private var isConfirmingRemoveAllContainers = false
 
     /// Nil for Storage itself; one of its pages otherwise.
     var page: StoragePage? = nil
@@ -91,10 +94,24 @@ struct DownloadsScreen: View {
         } message: {
             Text("They're taken off this device and stay on their servers, with your place in each kept. Songs stay.")
         }
+        .confirmationDialog(
+            removeAllContainersTitle,
+            isPresented: $isConfirmingRemoveAllContainers,
+            titleVisibility: .visible
+        ) {
+            Button(page == .playlists ? "Remove All Playlists" : "Remove All Albums", role: .destructive) {
+                for container in containers(on: page) {
+                    manager.removeContainer(key: container.key)
+                }
+            }
+        } message: {
+            Text("Their songs are taken off this device, except those another download still holds, and can be downloaded again.")
+        }
         .task {
             guard page == nil else { return }
             apple.refreshIfNeeded()
             files.startCloudMonitor()
+            freeBytes = Self.deviceFreeBytes()
             await refreshCloudSummary()
         }
         .onDisappear {
@@ -158,6 +175,19 @@ struct DownloadsScreen: View {
                     Label("Songs", systemImage: "ellipsis")
                 }
             }
+        case .albums where !containers(on: .albums).isEmpty, .playlists where !containers(on: .playlists).isEmpty:
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Button(role: .destructive) {
+                        isConfirmingRemoveAllContainers = true
+                    } label: {
+                        Label(page == .playlists ? "Remove All Playlists" : "Remove All Albums", systemImage: "trash")
+                    }
+                    .tint(.red)
+                } label: {
+                    Label(page == .playlists ? "Playlists" : "Albums", systemImage: "ellipsis")
+                }
+            }
         case .books where !downloadedBooks.isEmpty:
             ToolbarItem(placement: .primaryAction) {
                 Menu {
@@ -182,6 +212,18 @@ struct DownloadsScreen: View {
         manager.completedContainers.filter { $0.type == .audiobook }
     }
 
+    /// The albums or playlists downloaded whole, here or on their way.
+    private func containers(on page: StoragePage?) -> [DownloadManager.Container] {
+        guard let page, [.albums, .playlists].contains(page) else { return [] }
+        return manager.containers.values.filter { StoragePage.of($0) == page }
+    }
+
+    private var removeAllContainersTitle: String {
+        let count = containers(on: page).count
+        let noun = page == .playlists ? "playlist" : "album"
+        return count == 1 ? "Remove 1 downloaded \(noun)?" : "Remove all \(count) downloaded \(noun)s?"
+    }
+
     // MARK: - Storage
 
     /// The room taken, the free meter, a row for each kind of thing kept,
@@ -201,7 +243,7 @@ struct DownloadsScreen: View {
             StorageUsageBar.Part(name: "Playback Cache", bytes: cache.totalBytes, color: .gray),
         ].filter { $0.bytes > 0 }
 
-        if !parts.isEmpty {
+        if !parts.isEmpty || freeBytes != nil {
             usageSection(parts)
         }
 
@@ -275,8 +317,19 @@ struct DownloadsScreen: View {
                         .monospacedDigit()
                     Text("used by Cue")
                         .foregroundStyle(.secondary)
+                    Spacer(minLength: 8)
+                    // What's left for more, beside what Cue takes.
+                    if let freeBytes {
+                        Text("\(ByteCountFormatter.string(fromByteCount: freeBytes, countStyle: .file)) free")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
                 }
-                StorageUsageBar(parts: parts)
+                .lineLimit(1)
+                if !parts.isEmpty {
+                    StorageUsageBar(parts: parts)
+                }
                 // Each its name over its size, so three fit a phone's width
                 // without one wrapping.
                 HStack(alignment: .top, spacing: 18) {
@@ -501,6 +554,15 @@ struct DownloadsScreen: View {
         } else if downloading.isEmpty {
             emptySection("No Books", systemImage: "books.vertical", description: "Download a Plex or Audiobookshelf book from its page or its menu to listen with no network.")
         }
+    }
+
+    /// The room left on the device for things that matter to the person
+    /// using it (`volumeAvailableCapacityForImportantUsage`, what Settings ▸
+    /// General ▸ Storage reports), shown to them beside what Cue takes:
+    /// disk space reason 85F4.1 in the privacy manifest.
+    private static func deviceFreeBytes() -> Int64? {
+        let values = try? URL.documentsDirectory.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+        return values?.volumeAvailableCapacityForImportantUsage
     }
 
     /// A page with nothing on it, saying how things get there.
