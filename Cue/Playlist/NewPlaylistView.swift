@@ -113,7 +113,7 @@ struct NewPlaylistView: View {
         let alertService = AlertService.shared
         alertService.showAlertContent(with: playlist, subtitle: "Created Playlist", symbolName: "checkmark")
         alertService.alert.handleTap = {
-            Router.main.presentedSheet = .mediaDetail(content: playlist, group: nil)
+            MediaDetailPresenter.present(playlist)
         }
         LastPlaylist.save(playlist)
     }

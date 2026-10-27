@@ -107,7 +107,7 @@ enum PlaylistMenuCommands {
             AlertService.shared.showAlert(with: "No Library for a Playlist", imageName: "exclamationmark.triangle")
             return
         }
-        guard let top = topController() else { return }
+        guard let top = TopViewController.current else { return }
         // One at a time.
         if top is UIAlertController { return }
         // A sheet on its way down can't be presented over: wait for it.
@@ -140,17 +140,5 @@ enum PlaylistMenuCommands {
         alert.addAction(create)
         alert.preferredAction = create
         top.present(alert, animated: true)
-    }
-
-    /// The controller presented last in the active window, past any on its
-    /// way down.
-    private static func topController() -> UIViewController? {
-        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-        let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
-        var top = (scene?.keyWindow ?? scene?.windows.first)?.rootViewController
-        while let presented = top?.presentedViewController, !presented.isBeingDismissed {
-            top = presented
-        }
-        return top
     }
 }

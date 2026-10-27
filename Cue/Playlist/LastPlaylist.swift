@@ -85,7 +85,7 @@ struct LastPlaylist {
         }
         if let target {
             alertService.alert.handleTap = {
-                Router.main.presentedSheet = .mediaDetail(content: target, group: nil)
+                MediaDetailPresenter.present(target)
             }
         }
     }

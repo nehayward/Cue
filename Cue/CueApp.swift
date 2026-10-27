@@ -1900,7 +1900,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                                 alertService.showAlertContent(with: track, subtitle: "Added to \(playlist.title)", symbolName: "plus")
                                 LastPlaylist.save(playlist)
                                 alertService.alert.handleTap = {
-                                    Router.main.presentedSheet = .mediaDetail(content: playlist, group: nil)
+                                    MediaDetailPresenter.present(playlist)
                                 }
                             }
                         }

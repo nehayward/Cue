@@ -29,7 +29,7 @@ struct AddTracksToPlaylistMenu: View {
                     LastPlaylist.save(newPlaylist)
 
                     alertService.alert.handleTap = {
-                        Router.main.presentedSheet = .mediaDetail(content: newPlaylist, group: nil)
+                        MediaDetailPresenter.present(newPlaylist)
                     }
                 }
             } label: {
@@ -51,7 +51,7 @@ struct AddTracksToPlaylistMenu: View {
                         LastPlaylist.save(playlist)
 
                         alertService.alert.handleTap = {
-                            Router.main.presentedSheet = .mediaDetail(content: playlist, group: nil)
+                            MediaDetailPresenter.present(playlist)
                         }
                     }
                 }
