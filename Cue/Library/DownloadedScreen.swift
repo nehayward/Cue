@@ -51,7 +51,7 @@ struct DownloadedScreen: View {
             if managesDownloads {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
-                        router.navigate(to: .downloads)
+                        router.navigate(to: .downloadSettings)
                     } label: {
                         // A gear, as it's the downloads' settings: storage,
                         // cellular and the cache.

@@ -15,7 +15,7 @@ struct DownloadsScreen: View {
     /// screen is for, and it's what the Storage row's size describes. Albums
     /// and Playlists show while there are any of them; Books while there are
     /// books to download, or any downloaded.
-    private enum Tab: String, CaseIterable, Identifiable {
+    enum Tab: String, CaseIterable, Identifiable {
         case songs, albums, playlists, books, settings
 
         var id: Self { self }
@@ -49,8 +49,9 @@ struct DownloadsScreen: View {
     @State private var isConfirmingRemoveAllBooks = false
     @AppStorage(AppStorageKeys.hasPlexAudiobooks) private var hasPlexBooks = false
 
-    /// Opens on the books rather than the songs.
-    var opensOnBooks = false
+    /// The tab it opens on: the books from a book's Downloads, the settings
+    /// from the Downloads tab's gear.
+    var opensOn: Tab = .songs
     /// Storage wherever it opens, the caches at the foot of its Settings
     /// tab making it the place for everything that takes room here: the
     /// Downloads tab is the music on this device, and a screen of the same
@@ -58,7 +59,7 @@ struct DownloadsScreen: View {
     var title: LocalizedStringKey = "Storage"
 
     private var tab: Tab {
-        picked ?? (opensOnBooks ? .books : .songs)
+        picked ?? opensOn
     }
 
     var body: some View {
@@ -204,8 +205,6 @@ struct DownloadsScreen: View {
                         manager.remove(key: completed[index].key)
                     }
                 }
-            } header: {
-                Text("On This Device")
             } footer: {
                 let withLyrics = completed.filter { DownloadLyrics.shared.withLyrics.contains($0.key) }.count
                 Text("\(completed.count == 1 ? "1 song" : "\(completed.count) songs") • \(ByteCountFormatter.string(fromByteCount: completedBytes, countStyle: .file))\(withLyrics > 0 ? " • lyrics for \(withLyrics == completed.count ? "all" : "\(withLyrics)") offline" : ""). Kept until you remove them; not included in backups.")
@@ -287,8 +286,9 @@ struct DownloadsScreen: View {
         }
 
         if !downloaded.isEmpty {
+            // No header: what's here is the screen's subject.
             containersSection(downloaded) {
-                Text("On This Device")
+                EmptyView()
             } footer: {
                 Text("Swipe to remove every song of a \(noun) at once. The songs themselves are listed under Songs; remove one there and the rest stay here.")
             }
@@ -396,8 +396,6 @@ struct DownloadsScreen: View {
                         manager.removeContainer(key: downloaded[index].key)
                     }
                 }
-            } header: {
-                Text("On This Device")
             } footer: {
                 Text("\(downloaded.count == 1 ? "1 book" : "\(downloaded.count) books") • \(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)). Swipe to remove a book from this device; it stays on its server, and your place in it is kept.")
             }

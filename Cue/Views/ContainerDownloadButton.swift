@@ -146,6 +146,8 @@ struct OnDeviceDownloadButton: View {
                 } label: {
                     Label("Remove Download", systemImage: "trash")
                 }
+                // The icon too: a menu tints it with the app's colour.
+                .tint(.red)
             } label: {
                 Image(systemName: "arrow.down.circle.fill")
                     .frame(width: 24, height: 24)
@@ -180,6 +182,8 @@ struct OnDeviceRemoveActions: ViewModifier {
                     Button(role: .destructive, action: remove) {
                         Label("Remove Download", systemImage: "trash")
                     }
+                    // The icon too: a menu tints it with the app's colour.
+                    .tint(.red)
                 }
         } else {
             content
