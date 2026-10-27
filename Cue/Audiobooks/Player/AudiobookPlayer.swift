@@ -1002,9 +1002,12 @@ final class AudiobookPlayer {
     /// and once on a pause.
     private func syncServer(_ audiobook: Audiobook, part: Int, time: TimeInterval, playing: Bool, onSpeaker: Bool) {
         // Offline the server isn't asked, even with a network up (the
-        // listener's switch); what's heard meanwhile goes with the first
-        // sync after, counted from the last one made.
-        guard !OfflineMode.shared.isActive else { return }
+        // listener's switch). Audiobookshelf's listening is kept for it
+        // meanwhile, a local session a day sent once it answers again
+        // (`AudiobookshelfAPI.noteUnsentListening`); a place goes to either
+        // server when the book is next read (`AudiobookLibrary.sendNewerPlace`).
+        let offline = OfflineMode.shared.isActive
+        guard !offline || audiobook.book.content.service == .audiobookshelf else { return }
         let paused = wasPlaying && !playing
         guard paused || (playing && Date.now.timeIntervalSince(lastServerSync) >= Self.serverSyncInterval) else { return }
         // What was heard since the last sync, for the server's listening
@@ -1016,6 +1019,10 @@ final class AudiobookPlayer {
         case .audiobookshelf:
             let itemID = audiobook.book.content.id
             let duration = audiobook.duration
+            if offline {
+                AudiobookshelfAPI.noteUnsentListening(itemID: itemID, currentTime: time, timeListened: listened, duration: duration)
+                return
+            }
             Task {
                 await AudiobookshelfAPI.shared.sync(itemID: itemID, currentTime: time, timeListened: listened, duration: duration)
             }

@@ -97,6 +97,8 @@ final class AudiobookshelfBrowseService {
         failed = false
         libraries = all.filter(\.isBooks)
         podcastLibraries = all.filter(\.isPodcasts)
+        // What was heard while the server couldn't be told, now it can.
+        Task { await api.sendUnsentListening() }
         await loadShelves()
         hasLoaded = true
     }

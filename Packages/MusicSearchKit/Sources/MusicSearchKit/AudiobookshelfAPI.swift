@@ -119,6 +119,7 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
         Self.setTokens(nil)
         Self.forgetStoredLogin()
         Self.sessionCache.withLock { $0 = [:] }
+        Self.forgetUnsentListening()
         serverAddress = ""
         username = ""
         defaultLibraryID = nil
@@ -521,14 +522,21 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
     /// Tells the server where the book is and how much was heard since the
     /// last time. With no session open (or one the server has since
     /// dropped), the place is set directly instead, which keeps it but
-    /// counts nothing in the stats.
+    /// counts nothing in the stats: what was heard then goes as a local
+    /// session (`noteUnsentListening`), as it does when the server doesn't
+    /// answer at all.
     public func sync(itemID: String, currentTime: TimeInterval, timeListened: TimeInterval, duration: TimeInterval) async {
         if let sessionID = Self.sessionID(for: itemID) {
             let body: [String: Any] = ["currentTime": currentTime, "timeListened": timeListened, "duration": duration]
-            // No answer: the network, not the session. Kept for the next.
-            guard let (_, status) = await send("POST", "/api/session/\(sessionID)/sync", json: body) else { return }
+            // No answer: the network, not the session, which is kept for
+            // the next. What was heard waits for the server.
+            guard let (_, status) = await send("POST", "/api/session/\(sessionID)/sync", json: body) else {
+                Self.noteUnsentListening(itemID: itemID, currentTime: currentTime, timeListened: timeListened, duration: duration)
+                return
+            }
             if status == 200 {
                 Self.touchSession(for: itemID)
+                await sendUnsentListening()
                 return
             }
             // Gone on the server: a restart, or too long unheard.
@@ -536,7 +544,194 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
                 Self.rememberSession(nil, for: itemID)
             }
         }
-        await updateProgress(itemID: itemID, currentTime: currentTime, duration: duration, isFinished: false)
+        Self.noteUnsentListening(itemID: itemID, currentTime: currentTime, timeListened: timeListened, duration: duration)
+        if await updateProgress(itemID: itemID, currentTime: currentTime, duration: duration, isFinished: false) {
+            await sendUnsentListening()
+        }
+    }
+
+    // MARK: - Listening the server wasn't told of
+
+    /// Listening the server couldn't be told of as it happened — heard in
+    /// Offline Mode, with no network, or with no session open — kept as a
+    /// local session a book and day, the way the server's own apps keep
+    /// what's heard offline, and sent as one (`/api/session/local`) once
+    /// the server answers again. Its listening stats count them as any
+    /// other session; the place itself goes by the progress, as before.
+    struct LocalSession: Codable, Sendable, Equatable {
+        let id: String
+        /// The book's or the episode's `AudiobookshelfMediaKey`.
+        let itemID: String
+        /// Milliseconds since 1970.
+        var startedAt: Double
+        var updatedAt: Double
+        /// Book time, seconds.
+        var startTime: Double
+        var currentTime: Double
+        var timeListening: Double
+        var duration: Double
+        /// The day it was heard on, as the server's stats file it.
+        let date: String
+        let dayOfWeek: String
+    }
+
+    private static let unsentListening = OSAllocatedUnfairLock<[LocalSession]?>(initialState: nil)
+    private static let isSendingUnsent = OSAllocatedUnfairLock(initialState: false)
+
+    /// Keeps `timeListened` seconds heard in a book, ending at
+    /// `currentTime`, for the server to be told of later: added to the
+    /// book's local session for today, or one begun for it.
+    public static func noteUnsentListening(itemID: String, currentTime: TimeInterval, timeListened: TimeInterval, duration: TimeInterval, at now: Date = .now) {
+        guard timeListened > 0 else { return }
+        let day = dayKey(now)
+        let nowMS = now.timeIntervalSince1970 * 1000
+        unsentListening.withLock { cached in
+            var sessions = cached ?? readUnsentListening()
+            if let index = sessions.lastIndex(where: { $0.itemID == itemID && $0.date == day.date }) {
+                sessions[index].timeListening += timeListened
+                sessions[index].currentTime = currentTime
+                sessions[index].updatedAt = nowMS
+                sessions[index].duration = duration
+            } else {
+                sessions.append(LocalSession(
+                    id: UUID().uuidString.lowercased(),
+                    itemID: itemID,
+                    startedAt: nowMS - timeListened * 1000,
+                    updatedAt: nowMS,
+                    startTime: max(currentTime - timeListened, 0),
+                    currentTime: currentTime,
+                    timeListening: timeListened,
+                    duration: duration,
+                    date: day.date,
+                    dayOfWeek: day.weekday
+                ))
+            }
+            cached = sessions
+            writeUnsentListening(sessions)
+        }
+    }
+
+    /// Sends the listening kept for the server (`noteUnsentListening`), each
+    /// book's day as a local session. One the server takes, or turns away
+    /// for good (a book it no longer has), isn't sent again; with no answer
+    /// the rest wait for the next time.
+    public func sendUnsentListening() async {
+        guard Self.isSendingUnsent.withLock({ sending in
+            guard !sending else { return false }
+            sending = true
+            return true
+        }) else { return }
+        defer { Self.isSendingUnsent.withLock { $0 = false } }
+        // Taken out while they're sent, so listening noted meanwhile starts
+        // a session of its own rather than being lost with one sent.
+        let pending = Self.unsentListening.withLock { cached -> [LocalSession] in
+            let sessions = cached ?? Self.readUnsentListening()
+            cached = []
+            if !sessions.isEmpty { Self.writeUnsentListening([]) }
+            return sessions
+        }
+        guard !pending.isEmpty else { return }
+        var unsent: [LocalSession] = []
+        for (index, session) in pending.enumerated() {
+            guard let (_, status) = await send("POST", "/api/session/local", json: Self.body(of: session)) else {
+                unsent = Array(pending[index...])
+                break
+            }
+            if (200...299).contains(status) {
+                Self.log.info("sent \(Int(session.timeListening)) s heard offline in \(session.itemID, privacy: .public)")
+            } else {
+                Self.log.error("listening heard offline in \(session.itemID, privacy: .public) turned away (\(status))")
+            }
+        }
+        guard !unsent.isEmpty else { return }
+        Self.unsentListening.withLock { cached in
+            let sessions = unsent + (cached ?? [])
+            cached = sessions
+            Self.writeUnsentListening(sessions)
+        }
+    }
+
+    /// The listening waiting for the server, as kept.
+    static func pendingUnsentListening() -> [LocalSession] {
+        unsentListening.withLock { cached in
+            if cached == nil { cached = readUnsentListening() }
+            return cached ?? []
+        }
+    }
+
+    /// Forgets the listening waiting for the server, for a sign-out.
+    static func forgetUnsentListening() {
+        unsentListening.withLock { cached in
+            cached = []
+            writeUnsentListening([])
+        }
+    }
+
+    /// A local session as the server reads one.
+    static func body(of session: LocalSession) -> [String: Any] {
+        let key = AudiobookshelfMediaKey(session.itemID)
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+        var body: [String: Any] = [
+            "id": session.id,
+            "libraryItemId": key.itemID,
+            "mediaType": key.isEpisode ? "podcast" : "book",
+            "displayTitle": "",
+            "displayAuthor": "",
+            "duration": session.duration,
+            // A local file, the server's own apps' kind for this.
+            "playMethod": 3,
+            "mediaPlayer": "AVPlayer",
+            "deviceInfo": [
+                "deviceId": deviceID,
+                "clientName": clientName,
+                "clientVersion": version,
+                "manufacturer": "Apple"
+            ],
+            "startTime": session.startTime,
+            "currentTime": session.currentTime,
+            "timeListening": session.timeListening,
+            "startedAt": session.startedAt,
+            "updatedAt": session.updatedAt,
+            "date": session.date,
+            "dayOfWeek": session.dayOfWeek
+        ]
+        if let episodeID = key.episodeID {
+            body["episodeId"] = episodeID
+        }
+        return body
+    }
+
+    /// The day as the server's stats file it: "2026-10-27", "Tuesday".
+    static func dayKey(_ date: Date) -> (date: String, weekday: String) {
+        let calendar = Calendar(identifier: .gregorian)
+        let parts = calendar.dateComponents([.year, .month, .day, .weekday], from: date)
+        let day = String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+        let names = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+        let weekday = names.indices.contains((parts.weekday ?? 1) - 1) ? names[(parts.weekday ?? 1) - 1] : "Sunday"
+        return (day, weekday)
+    }
+
+    private static var unsentListeningURL: URL? {
+        guard let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return nil }
+        try? FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
+        return support.appendingPathComponent("AudiobookshelfUnsentListening.json")
+    }
+
+    /// In a file of its own, not the defaults: it's written every sync
+    /// while offline, and in Cue every defaults write redraws every view
+    /// holding an `@AppStorage`.
+    private static func readUnsentListening() -> [LocalSession] {
+        guard let url = unsentListeningURL, let data = try? Data(contentsOf: url) else { return [] }
+        return (try? JSONDecoder().decode([LocalSession].self, from: data)) ?? []
+    }
+
+    private static func writeUnsentListening(_ sessions: [LocalSession]) {
+        guard let url = unsentListeningURL else { return }
+        if sessions.isEmpty {
+            try? FileManager.default.removeItem(at: url)
+        } else if let data = try? JSONEncoder().encode(sessions) {
+            try? data.write(to: url, options: .atomic)
+        }
     }
 
     /// Ends the book's session, with a last word on where it got to.
