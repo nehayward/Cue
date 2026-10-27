@@ -8,8 +8,10 @@ struct BookRoute: Hashable {
     let key: String
 }
 
-/// A book on the watch: how far in and what's left, Resume (or Play) with
-/// the skips either side, its speed and chapters, and taking it off. It
+/// A book on the watch: how far in and what's left (the chapter's while
+/// it's in one, moved with the Digital Crown from a tap while it's loaded),
+/// Resume (or Play) with the skips either side, its speed and chapters,
+/// and taking it off. It
 /// reads the book again from its server as it opens, so a place another
 /// player has moved it to since shows here (`WatchDownloadStore.refresh`).
 struct BookScreen: View {
@@ -21,6 +23,7 @@ struct BookScreen: View {
 
     @State private var isChoosingSpeed = false
     @State private var isChoosingSleep = false
+    @State private var isScrubbing = false
 
     var body: some View {
         if let pick = store.picks.pick(key: key) {
@@ -41,6 +44,9 @@ struct BookScreen: View {
                         player.setSleepTimer(timer)
                     }
                 }
+                .sheet(isPresented: $isScrubbing) {
+                    ChapterScrubScreen(key: key)
+                }
         } else {
             Text("Removed from this watch")
                 .foregroundStyle(.secondary)
@@ -57,19 +63,28 @@ struct BookScreen: View {
         let chapters = books.chapters(for: key)
         let chapter = chapters.chapter(at: position)
         let isStarted = isLoaded || progress?.isStarted == true || progress?.isFinished == true
+        let isFinished = !isLoaded && progress?.isFinished == true
         return List {
             Section {
                 header(pick, chapter: chapter)
                     .frame(maxWidth: .infinity)
                     .listRowBackground(Color.clear)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    ProgressView(value: fraction(position: position, duration: duration, finished: !isLoaded && progress?.isFinished == true))
-                        .tint(.accentColor)
-                    Text(statusText(isLoaded: isLoaded, progress: progress, position: position, duration: duration))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
+                // While it's the book loaded, a tap moves it with the
+                // Digital Crown.
+                Group {
+                    let place = BookPlaceSummary(chapters: chapters, duration: duration, isLoaded: isLoaded, progress: progress)
+                    if isLoaded {
+                        Button {
+                            isScrubbing = true
+                        } label: {
+                            place
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Move in the chapter with the Digital Crown")
+                    } else {
+                        place
+                    }
                 }
                 .listRowBackground(Color.clear)
 
@@ -109,14 +124,13 @@ struct BookScreen: View {
                         Button {
                             play(pick, from: item.start)
                         } label: {
-                            VStack(alignment: .leading) {
-                                Text(item.title)
-                                    .lineLimit(2)
-                                    .foregroundStyle(item.id == chapter?.id ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
-                                Text(WatchBookFormat.length(item.duration))
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                            }
+                            BookChapterRow(
+                                chapter: item,
+                                isHere: isStarted && !isFinished && item.id == chapter?.id,
+                                isDone: isFinished || chapter.map { item.start < $0.start } == true,
+                                isLoaded: isLoaded,
+                                keptPosition: position
+                            )
                         }
                         .disabled(!player.canPlayBook(pick, from: item.start))
                     }
@@ -211,22 +225,6 @@ struct BookScreen: View {
         if !player.playBook(pick, from: time) {
             WKInterfaceDevice.current().play(.failure)
         }
-    }
-
-    private func fraction(position: TimeInterval, duration: TimeInterval, finished: Bool) -> Double {
-        if finished { return 1 }
-        guard duration > 0 else { return 0 }
-        return min(max(position / duration, 0), 1)
-    }
-
-    private func statusText(isLoaded: Bool, progress: AudiobookProgress?, position: TimeInterval, duration: TimeInterval) -> String {
-        guard isLoaded else {
-            let status = WatchBookFormat.status(progress, duration: duration)
-            guard progress?.isStarted != true, progress?.isFinished != true else { return status }
-            return status.isEmpty ? "Not started" : "\(status) • Not started"
-        }
-        let left = max(duration - position, 0)
-        return left < 60 ? "Under a minute left" : "\(WatchBookFormat.length(left)) left"
     }
 
     @ViewBuilder

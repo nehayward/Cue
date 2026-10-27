@@ -320,6 +320,19 @@ final class WatchPlayer {
         return WatchBookStore.shared.chapters(for: book.key).chapter(at: bookPosition)
     }
 
+    /// Where the book is this moment, for a clock drawn on screen: read off
+    /// the player while it plays (`bookPosition` is kept only every few
+    /// seconds), the place kept while it doesn't.
+    var livePosition: TimeInterval {
+        guard book != nil else { return 0 }
+        return isPlaying ? currentBookTime : bookPosition
+    }
+
+    /// How long the book loaded runs; zero with none.
+    var bookDuration: TimeInterval {
+        timeline?.duration ?? 0
+    }
+
     /// Where the book is now, in book time: where a load is on its way to
     /// until it gets there.
     private var currentBookTime: TimeInterval {

@@ -9,6 +9,17 @@ enum WatchBookFormat {
         return Duration.seconds(seconds).formatted(.units(allowed: [.hours, .minutes], width: .abbreviated))
     }
 
+    /// A place on a clock: "4:05", "1:02:03".
+    static func clock(_ seconds: TimeInterval) -> String {
+        let seconds = max(seconds, 0)
+        return Duration.seconds(seconds.rounded(.down)).formatted(.time(pattern: seconds >= 3600 ? .hourMinuteSecond : .minuteSecond))
+    }
+
+    /// What's left: "12 min left", "Under a minute left".
+    static func left(_ seconds: TimeInterval) -> String {
+        seconds < 60 ? "Under a minute left" : "\(length(seconds)) left"
+    }
+
     /// What's left of a book, or that it's finished; its length when it
     /// hasn't been started.
     static func status(_ progress: AudiobookProgress?, duration: TimeInterval) -> String {
@@ -16,8 +27,7 @@ enum WatchBookFormat {
             return "Finished"
         }
         if let progress, progress.isStarted {
-            let left = max((progress.duration > 0 ? progress.duration : duration) - progress.position, 0)
-            return left < 60 ? "Under a minute left" : "\(length(left)) left"
+            return left(max((progress.duration > 0 ? progress.duration : duration) - progress.position, 0))
         }
         return duration > 0 ? length(duration) : ""
     }
