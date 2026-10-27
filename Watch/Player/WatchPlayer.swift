@@ -314,6 +314,34 @@ final class WatchPlayer {
         updateNowPlaying()
     }
 
+    /// Where it is, for the player's bar: the time into the chapter (the
+    /// book, without chapters) or the song, against its length, with the
+    /// chapter. Read off the player as the screen draws, which it does
+    /// again with every kept place and every play or pause; the bar runs
+    /// on by itself between.
+    var progress: (elapsed: TimeInterval, duration: TimeInterval, chapter: AudiobookChapter?)? {
+        if let book, let timeline {
+            // Put back paused, nothing's in the player yet: the place kept.
+            let time = player.currentItem == nil && pendingOffset == nil ? bookPosition : currentBookTime
+            if let chapter = WatchBookStore.shared.chapters(for: book.key).chapter(at: time) {
+                return (min(max(time - chapter.start, 0), chapter.duration), chapter.duration, chapter)
+            }
+            return (time, timeline.duration, nil)
+        }
+        guard let duration = current?.duration, duration > 0 else { return nil }
+        let time = pendingOffset ?? player.currentTime().seconds
+        return (time.isFinite ? min(max(time, 0), duration) : 0, duration, nil)
+    }
+
+    /// Pauses for the book to go on somewhere else (the iPhone), its place
+    /// kept now rather than as the pause is heard, so it goes along.
+    func pauseKeepingPlace() {
+        if isPlaying, book != nil, pendingOffset == nil {
+            notePlace(tellPhoneNow: true)
+        }
+        pause()
+    }
+
     /// The chapter playing, when the book has chapters.
     var currentChapter: AudiobookChapter? {
         guard let book else { return nil }

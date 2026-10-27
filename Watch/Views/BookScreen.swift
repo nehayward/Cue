@@ -16,11 +16,13 @@ struct BookScreen: View {
     @Environment(WatchDownloadStore.self) private var store
     @Environment(WatchPlayer.self) private var player
     @Environment(WatchBookStore.self) private var books
+    @Environment(PhoneNowPlaying.self) private var phone
     @Environment(\.dismiss) private var dismiss
     let key: String
 
     @State private var isChoosingSpeed = false
     @State private var isChoosingSleep = false
+    @State private var playRequest: PlayRequest?
 
     var body: some View {
         if let pick = store.picks.pick(key: key) {
@@ -35,10 +37,11 @@ struct BookScreen: View {
                         player.setRate(rate, for: pick)
                     }
                 }
+                .askingWhereToPlay($playRequest)
                 .sheet(isPresented: $isChoosingSleep) {
-                    SleepTimerPicker(current: player.sleepTimer) { timer in
+                    SleepTimerPicker(endTitle: "End of Chapter", isOff: player.sleepTimer == nil, isEnd: player.sleepTimer == .endOfChapter) { sleep in
                         isChoosingSleep = false
-                        player.setSleepTimer(timer)
+                        player.setSleepTimer(WatchPlayer.SleepTimer(sleep))
                     }
                 }
         } else {
@@ -89,7 +92,7 @@ struct BookScreen: View {
                         isChoosingSleep = true
                     } label: {
                         LabeledContent("Sleep Timer") {
-                            SleepTimerValue(timer: player.sleepTimer)
+                            SleepTimerValue(timer: player.sleepTimer, endTitle: "End of Chapter")
                         }
                     }
                 }
@@ -99,7 +102,7 @@ struct BookScreen: View {
                     } label: {
                         Label("Play from Start", systemImage: "backward.end.fill")
                     }
-                    .disabled(!player.canPlayBook(pick, from: 0))
+                    .disabled(!canPlay(pick, from: 0))
                 }
             }
 
@@ -107,6 +110,7 @@ struct BookScreen: View {
                 Section {
                     ForEach(chapters) { item in
                         Button {
+                            WKInterfaceDevice.current().play(.click)
                             play(pick, from: item.start)
                         } label: {
                             VStack(alignment: .leading) {
@@ -118,7 +122,8 @@ struct BookScreen: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
-                        .disabled(!player.canPlayBook(pick, from: item.start))
+                        .disabled(!canPlay(pick, from: item.start))
+                        .listRowBackground(item.id == chapter?.id ? chapterFill(item, position: position, isLoaded: isLoaded) : nil)
                     }
                 } header: {
                     Text("Chapters")
@@ -182,8 +187,8 @@ struct BookScreen: View {
             .accessibilityLabel("Back 15 Seconds")
             .disabled(!isLoaded)
             Button {
-                if isLoaded {
-                    player.togglePlayPause()
+                if isPlaying {
+                    player.pause()
                 } else {
                     play(pick, from: nil)
                 }
@@ -193,8 +198,9 @@ struct BookScreen: View {
             }
             .accessibilityLabel(isPlaying ? "Pause" : isStarted ? "Resume" : "Play")
             .primaryHandGesture()
-            // Its place in a part not on the watch yet: nothing to play.
-            .disabled(!isPlaying && !player.canPlayBook(pick))
+            // Its place in a part not on the watch yet: nothing to play,
+            // unless the iPhone plays it.
+            .disabled(!isPlaying && !canPlay(pick, from: nil))
             Button {
                 player.skip(by: WatchPlayer.skipAhead)
             } label: {
@@ -207,10 +213,28 @@ struct BookScreen: View {
         .buttonStyle(.bordered)
     }
 
+    /// The chapter the book's at, filled as far as it's been heard: running
+    /// while it plays here.
+    private func chapterFill(_ chapter: AudiobookChapter, position: TimeInterval, isLoaded: Bool) -> ChapterRowFill {
+        let elapsed = isLoaded ? player.progress?.elapsed ?? position - chapter.start : position - chapter.start
+        return ChapterRowFill(clock: PlayerClock(
+            elapsed: elapsed,
+            duration: chapter.duration,
+            at: .now,
+            rate: player.rate,
+            isPlaying: isLoaded && player.isPlaying
+        ))
+    }
+
+    /// Plays here, or where it's asked with the iPhone in reach.
     private func play(_ pick: WatchPick, from time: TimeInterval?) {
-        if !player.playBook(pick, from: time) {
-            WKInterfaceDevice.current().play(.failure)
-        }
+        playRequest = BookPlayback.play(pick, from: time)
+    }
+
+    /// The part it plays from is on the watch, or the iPhone's there to
+    /// play it.
+    private func canPlay(_ pick: WatchPick, from time: TimeInterval?) -> Bool {
+        player.canPlayBook(pick, from: time) || phone.isPhoneInReach
     }
 
     private func fraction(position: TimeInterval, duration: TimeInterval, finished: Bool) -> Double {
@@ -245,85 +269,6 @@ struct BookScreen: View {
                 : "\(here) of \(files.count) files on this watch. Fast Download gets the rest here sooner.")
         } else {
             Text("\(WatchDownloadStore.countText(files.count, files: true)) • \(ByteCountFormatter.string(fromByteCount: store.bytesUsed(by: files), countStyle: .file))")
-        }
-    }
-}
-
-/// A book's speed, as on the iPhone.
-struct SpeedPicker: View {
-    let current: Double
-    let choose: (Double) -> Void
-
-    var body: some View {
-        NavigationStack {
-            List {
-                ForEach(WatchBookStore.rateChoices, id: \.self) { rate in
-                    Button {
-                        choose(rate)
-                    } label: {
-                        HStack {
-                            Text(WatchBookFormat.rate(rate))
-                            Spacer(minLength: 0)
-                            if rate == current {
-                                Image(systemName: "checkmark")
-                                    .foregroundStyle(.tint)
-                            }
-                        }
-                    }
-                }
-            }
-            .navigationTitle("Speed")
-        }
-    }
-}
-
-/// How long the sleep timer has left, counting down, or End of Chapter.
-private struct SleepTimerValue: View {
-    let timer: WatchPlayer.SleepTimer?
-
-    var body: some View {
-        switch timer {
-        case let .at(date):
-            Text(date, style: .timer)
-                .monospacedDigit()
-        case .endOfChapter:
-            Text("End of Chapter")
-        case nil:
-            Text("Off")
-        }
-    }
-}
-
-/// The sleep timer's choices: off, the end of the chapter, or a while.
-struct SleepTimerPicker: View {
-    let current: WatchPlayer.SleepTimer?
-    let choose: (WatchPlayer.SleepTimer?) -> Void
-
-    var body: some View {
-        NavigationStack {
-            List {
-                row("Off", isOn: current == nil) { choose(nil) }
-                row("End of Chapter", isOn: current == .endOfChapter) { choose(.endOfChapter) }
-                ForEach(WatchPlayer.sleepChoices, id: \.self) { minutes in
-                    row("\(minutes) min", isOn: false) {
-                        choose(.at(.now.addingTimeInterval(TimeInterval(minutes * 60))))
-                    }
-                }
-            }
-            .navigationTitle("Sleep Timer")
-        }
-    }
-
-    private func row(_ title: String, isOn: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack {
-                Text(title)
-                Spacer(minLength: 0)
-                if isOn {
-                    Image(systemName: "checkmark")
-                        .foregroundStyle(.tint)
-                }
-            }
         }
     }
 }

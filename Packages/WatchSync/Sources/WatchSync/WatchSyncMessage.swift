@@ -18,9 +18,16 @@ import Foundation
 /// iPhone plays (`nowPlayingRequest`) or to play, pause or skip it
 /// (`commandRequest`), answered with what it plays then; and asking for the
 /// queue it plays from (`queueRequest`, answered with `queueMessage`) or to
-/// play a song in it (`playQueueRequest`, answered as a press is). While the
-/// watch app is open the iPhone also sends what it plays unasked, as it
-/// changes (`nowPlayingMessage`).
+/// play a song in it (`playQueueRequest`, answered as a press is); for the
+/// chapters of the book it plays (`chaptersRequest`, answered with
+/// `chaptersMessage`), to play one (`playChapterRequest`), to set its sleep
+/// timer (`sleepTimerRequest`) or a book's speed (`speedRequest`), to play
+/// one of the watch's books there (`playBookRequest`) or an album, playlist,
+/// artist or song from its library (`playItemRequest`), or to move what it
+/// plays to another route (`switchRouteRequest`), each answered with what it
+/// plays then; and for the routes there are (`routesRequest`, answered with
+/// `routesMessage`). While the watch app is open the iPhone also
+/// sends what it plays unasked, as it changes (`nowPlayingMessage`).
 public enum WatchSyncMessage {
     public static let picksKey = "picks"
     public static let placesKey = "places"
@@ -32,6 +39,18 @@ public enum WatchSyncMessage {
     public static let positionKey = "position"
     public static let allowanceKey = "allowance"
     public static let heldKey = "held"
+    public static let chaptersKey = "chapters"
+    public static let chapterKey = "chapter"
+    public static let sleepKey = "sleep"
+    public static let rateKey = "rate"
+    public static let pickKey = "pick"
+    public static let placeKey = "place"
+    public static let targetKey = "target"
+    public static let timeKey = "time"
+    public static let routesKey = "routes"
+    public static let routeKey = "route"
+    public static let songKey = "song"
+    public static let shuffleKey = "shuffle"
 
     public static func context(
         picks: WatchPicks,
@@ -178,6 +197,150 @@ public enum WatchSyncMessage {
     public static func queue(in message: [String: Any]) -> WatchPhoneQueue? {
         guard let data = message[queueKey] as? Data else { return nil }
         return try? JSONDecoder().decode(WatchPhoneQueue.self, from: data)
+    }
+
+    // MARK: - The iPhone's book
+
+    /// The watch asking for the chapters of the book the iPhone plays.
+    public static var chaptersRequest: [String: Any] { [requestKey: "chapters"] }
+
+    public static func isChaptersRequest(_ message: [String: Any]) -> Bool {
+        message[requestKey] as? String == "chapters"
+    }
+
+    /// The chapters, none for a book without (or nothing playing): the
+    /// answer to `chaptersRequest`.
+    public static func chaptersMessage(_ chapters: WatchPhoneChapters) throws -> [String: Any] {
+        [chaptersKey: try JSONEncoder().encode(chapters)]
+    }
+
+    /// The chapters a message carries; nil for any other message.
+    public static func chapters(in message: [String: Any]) -> WatchPhoneChapters? {
+        guard let data = message[chaptersKey] as? Data else { return nil }
+        return try? JSONDecoder().decode(WatchPhoneChapters.self, from: data)
+    }
+
+    /// The watch asking the iPhone to play its book from a chapter's start
+    /// (`WatchPhoneChapters.Chapter.id`).
+    public static func playChapterRequest(_ id: Int) -> [String: Any] {
+        [requestKey: "playChapter", chapterKey: id]
+    }
+
+    /// The chapter a request asks the iPhone to play, nil for any other
+    /// message.
+    public static func chapterToPlay(in message: [String: Any]) -> Int? {
+        guard message[requestKey] as? String == "playChapter", let id = message[chapterKey] as? Int, id >= 0 else { return nil }
+        return id
+    }
+
+    /// The watch setting the sleep timer of what the iPhone plays.
+    public static func sleepTimerRequest(_ sleep: WatchPhoneSleep) -> [String: Any] {
+        [requestKey: "sleepTimer", sleepKey: (try? JSONEncoder().encode(sleep)) ?? Data()]
+    }
+
+    /// The sleep timer a request asks for, nil for any other message.
+    public static func sleepTimer(in message: [String: Any]) -> WatchPhoneSleep? {
+        guard message[requestKey] as? String == "sleepTimer", let data = message[sleepKey] as? Data else { return nil }
+        return try? JSONDecoder().decode(WatchPhoneSleep.self, from: data)
+    }
+
+    /// The watch setting the speed of the book the iPhone plays.
+    public static func speedRequest(_ rate: Double) -> [String: Any] {
+        [requestKey: "speed", rateKey: rate]
+    }
+
+    /// The speed a request asks for, nil for any other message.
+    public static func speed(in message: [String: Any]) -> Double? {
+        guard message[requestKey] as? String == "speed", let rate = message[rateKey] as? Double, rate > 0 else { return nil }
+        return rate
+    }
+
+    /// The watch asking the iPhone to play one of its books, on `target`:
+    /// from `time` (book time), or from its place — the watch's, `place`,
+    /// when that's newer than the iPhone's.
+    public static func playBookRequest(_ pick: WatchPick, place: WatchBookPlace?, from time: Double? = nil, on target: WatchPhoneTarget) throws -> [String: Any] {
+        var request: [String: Any] = [
+            requestKey: "playBook",
+            pickKey: try JSONEncoder().encode(pick),
+            targetKey: target.key,
+        ]
+        if let place {
+            request[placeKey] = try JSONEncoder().encode(place)
+        }
+        if let time {
+            request[timeKey] = time
+        }
+        return request
+    }
+
+    /// What a request asks the iPhone to play; nil for any other message.
+    public static func bookToPlay(in message: [String: Any]) -> (pick: WatchPick, place: WatchBookPlace?, time: Double?, target: WatchPhoneTarget)? {
+        guard message[requestKey] as? String == "playBook",
+              let data = message[pickKey] as? Data,
+              let pick = try? JSONDecoder().decode(WatchPick.self, from: data) else { return nil }
+        let place = (message[placeKey] as? Data).flatMap { try? JSONDecoder().decode(WatchBookPlace.self, from: $0) }
+        let target = (message[targetKey] as? String).flatMap(WatchPhoneTarget.init(key:)) ?? .route
+        return (pick, place, message[timeKey] as? Double, target)
+    }
+
+    // MARK: - The iPhone playing the watch's music
+
+    /// The watch asking the iPhone to play an album, playlist, artist or
+    /// song from its library, on `target`: from the song `songID` in it
+    /// (the id its server gives it), or shuffled.
+    public static func playItemRequest(_ pick: WatchPick, from songID: String? = nil, shuffled: Bool = false, on target: WatchPhoneTarget) throws -> [String: Any] {
+        var request: [String: Any] = [
+            requestKey: "playItem",
+            pickKey: try JSONEncoder().encode(pick),
+            targetKey: target.key,
+            shuffleKey: shuffled,
+        ]
+        if let songID {
+            request[songKey] = songID
+        }
+        return request
+    }
+
+    /// What a request asks the iPhone to play; nil for any other message.
+    public static func itemToPlay(in message: [String: Any]) -> (pick: WatchPick, songID: String?, shuffled: Bool, target: WatchPhoneTarget)? {
+        guard message[requestKey] as? String == "playItem",
+              let data = message[pickKey] as? Data,
+              let pick = try? JSONDecoder().decode(WatchPick.self, from: data) else { return nil }
+        let target = (message[targetKey] as? String).flatMap(WatchPhoneTarget.init(key:)) ?? .route
+        return (pick, message[songKey] as? String, message[shuffleKey] as? Bool ?? false, target)
+    }
+
+    // MARK: - Where the iPhone plays
+
+    /// The watch asking where the iPhone can play.
+    public static var routesRequest: [String: Any] { [requestKey: "routes"] }
+
+    public static func isRoutesRequest(_ message: [String: Any]) -> Bool {
+        message[requestKey] as? String == "routes"
+    }
+
+    /// The routes: the answer to `routesRequest`.
+    public static func routesMessage(_ routes: WatchPhoneRoutes) throws -> [String: Any] {
+        [routesKey: try JSONEncoder().encode(routes)]
+    }
+
+    /// The routes a message carries; nil for any other message.
+    public static func routes(in message: [String: Any]) -> WatchPhoneRoutes? {
+        guard let data = message[routesKey] as? Data else { return nil }
+        return try? JSONDecoder().decode(WatchPhoneRoutes.self, from: data)
+    }
+
+    /// The watch moving what the iPhone plays to another of its routes
+    /// (`WatchPhoneRoutes.Route.id`), as its Play On does.
+    public static func switchRouteRequest(to id: String) -> [String: Any] {
+        [requestKey: "switchRoute", routeKey: id]
+    }
+
+    /// The route a request asks the iPhone to move to, nil for any other
+    /// message.
+    public static func routeToSwitch(in message: [String: Any]) -> String? {
+        guard message[requestKey] as? String == "switchRoute", let id = message[routeKey] as? String, !id.isEmpty else { return nil }
+        return id
     }
 
     // MARK: - Packing
