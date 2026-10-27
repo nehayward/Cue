@@ -45,6 +45,10 @@ struct RouterDestinationView: View {
                 AudiobookshelfPodcastsScreen()
             case let .audiobookshelfPodcast(podcast):
                 AudiobookshelfPodcastScreen(podcast: podcast)
+            case .podcasts:
+                PodcastsScreen()
+            case let .podcastFeed(id):
+                PodcastFeedScreen(feedID: id)
             case let .createScene(content):
                 NavigationStack {
                     SceneBuilderScreen(contentToAdd: ContentToAdd(add: true, content: content))

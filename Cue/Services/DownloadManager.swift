@@ -438,7 +438,7 @@ final class DownloadManager {
     /// fetch (the same fetch feeds the download).
     func canDownload(contentsOf container: PlayableContent) -> Bool {
         if container.content.type == .audiobook {
-            return [.plex, .audiobookshelf].contains(container.content.service)
+            return [.plex, .audiobookshelf, .podcasts].contains(container.content.service)
         }
         return [.plex, .subsonic].contains(container.content.service)
             && [.album, .playlist, .artist].contains(container.content.type)

@@ -266,10 +266,7 @@ struct AudiobookDetailView: View {
     /// Where the line under the title goes: the author's page, or for an
     /// episode its podcast's.
     private var authorDestination: RouterDestination {
-        if let podcastID = shown.podcastID {
-            return .audiobookshelfPodcast(AudiobookshelfPodcast(id: podcastID, title: shown.subtitle))
-        }
-        return .artistDetail(content: shown, group: nil)
+        shown.podcastDestination ?? .artistDetail(content: shown, group: nil)
     }
 
     /// "12 hr, 5 min • 3 hr, 2 min left".

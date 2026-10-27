@@ -38,16 +38,37 @@ extension PlayableContent {
 }
 
 extension PlayableContent {
-    /// An Audiobookshelf podcast's episode, which plays as a book of one
-    /// file (`AudiobookshelfMediaKey`): it has a podcast where a book has
-    /// an author, and nothing on Audible.
+    /// A podcast's episode, which plays as a book of one file: one followed
+    /// by its feed (`PodcastFeeds`), or an Audiobookshelf podcast's
+    /// (`AudiobookshelfMediaKey`). It has a podcast where a book has an
+    /// author, and nothing on Audible.
     var isPodcastEpisode: Bool {
-        content.service == .audiobookshelf && AudiobookshelfMediaKey(content.id).isEpisode
+        switch content.service {
+        case .podcasts: true
+        case .audiobookshelf: AudiobookshelfMediaKey(content.id).isEpisode
+        default: false
+        }
     }
 
-    /// The podcast an episode is from: its item id on the server.
+    /// The podcast an episode is from: its feed's id, or its item id on the
+    /// Audiobookshelf server.
     var podcastID: String? {
-        guard isPodcastEpisode else { return nil }
-        return AudiobookshelfMediaKey(content.id).itemID
+        switch content.service {
+        case .podcasts:
+            String(PodcastIDs.episodeID(ofPart: content.id).prefix { $0 != PodcastIDs.separator })
+        case .audiobookshelf where isPodcastEpisode:
+            AudiobookshelfMediaKey(content.id).itemID
+        default:
+            nil
+        }
+    }
+
+    /// The page of the podcast an episode is from.
+    var podcastDestination: RouterDestination? {
+        guard let podcastID else { return nil }
+        if content.service == .podcasts {
+            return .podcastFeed(id: podcastID)
+        }
+        return .audiobookshelfPodcast(AudiobookshelfPodcast(id: podcastID, title: subtitle))
     }
 }

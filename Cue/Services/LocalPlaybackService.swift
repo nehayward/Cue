@@ -682,6 +682,11 @@ final class LocalPlaybackService {
         // only set once an iCloud file has actually downloaded.
         case .files where item.content.type == .track && item.previewURL != nil:
             .stream
+        // A podcast episode's audio: `previewURL` is the feed's own address
+        // for it, or its download.
+        case .podcasts where item.content.type == .track
+            && (item.previewURL != nil || DownloadManager.shared.isDownloaded(item)):
+            .stream
         default:
             nil
         }

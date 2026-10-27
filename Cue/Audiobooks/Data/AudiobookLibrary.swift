@@ -1,3 +1,4 @@
+import AVFoundation
 import Defaults
 import Foundation
 import MusicSearchKit
@@ -248,6 +249,8 @@ enum AudiobookLibrary {
             case .plex: plex
             case .audiobookshelf: audiobookshelf
             case .files: files
+            // Podcasts followed here have no server to turn off.
+            case .podcasts: true
             default: false
             }
             if isShown { books.append(book) }
@@ -389,9 +392,59 @@ enum AudiobookLibrary {
             return await loadPlex(book)
         case .audiobookshelf:
             return await loadAudiobookshelf(book)
+        case .podcasts:
+            return await loadPodcastEpisode(book)
         default:
             return nil
         }
+    }
+
+    /// A followed podcast's episode as a book of one file: its feed's
+    /// title, summary and length (else the file's own, read here), and the
+    /// file's chapter marks. Its place is this device's alone. An episode
+    /// not in the feed as last read has the feed read again first.
+    private static func loadPodcastEpisode(_ book: PlayableContent) async -> Audiobook? {
+        let feeds = PodcastFeeds.shared
+        var found = feeds.episodeWithFeed(id: book.content.id)
+        if found == nil, let feedID = book.podcastID, let feed = feeds.feed(id: feedID) {
+            await feeds.refresh(feed)
+            found = feeds.episodeWithFeed(id: book.content.id)
+        }
+        guard let (episode, feed) = found else {
+            log.error("podcast episode \(book.content.id, privacy: .public): not in a feed followed")
+            return nil
+        }
+        var length = episode.duration ?? 0
+        if length <= 0 {
+            length = await fileLength(episode.audioURL) ?? 0
+        }
+        guard length > 0 else {
+            log.error("podcast episode \(episode.title, privacy: .public): no length")
+            return nil
+        }
+        let part = episode.partToPlayable(in: feed, length: length)
+        let timeline = AudiobookTimeline(partDurations: [length])
+        let key = "podcasts:\(episode.id)"
+        let marks = await AudiobookChapterReader.marks(in: [(key: key, url: episode.audioURL)])
+        let chapters: [AudiobookChapter] = marks[key].map { [AudiobookChapter].from(files: [(title: episode.title, marks: $0)], timeline: timeline) } ?? []
+        return Audiobook(
+            book: episode.toPlayable(in: feed),
+            parts: [part],
+            timeline: timeline,
+            chapters: chapters.count > 1 ? chapters : [],
+            narrator: nil,
+            summary: readable(episode.summary),
+            serverProgress: nil,
+            filesMissing: nil
+        )
+    }
+
+    /// How long a file runs, read from the file: for an episode whose feed
+    /// doesn't say.
+    private static func fileLength(_ url: URL) async -> TimeInterval? {
+        guard let duration = try? await AVURLAsset(url: url).load(.duration), duration.isNumeric else { return nil }
+        let seconds = duration.seconds
+        return seconds.isFinite && seconds > 0 ? seconds : nil
     }
 
     /// A book in the Files folder: its album's files in order

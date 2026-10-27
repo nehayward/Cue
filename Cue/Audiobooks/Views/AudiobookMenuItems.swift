@@ -41,8 +41,8 @@ struct AudiobookMenuItems: View {
         NavigationLink(value: RouterDestination.audiobookDetail(content: book)) {
             Label(book.isPodcastEpisode ? "View Episode" : "View Book", systemImage: book.isPodcastEpisode ? "mic" : "book")
         }
-        if let podcastID = book.podcastID {
-            NavigationLink(value: RouterDestination.audiobookshelfPodcast(AudiobookshelfPodcast(id: podcastID, title: book.subtitle))) {
+        if let podcast = book.podcastDestination {
+            NavigationLink(value: podcast) {
                 Label("View Podcast", systemImage: "square.stack")
             }
         }

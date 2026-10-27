@@ -121,6 +121,25 @@ struct ServicePreferenceScreen: View {
                 streamingQualitySection
             }
 
+            // Podcasts need no account: any feed is followed here.
+            Section {
+                NavigationLink(value: RouterDestination.podcasts) {
+                    HStack {
+                        MusicService.podcasts.image
+                            .frame(width: 24, height: 24)
+                        Text("Podcasts")
+                        Spacer()
+                        let count = PodcastFeeds.shared.feeds.count
+                        if count > 0 {
+                            Text("\(count) followed")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            } footer: {
+                Text("Follow any podcast by its name or its feed. Episodes play on this device or your speakers, each from where you left it, in the Audiobooks tab.")
+            }
+
             if !notConnectedServices.isEmpty {
                 Section {
                     ForEach(notConnectedServices, id: \.self) { service in
