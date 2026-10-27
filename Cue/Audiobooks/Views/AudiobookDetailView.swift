@@ -15,10 +15,11 @@ struct AudiobookDetailView: View {
     /// The book as its server read it as the page opened.
     @State private var loaded: Audiobook?
     @State private var failed = false
-    /// The list under the summary shows the book's place history rather
-    /// than its chapters.
-    @State private var showsHistory = false
+    /// Which list is under the summary: the book's chapters, its
+    /// bookmarks or its place history.
+    @State private var list = BookList.chapters
     @State private var history = AudiobookPlaceHistory.shared
+    @State private var bookmarks = AudiobookBookmarks.shared
     @State private var player = AudiobookPlayer.shared
     @State private var store = AudiobookProgressStore.shared
 
@@ -96,29 +97,34 @@ struct AudiobookDetailView: View {
                             .padding(.top, 20)
                     }
 
-                    // Chapters, or where the listener has been. One chapter
-                    // is the whole book, with nothing to choose between: its
-                    // history alone, once it has one.
+                    // Chapters, bookmarks, or where the listener has been.
+                    // One chapter is the whole book, with nothing to choose
+                    // between: its bookmarks and history alone, once it has
+                    // them.
                     if let audiobook {
-                        let hasChapters = audiobook.chapters.count > 1
-                        if hasChapters || !history.places(for: shown).isEmpty {
+                        let lists = lists(for: audiobook)
+                        if let shownList = lists.contains(list) ? list : lists.first {
                             VStack(alignment: .leading) {
-                                if hasChapters {
-                                    Picker("Show", selection: $showsHistory) {
-                                        Text("Chapters").tag(false)
-                                        Text("History").tag(true)
+                                if lists.count > 1 {
+                                    Picker("Show", selection: Binding(get: { shownList }, set: { list = $0 })) {
+                                        ForEach(lists, id: \.self) { kind in
+                                            Text(kind.title).tag(kind)
+                                        }
                                     }
                                     .pickerStyle(.segmented)
                                 } else {
-                                    Text("History")
+                                    Text(shownList.title)
                                         .font(.title3.bold())
                                 }
                             }
                             .padding(.top, 28)
                             .padding(.bottom, 8)
-                            if showsHistory || !hasChapters {
+                            switch shownList {
+                            case .history:
                                 AudiobookHistoryList(book: shown, audiobook: audiobook)
-                            } else {
+                            case .bookmarks:
+                                AudiobookBookmarkList(book: shown, audiobook: audiobook)
+                            case .chapters:
                                 let here = placeChapter
                                 let isFinished = progress?.isFinished == true
                                 ForEach(audiobook.chapters) { chapter in
@@ -227,6 +233,34 @@ struct AudiobookDetailView: View {
             .frame(maxWidth: .infinity)
         }
         .padding(.top, 8)
+    }
+
+    /// The lists under the summary.
+    enum BookList: Hashable, CaseIterable {
+        case chapters
+        case bookmarks
+        case history
+
+        var title: String {
+            switch self {
+            case .chapters: "Chapters"
+            case .bookmarks: "Bookmarks"
+            case .history: "History"
+            }
+        }
+    }
+
+    /// The lists the book has something for: chapters for one with more
+    /// than one, bookmarks once it has some (or while it's loaded to play,
+    /// to make the first), history once it has been played.
+    private func lists(for audiobook: Audiobook) -> [BookList] {
+        BookList.allCases.filter { kind in
+            switch kind {
+            case .chapters: audiobook.chapters.count > 1
+            case .bookmarks: !bookmarks.bookmarks(for: shown).isEmpty || player.isLoaded(shown)
+            case .history: !history.places(for: shown).isEmpty
+            }
+        }
     }
 
     /// Where the line under the title goes: the author's page, or for an

@@ -4,8 +4,8 @@ import SonosKit
 import SwiftUI
 
 /// The player menu's book items while a book plays: Previous and Next
-/// Chapter, the chapters sheet, and on this device its speed (a speaker has
-/// only 1×).
+/// Chapter, the chapters sheet, Add Bookmark, and on this device its speed
+/// (a speaker has only 1×).
 struct AudiobookPlayerMenuItems: View {
     let isOnDevice: Bool
 
@@ -35,6 +35,12 @@ struct AudiobookPlayerMenuItems: View {
                 } label: {
                     Label(player.currentChapter?.title ?? "Chapters", systemImage: "list.bullet")
                 }
+            }
+            Button {
+                HapticManager.shared.fireHaptic(.buttonPress)
+                player.addBookmark()
+            } label: {
+                Label("Add Bookmark", systemImage: "bookmark")
             }
             if isOnDevice {
                 Picker(selection: Binding(get: { player.rate }, set: { player.setRate($0) })) {

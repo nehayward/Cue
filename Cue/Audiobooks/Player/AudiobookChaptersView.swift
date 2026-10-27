@@ -7,8 +7,8 @@ import SwiftUI
 /// and its menu: a long book's were a menu taller than the screen. It opens
 /// with the chapter playing at the top of the list and keeps it there as
 /// chapters change; a chapter picked plays from its start and the sheet
-/// goes. Its other page, a swipe or the switch on top
-/// away, is the book's place history.
+/// goes. Its other pages, a swipe or the switch on top away, are the
+/// book's bookmarks and its place history.
 ///
 /// `inPanel`, it's the player's queue panel while a book plays, in place of
 /// Next Up (`QueueNextUpView`): a book's files aren't a queue to reorder,
@@ -23,7 +23,16 @@ struct AudiobookChaptersView: View {
 
     private enum Page: Hashable {
         case chapters
+        case bookmarks
         case history
+
+        var title: String {
+            switch self {
+            case .chapters: "Chapters"
+            case .bookmarks: "Bookmarks"
+            case .history: "History"
+            }
+        }
     }
 
     var body: some View {
@@ -41,7 +50,7 @@ struct AudiobookChaptersView: View {
         } else {
             NavigationStack {
                 pages
-                    .navigationTitle(page == .history ? "History" : "Chapters")
+                    .navigationTitle(page.title)
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
                         ToolbarItem(placement: .principal) {
@@ -65,6 +74,8 @@ struct AudiobookChaptersView: View {
         TabView(selection: $page) {
             chapterList(player.current?.chapters ?? [])
                 .tag(Page.chapters)
+            bookmarksPage
+                .tag(Page.bookmarks)
             historyPage
                 .tag(Page.history)
         }
@@ -74,6 +85,7 @@ struct AudiobookChaptersView: View {
     private var pagePicker: some View {
         Picker("Show", selection: $page.animation()) {
             Text("Chapters").tag(Page.chapters)
+            Text("Bookmarks").tag(Page.bookmarks)
             Text("History").tag(Page.history)
         }
         .pickerStyle(.segmented)
@@ -83,6 +95,18 @@ struct AudiobookChaptersView: View {
     /// The sheet goes once something is picked; the panel stays.
     private func picked() {
         if !inPanel { dismiss() }
+    }
+
+    @ViewBuilder
+    private var bookmarksPage: some View {
+        if let book = player.current {
+            ScrollView {
+                AudiobookBookmarkList(book: book.book, audiobook: book) { picked() }
+                    .padding(.horizontal, 20)
+            }
+        } else {
+            Color.clear
+        }
     }
 
     @ViewBuilder

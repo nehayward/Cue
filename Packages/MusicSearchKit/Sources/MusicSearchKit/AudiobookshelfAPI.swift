@@ -431,15 +431,60 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
     /// Where the listener is in every book, by item id, for the shelves'
     /// progress bars (list pages carry none).
     public func progressByItem() async -> [String: AudiobookshelfMediaProgress]? {
+        await account()?.progress
+    }
+
+    /// What the listener's account holds, from one read of it: where they
+    /// are in every book and episode (an episode's under its
+    /// `AudiobookshelfMediaKey`, as Cue names it), and their bookmarks, by
+    /// book. Nil when it couldn't be read.
+    public func account() async -> (progress: [String: AudiobookshelfMediaProgress], bookmarks: [String: [AudiobookshelfBookmark]])? {
         let user: AudiobookshelfUser? = await get("/api/me")
-        guard let progress = user?.mediaProgress else { return nil }
-        // An episode's under its key, as Cue names it.
+        guard let user, let progress = user.mediaProgress else { return nil }
         var byItem: [String: AudiobookshelfMediaProgress] = [:]
         for entry in progress {
             guard let id = entry.libraryItemId else { continue }
             byItem[AudiobookshelfMediaKey(itemID: id, episodeID: entry.episodeId).string] = entry
         }
-        return byItem
+        return (byItem, Dictionary(grouping: user.bookmarks ?? [], by: \.libraryItemId))
+    }
+
+    // MARK: - Bookmarks
+
+    // (The listener's bookmarks are read with their account, `account()`.)
+
+    /// Marks `time` in a book, called `title`. A podcast's episode has no
+    /// bookmarks on the server (they're a book's): false, with nothing sent.
+    @discardableResult
+    public func addBookmark(itemID: String, time: Double, title: String) async -> Bool {
+        guard !AudiobookshelfMediaKey(itemID).isEpisode else { return false }
+        let body: [String: Any] = ["time": time, "title": title]
+        guard let (_, status) = await send("POST", "/api/me/item/\(itemID)/bookmark", json: body) else { return false }
+        return (200...299).contains(status)
+    }
+
+    /// Calls the bookmark at `time` `title`.
+    @discardableResult
+    public func renameBookmark(itemID: String, time: Double, title: String) async -> Bool {
+        guard !AudiobookshelfMediaKey(itemID).isEpisode else { return false }
+        let body: [String: Any] = ["time": time, "title": title]
+        guard let (_, status) = await send("PATCH", "/api/me/item/\(itemID)/bookmark", json: body) else { return false }
+        return (200...299).contains(status)
+    }
+
+    /// Takes away the bookmark at `time`. A bookmark the server no longer
+    /// has counts as taken away.
+    @discardableResult
+    public func removeBookmark(itemID: String, time: Double) async -> Bool {
+        guard !AudiobookshelfMediaKey(itemID).isEpisode else { return false }
+        guard let (_, status) = await send("DELETE", "/api/me/item/\(itemID)/bookmark/\(Self.bookmarkTime(time))") else { return false }
+        return (200...299).contains(status) || status == 404
+    }
+
+    /// A bookmark's time as the server names it in a path: whole seconds
+    /// without a point, as its own apps make them, else as it was sent.
+    static func bookmarkTime(_ time: Double) -> String {
+        time == time.rounded() && abs(time) < 1e15 ? String(Int64(time)) : String(time)
     }
 
     // MARK: - Listening sessions

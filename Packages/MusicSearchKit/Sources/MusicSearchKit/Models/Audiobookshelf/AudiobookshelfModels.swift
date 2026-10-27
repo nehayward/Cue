@@ -23,6 +23,18 @@ public struct AudiobookshelfUser: Decodable, Sendable {
     public let accessToken: String?
     public let refreshToken: String?
     public let mediaProgress: [AudiobookshelfMediaProgress]?
+    public let bookmarks: [AudiobookshelfBookmark]?
+}
+
+/// A place in a book the listener marked, with what they called it. The
+/// server keeps one a book and time, and names it by both.
+public struct AudiobookshelfBookmark: Decodable, Sendable, Hashable {
+    public let libraryItemId: String
+    public let title: String?
+    /// Seconds into the whole book.
+    public let time: Double
+    /// Milliseconds since 1970.
+    public let createdAt: Int64?
 }
 
 /// `GET /status`: which ways in a server offers.

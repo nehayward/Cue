@@ -148,7 +148,7 @@ final class AudiobookshelfBrowseService {
     private func loadShelves() async {
         let withEpisodes = !podcastLibraries.isEmpty
         async let inProgress = api.itemsInProgress(includingEpisodes: withEpisodes)
-        async let progress = api.progressByItem()
+        async let account = api.account()
         async let episodes = newestEpisodes()
         var recent: [PlayableContent] = []
         if let library = selectedLibrary,
@@ -156,9 +156,15 @@ final class AudiobookshelfBrowseService {
             recent = rows(from: page.results)
         }
         let store = AudiobookProgressStore.shared
-        for (id, entry) in await progress ?? [:] {
+        let read = await account
+        for (id, entry) in read?.progress ?? [:] {
             guard let reading = entry.audiobookProgress(duration: nil) else { continue }
             store.recordFromServer(reading, service: .audiobookshelf, id: id)
+        }
+        // Bookmarks made or taken away in its other apps; and those made
+        // here while it couldn't be told, sent now.
+        if let bookmarks = read?.bookmarks {
+            AudiobookBookmarks.shared.merge(fromServer: bookmarks)
         }
         continueListening = rows(from: await inProgress ?? [])
         recentlyAdded = recent
