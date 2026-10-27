@@ -82,30 +82,22 @@ struct MusicPlaybackView: View {
 #endif
         }
         .padding(.horizontal, 12)
-        // Lifts the row a little so the line below has room of its own
-        // rather than crowding the subtitle.
-        .padding(.bottom, showsBottomProgressLine ? 6 : 0)
         .frame(maxWidth: 500, maxHeight: 120)
-        // On iPhone the line runs the whole width of the accessory, along
-        // its bottom edge; the wider iPad and Mac bars keep it under the
-        // track text. Inset by the row's own 12pt, so it starts under the
-        // artwork's edge and ends under the last button's.
-        .overlay(alignment: .bottom) {
-            if showsBottomProgressLine {
-                progressLine
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 4)
-                    .allowsHitTesting(false)
-            }
-        }
     }
 
-    private var progressSpansFullWidth: Bool {
+    /// The iPhone's bar is as tall as the system makes it, room for one row
+    /// as Apple Music's has: the cover, the title and artist, and the
+    /// buttons, centred. How far the song has got goes round Play and
+    /// Pause, as on the watch, rather than in a line of its own, which
+    /// pushed the row up against the top. The wider iPad and Mac bars keep
+    /// the line under the track text.
+    private var isPhone: Bool {
         UIDevice.current.userInterfaceIdiom == .phone
     }
 
-    private var showsBottomProgressLine: Bool {
-        progressSpansFullWidth && placement != .inline
+    /// The cover's side: smaller on iPhone, with the bar's room around it.
+    private var artworkSide: CGFloat {
+        isPhone ? 32 : 40
     }
 
     /// The progress line for what's on screen, in seconds whichever it is.
@@ -140,6 +132,31 @@ struct MusicPlaybackView: View {
         return group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill"
     }
 
+    /// Play or Pause; on iPhone in the ring of how far the song has got.
+    @ViewBuilder
+    private func playPauseLabel(isPlaying: Bool, controller: any PlaybackController, showsProgress: Bool) -> some View {
+        let glyph = Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+            .contentTransition(GroupMediaControlsView.animatesPlayPause ? .symbolEffect(.replace) : .identity)
+            .sustainedPulse(isActive: GroupMediaControlsView.animatesPlayPause && controller.isLoading)
+        if isPhone {
+            glyph
+                .font(.body.weight(.semibold))
+                .frame(width: 32, height: 32)
+                .background {
+                    if showsProgress {
+                        MiniPlayerProgressRing(
+                            duration: controller.duration,
+                            isRunning: controller.isClockRunning,
+                            position: { controller.position() }
+                        )
+                    }
+                }
+                .contentShape(.circle)
+        } else {
+            glyph
+        }
+    }
+
     // MARK: - Now playing
 
     /// The track and its transport. The display item, not the queue row: a
@@ -167,11 +184,11 @@ struct MusicPlaybackView: View {
                 // on screen meanwhile.
                 if group != nil, route.isSwitching, !route.isHolding {
                     ProgressView()
-                        .frame(width: 40, height: 40)
+                        .frame(width: artworkSide, height: artworkSide)
                 } else if let item {
                     ContentArtworkView(content: item, showMusicSource: false)
-                        .frame(width: 40, height: 40)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .frame(width: artworkSide, height: artworkSide)
+                        .clipShape(RoundedRectangle(cornerRadius: isPhone ? 6 : 8))
                 } else {
                     Image(systemName: idleSymbol(for: group))
                         .foregroundStyle(.secondary)
@@ -199,7 +216,7 @@ struct MusicPlaybackView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
-                        if !progressSpansFullWidth {
+                        if !isPhone {
                             progressLine
                         }
                     }
@@ -219,9 +236,7 @@ struct MusicPlaybackView: View {
                 HapticManager.shared.fireHaptic(.buttonPress)
                 Task { await controller.togglePlayback() }
             } label: {
-                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                    .contentTransition(GroupMediaControlsView.animatesPlayPause ? .symbolEffect(.replace) : .identity)
-                    .sustainedPulse(isActive: GroupMediaControlsView.animatesPlayPause && controller.isLoading)
+                playPauseLabel(isPlaying: isPlaying, controller: controller, showsProgress: item != nil)
             }
             .buttonStyle(.plain)
             .font(.title3)
@@ -1575,6 +1590,58 @@ private struct MiniPlayerProgressLine: View {
         .frame(height: 3)
         .padding(.top, 2)
         .opacity(hasDuration ? 1 : 0)
+        .accessibilityHidden(true)
+    }
+}
+
+/// How far the song has got as a ring round the iPhone mini player's Play
+/// and Pause, as the watch's Now Playing draws it: the same clock as
+/// `MiniPlayerProgressLine`, redrawn once per pixel of the ring's length.
+/// Hidden for a live stream, which has no length to go round.
+private struct MiniPlayerProgressRing: View {
+    let duration: TimeInterval
+    /// Whether the position is moving on its own right now.
+    let isRunning: Bool
+    /// Where playback is now, in seconds, read on every redraw.
+    let position: () -> TimeInterval
+
+    private let lineWidth: CGFloat = 2
+
+    @Environment(\.displayScale) private var displayScale
+    @State private var diameter: CGFloat = 0
+
+    private var hasDuration: Bool {
+        duration.isFinite && duration > 0
+    }
+
+    private func fraction(of position: TimeInterval) -> CGFloat {
+        guard hasDuration, position.isFinite else { return 0 }
+        return CGFloat(min(max(position / duration, 0), 1))
+    }
+
+    var body: some View {
+        PlaybackTimeline(
+            isRunning: isRunning && hasDuration,
+            minimumInterval: ProgressRedraw.interval(
+                forDuration: duration * 1000,
+                length: diameter * .pi,
+                scale: displayScale
+            ),
+            position: position
+        ) { position in
+            ZStack {
+                Circle()
+                    .stroke(.secondary.opacity(0.3), lineWidth: lineWidth)
+                Circle()
+                    .trim(from: 0, to: fraction(of: position))
+                    .stroke(.primary, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+            }
+            .padding(lineWidth / 2)
+        }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { diameter = $0 }
+        .opacity(hasDuration ? 1 : 0)
+        .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
 }
