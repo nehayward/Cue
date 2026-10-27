@@ -656,16 +656,20 @@ public final class PlexAPI {
         }
         
         guard let sectionKey = librarySelectionID,
-              var albumURL = getBaseURL(for: plexServer)?.appending(path: "/library/sections/\(sectionKey)/all") else {
-            return [] 
+              let base = getBaseURL(for: plexServer) else {
+            return []
         }
-        
+        var albumURL = base.appending(path: "/library/sections/\(sectionKey)/all")
+
+        // Books kept in the music library under an audiobook genre are on
+        // the Audiobooks shelf; the music's album lists leave them out.
+        let withoutBooks = await audiobookGenreExclusions(sectionKey: sectionKey, base: base, fresh: offset == 0)
         let queryItems: [URLQueryItem] = [
             URLQueryItem(name: "type", value: "9"),
             URLQueryItem(name: "sort", value: sort.queryValue(reversed: reversed)),
             URLQueryItem(name: "X-Plex-Container-Size", value: "\(limit)"),
             URLQueryItem(name: "X-Plex-Container-Start", value: "\(offset)")
-        ]
+        ] + withoutBooks
         albumURL.append(queryItems: queryItems)
 
         guard let playlistContainer: PlexContainer<PlexAlbumContainer> = await loadAuthorized(albumURL) else {
