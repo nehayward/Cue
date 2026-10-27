@@ -15,8 +15,12 @@ struct NewPlaylistView: View {
     @State var playlistName: String = ""
 
     private var titleText: String {
-        if playlist != nil { return "Rename Playlist" }
-        return service == .library ? "New Playlist" : "New \(service.title) Playlist"
+        playlist != nil ? "Rename Playlist" : Self.title(for: service)
+    }
+
+    /// What a new playlist on `service` is called while it's being named.
+    static func title(for service: MusicService) -> String {
+        service == .library ? "New Playlist" : "New \(service.title) Playlist"
     }
 
     var body: some View {
@@ -84,30 +88,39 @@ struct NewPlaylistView: View {
                 await sonosService.createPlaylist(title: playlistName)
                 let playlists = await sonosService.sonosPlaylists()
                 if let newPlaylist = playlists.first(where: { $0.title == playlistName }) {
-                    announceCreated(newPlaylist)
+                    Self.announceCreated(newPlaylist, on: service)
                 }
-            } else if let newPlaylist = await MusicSearchService.shared.createServicePlaylist(name: playlistName, for: service) {
-                announceCreated(newPlaylist)
             } else {
-                alertService.showAlert(with: "Couldn’t create playlist", imageName: "exclamationmark.triangle")
+                await Self.create(named: playlistName, on: service)
             }
             dismiss()
         }
     }
 
+    /// Makes an empty playlist on a streaming service and says how it went. Also what the menu
+    /// bar's New Playlist runs, which asks for the name in an alert (`PlaylistMenuCommands`).
+    static func create(named name: String, on service: MusicService) async {
+        if let newPlaylist = await MusicSearchService.shared.createServicePlaylist(name: name, for: service) {
+            announceCreated(newPlaylist, on: service)
+        } else {
+            AlertService.shared.showAlert(with: "Couldn’t create playlist", imageName: "exclamationmark.triangle")
+        }
+    }
+
     /// Toast + deep-link to the freshly created playlist, and record it as the last-used one.
-    private func announceCreated(_ playlist: PlayableContent) {
-        insertIntoBrowseList(playlist)
+    private static func announceCreated(_ playlist: PlayableContent, on service: MusicService) {
+        insertIntoBrowseList(playlist, on: service)
+        let alertService = AlertService.shared
         alertService.showAlertContent(with: playlist, subtitle: "Created Playlist", symbolName: "checkmark")
         alertService.alert.handleTap = {
-            Router.main.presentedSheet = .mediaDetail(content: playlist, group: nil)
+            MediaDetailPresenter.present(playlist)
         }
         LastPlaylist.save(playlist)
     }
 
     /// Prepend the new playlist into the service's browse collection so the playlist list refreshes
     /// immediately (the grids/lists bind to these).
-    private func insertIntoBrowseList(_ playlist: PlayableContent) {
+    private static func insertIntoBrowseList(_ playlist: PlayableContent, on service: MusicService) {
         switch service {
         case .apple: AppleMusicBrowseService.shared.userPlaylists.insert(playlist, at: 0)
         case .spotify: SpotifyBrowseService.shared.playlists.insert(playlist, at: 0)

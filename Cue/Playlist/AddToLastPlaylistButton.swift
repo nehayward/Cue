@@ -5,24 +5,12 @@ import SonosKit
 /// destination service (Apple Music / Spotify / Plex / Sonos). For streaming playlists it only appears
 /// when the item is from the same service, since you can't add across services.
 struct AddToLastPlaylistButton: View {
-    @Environment(SonosService.self) private var sonosService
-    @Environment(AlertService.self) private var alertService
-
     var itemToAdd: PlayableContent
 
-    /// The last-used playlist, but only when it can actually accept this item. Sonos accepts
-    /// anything; streaming playlists only take tracks from the same service (never albums, which
-    /// the song-add endpoints can't handle).
+    /// The last-used playlist, but only when it can actually accept this item
+    /// (`LastPlaylist.accepts`).
     private var lastPlaylist: LastPlaylist? {
-        guard let last = LastPlaylist.current else { return nil }
-        // A Sonos playlist can't hold a file from this device, and can't be
-        // reached at all while Sonos is switched off or the phone is on
-        // cellular.
-        if last.service == .library {
-            return sonosService.isAvailable && !itemToAdd.content.service.playsOnDeviceOnly ? last : nil
-        }
-        guard last.service == itemToAdd.content.service,
-              [.track, .libraryTrack].contains(itemToAdd.content.type) else { return nil }
+        guard let last = LastPlaylist.current, last.accepts(itemToAdd) else { return nil }
         return last
     }
 
@@ -55,26 +43,7 @@ struct AddToLastPlaylistButton: View {
 
     private func add(to playlist: LastPlaylist) {
         Task {
-            guard await playlist.add(itemToAdd) else {
-                alertService.showAlert(with: "Couldn’t add to \(playlist.title)", imageName: "exclamationmark.triangle")
-                return
-            }
-            alertService.showAlertContent(with: itemToAdd, subtitle: "Added to \(playlist.title)", symbolName: "plus")
-
-            // Let tapping the toast open the playlist. For Sonos, resolve the real playlist so the
-            // detail carries artwork; streaming playlists open from a lightweight stub (the detail
-            // view loads them by id).
-            let target: PlayableContent?
-            if playlist.service == .library {
-                target = await sonosService.sonosPlaylists().first(where: { $0.id == playlist.id })
-            } else {
-                target = playlist.playableContent
-            }
-            if let target {
-                alertService.alert.handleTap = {
-                    Router.main.presentedSheet = .mediaDetail(content: target, group: nil)
-                }
-            }
+            await playlist.addAndAnnounce(itemToAdd)
         }
     }
 }

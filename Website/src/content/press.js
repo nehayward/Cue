@@ -42,4 +42,10 @@ export const screenshots = [
 	{ file: 'press/cue-book-history.jpg', alt: 'A book’s History in Cue: every place the listener has been' },
 ];
 
+// Apple Watch screenshots, in a row of their own under the iPhone ones.
+export const watchScreenshots = [
+	{ file: 'press/cue-watch-home.jpg', alt: 'Cue on Apple Watch: the song playing on the watch above the book playing on the iPhone' },
+	{ file: 'press/cue-watch-now-playing.jpg', alt: 'Cue’s Now Playing on Apple Watch' },
+];
+
 export const downloads = [{ file: 'press/cue-icon-1024.png', label: 'App icon', detail: 'PNG, 1024 × 1024' }];

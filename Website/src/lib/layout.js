@@ -3,7 +3,7 @@ import { html, icon, raw } from './html.js';
 
 // Bumped by hand when styles.css changes in a way that must not mix with a
 // cached copy. Static assets are otherwise cached for an hour (public/_headers).
-const ASSET_VERSION = '21';
+const ASSET_VERSION = '24';
 
 /** The main call to action: an App Store link once Cue is listed, a "coming soon" label until then. */
 export const downloadButton = ({ size = 'large' } = {}) =>
@@ -29,12 +29,30 @@ export const iphone = ({ file, alt, finish }, { priority = false } = {}) => html
 		</div>
 	</div>`;
 
+/**
+ * A screenshot on a drawn Apple Watch: the case, the black glass, a sport
+ * band, the Digital Crown and side button, all CSS (`.watch` in styles.css).
+ * Expects a full-screen 46 mm watch screenshot (416 × 496).
+ */
+export const watch = ({ file, alt }) => html`
+	<div class="watch">
+		<span class="watch-band top"></span><span class="watch-band bottom"></span>
+		<span class="watch-crown"></span><span class="watch-button"></span>
+		<div class="watch-case">
+			<div class="watch-screen"><img src="/${file}" alt="${alt}" width="416" height="496" loading="lazy" decoding="async"></div>
+		</div>
+	</div>`;
+
 // Shows each `.reveal` element for good the first time it scrolls into view.
 const revealScript = `
 	const io = new IntersectionObserver((entries) => {
 		for (const e of entries) if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
 	}, { rootMargin: '0px 0px -8% 0px' });
 	document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
+	// With reduced motion, films wait for a tap instead of playing on their own.
+	if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+		document.querySelectorAll('video[autoplay]').forEach((v) => { v.pause(); v.controls = true; });
+	}
 `;
 
 const header = (path) => html`

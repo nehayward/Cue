@@ -19,6 +19,9 @@ struct StoreShots {
           Record the simulator's screen → <clips>/<device>/<clip>.mov
       preview <project> [--name <preview>]
           Render the App Preview movies → <output>/previews/<name>.mov
+      banner <project> [--name <banner>]...
+          The product page header and search results art
+          → <output>/banners/<name>.png
       sheet <project>
           One image per device with every finished shot, to review the set
       devices
@@ -48,6 +51,8 @@ struct StoreShots {
                 try Commands.record(workspace, device: arguments[0], clip: arguments[1], seconds: seconds)
             case "preview":
                 try PreviewRenderer.renderAll(workspace, names: values(of: "--name", in: &arguments))
+            case "banner":
+                try Commands.banners(workspace, names: values(of: "--name", in: &arguments))
             case "sheet":
                 try Commands.sheet(workspace)
             default:

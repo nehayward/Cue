@@ -1,6 +1,7 @@
 import Foundation
 import SonosKit
 import Defaults
+import SwiftUI
 #if canImport(UIKit)
 import UIKit
 #endif
@@ -50,6 +51,45 @@ struct LastPlaylist {
         return await MusicSearchService.shared.addToServicePlaylist(track: track, playlist: playableContent)
     }
 
+    /// Whether `item` can go in this playlist. A Sonos playlist takes
+    /// anything a speaker can play; a streaming playlist only tracks from its
+    /// own service (never albums, which the song-add endpoints can't handle).
+    func accepts(_ item: PlayableContent) -> Bool {
+        // A Sonos playlist can't hold a file from this device, and can't be
+        // reached at all while Sonos is switched off or the phone is on
+        // cellular.
+        if service == .library {
+            return SonosService.shared.isAvailable && !item.content.service.playsOnDeviceOnly
+        }
+        return service == item.content.service && [.track, .libraryTrack].contains(item.content.type)
+    }
+
+    /// Adds `item` and says how it went: a toast that opens the playlist when
+    /// tapped, or one saying it couldn't be added.
+    func addAndAnnounce(_ item: PlayableContent) async {
+        let alertService = AlertService.shared
+        guard await add(item) else {
+            alertService.showAlert(with: "Couldn’t add to \(title)", imageName: "exclamationmark.triangle")
+            return
+        }
+        alertService.showAlertContent(with: item, subtitle: "Added to \(title)", symbolName: "plus")
+
+        // Let tapping the toast open the playlist. For Sonos, resolve the real playlist so the
+        // detail carries artwork; streaming playlists open from a lightweight stub (the detail
+        // view loads them by id).
+        let target: PlayableContent?
+        if service == .library {
+            target = await SonosService.shared.sonosPlaylists().first(where: { $0.id == id })
+        } else {
+            target = playableContent
+        }
+        if let target {
+            alertService.alert.handleTap = {
+                MediaDetailPresenter.present(target)
+            }
+        }
+    }
+
     /// Recently-added playlist keys, most-recent first. Each key is namespaced by service
     /// (`"<service>:<id>"`) so a Sonos and a streaming playlist that share a raw id stay distinct.
     static var recentKeys: [String] {
@@ -64,7 +104,7 @@ struct LastPlaylist {
     private static let recentLimit = 12
 
     /// Persists `content` as the last-used playlist, records it in the recents list, and refreshes
-    /// the Mac menu bar.
+    /// the menu bar (the Mac's, and iPad's), whose Add to Last Playlist is named for it.
     static func save(_ content: PlayableContent) {
         let defaults = UserDefaults.standard
         defaults.set(content.id, forKey: AppStorageKeys.lastPlaylistID)
@@ -77,7 +117,7 @@ struct LastPlaylist {
         recents.insert(key, at: 0)
         defaults.set(Array(recents.prefix(recentLimit)), forKey: AppStorageKeys.recentPlaylistIDs)
 
-        #if targetEnvironment(macCatalyst)
+        #if canImport(UIKit)
         UIMenuSystem.main.setNeedsRebuild()
         #endif
     }

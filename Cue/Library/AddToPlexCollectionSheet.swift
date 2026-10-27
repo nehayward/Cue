@@ -216,7 +216,7 @@ struct AddToPlexCollectionSheet: View {
     /// Makes the banner tap through to the collection.
     private func deepLink(to collection: PlayableContent) {
         alertService.alert.handleTap = {
-            Router.main.presentedSheet = .mediaDetail(content: collection, group: nil)
+            MediaDetailPresenter.present(collection)
         }
     }
 }
