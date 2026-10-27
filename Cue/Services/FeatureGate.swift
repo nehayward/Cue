@@ -30,6 +30,10 @@ enum GatedFeature: String, CaseIterable, Identifiable, Sendable {
     case unlimitedDownloads
     /// Keeping a book on this device or the watch.
     case bookDownloads
+    /// A playback cache of more than `PlaybackCache.freeSongLimit` songs.
+    /// The cache plays with no network, so a large one would keep songs
+    /// for offline past the free download limit.
+    case largePlaybackCache
     /// A book's words on screen as it plays, transcribed on the device.
     case bookTranscript
     /// Cue on a car's screen: browsing and playing from CarPlay.
@@ -55,6 +59,7 @@ enum GatedFeature: String, CaseIterable, Identifiable, Sendable {
         case .downloads: "Downloads"
         case .unlimitedDownloads: "Unlimited Downloads"
         case .bookDownloads: "Book Downloads"
+        case .largePlaybackCache: "Larger Playback Cache"
         case .bookTranscript: "Book Transcripts"
         case .carPlay: "CarPlay"
         case .lastFM: "Last.fm"
@@ -63,7 +68,7 @@ enum GatedFeature: String, CaseIterable, Identifiable, Sendable {
 
     var requirement: FeatureGate.Requirement {
         switch self {
-        case .allRooms, .scenes, .liveActivities, .lockScreenNowPlaying, .hardwareVolumeButtons, .unlimitedDownloads, .bookDownloads, .bookTranscript:
+        case .allRooms, .scenes, .liveActivities, .lockScreenNowPlaying, .hardwareVolumeButtons, .unlimitedDownloads, .bookDownloads, .largePlaybackCache, .bookTranscript:
             .superTier
         case .files, .onDevicePlayback, .downloads, .carPlay:
             .free

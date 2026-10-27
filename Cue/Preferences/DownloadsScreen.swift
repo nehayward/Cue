@@ -669,13 +669,29 @@ struct DownloadsScreen: View {
         }
 
         Section {
-            Picker(selection: $cache.songLimit) {
+            // Past the free size each carries a lock, and picking one opens
+            // the paywall rather than taking it: the cache plays with no
+            // network, so a large one is Super's, as unlimited downloads are.
+            let largeCache = FeatureGate.shared.isAvailable(.largePlaybackCache)
+            Picker(selection: Binding {
+                cache.effectiveSongLimit
+            } set: { limit in
+                guard limit <= PlaybackCache.freeSongLimit || largeCache else {
+                    FeatureGate.shared.presentPaywall(PaywallReason(feature: .largePlaybackCache))
+                    return
+                }
+                cache.songLimit = limit
+            }) {
                 Text("Off").tag(0)
                 Text("25 songs").tag(25)
                 Text("50 songs").tag(50)
-                Text("100 songs").tag(100)
-                Text("250 songs").tag(250)
-                Text("500 songs").tag(500)
+                ForEach([100, 250, 500], id: \.self) { limit in
+                    if largeCache {
+                        Text("\(limit) songs").tag(limit)
+                    } else {
+                        Label("\(limit) songs", systemImage: "lock.fill").tag(limit)
+                    }
+                }
             } label: {
                 Label {
                     Text("Keep Recent Songs")
@@ -753,7 +769,7 @@ struct DownloadsScreen: View {
         } header: {
             Text("Playback Cache")
         } footer: {
-            Text("Songs coming up in the on-device queue are fetched before they play, and recent ones kept, so playback holds through a tunnel or a dead spot. The least recently played goes first when the cap is reached. Covers Plex and Subsonic, and a Files folder in iCloud Drive when streaming is on below. Downloads you choose yourself are kept separately.")
+            Text("Songs coming up in the on-device queue are fetched before they play, and recent ones kept, so playback holds through a tunnel or a dead spot. The least recently played goes first when the cap is reached\(FeatureGate.shared.isAvailable(.largePlaybackCache) ? "" : ", \(PlaybackCache.freeSongLimit) songs at most without Cue Super"). Covers Plex and Subsonic, and a Files folder in iCloud Drive when streaming is on below. Downloads you choose yourself are kept separately.")
         }
 
         if files.isConfigured, files.isCloudFolder {
@@ -774,21 +790,26 @@ struct DownloadsScreen: View {
         let held = manager.heldAgainstLimit
         let onWatch = WatchSyncService.shared.heldOnWatch
         return Section {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Label {
-                        Text("Free Downloads")
-                    } icon: {
-                        StorageTile.downloading.icon
-                    }
-                    Spacer()
-                    Text("\(held) of \(limit) songs")
+            // Laid out as the room Cue takes is, above it: the count large,
+            // what's left on the right, and a bar the same height.
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text("\(held) of \(limit)")
+                        .font(.title2.bold())
+                        .monospacedDigit()
+                    Text("free downloads")
                         .foregroundStyle(.secondary)
+                    Spacer(minLength: 8)
+                    Text(remaining == 0 ? "None left" : "\(remaining) left")
+                        .font(.subheadline)
+                        .foregroundStyle(remaining == 0 ? .red : .secondary)
                         .monospacedDigit()
                 }
-                ProgressView(value: Double(held), total: Double(limit))
-                    .progressViewStyle(.linear)
-                    .tint(remaining == 0 ? .red : .accentColor)
+                .lineLimit(1)
+                StorageUsageBar(parts: [
+                    .init(name: "Held", bytes: Int64(held), color: remaining == 0 ? .red : StorageTile.songs.colors[0]),
+                    .init(name: "Left", bytes: Int64(remaining), color: Color(.tertiarySystemFill)),
+                ].filter { $0.bytes > 0 })
                 if onWatch > 0 {
                     Text("\(onWatch) of them on your Apple Watch")
                         .font(.caption)
@@ -796,6 +817,7 @@ struct DownloadsScreen: View {
                         .monospacedDigit()
                 }
             }
+            .padding(.vertical, 4)
             if remaining <= limit / 5 {
                 // Plain, so the list's tint doesn't paint the whole label:
                 // in the accent, the detail line was green on grey and

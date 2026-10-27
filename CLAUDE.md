@@ -281,8 +281,11 @@ and `Cue/Cue-iOS.entitlements`.
   `DownloadManager.freeSongLimit` songs held at a time, on the iPhone and the
   Apple Watch together; Cue Super lifts the cap
   (`GatedFeature.unlimitedDownloads`, read by `remainingFreeSlots`) and
-  downloads books (`GatedFeature.bookDownloads`), and Sonos past one group
-  (`.allRooms`). The gate lives in the manager (`download(_:)` returns `false`,
+  downloads books (`GatedFeature.bookDownloads`), a playback cache past
+  `PlaybackCache.freeSongLimit` songs (`.largePlaybackCache`, read through
+  `effectiveSongLimit`: cached songs play offline, so a large cache would get
+  round the download limit; the larger sizes carry a lock in Storage and open
+  the paywall), and Sonos past one group (`.allRooms`). The gate lives in the manager (`download(_:)` returns `false`,
   `download(contentsOf:)` returns a `BatchResult`), with the meter in
   `DownloadsScreen` and the "This Device" menu.
 - Super Day (a free 24-hour pass to Super, once a month) is designed but not
