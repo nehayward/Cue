@@ -338,6 +338,46 @@ final class DownloadManager {
     /// it changes.
     @ObservationIgnored private(set) var songsHere: [Item] = []
 
+    /// How far the run coming down has got, in `runProgressSteps`: the
+    /// Downloads tab's ring. It moves at most that many times a run, so the
+    /// tab bar that reads it isn't redrawn with every byte.
+    private(set) var runProgressStep = 0
+    static let runProgressSteps = 20
+
+    /// How far the songs and books coming down have got, 0 to 1: the songs
+    /// of the run landed and the part of each still coming that has, and
+    /// each book coming down by the share of its files here, a book
+    /// weighing as one song. Reads every byte of progress.
+    func runFraction(for summary: MusicSummary) -> Double {
+        let songsPartial = items.values.reduce(0.0) { sum, item in
+            guard item.isBookFile != true, item.state == .downloading else { return sum }
+            return sum + item.progress
+        }
+        var books = 0
+        var booksDone = 0.0
+        for book in containers.values where book.type == .audiobook {
+            let files = book.trackKeys.compactMap { items[$0] }
+            guard !files.isEmpty, files.contains(where: \.isActive) else { continue }
+            books += 1
+            let here = files.reduce(0.0) { sum, file in
+                sum + (file.state == .completed ? 1 : file.state == .downloading ? file.progress : 0)
+            }
+            booksDone += here / Double(files.count)
+        }
+        let total = summary.runTotal + books
+        guard total > 0 else { return 0 }
+        return min(1, (Double(summary.runSettled) + songsPartial + booksDone) / Double(total))
+    }
+
+    private func refreshRunProgressStep() {
+        let step = musicSummary.remainingDownloads > 0
+            ? Int((runFraction(for: musicSummary) * Double(Self.runProgressSteps)).rounded(.down))
+            : 0
+        if step != runProgressStep {
+            runProgressStep = step
+        }
+    }
+
     private func refreshMusicSummary() {
         let songs = completedSongs
         let remaining = items.values.filter { $0.isBookFile != true && $0.isActive }.count
@@ -363,6 +403,7 @@ final class DownloadManager {
         if summary != musicSummary {
             musicSummary = summary
         }
+        refreshRunProgressStep()
     }
 
     var hasActiveDownloads: Bool {
@@ -1584,6 +1625,7 @@ final class DownloadManager {
         entry.bytesReceived = received
         entry.bytesExpected = expected
         items[key] = entry
+        refreshRunProgressStep()
     }
 
     /// A file landed at `file`. Taken from whichever task brought it — it's

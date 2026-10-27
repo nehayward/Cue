@@ -442,14 +442,33 @@ struct CueApp: App {
     /// Downloads, last, while there's music or a book here
     /// (`showsDownloadsTab`), badged with the songs and books still coming
     /// down, a book counting once: the badge goes when the last lands.
+    /// Meanwhile its icon is a ring filling with the run.
     @TabContentBuilder<AppTab>
     private var downloadsTab: some TabContent<AppTab> {
         if showsDownloadsTab {
-            Tab("Downloads", systemImage: "arrow.down.circle", value: AppTab.downloads) {
+            Tab(value: AppTab.downloads) {
                 Screens.downloads
+            } label: {
+                Label {
+                    Text("Downloads")
+                } icon: {
+                    downloadsTabIcon
+                }
             }
             .badge(DownloadManager.shared.musicSummary.remainingDownloads)
         }
+    }
+
+    /// The download symbol, or while songs or books come down a ring round
+    /// the arrow filling with the run (`runProgressStep`, which moves in
+    /// steps, so the tab bar isn't redrawn with every byte). A bare
+    /// `Image`: the tab bar takes the image out of the label.
+    private var downloadsTabIcon: Image {
+        let manager = DownloadManager.shared
+        guard manager.musicSummary.remainingDownloads > 0 else {
+            return Image(systemName: "arrow.down.circle")
+        }
+        return Image(uiImage: DownloadRingIcon.image(step: manager.runProgressStep))
     }
 
     /// The Providers section, on iPad and Mac: one tab per switched-on
@@ -1568,6 +1587,50 @@ private struct AdaptiveTabViewStyle: ViewModifier {
 /// while it's on screen, the scene is visible and playback is moving. It used
 /// to run its own clock on every frame of a `TimelineView` that kept going
 /// behind the Lock Screen, since the audio session keeps the app alive there.
+/// The Downloads tab's icon while songs or books come down: a ring that
+/// fills with the run, round the download arrow. A template image, tinted
+/// by the tab bar like a symbol, since the tab bar takes only a plain image
+/// from a tab's label; one drawn a step and kept.
+@MainActor
+private enum DownloadRingIcon {
+    private static var images: [Int: UIImage] = [:]
+
+    static func image(step: Int) -> UIImage {
+        if let image = images[step] { return image }
+        let side: CGFloat = 25
+        let lineWidth: CGFloat = 2
+        let fraction = CGFloat(step) / CGFloat(DownloadManager.runProgressSteps)
+        let drawn = UIGraphicsImageRenderer(size: CGSize(width: side, height: side)).image { _ in
+            let ring = CGRect(x: 0, y: 0, width: side, height: side).insetBy(dx: lineWidth / 2 + 0.5, dy: lineWidth / 2 + 0.5)
+            let track = UIBezierPath(ovalIn: ring)
+            track.lineWidth = lineWidth
+            UIColor.black.withAlphaComponent(0.3).setStroke()
+            track.stroke()
+            if fraction > 0 {
+                let arc = UIBezierPath(
+                    arcCenter: CGPoint(x: side / 2, y: side / 2),
+                    radius: ring.width / 2,
+                    startAngle: -.pi / 2,
+                    endAngle: -.pi / 2 + 2 * .pi * fraction,
+                    clockwise: true
+                )
+                arc.lineWidth = lineWidth
+                arc.lineCapStyle = .round
+                UIColor.black.setStroke()
+                arc.stroke()
+            }
+            if let arrow = UIImage(systemName: "arrow.down", withConfiguration: UIImage.SymbolConfiguration(pointSize: 11, weight: .bold))?
+                .withTintColor(.black, renderingMode: .alwaysOriginal) {
+                let size = arrow.size
+                arrow.draw(in: CGRect(x: (side - size.width) / 2, y: (side - size.height) / 2, width: size.width, height: size.height))
+            }
+        }
+        let image = drawn.withRenderingMode(.alwaysTemplate)
+        images[step] = image
+        return image
+    }
+}
+
 private struct MiniPlayerProgressLine: View {
     let duration: TimeInterval
     /// Whether the position is moving on its own right now.

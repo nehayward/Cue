@@ -106,7 +106,7 @@ private struct DownloadingProgress: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Downloading")
-            ProgressView(value: fraction)
+            ProgressView(value: downloads.runFraction(for: summary))
                 .progressViewStyle(.linear)
             Text(detail)
                 .font(.caption)
@@ -125,31 +125,6 @@ private struct DownloadingProgress: View {
             parts.append(summary.booksRemaining == 1 ? "1 book" : "\(summary.booksRemaining) books")
         }
         return parts.joined(separator: " • ")
-    }
-
-    /// The songs landed and the part of each still coming that has, and
-    /// each book coming down by the share of its files here, a book
-    /// weighing as one song.
-    private var fraction: Double {
-        let items = downloads.items
-        let songsPartial = items.values.reduce(0.0) { sum, item in
-            guard item.isBookFile != true, item.state == .downloading else { return sum }
-            return sum + item.progress
-        }
-        var books = 0
-        var booksDone = 0.0
-        for book in downloads.containers.values where book.type == .audiobook {
-            let files = book.trackKeys.compactMap { items[$0] }
-            guard !files.isEmpty, files.contains(where: \.isActive) else { continue }
-            books += 1
-            let here = files.reduce(0.0) { sum, file in
-                sum + (file.state == .completed ? 1 : file.state == .downloading ? file.progress : 0)
-            }
-            booksDone += here / Double(files.count)
-        }
-        let total = summary.runTotal + books
-        guard total > 0 else { return 0 }
-        return min(1, (Double(summary.runSettled) + songsPartial + booksDone) / Double(total))
     }
 }
 
