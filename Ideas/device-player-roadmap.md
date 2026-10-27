@@ -180,6 +180,7 @@ branch lands.
   that plays here or on a speaker from where it was left.
 
 - [ ] **Jellyfin and Emby provider** — `claude/jellyfin`
+  Later (2026-10-27).
   The checklist at the end of `Docs/AddingMusicService.md` via
   `DirectStreamProvider`.
   Done when: browse, search, playlists, favorites, and downloads match the
