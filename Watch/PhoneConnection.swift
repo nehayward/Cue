@@ -164,7 +164,10 @@ final class PhoneConnection {
     /// them are looked up with them, and the free tier's share before the
     /// picks it applies to; the places once the picks are in, so a book
     /// just picked takes its place.
-    fileprivate func didReceive(credentials: WatchCredentials?, picks: WatchPicks?, places: WatchBookPlaces?, allowance: WatchAllowance? = nil) {
+    fileprivate func didReceive(credentials: WatchCredentials?, picks: WatchPicks?, places: WatchBookPlaces?, allowance: WatchAllowance? = nil, card: ContextCard? = nil) {
+        if let card {
+            PhoneNowPlaying.shared.apply(contextCard: card.nowPlaying, sentAt: card.sentAt)
+        }
         let store = WatchDownloadStore.shared
         if let credentials {
             switch WatchAccounts.shared.apply(credentials) {
@@ -202,8 +205,9 @@ private final class PhoneSessionRelay: NSObject, WCSessionDelegate, @unchecked S
         let picks = WatchSyncMessage.picks(in: context)
         let places = WatchSyncMessage.places(in: context)
         let allowance = WatchSyncMessage.allowance(in: context)
+        let card = ContextCard(context)
         Task { @MainActor in
-            self.connection?.didReceive(credentials: credentials, picks: picks, places: places, allowance: allowance)
+            self.connection?.didReceive(credentials: credentials, picks: picks, places: places, allowance: allowance, card: card)
             self.connection?.didActivate()
         }
     }
@@ -213,8 +217,9 @@ private final class PhoneSessionRelay: NSObject, WCSessionDelegate, @unchecked S
         let picks = WatchSyncMessage.picks(in: applicationContext)
         let places = WatchSyncMessage.places(in: applicationContext)
         let allowance = WatchSyncMessage.allowance(in: applicationContext)
+        let card = ContextCard(applicationContext)
         Task { @MainActor in
-            self.connection?.didReceive(credentials: credentials, picks: picks, places: places, allowance: allowance)
+            self.connection?.didReceive(credentials: credentials, picks: picks, places: places, allowance: allowance, card: card)
         }
     }
 
@@ -232,5 +237,18 @@ private final class PhoneSessionRelay: NSObject, WCSessionDelegate, @unchecked S
         Task { @MainActor in
             self.connection?.reachabilityDidChange(reachable)
         }
+    }
+}
+
+/// What the iPhone played when it last sent its context, and when that was;
+/// nil from an iPhone a version behind, which doesn't say.
+struct ContextCard: Sendable {
+    let nowPlaying: WatchPhoneNowPlaying?
+    let sentAt: Date
+
+    init?(_ context: [String: Any]) {
+        guard WatchSyncMessage.carriesNowPlaying(context) else { return nil }
+        nowPlaying = WatchSyncMessage.nowPlaying(in: context)
+        sentAt = WatchSyncMessage.sentAt(in: context) ?? .distantPast
     }
 }

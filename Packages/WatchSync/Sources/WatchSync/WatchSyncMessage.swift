@@ -5,8 +5,10 @@ import Foundation
 /// and it works between simulators. The iPhone's carries the picks, the
 /// places in the books among them (`WatchBookPlaces`), its sign-ins
 /// (`WatchCredentials`) and the watch's share of the free downloads
-/// (`WatchAllowance`); the watch's carries the picks and places as it has
-/// them, and what it holds against that share (`WatchHeldDownloads`).
+/// (`WatchAllowance`) and what it plays (`WatchPhoneNowPlaying`, without its
+/// cover), for the watch app to show the moment it opens; the watch's
+/// carries the picks and places as it has them, and what it holds against
+/// that share (`WatchHeldDownloads`).
 /// Each side merges what arrives (`WatchPicks.merged`,
 /// `WatchBookPlaces.merged`). The picks and places travel packed, with a
 /// `sentAt` stamp so sending them again always counts as a change.
@@ -58,6 +60,7 @@ public enum WatchSyncMessage {
         credentials: WatchCredentials? = nil,
         allowance: WatchAllowance? = nil,
         held: WatchHeldDownloads? = nil,
+        nowPlaying: Data? = nil,
         sentAt: Date = .now
     ) throws -> [String: Any] {
         var context: [String: Any] = [
@@ -76,7 +79,21 @@ public enum WatchSyncMessage {
         if let held {
             context[heldKey] = try JSONEncoder().encode(held)
         }
+        if let nowPlaying {
+            context[nowPlayingKey] = nowPlaying
+        }
         return context
+    }
+
+    /// When a context was sent.
+    public static func sentAt(in context: [String: Any]) -> Date? {
+        (context[sentAtKey] as? TimeInterval).map(Date.init(timeIntervalSince1970:))
+    }
+
+    /// What the iPhone plays, as its context carries it (`context`'s
+    /// `nowPlaying`, read back with `nowPlaying(in:)`): empty for nothing.
+    public static func nowPlayingCard(_ nowPlaying: WatchPhoneNowPlaying?) throws -> Data {
+        try nowPlaying.map { try JSONEncoder().encode($0) } ?? Data()
     }
 
     public static func picks(in context: [String: Any]) -> WatchPicks? {

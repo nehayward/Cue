@@ -358,6 +358,21 @@ final class WatchSyncMessageTests: XCTestCase {
         }
     }
 
+    func testTheContextCarriesWhatTheiPhonePlays() throws {
+        let sentAt = Date(timeIntervalSince1970: 3_000)
+        let playing = WatchPhoneNowPlaying(title: "Song", destination: "iPhone", isPlaying: true, elapsed: 20, duration: 200, clockAt: sentAt)
+        let context = try WatchSyncMessage.context(picks: .empty, nowPlaying: try WatchSyncMessage.nowPlayingCard(playing), sentAt: sentAt)
+        XCTAssertTrue(WatchSyncMessage.carriesNowPlaying(context))
+        XCTAssertEqual(WatchSyncMessage.nowPlaying(in: context), playing)
+        XCTAssertEqual(WatchSyncMessage.sentAt(in: context), sentAt)
+
+        let nothing = try WatchSyncMessage.context(picks: .empty, nowPlaying: try WatchSyncMessage.nowPlayingCard(nil))
+        XCTAssertTrue(WatchSyncMessage.carriesNowPlaying(nothing))
+        XCTAssertNil(WatchSyncMessage.nowPlaying(in: nothing))
+        // An iPhone a version behind says nothing either way.
+        XCTAssertFalse(WatchSyncMessage.carriesNowPlaying(try WatchSyncMessage.context(picks: .empty)))
+    }
+
     func testQualitiesSayWhatTheyCost() {
         XCTAssertEqual(WatchDownloadQuality.high.megabytesPerSong, 8)
         XCTAssertEqual(WatchDownloadQuality.small.detail, "MP3 128 kbps • about 4 MB a song")
