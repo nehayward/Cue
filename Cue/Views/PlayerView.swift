@@ -33,7 +33,6 @@ struct PlayerView: View {
     /// Lyrics in the artwork's place, held from song to song.
     @AppStorage(AppStorageKeys.lyricsShown) private var showLyrics: Bool = false
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     /// The cover's own router. The main window's sheets hang off the tab
     /// content underneath this cover, so anything routed there would come
@@ -60,15 +59,6 @@ struct PlayerView: View {
     /// holds one.
     private var group: GroupRoom? { route.presentedGroup }
 
-    /// iPad at a regular width: the queue toggle is in the navigation bar.
-    private var showsQueueToolbarButton: Bool {
-#if targetEnvironment(macCatalyst)
-        false
-#else
-        UIDevice.current.userInterfaceIdiom == .pad && horizontalSizeClass == .regular
-#endif
-    }
-
     /// Matches `LargePlayerView`: the wide layout is for anything that isn't a
     /// phone, Catalyst included.
     private var isMacCatalystOrPad: Bool {
@@ -84,9 +74,20 @@ struct PlayerView: View {
 
     /// The phone's layout, after the system's Now Playing: the artwork at
     /// the top and the title and controls spread down the rest of the
-    /// screen, with bigger transport. iPad and the Mac keep the tight stack.
+    /// screen, with bigger transport. Lyrics go full screen only here.
     private var isPhoneLayout: Bool {
         UIDevice.current.userInterfaceIdiom == .phone
+    }
+
+    /// iPad lays the player out as the phone does (`phoneContent`), in a
+    /// bigger frame and with the lyrics in the cover's place rather than
+    /// full screen. Only the Mac keeps the tight stack.
+    private var isPadLayout: Bool {
+#if targetEnvironment(macCatalyst)
+        false
+#else
+        UIDevice.current.userInterfaceIdiom == .pad
+#endif
     }
 
     /// Only on the Mac, where the player slides up instead of zooming. On
@@ -174,8 +175,8 @@ struct PlayerView: View {
             .padding(.top, 8)
             // The stack already keeps clear of the home indicator; padding
             // by the inset again left the phone's bottom row floating a
-            // home indicator's height too high.
-            .safeAreaPadding(.bottom, isPhoneLayout ? 0 : nil)
+            // home indicator's height too high. iPad's row pads itself.
+            .safeAreaPadding(.bottom, isPhoneLayout || isPadLayout ? 0 : nil)
             .ignoresSafeArea(.keyboard)
             .toolbar { toolbarContent }
             .navigationBarTitleDisplayMode(.inline)
@@ -260,7 +261,7 @@ struct PlayerView: View {
 
     @ViewBuilder
     private var playerContent: some View {
-        if isPhoneLayout {
+        if isPhoneLayout || isPadLayout {
             phoneContent
         } else {
             wideContent
@@ -280,10 +281,16 @@ struct PlayerView: View {
     /// go away a few seconds into the song (`lyricsChromeTask`; not a book's
     /// transcript's) or with the header's Full Screen, and a touch on the
     /// lyrics brings them back.
+    ///
+    /// iPad's too: a bigger cover, wider gaps between the controls (their
+    /// least, as a landscape iPad's cover takes the height first), and the
+    /// lyrics in the cover's frame, never full screen.
     @ViewBuilder
     private var phoneContent: some View {
         let isLyrics = isFullScreenLyrics
         let hidesControls = isLyrics ? lyricsControlsHidden : showArtworkOnly
+        let cover = isPadLayout ? CGSize(width: 640, height: 640) : CGSize(width: 500, height: 400)
+        let gap: CGFloat = isPadLayout ? 20 : 4
 
         HStack(spacing: 12) {
             artwork
@@ -291,9 +298,9 @@ struct PlayerView: View {
                 .padding(.bottom, isLyrics || showArtworkOnly ? 0 : 12)
                 .frame(
                     minWidth: 0,
-                    maxWidth: isLyrics ? 56 : (showArtworkOnly ? .infinity : 500),
+                    maxWidth: isLyrics ? 56 : (showArtworkOnly ? .infinity : cover.width),
                     minHeight: 0,
-                    maxHeight: isLyrics ? 56 : (showArtworkOnly ? .infinity : 400)
+                    maxHeight: isLyrics ? 56 : (showArtworkOnly ? .infinity : cover.height)
                 )
                 .padding(.top, isLyrics ? 4 : (showArtworkOnly ? 100 : nil))
                 .onGeometryChange(for: Bool.self) { proxy in
@@ -333,7 +340,7 @@ struct PlayerView: View {
                 .layoutPriority(1)
                 .transition(.lyricsBody)
         } else {
-            Spacer(minLength: 12)
+            Spacer(minLength: isPadLayout ? 24 : 12)
             VStack {
                 titleLines
             }
@@ -346,9 +353,9 @@ struct PlayerView: View {
             Group {
                 PlayerScrubber()
                     .padding(.top, 4)
-                Spacer(minLength: 4)
+                Spacer(minLength: gap)
                 PlayerTransportView(shouldFade: $shouldFade, isProminent: true)
-                Spacer(minLength: 4)
+                Spacer(minLength: gap)
                 volumeRow
                     .padding(.horizontal, -12)
                     .frame(maxWidth: 500)
@@ -406,8 +413,8 @@ struct PlayerView: View {
         lyricsControlsHidden = true
     }
 
-    /// iPad and the Mac: the cover (or lyrics, or Live Transcription, in
-    /// its place), the title lines and the controls in a tight stack.
+    /// The Mac: the cover (or lyrics, or Live Transcription, in its place),
+    /// the title lines and the controls in a tight stack.
     @ViewBuilder
     private var wideContent: some View {
         artwork
@@ -665,6 +672,13 @@ struct PlayerView: View {
                 LiveTranscriptionButton()
                     .tint(.primary)
             }
+            // iPad's Shazam, up here beside Live Transcription: its bottom
+            // row is the phone's, which has no place for it. The Mac's is
+            // in its wide row.
+            if isPadLayout, IdentifySongButton.isAvailable(for: group) {
+                IdentifySongButton(group: group)
+                    .tint(.primary)
+            }
             // A speaker's menu has its own extras — grouping, EQ, the TV —
             // so the two stay separate views in the one slot.
             // Both rest through a hand-off: their shuffle, repeat and play
@@ -677,24 +691,6 @@ struct PlayerView: View {
                     .disabled(route.isHolding)
             } else if let item = playback.nowPlaying {
                 localNavigationButtons(item)
-            }
-            // iPad's queue toggle, up here with the other controls rather
-            // than in the glass row under the volume, where it reflowed with
-            // the artwork as the panel slid in. The phone keeps it in its
-            // bar (the queue is a sheet there); the Mac has the window
-            // toolbar's.
-            if showsQueueToolbarButton {
-                Button {
-                    HapticManager.shared.fireHaptic(.selection)
-                    withAnimation(.snappy) {
-                        showQueue.toggle()
-                    }
-                } label: {
-                    Label(showQueue ? "Hide Up Next" : "Show Up Next", systemImage: "list.bullet")
-                        .labelStyle(.iconOnly)
-                }
-                .tint(showQueue ? Color("Accent") : .primary)
-                .accessibilityAddTraits(showQueue ? .isSelected : [])
             }
         }
     }
@@ -1442,14 +1438,14 @@ private struct HiddenSystemVolumeView: UIViewRepresentable {
 
 // MARK: - Bottom toolbar
 
-/// The row under the volume. On a phone it has no glass: the route picker
-/// in the middle — on a speaker its menu is the regroup menu too — and the
-/// queue on the trailing edge, and lyrics on the leading edge. The wide
-/// row adds lyrics, the room volume for a group of more than one and
-/// Identify Song. No search
+/// The row under the volume. On a phone and iPad it has no glass: the route
+/// picker in the middle — on a speaker its menu is the regroup menu too —
+/// and the queue on the trailing edge, and lyrics on the leading edge. The
+/// Mac's wide row adds the room volume for a group of more than one and
+/// Identify Song (iPad's is in the navigation bar). No search
 /// or browse: the window's tabs are a dismiss away on every size, and the
-/// cover's sheets only doubled them. The wide row has no queue: iPad's is
-/// in the navigation bar, the Mac's in the window toolbar. The
+/// cover's sheets only doubled them. The wide row has no queue: the Mac's
+/// is in the window toolbar. The
 /// like button and the menu live in the navigation bar on every size, so this row
 /// is only ever about where to go next.
 private struct PlayerBottomToolbarView: View {
@@ -1478,10 +1474,27 @@ private struct PlayerBottomToolbarView: View {
         return (group ?? route.group)?.nameWithCount ?? AudioOutputName.shared.name
     }
 
+    /// The flat row everywhere but a regular-width Mac window.
+    private var isFlatRow: Bool {
+#if targetEnvironment(macCatalyst)
+        horizontalSizeClass == .compact
+#else
+        true
+#endif
+    }
+
+    /// Where the queue is a side panel rather than a sheet. A book's chapters
+    /// are in the panel there (`QueueNextUpView`), so its bookmark shows and
+    /// hides the panel as the queue's gauge does, rather than opening a sheet
+    /// of the same list beside it.
+    private var isQueuePanelAtSide: Bool {
+        horizontalSizeClass == .regular
+    }
+
     var body: some View {
         @Bindable var router = router
 
-        if UIDevice.current.userInterfaceIdiom == .phone || horizontalSizeClass == .compact {
+        if isFlatRow {
             // No glass: lyrics leading, the route picker centred and the
             // queue trailing.
             VStack(spacing: 6) {
@@ -1523,8 +1536,7 @@ private struct PlayerBottomToolbarView: View {
             .padding(.horizontal, 28)
             .frame(maxWidth: 500)
         } else {
-            // No queue button: at this width it's in the navigation bar on
-            // iPad, and the window toolbar's on the Mac.
+            // No queue button: the Mac's is in the window toolbar.
             HStack {
                 PlaybackRouteButton()
                     .buttonBorderShape(.roundedRectangle)
@@ -1568,13 +1580,15 @@ private struct PlayerBottomToolbarView: View {
     /// the play mode badge over it. A drop on it plays next wherever the
     /// route points.
     /// A book's files aren't a queue: for one, it's the chapters sheet the
-    /// chapter line opens, under a bookmark with the chapter's number.
+    /// chapter line opens, under a bookmark with the chapter's number (or
+    /// the panel, where it's at the side and holds them).
     @ViewBuilder
     private var queueButton: some View {
         let isBook = AudiobookPlayer.shared.isPlayingBook(on: route.presented)
+        let togglesPanel = !isBook || isQueuePanelAtSide
         let button = Button {
             HapticManager.shared.fireHaptic(.selection)
-            if isBook {
+            if !togglesPanel {
                 router.sheet(to: .audiobookChapters)
                 return
             }
@@ -1591,7 +1605,7 @@ private struct PlayerBottomToolbarView: View {
             }
                 .fontDesign(.rounded)
                 .font(.title3)
-                .foregroundStyle(isHoveringOnQueueList || showQueue ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.primary))
+                .foregroundStyle(isHoveringOnQueueList || (showQueue && togglesPanel) ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.primary))
                 .overlay(alignment: .topTrailing) {
                     if isHoveringOnQueueList {
                         Image(systemName: "plus.circle.fill")
@@ -1602,7 +1616,7 @@ private struct PlayerBottomToolbarView: View {
                 }
         }
         .accessibilityLabel(isBook ? "Chapters" : "Up Next")
-        .accessibilityAddTraits(showQueue && !isBook ? .isSelected : [])
+        .accessibilityAddTraits(showQueue && togglesPanel ? .isSelected : [])
         .overlay(alignment: .topTrailing) {
             if !isBook {
                 playModeBadge
