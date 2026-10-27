@@ -41,6 +41,12 @@ struct AudiobookshelfBrowseScreen: View {
                         }
                     }
 
+                    if !browse.podcastLibraries.isEmpty {
+                        NavigationLink(value: RouterDestination.audiobookshelfPodcasts) {
+                            Label("Podcasts", systemImage: "mic")
+                        }
+                    }
+
                     if browse.isLoading, browse.libraries.isEmpty {
                         ProgressView()
                             .frame(maxWidth: .infinity)
@@ -53,6 +59,18 @@ struct AudiobookshelfBrowseScreen: View {
                             }
                         } header: {
                             Text("Continue Listening")
+                        }
+                    }
+
+                    // A podcast library's newest episodes, each playing as a
+                    // book of one file.
+                    if !browse.latestEpisodes.isEmpty {
+                        Section {
+                            ForEach(browse.latestEpisodes.prefix(Self.latestEpisodeRows)) { episode in
+                                AudiobookRow(book: episode)
+                            }
+                        } header: {
+                            Text("Latest Episodes")
                         }
                     }
 
@@ -128,6 +146,8 @@ struct AudiobookshelfBrowseScreen: View {
         }
         .withFullScreenCoverDestinations(destinations: $router.presentedFullScreenCover)
     }
+
+    private static let latestEpisodeRows = 5
 
     /// Several libraries: the shelves are one's at a time.
     private var libraryPicker: some View {

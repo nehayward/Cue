@@ -1151,7 +1151,11 @@ extension AudiobookshelfItem {
                 artist: bookAuthor,
                 album: bookTitle,
                 albumID: id,
-                albumYear: bookYear(media?.metadata?.publishedYear.flatMap { Int($0) })
+                // An episode's day, which its podcast's page shows; a
+                // book's year.
+                albumYear: isEpisode
+                    ? addedAt.map { Date(timeIntervalSince1970: TimeInterval($0) / 1000) }
+                    : bookYear(media?.metadata?.publishedYear.flatMap { Int($0) })
             )
         )
     }

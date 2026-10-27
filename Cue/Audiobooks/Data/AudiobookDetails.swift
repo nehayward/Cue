@@ -199,7 +199,9 @@ final class AudiobookDetails {
     /// any already asked for.
     func request(_ books: [PlayableContent]) {
         let fresh = books.filter { book in
-            guard book.content.type == .audiobook, [.plex, .audiobookshelf].contains(book.content.service) else { return false }
+            // A podcast's episode isn't on Audible: its title would match
+            // some book's.
+            guard book.content.type == .audiobook, [.plex, .audiobookshelf].contains(book.content.service), !book.isPodcastEpisode else { return false }
             let key = AudiobookProgressStore.key(for: book)
             guard !asking.contains(key) else { return false }
             if let failed = unansweredAt[key], Date.now.timeIntervalSince(failed) < Self.retryAfter { return false }

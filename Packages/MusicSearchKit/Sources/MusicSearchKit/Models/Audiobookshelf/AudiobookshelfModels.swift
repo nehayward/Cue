@@ -44,6 +44,7 @@ public struct AudiobookshelfLibrary: Codable, Sendable, Identifiable, Hashable {
     public let mediaType: String?
 
     public var isBooks: Bool { (mediaType ?? "book") == "book" }
+    public var isPodcasts: Bool { mediaType == "podcast" }
 }
 
 /// `GET /api/libraries/<id>/items`: one page.
@@ -65,6 +66,8 @@ public struct AudiobookshelfSearchResult: Decodable, Sendable {
     /// Books matched by their title (an author's name finds the author,
     /// not their books).
     public let book: [Match]?
+    /// In a podcast library: podcasts matched by their title.
+    public let podcast: [Match]?
     public let authors: [AudiobookshelfAuthor]?
 }
 
@@ -79,7 +82,9 @@ public struct AudiobookshelfAuthor: Decodable, Sendable, Identifiable {
     public let libraryItems: [AudiobookshelfItem]?
 }
 
-/// A library item: a book (or a podcast, which Cue leaves out).
+/// A library item: a book or a podcast. A podcast's episode is made into
+/// an item of its own (`AudiobookshelfAPI.episodeItem`), a book of one
+/// file whose id is an `AudiobookshelfMediaKey`, so it plays as a book.
 public struct AudiobookshelfItem: Decodable, Sendable, Identifiable {
     public let id: String
     public let libraryId: String?
@@ -93,13 +98,48 @@ public struct AudiobookshelfItem: Decodable, Sendable, Identifiable {
     public let progressLastUpdate: Int64?
     /// The server's last scan didn't find the item's folder.
     public let isMissing: Bool?
+    /// On a podcast in progress: the episode the listener is in.
+    public let recentEpisode: AudiobookshelfEpisode?
 
-    /// A book with something to listen to: ebook-only items have no tracks.
+    init(
+        id: String,
+        libraryId: String?,
+        mediaType: String?,
+        addedAt: Int64?,
+        media: AudiobookshelfBookMedia?,
+        userMediaProgress: AudiobookshelfMediaProgress?,
+        progressLastUpdate: Int64?,
+        isMissing: Bool?
+    ) {
+        self.id = id
+        self.libraryId = libraryId
+        self.mediaType = mediaType
+        self.addedAt = addedAt
+        self.media = media
+        self.userMediaProgress = userMediaProgress
+        self.progressLastUpdate = progressLastUpdate
+        self.isMissing = isMissing
+        recentEpisode = nil
+    }
+
+    /// A podcast's episode, made into an item (see the type).
+    public var isEpisode: Bool { AudiobookshelfMediaKey(id).isEpisode }
+
+    public var isPodcast: Bool { mediaType == "podcast" && !isEpisode }
+
+    /// A podcast's title (an episode made into an item carries it as its
+    /// author, `authorName`).
+    public var podcastTitle: String? { media?.metadata?.title }
+
+    /// A book or an episode with something to listen to: ebook-only items
+    /// have no tracks.
     public var hasAudio: Bool {
-        (mediaType ?? "book") == "book" && (media?.numTracks ?? media?.tracks?.count ?? 1) > 0
+        guard isEpisode || (mediaType ?? "book") == "book" else { return false }
+        return (media?.numTracks ?? media?.tracks?.count ?? 1) > 0
     }
 }
 
+/// A book's media, or a podcast's (its episodes and how many).
 public struct AudiobookshelfBookMedia: Decodable, Sendable {
     public let duration: Double?
     public let numTracks: Int?
@@ -109,6 +149,28 @@ public struct AudiobookshelfBookMedia: Decodable, Sendable {
     public let chapters: [AudiobookshelfChapter]?
     /// Expanded items only: the files to play, in order.
     public let tracks: [AudiobookshelfTrack]?
+    /// A podcast's, on an item read whole.
+    public let episodes: [AudiobookshelfEpisode]?
+    /// A podcast's, on a list's (minified) item.
+    public let numEpisodes: Int?
+
+    init(
+        duration: Double?,
+        numTracks: Int?,
+        numChapters: Int?,
+        metadata: AudiobookshelfBookMetadata?,
+        chapters: [AudiobookshelfChapter]?,
+        tracks: [AudiobookshelfTrack]?
+    ) {
+        self.duration = duration
+        self.numTracks = numTracks
+        self.numChapters = numChapters
+        self.metadata = metadata
+        self.chapters = chapters
+        self.tracks = tracks
+        episodes = nil
+        numEpisodes = nil
+    }
 }
 
 public struct AudiobookshelfBookMetadata: Decodable, Sendable {
@@ -121,6 +183,83 @@ public struct AudiobookshelfBookMetadata: Decodable, Sendable {
     public let publishedYear: String?
     /// Audible's id for the book, when it was matched there.
     public let asin: String?
+    /// A podcast's maker (a book's is `authorName`).
+    public let author: String?
+
+    init(title: String?, authorName: String?, description: String?, publishedYear: String?) {
+        self.title = title
+        self.authorName = authorName
+        self.description = description
+        self.publishedYear = publishedYear
+        subtitle = nil
+        narratorName = nil
+        seriesName = nil
+        asin = nil
+        author = nil
+    }
+}
+
+/// A podcast's episode, as an item read whole lists it (`audioTrack`
+/// included), as the library's latest episodes do, or as a podcast in
+/// progress names its own (`audioFile` only).
+public struct AudiobookshelfEpisode: Decodable, Sendable, Identifiable {
+    public let id: String
+    public let libraryItemId: String?
+    public let title: String?
+    public let subtitle: String?
+    public let description: String?
+    /// When it came out, ms since 1970.
+    public let publishedAt: Int64?
+    public let duration: Double?
+    public let chapters: [AudiobookshelfChapter]?
+    /// Read whole: the file as the server plays it.
+    public let audioTrack: AudiobookshelfTrack?
+    public let audioFile: AudiobookshelfAudioFile?
+    /// The latest episodes only: whose they are.
+    public let podcast: AudiobookshelfPodcastSummary?
+
+    /// How long it runs, from whichever the server sent.
+    public var length: Double {
+        duration ?? audioTrack?.duration ?? audioFile?.duration ?? 0
+    }
+
+    /// Its file as a track to play: the server's, else made from the file.
+    var track: AudiobookshelfTrack? {
+        if let audioTrack { return audioTrack }
+        guard let audioFile, let ino = audioFile.ino else { return nil }
+        return AudiobookshelfTrack(
+            index: audioFile.index ?? 1,
+            startOffset: 0,
+            duration: audioFile.duration ?? duration ?? 0,
+            title: title,
+            contentUrl: nil,
+            mimeType: audioFile.mimeType,
+            codec: audioFile.codec,
+            ino: ino,
+            metadata: audioFile.metadata
+        )
+    }
+}
+
+/// An episode's file.
+public struct AudiobookshelfAudioFile: Decodable, Sendable {
+    public let index: Int?
+    public let ino: String?
+    public let duration: Double?
+    public let mimeType: String?
+    public let codec: String?
+    public let metadata: AudiobookshelfTrack.FileMetadata?
+}
+
+/// The podcast a latest episode is from.
+public struct AudiobookshelfPodcastSummary: Decodable, Sendable {
+    public let libraryItemId: String?
+    public let metadata: AudiobookshelfBookMetadata?
+}
+
+/// `GET /api/libraries/<id>/recent-episodes`.
+struct AudiobookshelfRecentEpisodes: Decodable, Sendable {
+    let episodes: [AudiobookshelfEpisode]
 }
 
 public struct AudiobookshelfChapter: Decodable, Sendable {
@@ -145,6 +284,28 @@ public struct AudiobookshelfTrack: Decodable, Sendable {
     public let codec: String?
     public let ino: String?
     public let metadata: FileMetadata?
+
+    init(
+        index: Int,
+        startOffset: Double?,
+        duration: Double,
+        title: String?,
+        contentUrl: String?,
+        mimeType: String?,
+        codec: String?,
+        ino: String?,
+        metadata: FileMetadata?
+    ) {
+        self.index = index
+        self.startOffset = startOffset
+        self.duration = duration
+        self.title = title
+        self.contentUrl = contentUrl
+        self.mimeType = mimeType
+        self.codec = codec
+        self.ino = ino
+        self.metadata = metadata
+    }
 
     public struct FileMetadata: Decodable, Sendable {
         public let filename: String?

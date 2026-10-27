@@ -26,7 +26,8 @@ struct AudiobookAuthor: Hashable {
             plexArtistID = content.plexRatingKey
             return
         }
-        guard let book = AudiobookPlayer.shared.book(containing: content) else { return nil }
+        // A podcast's episode has a podcast, not an author.
+        guard let book = AudiobookPlayer.shared.book(containing: content), !book.isPodcastEpisode else { return nil }
         var name = (book.metadata?.artist ?? book.subtitle).trimmingCharacters(in: .whitespaces)
         // Audiobookshelf joins a book's authors with commas ("Terry
         // Pratchett, Neil Gaiman"), a name no author goes by: the page is

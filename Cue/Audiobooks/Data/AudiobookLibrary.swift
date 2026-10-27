@@ -537,6 +537,16 @@ enum AudiobookLibrary {
     /// does), else for the edition found by its title and author.
     private static func audiobookshelfChapters(_ item: AudiobookshelfItem, parts: [PlayableContent]) async -> [AudiobookChapter] {
         guard (item.media?.chapters ?? []).isEmpty else { return item.chapters }
+        // An episode's are its feed's or its file's: Audible has none, and
+        // an episode's title would find some book's.
+        if item.isEpisode {
+            let key = "audiobookshelf:\(parts.first?.content.id ?? item.id)"
+            let marks = await AudiobookChapterReader.marks(in: parts.prefix(1).map { part in
+                (key: key, url: AudiobookshelfAPI.fileURL(for: part.content.id, fileExtension: part.metadata?.audioCodec))
+            })
+            guard let found = marks[key], !found.isEmpty else { return item.chapters }
+            return .from(files: [(title: item.media?.metadata?.title ?? "Episode", marks: found)], timeline: item.timeline)
+        }
         let keys = parts.map { "audiobookshelf:\($0.content.id)" }
         // The file itself, not a session's track: a session held here may
         // have ended on the server.

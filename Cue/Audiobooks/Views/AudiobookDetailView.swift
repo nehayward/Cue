@@ -198,16 +198,17 @@ struct AudiobookDetailView: View {
                     .font(.title3.bold())
                     .fontDesign(.serif)
                     .multilineTextAlignment(.center)
-                // The author opens their page: their other books.
+                // The author opens their page: their other books. An
+                // episode's podcast opens the podcast's.
                 if !shown.subtitle.isEmpty {
-                    NavigationLink(value: RouterDestination.artistDetail(content: shown, group: nil)) {
+                    NavigationLink(value: authorDestination) {
                         Text(shown.subtitle)
                             .font(.body)
                             .fontDesign(.rounded)
                             .foregroundStyle(.tint)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityHint("Shows their books")
+                    .accessibilityHint(shown.isPodcastEpisode ? "Shows its episodes" : "Shows their books")
                 }
                 // Audiobookshelf's, else Audible's for a Plex book.
                 if let narrator = audiobook?.narrator ?? AudiobookDetails.shared.narrator(for: shown) {
@@ -226,6 +227,15 @@ struct AudiobookDetailView: View {
             .frame(maxWidth: .infinity)
         }
         .padding(.top, 8)
+    }
+
+    /// Where the line under the title goes: the author's page, or for an
+    /// episode its podcast's.
+    private var authorDestination: RouterDestination {
+        if let podcastID = shown.podcastID {
+            return .audiobookshelfPodcast(AudiobookshelfPodcast(id: podcastID, title: shown.subtitle))
+        }
+        return .artistDetail(content: shown, group: nil)
     }
 
     /// "12 hr, 5 min • 3 hr, 2 min left".

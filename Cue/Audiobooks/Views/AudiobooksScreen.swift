@@ -167,6 +167,14 @@ struct AudiobooksScreen: View {
                     AudiobookCoverRow(books: shelf.recentlyAdded)
                 }
             }
+            // Audiobookshelf's podcasts: their newest episodes, the title
+            // opening every podcast.
+            if showsAudiobookshelf, !shelf.podcastLibraries.isEmpty {
+                AudiobookSectionTitle(title: "Podcasts", destination: .audiobookshelfPodcasts)
+                if !shelf.latestEpisodes.isEmpty {
+                    AudiobookCoverRow(books: shelf.latestEpisodes)
+                }
+            }
         }
     }
 

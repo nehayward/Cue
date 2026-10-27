@@ -39,7 +39,12 @@ struct AudiobookMenuItems: View {
             }
         }
         NavigationLink(value: RouterDestination.audiobookDetail(content: book)) {
-            Label("View Book", systemImage: "book")
+            Label(book.isPodcastEpisode ? "View Episode" : "View Book", systemImage: book.isPodcastEpisode ? "mic" : "book")
+        }
+        if let podcastID = book.podcastID {
+            NavigationLink(value: RouterDestination.audiobookshelfPodcast(AudiobookshelfPodcast(id: podcastID, title: book.subtitle))) {
+                Label("View Podcast", systemImage: "square.stack")
+            }
         }
         // Out of Continue Listening until it's listened to again.
         if ContinueListeningRemovals.shared.isListed(book) {

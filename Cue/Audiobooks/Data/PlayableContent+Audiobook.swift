@@ -36,3 +36,18 @@ extension PlayableContent {
         return content.service == other.content.service && content.id == other.content.id
     }
 }
+
+extension PlayableContent {
+    /// An Audiobookshelf podcast's episode, which plays as a book of one
+    /// file (`AudiobookshelfMediaKey`): it has a podcast where a book has
+    /// an author, and nothing on Audible.
+    var isPodcastEpisode: Bool {
+        content.service == .audiobookshelf && AudiobookshelfMediaKey(content.id).isEpisode
+    }
+
+    /// The podcast an episode is from: its item id on the server.
+    var podcastID: String? {
+        guard isPodcastEpisode else { return nil }
+        return AudiobookshelfMediaKey(content.id).itemID
+    }
+}

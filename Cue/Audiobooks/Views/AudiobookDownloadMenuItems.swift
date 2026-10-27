@@ -37,7 +37,7 @@ struct AudiobookDownloadMenuItems: View {
                         await LocalDownloadMenuSection.download(book, alertService: alertService)
                     }
                 } label: {
-                    Label("Download Book", systemImage: "arrow.down.circle")
+                    Label(book.isPodcastEpisode ? "Download Episode" : "Download Book", systemImage: "arrow.down.circle")
                 }
             }
         }

@@ -230,9 +230,9 @@ struct LocalDownloadMenuSection: View {
             // bit of progress flickers.
             switch manager.containerPresence(for: book) {
             case .downloaded:
-                Label("Book Downloaded", systemImage: "arrow.down.circle.fill")
+                Label(book.isPodcastEpisode ? "Episode Downloaded" : "Book Downloaded", systemImage: "arrow.down.circle.fill")
             case .downloading:
-                Label("Downloading Book…", systemImage: "arrow.down.circle.dotted")
+                Label(book.isPodcastEpisode ? "Downloading Episode…" : "Downloading Book…", systemImage: "arrow.down.circle.dotted")
             case nil:
                 Button {
                     HapticManager.shared.fireHaptic(.buttonPress)
@@ -241,7 +241,7 @@ struct LocalDownloadMenuSection: View {
                         await Self.download(book, alertService: alertService)
                     }
                 } label: {
-                    Label("Download Book", systemImage: "arrow.down.circle")
+                    Label(book.isPodcastEpisode ? "Download Episode" : "Download Book", systemImage: "arrow.down.circle")
                 }
             }
         }
