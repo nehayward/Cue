@@ -14,8 +14,10 @@ import WatchSync
 /// (`PlexAudiobook.preferring`, `AudiobookProgress.preferring`), so a Plex
 /// file only counted played doesn't move it. The iPhone hears the places of
 /// the books picked for the watch with the picks (`placesToShare`), and
-/// picks a book up where the watch left it, telling the server when it next
-/// opens the book. The places go through iCloud's key-value store too
+/// picks a book up where the watch left it. The watch tells the book's
+/// server itself too, of a place listening here reached (`tellServers`),
+/// so the server's other players hear of it before the iPhone next opens
+/// the book. The places go through iCloud's key-value store too
 /// (`CloudBookPlaces`), read at launch, on coming back to Cue and whenever
 /// it changes, so they cross with the iPhone out of reach: the watch
 /// reaches iCloud over its own Wi‑Fi or cellular.
@@ -45,6 +47,11 @@ final class WatchBookStore {
     @ObservationIgnored private var cloudObserver: NSObjectProtocol?
     /// Books whose files have been read for chapters this launch.
     @ObservationIgnored private var readFiles: Set<String> = []
+    /// When each book's place was last reached here, as it's kept: only
+    /// those go to the server, not one the iPhone or iCloud brought.
+    @ObservationIgnored private var reachedHere: [String: Date] = [:]
+    /// The newest place each book's server has been told of.
+    @ObservationIgnored private var toldServer: [String: Date] = [:]
     @ObservationIgnored private let logger = Logger(subsystem: "dance.cue.watch", category: "Books")
 
     private init() {
@@ -70,6 +77,7 @@ final class WatchBookStore {
     func record(_ progress: AudiobookProgress, for key: String, tellPhoneNow: Bool = false) {
         let changed = places.record(WatchBookPlace(progress), for: key)
         if changed {
+            reachedHere[key] = places[key]?.updatedAt
             scheduleSave()
             WatchDownloadStore.shared.bookPlaceDidMove()
         }
@@ -225,6 +233,52 @@ final class WatchBookStore {
         let written = cloud.write(placesToShare)
         if !written.isEmpty {
             logger.info("Put \(written.count) book places in iCloud")
+        }
+        tellServers()
+    }
+
+    // MARK: - Telling the server
+
+    /// Tells each picked book's server the place listening here reached,
+    /// when it hasn't heard of it: with the iPhone's places, at a pause and
+    /// a minute into listening. Audiobookshelf gets the place itself (the
+    /// watch has the iPhone's sign-in, lent); Plex the file's place, paused,
+    /// as the iPhone reports a book file left partway, and a finish marked
+    /// played. A server it can't reach just isn't told; the iPhone tells
+    /// it later as before.
+    private func tellServers() {
+        let store = WatchDownloadStore.shared
+        for pick in store.books {
+            guard let place = places[pick.key], let reached = reachedHere[pick.key], place.updatedAt == reached,
+                  reached > (toldServer[pick.key] ?? .distantPast) else { continue }
+            toldServer[pick.key] = reached
+            let progress = AudiobookProgress(place)
+            let timeline = timeline(for: pick.key)
+            let files = store.songs(in: [pick.key])
+            logger.info("\(pick.title, privacy: .public): telling the server, \(Int(progress.position)) s\(progress.isFinished ? ", finished" : "", privacy: .public)")
+            Task {
+                await Self.tell(pick, progress, timeline: timeline, files: files)
+            }
+        }
+    }
+
+    private static func tell(_ pick: WatchPick, _ progress: AudiobookProgress, timeline: AudiobookTimeline, files: [WatchSong]) async {
+        switch pick.source {
+        case .audiobookshelf:
+            guard AudiobookshelfAPI.shared.isConfigured else { return }
+            await AudiobookshelfAPI.shared.updateProgress(itemID: pick.id, currentTime: progress.position, duration: progress.duration, isFinished: progress.isFinished)
+        case .plex:
+            if progress.isFinished {
+                guard let key = ConvertedStream.plexRatingKey(contentID: pick.id) else { return }
+                await PlexAPI.shared.markPlayed(ratingKey: key, true)
+                return
+            }
+            let here = timeline.location(at: progress.position)
+            guard files.indices.contains(here.part), timeline.partDurations.indices.contains(here.part),
+                  let key = ConvertedStream.plexRatingKey(contentID: files[here.part].contentID) else { return }
+            await PlexAPI.shared.reportTimeline(ratingKey: key, state: .paused, time: here.offset, duration: timeline.partDurations[here.part])
+        case .subsonic:
+            return
         }
     }
 

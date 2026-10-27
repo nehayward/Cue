@@ -24,6 +24,11 @@ import WatchSync
 /// and at once on a pause. A file not here yet stops it there rather than
 /// skipping part of the story.
 ///
+/// A sleep timer pauses it after a while, or at the end of the chapter
+/// playing: the moment the next one starts in the file, else at the end of
+/// the file (a song's end, for music), with the next file loaded to start
+/// from (`sleepTimer`).
+///
 /// What's loaded outlives the app (player.json): the songs, the one
 /// playing and the place in it, or the book, whose place is the book
 /// store's. A launch puts it back paused with nothing loaded into the
@@ -47,6 +52,19 @@ final class WatchPlayer {
     /// When it started or stopped playing last, this launch: with the
     /// iPhone paused too, the home screen's card is whichever played last.
     private(set) var lastPlayedAt: Date?
+
+    /// When the player pauses itself, for listening to fall asleep to.
+    enum SleepTimer: Equatable {
+        case at(Date)
+        /// Where the next chapter starts; for a book without chapters, or a
+        /// song, where the file ends.
+        case endOfChapter
+    }
+
+    private(set) var sleepTimer: SleepTimer?
+
+    /// The lengths offered, in minutes.
+    static let sleepChoices = [5, 10, 15, 30, 45, 60]
 
     var current: WatchSong? {
         queue.indices.contains(index) ? queue[index] : nil
@@ -91,6 +109,7 @@ final class WatchPlayer {
     @ObservationIgnored private var shownChapter: Int?
     /// Fires where the next chapter starts in the file playing, to show it.
     @ObservationIgnored private var chapterObserver: Any?
+    @ObservationIgnored private var sleepTask: Task<Void, Never>?
     @ObservationIgnored private let logger = Logger(subsystem: "dance.cue.watch", category: "Player")
 
     private init() {
@@ -124,7 +143,11 @@ final class WatchPlayer {
             let item = notification.object as? AVPlayerItem
             Task { @MainActor in
                 guard let self, item != nil, item === self.player.currentItem else { return }
-                self.next()
+                if self.sleepTimer == .endOfChapter, self.chapterEndsWithFile {
+                    self.sleepAtEndOfFile()
+                } else {
+                    self.next()
+                }
             }
         }
         // A call or an alarm pauses the player by itself; carry on after
@@ -697,7 +720,12 @@ final class WatchPlayer {
         let boundary = NSValue(time: CMTime(seconds: offset + 0.05, preferredTimescale: 1000))
         chapterObserver = player.addBoundaryTimeObserver(forTimes: [boundary], queue: .main) { [weak self] in
             Task { @MainActor in
-                self?.updateNowPlaying()
+                guard let self else { return }
+                // The chapter is over: the sleep timer's moment.
+                if self.sleepTimer == .endOfChapter {
+                    self.sleepNow()
+                }
+                self.updateNowPlaying()
             }
         }
     }
@@ -768,6 +796,61 @@ final class WatchPlayer {
         center.skipForwardCommand.isEnabled = isBook
         center.skipBackwardCommand.isEnabled = isBook
         center.changePlaybackRateCommand.isEnabled = isBook
+    }
+
+    // MARK: - Sleep timer
+
+    /// Sets the sleep timer, or turns it off with nil.
+    func setSleepTimer(_ timer: SleepTimer?) {
+        sleepTask?.cancel()
+        sleepTask = nil
+        sleepTimer = timer
+        guard case let .at(date) = timer else { return }
+        logger.info("Sleep timer: \(Int(date.timeIntervalSinceNow / 60)) min")
+        sleepTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(max(date.timeIntervalSinceNow, 0)))
+            guard !Task.isCancelled else { return }
+            self?.sleepNow()
+        }
+    }
+
+    /// The timer's up: a pause, kept as any other.
+    private func sleepNow() {
+        logger.info("Sleep timer: pausing")
+        sleepTask = nil
+        sleepTimer = nil
+        WKInterfaceDevice.current().play(.stop)
+        pause()
+    }
+
+    /// Whether the file playing ends a chapter: the next file starts one,
+    /// or there are no chapters to go by (a book of a file a chapter, a
+    /// song).
+    private var chapterEndsWithFile: Bool {
+        guard let book, let timeline, index + 1 < queue.count else { return true }
+        let chapters = WatchBookStore.shared.chapters(for: book.key)
+        guard !chapters.isEmpty else { return true }
+        let nextStart = timeline.start(ofPart: index + 1)
+        return chapters.contains { abs($0.start - nextStart) < 1 }
+    }
+
+    /// End of Chapter at the end of a file: the next one loads, paused at
+    /// its start, so Play goes on from the next chapter. At the end of the
+    /// last, the book ends as it would.
+    private func sleepAtEndOfFile() {
+        sleepTimer = nil
+        guard index + 1 < queue.count else {
+            next()
+            return
+        }
+        logger.info("Sleep timer: the chapter's over")
+        WKInterfaceDevice.current().play(.stop)
+        pendingPlay = false
+        index += 1
+        loadCurrent(andPlay: false)
+        if let timeline {
+            notePlace(at: timeline.start(ofPart: index), tellPhoneNow: true)
+        }
     }
 
     // MARK: - Relaunch
