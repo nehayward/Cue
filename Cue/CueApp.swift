@@ -1743,6 +1743,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             files.onScanStarted = track
             files.onCloudTagsStarted = track
         }
+        // The menu bar's Add to Last Playlist, on or off with what's playing.
+        Task { @MainActor in
+            PlaylistMenuCommands.followAddToLastPlaylist()
+        }
         return true
     }
 
@@ -1845,8 +1849,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
             // Add to Last Playlist, named for the playlist once there is one
             // (`LastPlaylist.save` rebuilds the menu) and on while the song
-            // playing can go in it (`canPerformAction`). A disabled action
-            // in its place, built once at launch, stayed off on iPad.
+            // playing can go in it. Built on or off, and rebuilt when that
+            // changes (`PlaylistMenuCommands.followAddToLastPlaylist`):
+            // SwiftUI's app delegate stands in the responder chain in place
+            // of this one, so `canPerformAction` here is never asked, and the
+            // command was on with a book playing. A disabled action in its
+            // place, built once at launch, stayed off on iPad.
             let last = LastPlaylist.current
             let addToLastPlaylistAction = UIKeyCommand(
                 title: last.map { "Add to \($0.title)" } ?? "Add to Last Playlist",
@@ -1855,6 +1863,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 input: "s",
                 modifierFlags: [.shift, .command]
             )
+            if !PlaylistMenuCommands.noteMenuBuilt() {
+                addToLastPlaylistAction.attributes = .disabled
+            }
 
             // Add to Playlist submenu with deferred loading
             let addToPlaylistDeferred = UIDeferredMenuElement.uncached { completion in
@@ -1961,11 +1972,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             return PlaylistUndoMenuBridge.shared.editor?.canUndo ?? false
         case #selector(playlistRedo):
             return PlaylistUndoMenuBridge.shared.editor?.canRedo ?? false
-        case #selector(newPlaylist):
-            return PlaylistMenuCommands.newPlaylistService != nil
-        case #selector(addToLastPlaylist):
-            guard let last = LastPlaylist.current, let song = PlaylistMenuCommands.songToAdd else { return false }
-            return last.accepts(song)
         default:
             return super.canPerformAction(action, withSender: sender)
         }
@@ -1982,8 +1988,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     /// The song the player shows into the last playlist, on this device or a
-    /// speaker. `canPerformAction` keeps the command off while it can't go
-    /// in; the toasts are for a shortcut pressed anyway.
+    /// speaker. The command is built off while it can't go in; the toasts are
+    /// for a shortcut pressed before the menu caught up.
     @objc func addToLastPlaylist() {
         let alertService = AlertService.shared
         guard let last = LastPlaylist.current else {

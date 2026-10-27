@@ -1,5 +1,6 @@
 import Defaults
 import MusicSearchKit
+import Observation
 import SonosKit
 import UIKit
 
@@ -26,11 +27,46 @@ enum PlaylistMenuCommands {
         return song
     }
 
+    /// Whether Add to Last Playlist has something to do: a last playlist, and
+    /// a song playing that can go in it.
+    static var canAddToLastPlaylist: Bool {
+        guard let last = LastPlaylist.current, let song = songToAdd else { return false }
+        return last.accepts(song)
+    }
+
+    /// What the menu bar's Add to Last Playlist was last built with.
+    private static var menuCanAdd: Bool?
+
+    /// Called as the menu is built: whether its Add to Last Playlist is on,
+    /// kept to compare with what's playing from then on.
+    static func noteMenuBuilt() -> Bool {
+        let canAdd = canAddToLastPlaylist
+        menuCanAdd = canAdd
+        return canAdd
+    }
+
+    /// Keeps Add to Last Playlist on or off with what's playing, from launch.
+    /// SwiftUI's app delegate stands in the responder chain in place of Cue's,
+    /// so `AppDelegate.canPerformAction` is never asked as the menu opens: the
+    /// command is built on or off instead, and the menu rebuilt when what's
+    /// playing turns it the other way. `LastPlaylist.save` rebuilds it for a
+    /// new last playlist.
+    static func followAddToLastPlaylist() {
+        let canAdd = withObservationTracking {
+            canAddToLastPlaylist
+        } onChange: {
+            Task { @MainActor in followAddToLastPlaylist() }
+        }
+        if let menuCanAdd, menuCanAdd != canAdd {
+            UIMenuSystem.main.setNeedsRebuild()
+        }
+    }
+
     /// Where New Playlist makes one: the provider Browse shows, else the
     /// playing song's service, else the first provider switched on, of those
     /// whose playlists Cue can make and this device can play (the sheet
     /// names it). Never a Sonos playlist, which only a speaker plays
-    /// (CLAUDE.md, Product Priorities). Nil leaves the command off.
+    /// (CLAUDE.md, Product Priorities). Nil when none is switched on.
     static var newPlaylistService: MusicService? {
         let browsed = UserDefaults.standard.string(forKey: AppStorageKeys.browseMediaService)
             .flatMap(MediaSearchService.init(rawValue:)) ?? .apple
