@@ -234,7 +234,7 @@ struct AddToPlaylistSheet: View {
     /// Makes the resulting toast tap through to the playlist's detail screen.
     private func deepLink(to playlist: PlayableContent) {
         alertService.alert.handleTap = {
-            Router.main.presentedSheet = .mediaDetail(content: playlist, group: nil)
+            MediaDetailPresenter.present(playlist)
         }
     }
 

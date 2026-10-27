@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { html, raw } from '../src/lib/html.js';
 import { releases } from '../src/pages/releases.js';
-import { route } from '../src/worker.js';
+import { film, route } from '../src/worker.js';
 
 const get = (path, init) => route(new Request(`https://cue.dance${path}`, init));
 
@@ -108,4 +108,25 @@ test('every release has what the pages need', () => {
 		assert.ok(r.headline, r.version);
 		assert.ok(Array.isArray(r.newFeatures) && Array.isArray(r.bugFixes), r.version);
 	}
+});
+
+test('films answer byte ranges, as Safari needs', async () => {
+	const bytes = new Uint8Array(1000).map((_, i) => i % 256);
+	const assets = { fetch: async () => new Response(bytes, { headers: { 'content-type': 'video/mp4' } }) };
+	const ask = (range) => film(new Request('https://cue.dance/video/a.mp4', range ? { headers: { range } } : {}), assets);
+
+	const whole = await ask();
+	assert.equal(whole.status, 200);
+	assert.equal(whole.headers.get('accept-ranges'), 'bytes');
+
+	const first = await ask('bytes=0-1');
+	assert.equal(first.status, 206);
+	assert.equal(first.headers.get('content-range'), 'bytes 0-1/1000');
+	assert.deepEqual([...new Uint8Array(await first.arrayBuffer())], [0, 1]);
+
+	const rest = await ask('bytes=998-');
+	assert.equal(rest.headers.get('content-range'), 'bytes 998-999/1000');
+	const tail = await ask('bytes=-10');
+	assert.equal(tail.headers.get('content-range'), 'bytes 990-999/1000');
+	assert.equal((await ask('bytes=2000-')).status, 416);
 });

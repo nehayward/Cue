@@ -5,6 +5,7 @@
 # Usage:
 #   Scripts/app-store-art.sh render              # every device's screenshots
 #   Scripts/app-store-art.sh preview             # the App Preview and the promo
+#   Scripts/app-store-art.sh banner              # the product page header and search art
 #   Scripts/app-store-art.sh sheet               # a contact sheet per device
 #   Scripts/app-store-art.sh shoot iphone radio  # the simulator's screen as a raw shot
 #   Scripts/app-store-art.sh record iphone books --seconds 30
@@ -18,7 +19,7 @@ PACKAGE="$ROOT/Tools/StoreShots"
 PROJECT="$ROOT/Marketing/AppStore/storeshots.json"
 
 if [[ $# -lt 1 ]]; then
-	sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'
+	sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'
 	exit 64
 fi
 

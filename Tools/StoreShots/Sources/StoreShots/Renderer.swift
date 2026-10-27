@@ -24,6 +24,48 @@ enum Renderer {
         return image
     }
 
+    /// A smooth backdrop drawn at exactly `size` pixels: rendered in 16-bit
+    /// floating point, then given the sRGB curve and brought down to 8 bits
+    /// with triangular dither under a level strong, so a slow gradient over
+    /// a whole canvas neither bands nor shows grain. Plain colours and
+    /// linear, radial and elliptical gradients only: SwiftUI linearises a
+    /// MeshGradient's colours twice in this mode.
+    static func smooth(_ view: some View, size: CGSize) throws -> CGImage {
+        let renderer = ImageRenderer(content: view.frame(width: size.width, height: size.height))
+        renderer.scale = 1
+        renderer.proposedSize = ProposedViewSize(size)
+        renderer.colorMode = .extendedLinear
+        guard let image = renderer.cgImage, image.bitsPerComponent == 16, image.bitsPerPixel == 64,
+              image.bitmapInfo.contains(.floatComponents), let data = image.dataProvider?.data,
+              let bytes = CFDataGetBytePtr(data) else { throw Failure("SwiftUI drew no 16-bit backdrop") }
+        let width = image.width, height = image.height
+        guard let flat = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+                                   space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue),
+              let target = flat.data else {
+            throw Failure("couldn't make a \(width)×\(height) bitmap")
+        }
+        let sourceRow = image.bytesPerRow / 2, targetRow = flat.bytesPerRow
+        let half = UnsafeRawPointer(bytes).assumingMemoryBound(to: Float16.self)
+        let narrow = target.bindMemory(to: UInt8.self, capacity: targetRow * height)
+        var state: UInt32 = 0x9E37_79B9
+        func random() -> Float {
+            state ^= state << 13; state ^= state >> 17; state ^= state << 5
+            return Float(state >> 8) / Float(1 << 24)
+        }
+        for y in 0..<height {
+            for x in 0..<width {
+                for channel in 0..<3 {
+                    let value = max(0, min(1, Float(half[y * sourceRow + x * 4 + channel])))
+                    let encoded = value <= 0.003_130_8 ? 12.92 * value : 1.055 * powf(value, 1 / 2.4) - 0.055
+                    let dithered = (encoded * 255 + random() - random()).rounded()
+                    narrow[y * targetRow + x * 4 + channel] = UInt8(max(0, min(255, dithered)))
+                }
+            }
+        }
+        guard let result = flat.makeImage() else { throw Failure("couldn't dither the backdrop") }
+        return result
+    }
+
     /// The image on an opaque background with no alpha channel, as App Store
     /// Connect takes it.
     static func opaque(_ image: CGImage, background: CGColor) throws -> CGImage {

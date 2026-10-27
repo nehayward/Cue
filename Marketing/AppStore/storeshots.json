@@ -10,20 +10,11 @@
   "clips": "../../build/app-store/clips",
   "output": "../../build/app-store/output",
   "theme": {
-    "base": "#06090A",
+    "base": "#050706",
     "palette": [
-      "#2F9E6E",
-      "#1E8C8C",
-      "#2F62A8",
-      "#4A49A6",
-      "#B27628",
-      "#A3456C",
-      "#6A45A8",
-      "#2F8F86",
-      "#3A6FB0",
-      "#2F9E6E"
+      "#059669"
     ],
-    "accent": "#6FE0A6",
+    "accent": "#34D399",
     "titleWeight": "bold",
     "design": "rounded",
     "finish": "graphite"
@@ -56,10 +47,10 @@
       "name": "player",
       "layout": "hero",
       "title": "All your music. *One player.*",
-      "subtitle": "Apple Music, Plex, Subsonic, radio and your own files, on this iPhone or on Sonos.",
+      "subtitle": "Apple Music, Plex, Subsonic, radio and your own files, from your pocket to every room.",
       "overrides": {
         "ipad": {
-          "subtitle": "Apple Music, Plex, Subsonic, radio and your own files, on this iPad or on Sonos.",
+          "subtitle": "Apple Music, Plex, Subsonic, radio and your own files, on your iPad and in every room.",
           "screen": "queue"
         }
       }
@@ -120,11 +111,6 @@
           "subtitle": "Plex and Audiobookshelf audiobooks, with their chapters and Smart Resume."
         }
       }
-    },
-    {
-      "name": "transcript",
-      "title": "Read along *as you listen*",
-      "subtitle": "The book's words on screen, lit up as they're read."
     },
     {
       "name": "radio",
@@ -198,6 +184,13 @@
       "title": "Now Playing"
     },
     {
+      "name": "phone-player",
+      "devices": [
+        "watch"
+      ],
+      "title": "Your iPhone's player"
+    },
+    {
       "name": "books",
       "devices": [
         "watch"
@@ -205,16 +198,11 @@
       "title": "Books"
     },
     {
-      "name": "lists",
+      "name": "book",
       "devices": [
         "watch"
       ],
-      "title": "Library",
-      "overrides": {
-        "watch": {
-          "screen": "library"
-        }
-      }
+      "title": "A book"
     },
     {
       "name": "downloads",
@@ -251,15 +239,9 @@
         },
         {
           "clip": "books",
-          "from": 1.5,
+          "from": 1.0,
           "duration": 5.0,
           "title": "Books, *right where you left off*"
-        },
-        {
-          "clip": "books",
-          "from": 8.2,
-          "duration": 3.5,
-          "title": "Read along *as you listen*"
         },
         {
           "clip": "radio",
@@ -272,7 +254,9 @@
           "duration": 2.5,
           "title": "Search *everything* at once"
         }
-      ]
+      ],
+      "frame": true,
+      "float": true
     },
     {
       "name": "cue-promo",
@@ -306,15 +290,9 @@
         },
         {
           "clip": "books",
-          "from": 1.5,
+          "from": 1.0,
           "duration": 5.0,
           "title": "Books, *right where you left off*"
-        },
-        {
-          "clip": "books",
-          "from": 8.2,
-          "duration": 3.5,
-          "title": "Read along *as you listen*"
         },
         {
           "clip": "radio",
@@ -328,6 +306,112 @@
           "title": "Search *everything* at once"
         }
       ]
+    }
+  ],
+  "banners": [
+    {
+      "name": "universal",
+      "size": [
+        5244,
+        2950
+      ],
+      "safe": [
+        4425,
+        2247
+      ],
+      "title": "All your music. *One player.*",
+      "subtitle": "Apple Music, Plex, Subsonic, radio and audiobooks, from your wrist to every room.",
+      "devices": [
+        {
+          "device": "iphone",
+          "screen": "radio"
+        },
+        {
+          "device": "iphone",
+          "screen": "audiobooks"
+        },
+        {
+          "device": "iphone",
+          "screen": "player"
+        },
+        {
+          "device": "iphone",
+          "screen": "services"
+        },
+        {
+          "device": "iphone",
+          "screen": "search"
+        }
+      ],
+      "companion": {
+        "device": "watch",
+        "screen": "now-playing"
+      }
+    },
+    {
+      "name": "header",
+      "size": [
+        3840,
+        1646
+      ],
+      "safe": [
+        3640,
+        1646
+      ],
+      "title": "All your music. *One player.*",
+      "devices": [
+        {
+          "device": "iphone",
+          "screen": "radio"
+        },
+        {
+          "device": "iphone",
+          "screen": "audiobooks"
+        },
+        {
+          "device": "iphone",
+          "screen": "player"
+        },
+        {
+          "device": "iphone",
+          "screen": "services"
+        },
+        {
+          "device": "iphone",
+          "screen": "search"
+        }
+      ],
+      "companion": {
+        "device": "watch",
+        "screen": "now-playing"
+      }
+    },
+    {
+      "name": "search",
+      "size": [
+        3840,
+        2560
+      ],
+      "title": "All your music. *One player.*",
+      "subtitle": "Apple Music, Plex, Subsonic, radio and audiobooks, from your wrist to every room.",
+      "devices": [
+        {
+          "device": "iphone",
+          "screen": "audiobooks"
+        },
+        {
+          "device": "iphone",
+          "screen": "player"
+        },
+        {
+          "device": "iphone",
+          "screen": "services"
+        }
+      ],
+      "companion": {
+        "device": "watch",
+        "screen": "now-playing"
+      }
     }
   ]
 }
