@@ -13,6 +13,7 @@ struct SearchScreen: View {
     }
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.usesPadLayout) private var usesPadLayout
 
     @Environment(SonosService.self) private var sonosService: SonosService
     @Environment(MusicSearchService.self) var musicSearchService
@@ -74,7 +75,8 @@ struct SearchScreen: View {
 #if targetEnvironment(macCatalyst)
         return false
 #else
-        return UIDevice.current.userInterfaceIdiom == .phone
+        // The window draws them in the iPad's layout (`WindowToasts`).
+        return !usesPadLayout
 #endif
     }
 

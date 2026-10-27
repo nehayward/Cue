@@ -12,6 +12,7 @@ import VibesDS
 struct ArtistDetailView: View {
     @Environment(SonosService.self) private var sonosService
     @Environment(Router.self) private var router: Router?
+    @Environment(\.usesPadLayout) private var usesPadLayout
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
     @Environment(AlertService.self) private var alertService
@@ -37,7 +38,7 @@ struct ArtistDetailView: View {
     @AppStorage("isAlbumsExpanded") private var isAlbumsExpanded: Bool = true
 
     var maxHeight: Double {
-        UIDevice.current.userInterfaceIdiom == .phone ? 340 : 400
+        usesPadLayout ? 400 : 340
     }
     
     // MARK: - Computed Properties

@@ -11,6 +11,7 @@ import VibesDS
 
 struct MediaDetailView: View {
     @Environment(Router.self) private var router
+    @Environment(\.usesPadLayout) private var usesPadLayout
     @Environment(PlaylistContainer.self) private var playlistsContainer: PlaylistContainer
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
     @Environment(SelectedGroupService.self) private var selectedGroupService
@@ -59,7 +60,7 @@ struct MediaDetailView: View {
     }
 
     var maxHeight: Double {
-        UIDevice.current.userInterfaceIdiom == .phone ? 340 : 400
+        usesPadLayout ? 400 : 340
     }
 
     /// For a non-Sonos service playlist, whether the user can actually edit it (owns it or it's

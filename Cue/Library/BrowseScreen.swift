@@ -11,6 +11,7 @@ import Defaults
 struct BrowseScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.usesPadLayout) private var usesPadLayout
 
     @Environment(SonosService.self) private var sonosService
     @Environment(MusicSearchService.self) private var musicSearchService
@@ -27,7 +28,8 @@ struct BrowseScreen: View {
     @State private var coreFeatures = CoreFeatures.shared
     @State private var offline = OfflineMode.shared
 
-    private var showAlert: Bool { UIDevice.current.userInterfaceIdiom == .phone }
+    /// The window draws them in the iPad's layout (`WindowToasts`).
+    private var showAlert: Bool { !usesPadLayout }
     
     var body: some View {
         VStack {

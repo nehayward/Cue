@@ -220,14 +220,15 @@ public final class Alert: Equatable {
 }
 
 extension View {
-    @ViewBuilder
+    /// The toasts over this view. `enabled` only empties the overlay, so
+    /// turning it on or off (an iPhone Duo opened or folded, `PadLayout`)
+    /// never rebuilds the view it's on, which at the window is the whole
+    /// tab view.
     func withAlert(enabled: Bool = true) -> some View {
-        if enabled {
-            overlay(alignment: .top) {
+        overlay(alignment: .top) {
+            if enabled {
                 AlertView()
             }
-        } else {
-            self
         }
     }
 }

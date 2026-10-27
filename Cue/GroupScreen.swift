@@ -10,6 +10,7 @@ struct GroupScreen: View {
     @Environment(SubscriptionService.self) var subscriptionService: SubscriptionService
     @Environment(FeatureGate.self) var featureGate
     @Environment(\.dismiss) var dismiss
+    @Environment(\.usesPadLayout) private var usesPadLayout
 
     @CloudStorage("com.cue.scenes") var scenes: [SonosScene] = []
 
@@ -152,7 +153,7 @@ struct GroupScreen: View {
                         .buttonRepeatBehavior(.enabled)
                         .accessibilityLabel("Volume Down")
 
-                        VibeSlider(value: $groupVolume, in: 0...100, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 12 : 20)
+                        VibeSlider(value: $groupVolume, in: 0...100, baseHeight: usesPadLayout ? 20 : 12)
                             .accessibilityLabel("All Speakers Volume")
                             .accessibilityValue("\(Int(groupVolume.rounded())) percent")
 

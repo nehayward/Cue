@@ -7,6 +7,7 @@ import UIKit
 /// + a single `Get Started` pill. No discovery state, no Sonos integration —
 /// tapping the pill just advances to `SonosQuestionStep`.
 struct WelcomeStep: View {
+    @Environment(\.usesPadLayout) private var usesPadLayout
     @State private var logoIn = false
     @State private var brandIn = false
     @State private var taglineIn = false
@@ -73,14 +74,12 @@ struct WelcomeStep: View {
     }
 
     /// iPhone screens are tight enough that the "Built for Apple devices —"
-    /// prefix wraps awkwardly; the device list alone reads cleaner. iPad and
-    /// Mac get the full marketing line.
+    /// prefix wraps awkwardly; the device list alone reads cleaner. iPad, the
+    /// Mac and an iPhone Duo open get the full marketing line.
     private var platformLine: String {
-        #if canImport(UIKit)
-        if UIDevice.current.userInterfaceIdiom == .phone {
+        if !usesPadLayout {
             return "iPhone, iPad, Watch, TV, and Mac."
         }
-        #endif
         return "Built for Apple devices — iPhone, iPad, Watch, TV, and Mac."
     }
 }

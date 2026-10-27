@@ -26,6 +26,7 @@ import WidgetKit
 struct MusicPlaybackView: View {
     @Environment(\.tabViewBottomAccessoryPlacement) var placement
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     /// The same key each tab's queue panel reads.
     @AppStorage(AppStorageKeys.queueInspectorVisible) private var showQueue: Bool = false
     /// Owned by `CueApp`, not by this view. The tab bar accessory is hosted
@@ -42,6 +43,13 @@ struct MusicPlaybackView: View {
     private var route: PlaybackRoute { .shared }
     private var sonosService: SonosService { .shared }
 
+    /// The iPad's layout (`PadLayout`), from the accessory's own size
+    /// classes for the same reason as the singletons above: an iPhone Duo
+    /// open is laid out as an iPad, though it reports the phone idiom.
+    private var usesPadLayout: Bool {
+        PadLayout.isActive(horizontal: horizontalSizeClass, vertical: verticalSizeClass)
+    }
+
     var body: some View {
         HStack(spacing: 12) {
             nowPlayingContent
@@ -52,12 +60,12 @@ struct MusicPlaybackView: View {
                 .buttonStyle(.plain)
                 .font(.title3)
 
-            // The queue panel's show/hide on iPad, where there is no sidebar
-            // header to hold it. Only at a regular width: a compact window
-            // has no side panel to show. The Mac has it in the window
-            // toolbar and the View menu.
+            // The queue panel's show/hide on iPad and an iPhone Duo open,
+            // where there is no sidebar header to hold it. Only at a regular
+            // width: a compact window has no side panel to show. The Mac has
+            // it in the window toolbar and the View menu.
 #if !targetEnvironment(macCatalyst)
-            if UIDevice.current.userInterfaceIdiom == .pad, horizontalSizeClass == .regular {
+            if usesPadLayout, UIDevice.current.userInterfaceIdiom != .vision, horizontalSizeClass == .regular {
                 Button {
                     withAnimation(.snappy) {
                         showQueue.toggle()
@@ -101,7 +109,7 @@ struct MusicPlaybackView: View {
     }
 
     private var progressSpansFullWidth: Bool {
-        UIDevice.current.userInterfaceIdiom == .phone
+        !usesPadLayout
     }
 
     private var showsBottomProgressLine: Bool {
@@ -668,11 +676,12 @@ struct CueApp: App {
             // and the bottom bar put the real accent back — `Color("Accent")`
             // by name, since `.accentColor` now resolves to this tint.
 //            .tint(Color.primary.opacity(0.12))
-            // The toasts ("Added to …") on iPad and the Mac, over the content
-            // column. The tab screens draw them only on the phone, so on
-            // those the menu bar's playlist commands, and every other toast
-            // outside the player and the sheets, showed nothing.
-            .withAlert(enabled: !isPhone)
+            // The toasts ("Added to …") on iPad, the Mac and an iPhone Duo
+            // open, over the content column. The tab screens draw them only
+            // in the iPhone's layout, so on those the menu bar's playlist
+            // commands, and every other toast outside the player and the
+            // sheets, showed nothing.
+            .modifier(WindowToasts())
             // The queue panel, beside the whole `TabView`. Inside
             // `withEnvironments()`, which the panel's view reads from.
             .modifier(WindowQueuePanel())
@@ -707,6 +716,11 @@ struct CueApp: App {
                     .withEnvironments()
             }
             .modifier(AdaptiveTabViewStyle())
+            // The iPad's layout or the iPhone's, from the window's size
+            // classes (`PadLayout`): out here, around the toasts, the queue
+            // panel and the player's cover, which all read it. An iPhone Duo
+            // open is the iPad's, and the iPhone's again folded.
+            .withPadLayout()
             // Settings ▸ Appearance. Applied to the windows, so everything
             // presented from them follows it too.
             .onChange(of: colorScheme, initial: true) { _, preference in
@@ -1331,7 +1345,7 @@ struct CueApp: App {
                             return
                         }
                         router.selectedID = group.coordinatorID
-                        if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .vision {
+                        if !PadLayout.isActive || UIDevice.current.userInterfaceIdiom == .vision {
                             router.presentedSheet = .search(group: group)
                         } else {
                             router.inspectorSheet = .search(group: group)
@@ -1340,7 +1354,7 @@ struct CueApp: App {
                     return
                 }
                 router.selectedID = group.coordinatorID
-                if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .vision {
+                if !PadLayout.isActive || UIDevice.current.userInterfaceIdiom == .vision {
                     router.presentedSheet = .search(group: group)
                 } else {
                     router.inspectorSheet = .search(group: group)
@@ -1501,6 +1515,17 @@ struct CueApp: App {
         } catch {
             alertService.showAlert(with: error.localizedDescription, imageName: "exclamationmark.triangle")
         }
+    }
+}
+
+/// The toasts at the window wherever the tab screens leave them out: the
+/// iPad's layout (`PadLayout`), which an iPhone Duo goes in and out of as
+/// it's opened and folded.
+private struct WindowToasts: ViewModifier {
+    @Environment(\.usesPadLayout) private var usesPadLayout
+
+    func body(content: Content) -> some View {
+        content.withAlert(enabled: usesPadLayout)
     }
 }
 
