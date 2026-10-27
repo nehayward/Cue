@@ -399,13 +399,8 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
 
     /// The listener's book libraries (podcast libraries left out).
     public func libraries() async -> [AudiobookshelfLibrary]? {
-        await allLibraries()?.filter(\.isBooks)
-    }
-
-    /// Every library the listener can open, books and podcasts.
-    public func allLibraries() async -> [AudiobookshelfLibrary]? {
         let response: AudiobookshelfLibrariesResponse? = await get("/api/libraries")
-        return response?.libraries
+        return response?.libraries.filter(\.isBooks)
     }
 
     /// One page of a library's books, minified (no tracks or chapters).
@@ -445,111 +440,18 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
         return page?.results
     }
 
-    /// Books started and not finished, across libraries, newest first;
-    /// with `includingEpisodes`, the episode each podcast in progress names
-    /// among them, made into an item (`episodeItem`).
-    public func itemsInProgress(limit: Int = 25, includingEpisodes: Bool = false) async -> [AudiobookshelfItem]? {
+    /// Books started and not finished, across libraries, newest first.
+    public func itemsInProgress(limit: Int = 25) async -> [AudiobookshelfItem]? {
         let response: AudiobookshelfInProgress? = await get("/api/me/items-in-progress", query: [URLQueryItem(name: "limit", value: "\(limit)")])
-        return response?.libraryItems.compactMap { item in
-            guard item.isPodcast else { return item.hasAudio ? item : nil }
-            guard includingEpisodes, let episode = item.recentEpisode else { return nil }
-            return Self.episodeItem(episode, podcastID: item.id, podcastTitle: item.podcastTitle, libraryID: item.libraryId, progress: nil, lastUpdate: item.progressLastUpdate)
-        }
+        return response?.libraryItems.filter(\.hasAudio)
     }
 
-    /// A book whole: its files, chapters and where the listener is. For an
-    /// episode's key (`AudiobookshelfMediaKey`), the episode as a book of
-    /// one file.
+    /// A book whole: its files, chapters and where the listener is.
     public func item(id: String) async -> AudiobookshelfItem? {
-        let key = AudiobookshelfMediaKey(id)
-        guard let episodeID = key.episodeID else {
-            return await get("/api/items/\(id)", query: [
-                URLQueryItem(name: "expanded", value: "1"),
-                URLQueryItem(name: "include", value: "progress")
-            ])
-        }
-        async let progress = episodeProgress(itemID: key.itemID, episodeID: episodeID)
-        guard let podcast = await podcast(id: key.itemID),
-              let episode = podcast.media?.episodes?.first(where: { $0.id == episodeID }) else { return nil }
-        return Self.episodeItem(episode, podcastID: podcast.id, podcastTitle: podcast.podcastTitle, libraryID: podcast.libraryId, progress: await progress)
-    }
-
-    // MARK: - Podcasts
-
-    /// A podcast whole: its episodes, each with its file.
-    public func podcast(id: String) async -> AudiobookshelfItem? {
-        await get("/api/items/\(id)", query: [URLQueryItem(name: "expanded", value: "1")])
-    }
-
-    /// A podcast's episodes as items to play, newest first.
-    public func episodes(of podcast: AudiobookshelfItem) -> [AudiobookshelfItem] {
-        (podcast.media?.episodes ?? [])
-            .sorted { ($0.publishedAt ?? 0) > ($1.publishedAt ?? 0) }
-            .map { Self.episodeItem($0, podcastID: podcast.id, podcastTitle: podcast.podcastTitle, libraryID: podcast.libraryId, progress: nil) }
-    }
-
-    /// The newest episodes in a podcast library, newest first.
-    public func recentEpisodes(libraryID: String, limit: Int = 25) async -> [AudiobookshelfItem]? {
-        let response: AudiobookshelfRecentEpisodes? = await get("/api/libraries/\(libraryID)/recent-episodes", query: [
-            URLQueryItem(name: "limit", value: "\(limit)"),
-            URLQueryItem(name: "page", value: "0")
+        await get("/api/items/\(id)", query: [
+            URLQueryItem(name: "expanded", value: "1"),
+            URLQueryItem(name: "include", value: "progress")
         ])
-        return response?.episodes.compactMap { episode in
-            guard let podcastID = episode.libraryItemId ?? episode.podcast?.libraryItemId else { return nil }
-            return Self.episodeItem(episode, podcastID: podcastID, podcastTitle: episode.podcast?.metadata?.title, libraryID: libraryID, progress: nil)
-        }
-    }
-
-    /// Podcasts in a library whose titles match `query`.
-    public func searchPodcasts(libraryID: String, query: String, limit: Int = 25) async -> [AudiobookshelfItem] {
-        let result: AudiobookshelfSearchResult? = await get("/api/libraries/\(libraryID)/search", query: [
-            URLQueryItem(name: "q", value: query),
-            URLQueryItem(name: "limit", value: "\(limit)")
-        ])
-        return (result?.podcast ?? []).map(\.libraryItem)
-    }
-
-    /// Where the listener is in one episode; nil for one never started.
-    private func episodeProgress(itemID: String, episodeID: String) async -> AudiobookshelfMediaProgress? {
-        await get("/api/me/progress/\(itemID)/\(episodeID)")
-    }
-
-    /// An episode made into an item: a book of one file, titled for the
-    /// episode, by its podcast, under the key that plays it.
-    static func episodeItem(
-        _ episode: AudiobookshelfEpisode,
-        podcastID: String,
-        podcastTitle: String?,
-        libraryID: String?,
-        progress: AudiobookshelfMediaProgress?,
-        lastUpdate: Int64? = nil
-    ) -> AudiobookshelfItem {
-        let key = AudiobookshelfMediaKey(itemID: podcastID, episodeID: episode.id)
-        let track = episode.track
-        let published = episode.publishedAt.map { Date(timeIntervalSince1970: TimeInterval($0) / 1000) }
-        let year = published.map { Calendar(identifier: .gregorian).component(.year, from: $0) }
-        return AudiobookshelfItem(
-            id: key.string,
-            libraryId: libraryID,
-            mediaType: "podcast",
-            addedAt: episode.publishedAt,
-            media: AudiobookshelfBookMedia(
-                duration: episode.length,
-                numTracks: track == nil ? 0 : 1,
-                numChapters: episode.chapters?.count,
-                metadata: AudiobookshelfBookMetadata(
-                    title: episode.title,
-                    authorName: podcastTitle,
-                    description: episode.description ?? episode.subtitle,
-                    publishedYear: year.map(String.init)
-                ),
-                chapters: episode.chapters,
-                tracks: track.map { [$0] }
-            ),
-            userMediaProgress: progress,
-            progressLastUpdate: lastUpdate,
-            isMissing: nil
-        )
     }
 
     public func search(libraryID: String, query: String, limit: Int = 25) async -> [AudiobookshelfItem] {
@@ -577,68 +479,21 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
     /// Where the listener is in every book, by item id, for the shelves'
     /// progress bars (list pages carry none).
     public func progressByItem() async -> [String: AudiobookshelfMediaProgress]? {
-        await account()?.progress
-    }
-
-    /// What the listener's account holds, from one read of it: where they
-    /// are in every book and episode (an episode's under its
-    /// `AudiobookshelfMediaKey`, as Cue names it), and their bookmarks, by
-    /// book. Nil when it couldn't be read.
-    public func account() async -> (progress: [String: AudiobookshelfMediaProgress], bookmarks: [String: [AudiobookshelfBookmark]])? {
         let user: AudiobookshelfUser? = await get("/api/me")
-        guard let user, let progress = user.mediaProgress else { return nil }
+        guard let progress = user?.mediaProgress else { return nil }
         var byItem: [String: AudiobookshelfMediaProgress] = [:]
-        for entry in progress {
+        for entry in progress where entry.episodeId == nil {
             guard let id = entry.libraryItemId else { continue }
-            byItem[AudiobookshelfMediaKey(itemID: id, episodeID: entry.episodeId).string] = entry
+            byItem[id] = entry
         }
-        return (byItem, Dictionary(grouping: user.bookmarks ?? [], by: \.libraryItemId))
-    }
-
-    // MARK: - Bookmarks
-
-    // (The listener's bookmarks are read with their account, `account()`.)
-
-    /// Marks `time` in a book, called `title`. A podcast's episode has no
-    /// bookmarks on the server (they're a book's): false, with nothing sent.
-    @discardableResult
-    public func addBookmark(itemID: String, time: Double, title: String) async -> Bool {
-        guard !AudiobookshelfMediaKey(itemID).isEpisode else { return false }
-        let body: [String: Any] = ["time": time, "title": title]
-        guard let (_, status) = await send("POST", "/api/me/item/\(itemID)/bookmark", json: body) else { return false }
-        return (200...299).contains(status)
-    }
-
-    /// Calls the bookmark at `time` `title`.
-    @discardableResult
-    public func renameBookmark(itemID: String, time: Double, title: String) async -> Bool {
-        guard !AudiobookshelfMediaKey(itemID).isEpisode else { return false }
-        let body: [String: Any] = ["time": time, "title": title]
-        guard let (_, status) = await send("PATCH", "/api/me/item/\(itemID)/bookmark", json: body) else { return false }
-        return (200...299).contains(status)
-    }
-
-    /// Takes away the bookmark at `time`. A bookmark the server no longer
-    /// has counts as taken away.
-    @discardableResult
-    public func removeBookmark(itemID: String, time: Double) async -> Bool {
-        guard !AudiobookshelfMediaKey(itemID).isEpisode else { return false }
-        guard let (_, status) = await send("DELETE", "/api/me/item/\(itemID)/bookmark/\(Self.bookmarkTime(time))") else { return false }
-        return (200...299).contains(status) || status == 404
-    }
-
-    /// A bookmark's time as the server names it in a path: whole seconds
-    /// without a point, as its own apps make them, else as it was sent.
-    static func bookmarkTime(_ time: Double) -> String {
-        time == time.rounded() && abs(time) < 1e15 ? String(Int64(time)) : String(time)
+        return byItem
     }
 
     // MARK: - Listening sessions
 
-    /// Opens a listening session for a book or an episode (by its
-    /// `AudiobookshelfMediaKey`), playing its files directly. The server
-    /// ends any session this device had open first, so there's one at a
-    /// time.
+    /// Opens a listening session for a book, playing its files directly.
+    /// The server ends any session this device had open first, so there's
+    /// one at a time.
     public func startSession(itemID: String) async -> AudiobookshelfSession? {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
         let body: [String: Any] = [
@@ -654,10 +509,7 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
             // HLS, which no speaker is handed.
             "forceDirectPlay": true
         ]
-        // An episode's session is opened by its podcast and its own id.
-        let key = AudiobookshelfMediaKey(itemID)
-        let path = "/api/items/\(key.itemID)/play" + (key.episodeID.map { "/\($0)" } ?? "")
-        guard let (data, status) = await send("POST", path, json: body), status == 200,
+        guard let (data, status) = await send("POST", "/api/items/\(itemID)/play", json: body), status == 200,
               let opened = try? decoder.decode(AudiobookshelfSession.self, from: data) else { return nil }
         Self.rememberSession(opened.id, for: itemID)
         Self.touchSession(for: itemID)
@@ -705,7 +557,6 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
     /// other session; the place itself goes by the progress, as before.
     struct LocalSession: Codable, Sendable, Equatable {
         let id: String
-        /// The book's or the episode's `AudiobookshelfMediaKey`.
         let itemID: String
         /// Milliseconds since 1970.
         var startedAt: Double
@@ -815,12 +666,11 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
 
     /// A local session as the server reads one.
     static func body(of session: LocalSession) -> [String: Any] {
-        let key = AudiobookshelfMediaKey(session.itemID)
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
-        var body: [String: Any] = [
+        return [
             "id": session.id,
-            "libraryItemId": key.itemID,
-            "mediaType": key.isEpisode ? "podcast" : "book",
+            "libraryItemId": session.itemID,
+            "mediaType": "book",
             "displayTitle": "",
             "displayAuthor": "",
             "duration": session.duration,
@@ -841,10 +691,6 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
             "date": session.date,
             "dayOfWeek": session.dayOfWeek
         ]
-        if let episodeID = key.episodeID {
-            body["episodeId"] = episodeID
-        }
-        return body
     }
 
     /// The day as the server's stats file it: "2026-10-27", "Tuesday".
@@ -897,7 +743,7 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
             body["duration"] = duration
             body["progress"] = min(max(currentTime / duration, 0), 1)
         }
-        guard let (_, status) = await send("PATCH", "/api/me/progress/\(AudiobookshelfMediaKey(itemID).pathSuffix)", json: body) else { return false }
+        guard let (_, status) = await send("PATCH", "/api/me/progress/\(itemID)", json: body) else { return false }
         return (200...299).contains(status)
     }
 

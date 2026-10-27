@@ -20,9 +20,6 @@ public enum MusicService: Sendable, Codable, CaseIterable {
     /// Audio files in a folder the user picked, indexed and played by the
     /// app itself. Never seen from a Sonos speaker.
     case files
-    /// Podcasts followed by their feeds (`PodcastFeeds`): no account, each
-    /// episode a plain URL this device and a speaker both play.
-    case podcasts
     case unknown
 
     public init?(service: String) {
@@ -53,8 +50,6 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             self = .audiobookshelf
         case "files":
             self = .files
-        case "podcasts":
-            self = .podcasts
         default:
             return nil
         }
@@ -88,8 +83,6 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             "audiobookshelf"
         case .files:
             "files"
-        case .podcasts:
-            "podcasts"
         default:
             nil
         }
@@ -123,8 +116,6 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             "Audiobookshelf"
         case .files:
             "Files"
-        case .podcasts:
-            "Podcasts"
         default:
             ""
         }
@@ -158,8 +149,6 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             "audiobookshelf"
         case .files:
             "files"
-        case .podcasts:
-            "podcasts"
         default:
             ""
         }
@@ -168,9 +157,6 @@ public enum MusicService: Sendable, Codable, CaseIterable {
     /// Audiobookshelf has no badge of its own in the asset catalog; a book
     /// stands for it, apart from the Library's symbol.
     public static let audiobookshelfSymbolName = "book.closed.fill"
-
-    /// Podcasts' mark.
-    public static let podcastsSymbolName = "mic.fill"
 
     private var librarySymbolName: String {
         if #available(iOS 26.0, macOS 26.0, visionOS 26.0, watchOS 26.0, *) {
@@ -220,10 +206,6 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             SwiftUI.Image(systemName: "folder.fill")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-        case .podcasts:
-            SwiftUI.Image(systemName: Self.podcastsSymbolName)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
         case .airplay:
             SwiftUI.Image(systemName: "airplayaudio")
                 .resizable()
@@ -256,11 +238,6 @@ public enum MusicService: Sendable, Codable, CaseIterable {
                 .foregroundStyle(brandColor.gradient)
         case .files:
             SwiftUI.Image(systemName: "folder.fill")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .foregroundStyle(brandColor.gradient)
-        case .podcasts:
-            SwiftUI.Image(systemName: Self.podcastsSymbolName)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .foregroundStyle(brandColor.gradient)
@@ -325,8 +302,6 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             return UIImage(systemName: Self.audiobookshelfSymbolName)
         case .files:
             return UIImage(systemName: "folder.fill")
-        case .podcasts:
-            return UIImage(systemName: Self.podcastsSymbolName)
         case .tuneIn, .soundcloud, .deezer, .pandora:
             return UIImage(named: self.title, in: .musicSearchKitBundle, with: nil)?
                 .resized(to: glyph).withRenderingMode(.alwaysTemplate)
@@ -386,7 +361,6 @@ public enum MusicService: Sendable, Codable, CaseIterable {
         switch self {
         case .subsonic: SubsonicAPI.self
         case .audiobookshelf: AudiobookshelfAPI.self
-        case .podcasts: PodcastFeeds.self
         default: nil
         }
     }
@@ -445,9 +419,6 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             Color(red: 205.0 / 255.0, green: 140.0 / 255.0, blue: 80.0 / 255.0)
         case .files:
             Color(red: 50.0 / 255.0, green: 150.0 / 255.0, blue: 255.0 / 255.0)
-        case .podcasts:
-            // Podcasts' purple.
-            Color(red: 146.0 / 255.0, green: 76.0 / 255.0, blue: 224.0 / 255.0)
         case .unknown:
                 .primary
         }
@@ -477,7 +448,6 @@ extension MusicService {
         case "subsonic":   self = .subsonic
         case "audiobookshelf": self = .audiobookshelf
         case "files":      self = .files
-        case "podcasts":   self = .podcasts
         default:           self = .unknown
         }
     }

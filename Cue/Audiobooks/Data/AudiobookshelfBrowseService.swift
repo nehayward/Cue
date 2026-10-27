@@ -4,10 +4,7 @@ import Observation
 import SonosKit
 
 /// What the Audiobookshelf screen shows: the listener's book libraries, the
-/// books they're partway through, and the chosen library's shelves; and
-/// beside the books, the podcast libraries and their newest episodes. An
-/// episode plays as a book of one file (`AudiobookshelfMediaKey`), so it
-/// sits in Continue Listening with the books.
+/// books they're partway through, and the chosen library's shelves.
 ///
 /// The server's place in every book is copied into
 /// `AudiobookProgressStore` as it loads, where it wins only if it's newer
@@ -19,10 +16,6 @@ final class AudiobookshelfBrowseService {
     static let shared = AudiobookshelfBrowseService()
 
     private(set) var libraries: [AudiobookshelfLibrary] = []
-    /// The podcast libraries, which the book shelves leave out.
-    private(set) var podcastLibraries: [AudiobookshelfLibrary] = []
-    /// The newest episodes across the podcast libraries, newest first.
-    private(set) var latestEpisodes: [PlayableContent] = []
     private(set) var continueListening: [PlayableContent] = []
     private(set) var recentlyAdded: [PlayableContent] = []
     private(set) var isLoading = false
@@ -42,9 +35,7 @@ final class AudiobookshelfBrowseService {
         let continueListening: [PlayableContent]
         let recentlyAdded: [PlayableContent]
         let series: [AudiobookSeries]
-        // Optional, so a snapshot kept before podcasts still reads.
-        let podcastLibraries: [AudiobookshelfLibrary]?
-        let latestEpisodes: [PlayableContent]?
+        // Optional, so a snapshot kept before collections still reads.
         let collections: [AudiobookCollection]?
     }
 
@@ -56,8 +47,6 @@ final class AudiobookshelfBrowseService {
         continueListening = kept.continueListening
         recentlyAdded = kept.recentlyAdded
         series = kept.series
-        podcastLibraries = kept.podcastLibraries ?? []
-        latestEpisodes = kept.latestEpisodes ?? []
         collections = kept.collections ?? []
     }
 
@@ -67,8 +56,6 @@ final class AudiobookshelfBrowseService {
             continueListening: continueListening,
             recentlyAdded: recentlyAdded,
             series: series,
-            podcastLibraries: podcastLibraries,
-            latestEpisodes: latestEpisodes,
             collections: collections
         ), named: Self.cacheName)
     }
@@ -90,13 +77,12 @@ final class AudiobookshelfBrowseService {
         guard isAuthenticated, !isLoading else { return }
         isLoading = true
         defer { isLoading = false }
-        guard let all = await api.allLibraries() else {
+        guard let libraries = await api.libraries() else {
             failed = true
             return
         }
         failed = false
-        libraries = all.filter(\.isBooks)
-        podcastLibraries = all.filter(\.isPodcasts)
+        self.libraries = libraries
         // What was heard while the server couldn't be told, now it can.
         Task { await api.sendUnsentListening() }
         await loadShelves()
@@ -136,8 +122,6 @@ final class AudiobookshelfBrowseService {
     /// Forgets everything, for a sign-out.
     func clear() {
         libraries = []
-        podcastLibraries = []
-        latestEpisodes = []
         collections = []
         continueListening = []
         recentlyAdded = []
@@ -148,31 +132,20 @@ final class AudiobookshelfBrowseService {
     }
 
     private func loadShelves() async {
-        let withEpisodes = !podcastLibraries.isEmpty
-        async let inProgress = api.itemsInProgress(includingEpisodes: withEpisodes)
-        async let account = api.account()
-        async let episodes = newestEpisodes()
+        async let inProgress = api.itemsInProgress()
+        async let progress = api.progressByItem()
         var recent: [PlayableContent] = []
         if let library = selectedLibrary,
            let page = await api.items(libraryID: library.id, page: 0, limit: 12, sort: "addedAt", descending: true) {
             recent = rows(from: page.results)
         }
         let store = AudiobookProgressStore.shared
-        let read = await account
-        for (id, entry) in read?.progress ?? [:] {
+        for (id, entry) in await progress ?? [:] {
             guard let reading = entry.audiobookProgress(duration: nil) else { continue }
             store.recordFromServer(reading, service: .audiobookshelf, id: id)
         }
-        // Bookmarks made or taken away in its other apps; and those made
-        // here while it couldn't be told, sent now.
-        if let bookmarks = read?.bookmarks {
-            AudiobookBookmarks.shared.merge(fromServer: bookmarks)
-        }
         continueListening = rows(from: await inProgress ?? [])
         recentlyAdded = recent
-        if let episodes = await episodes {
-            latestEpisodes = episodes
-        }
         if let library = selectedLibrary, let found = await api.series(libraryID: library.id) {
             series = found.compactMap { entry in
                 let books = rows(from: entry.books ?? [])
@@ -195,65 +168,11 @@ final class AudiobookshelfBrowseService {
     /// it was made in.
     private(set) var collections: [AudiobookCollection] = []
 
-    // MARK: - Podcasts
-
-    private static let latestEpisodeCount = 12
-
-    /// The newest episodes of every podcast library, newest first; nil when
-    /// none could be read, so a failed read keeps the shelf as it was.
-    private func newestEpisodes() async -> [PlayableContent]? {
-        guard !podcastLibraries.isEmpty else { return [] }
-        var episodes: [AudiobookshelfItem] = []
-        var answered = false
-        for library in podcastLibraries {
-            guard let found = await api.recentEpisodes(libraryID: library.id, limit: Self.latestEpisodeCount) else { continue }
-            answered = true
-            episodes += found
-        }
-        guard answered else { return nil }
-        let newest = episodes.sorted { ($0.addedAt ?? 0) > ($1.addedAt ?? 0) }.prefix(Self.latestEpisodeCount)
-        return rows(from: Array(newest))
-    }
-
-    /// The podcasts in `library`, by title.
-    func podcasts(in library: AudiobookshelfLibrary) async -> [AudiobookshelfPodcast]? {
-        var podcasts: [AudiobookshelfPodcast] = []
-        for page in 0..<20 {
-            guard let result = await api.items(libraryID: library.id, page: page, limit: Self.pageSize) else {
-                return page == 0 ? nil : podcasts
-            }
-            podcasts += result.results.filter(\.isPodcast).map(AudiobookshelfPodcast.init)
-            let isLast = result.results.count < Self.pageSize || (result.total.map { (page + 1) * Self.pageSize >= $0 } ?? false)
-            if isLast { break }
-        }
-        return podcasts
-    }
-
-    /// Podcasts matching `query` in every podcast library.
-    func searchPodcasts(_ query: String) async -> [AudiobookshelfPodcast] {
-        var found: [AudiobookshelfPodcast] = []
-        for library in podcastLibraries {
-            found += await api.searchPodcasts(libraryID: library.id, query: query).filter(\.isPodcast).map(AudiobookshelfPodcast.init)
-        }
-        return found
-    }
-
-    /// A podcast read whole: what it is, and its episodes newest first,
-    /// each with what's left of it. Nil when it couldn't be read.
-    func podcast(id: String) async -> (podcast: AudiobookshelfPodcast, episodes: [PlayableContent])? {
-        guard let item = await api.podcast(id: id) else { return nil }
-        let episodes = rows(from: api.episodes(of: item))
-        return (
-            AudiobookshelfPodcast(item),
-            episodes.map { $0.withAudiobookProgress(AudiobookProgressStore.shared.progress(for: $0)) }
-        )
-    }
-
     /// `items`' books, as rows: who reads each and its series noted
     /// (`AudiobookDetails`), ebooks left out.
     private func rows(from items: [AudiobookshelfItem]) -> [PlayableContent] {
         let books = items.filter(\.hasAudio)
-        AudiobookDetails.shared.note(books.filter { !$0.isEpisode })
+        AudiobookDetails.shared.note(books)
         let rows = books.map(\.toPlayable)
         // Audible, for any the server names no reader for.
         AudiobookDetails.shared.request(rows)

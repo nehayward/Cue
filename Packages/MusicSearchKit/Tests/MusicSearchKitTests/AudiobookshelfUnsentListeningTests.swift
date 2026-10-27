@@ -31,14 +31,13 @@ final class AudiobookshelfUnsentListeningTests: XCTestCase {
         XCTAssertEqual(pending.last?.date, "2026-10-28")
     }
 
-    func testLocalSessionBodyNamesTheEpisode() throws {
+    func testLocalSessionBodyNamesTheBook() throws {
         let morning = try XCTUnwrap(Calendar(identifier: .gregorian).date(from: DateComponents(year: 2026, month: 10, day: 27, hour: 9)))
-        AudiobookshelfAPI.noteUnsentListening(itemID: "li_2~ep_1", currentTime: 30, timeListened: 30, duration: 1800, at: morning)
+        AudiobookshelfAPI.noteUnsentListening(itemID: "li_2", currentTime: 30, timeListened: 30, duration: 1800, at: morning)
         let session = try XCTUnwrap(AudiobookshelfAPI.pendingUnsentListening().first)
         let body = AudiobookshelfAPI.body(of: session)
         XCTAssertEqual(body["libraryItemId"] as? String, "li_2")
-        XCTAssertEqual(body["episodeId"] as? String, "ep_1")
-        XCTAssertEqual(body["mediaType"] as? String, "podcast")
+        XCTAssertEqual(body["mediaType"] as? String, "book")
         XCTAssertEqual(body["playMethod"] as? Int, 3)
         XCTAssertEqual(body["timeListening"] as? Double, 30)
     }

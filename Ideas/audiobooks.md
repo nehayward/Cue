@@ -8,13 +8,13 @@ server, and so does a speaker.
 
 **Status:** shipped on `main`; built in Xcode and on the phone
 (2026-10-19). The pure-Foundation parts (timeline, chapters, Plex resume,
-Audiobookshelf JSON, URLs, Audible's catalog, podcast feeds) have unit tests.
+Audiobookshelf JSON, URLs, Audible's catalog) have unit tests.
 The package's test target doesn't build as a whole for stale tests elsewhere
 (`MockTokenRefreshHandler`, `PlexTests`' `externalURIs`).
 
 **2026-10-27, `claude/funny-newton-hpqrrt`:** the rest of the list below
-(but Lock Screen chapters, left for now), podcasts, bookmarks and
-collections. Written without Xcode: the Audiobookshelf and podcast code in
+(but Lock Screen chapters, left for now) and Audiobookshelf's
+collections. Written without Xcode: the Audiobookshelf code in
 MusicSearchKit was built and tested on Linux, the rest only parsed, so it
 wants a build and a pass on the phone.
 
@@ -49,10 +49,8 @@ wants a build and a pass on the phone.
 | Player menu | Previous / Next Chapter, the chapters (device and speaker) and Speed (device) — `AudiobookPlayerMenuItems` |
 | Chapter line | The player's origin line reads the chapter playing and opens the chapters (`AudiobookChapterLine`) |
 | Sleep timer | End of Chapter in place of End of Song: the player's own timer, kept on the chapter's end at the speed playing (`AudiobookPlayer.sleepAtEndOfChapter`) |
-| Audiobooks tab | `AudiobooksScreen`: Continue Listening (`AudiobookContinueCard`), Downloads, Series, Collections, a section per server (Plex, Audiobookshelf, Files), Podcasts, Finished. Shown while Audiobookshelf is signed in, Plex had books when last asked (`AppStorageKeys.hasPlexAudiobooks`), the Files folder has books, or a podcast is followed; Settings ▸ Appearance can hide it |
-| Bookmarks | `AudiobookBookmarks`: Add Bookmark in the player's menu and the Chapters sheet's Bookmarks page; listed there and on the book's page. Audiobookshelf's sync both ways (`/api/me/item/<id>/bookmark`); Plex's and episodes' stay here |
+| Audiobooks tab | `AudiobooksScreen`: Continue Listening (`AudiobookContinueCard`), Downloads, Series, Collections, a section per server (Plex, Audiobookshelf, Files), Finished. Shown while Audiobookshelf is signed in, Plex had books when last asked (`AppStorageKeys.hasPlexAudiobooks`) or the Files folder has books; Settings ▸ Appearance can hide it |
 | Scrubber | Spans the chapter playing, not the file (`AudiobookPlayer.chapterSpan`) |
-| Podcasts | An episode is a book of one file: Audiobookshelf's under an `AudiobookshelfMediaKey` (`<item>~<episode>`), a feed's under `MusicService.podcasts` (`PodcastFeeds`) |
 
 ### Plex
 
@@ -209,11 +207,13 @@ One item per branch, as in the roadmap.
   route.
 - [x] **Smart Resume on a speaker** — `SonosService.play(ip:)` asks
   `AudiobookPlayer.smartResumeOnSpeaker` first (`beforePlay`).
-- [x] **Podcasts** — Audiobookshelf's podcast libraries, and any feed
-  followed in Cue; episodes play as books of one file.
-- [x] **Bookmarks** and **Audiobookshelf collections**.
-- [ ] **Check the new work on the phone and a speaker**: an Audiobookshelf
-  episode and a feed's episode on a speaker (read back off its queue),
+- [x] **Audiobookshelf collections**.
+- [ ] **Podcasts and bookmarks** — built on this branch, then taken out
+  (2026-10-27) to keep the app simple: History covers most of what
+  bookmarks did. In git history (`e6f789b`, `923fff4`, `b9ffde8`) for
+  when they come back.
+- [ ] **Check the new work on the phone and a speaker**: the chapter
+  scrubber, Smart Resume on a speaker, Audiobookshelf's collections,
   single sign-on against Authentik or Keycloak, a Files `.m4b`, the watch's
   sleep timer.
 

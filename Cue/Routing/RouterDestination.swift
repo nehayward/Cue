@@ -17,14 +17,6 @@ public enum RouterDestination: Hashable, Identifiable {
     case audiobookDetail(content: PlayableContent)
     /// A series' page: its books in order, split by who reads them.
     case audiobookSeries(name: String, books: [PlayableContent])
-    /// Every podcast on the Audiobookshelf server.
-    case audiobookshelfPodcasts
-    /// A podcast's page: what it is, and its episodes newest first.
-    case audiobookshelfPodcast(AudiobookshelfPodcast)
-    /// The podcasts followed by their feeds, and finding more.
-    case podcasts
-    /// A followed podcast's page, by its feed's id.
-    case podcastFeed(id: String)
     case alarms
     case addAlarm(group: GroupRoom? = nil)
     case editAlarm(alarm: Alarm)
@@ -80,14 +72,6 @@ public enum RouterDestination: Hashable, Identifiable {
             return "audiobook.\(content.id)"
         case let .audiobookSeries(name, _):
             return "audiobookSeries.\(name)"
-        case .audiobookshelfPodcasts:
-            return "audiobookshelfPodcasts"
-        case let .audiobookshelfPodcast(podcast):
-            return "audiobookshelfPodcast.\(podcast.id)"
-        case .podcasts:
-            return "podcasts"
-        case let .podcastFeed(id):
-            return "podcastFeed.\(id)"
         case .createScene:
             return "scene"
         case .alarms:
@@ -157,14 +141,6 @@ public enum RouterDestination: Hashable, Identifiable {
             return content1 == content2
         case let (.audiobookSeries(name1, books1), .audiobookSeries(name2, books2)):
             return name1 == name2 && books1 == books2
-        case (.audiobookshelfPodcasts, .audiobookshelfPodcasts):
-            return true
-        case let (.audiobookshelfPodcast(podcast1), .audiobookshelfPodcast(podcast2)):
-            return podcast1.id == podcast2.id
-        case (.podcasts, .podcasts):
-            return true
-        case let (.podcastFeed(id1), .podcastFeed(id2)):
-            return id1 == id2
         case (.alarms, .alarms):
             return true
         case let (.addAlarm(group1), .addAlarm(group2)):
@@ -232,16 +208,6 @@ public enum RouterDestination: Hashable, Identifiable {
             hasher.combine("audiobookSeries")
             hasher.combine(name)
             hasher.combine(books)
-        case .audiobookshelfPodcasts:
-            hasher.combine("audiobookshelfPodcasts")
-        case let .audiobookshelfPodcast(podcast):
-            hasher.combine("audiobookshelfPodcast")
-            hasher.combine(podcast.id)
-        case .podcasts:
-            hasher.combine("podcasts")
-        case let .podcastFeed(id):
-            hasher.combine("podcastFeed")
-            hasher.combine(id)
         case .createScene:
             hasher.combine("scene")
         case .alarms:

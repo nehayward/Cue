@@ -1987,7 +1987,7 @@ public final class SonosService {
             return AudiobookshelfAPI.coverURL(itemID: part.itemID)
         case .tuneIn:
             return nil
-        case .airplay, .unknown, .library, .sonosRadio, .pandora, .files, .podcasts:
+        case .airplay, .unknown, .library, .sonosRadio, .pandora, .files:
             return nil
         }
     }
@@ -2126,8 +2126,7 @@ public final class SonosService {
             }
 
             return (Track.Metadata(ISRC: nil, openInURL: nil, contentType: .track), artworkURL.album.images?.biggestImageURL)
-        // An episode's title, show and cover came with it in its metadata.
-        case .airplay, .library, .sonosRadio, .pandora, .files, .podcasts:
+        case .airplay, .library, .sonosRadio, .pandora, .files:
             return (nil, nil)
         }
     }

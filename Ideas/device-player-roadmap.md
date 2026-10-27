@@ -3,8 +3,7 @@
 What the on-device player (`LocalPlaybackService`, the "This Device" route)
 still needs to stand next to Apple Music and Plexamp. Today it plays Apple
 Music, Plex, Subsonic, TuneIn and Apple stations, a Files folder, books
-(Plex, Audiobookshelf, Files) and podcasts (Audiobookshelf's, and any feed
-followed in Cue), with route hand-off to Sonos, a rolling offline cache,
+(Plex, Audiobookshelf, Files), with route hand-off to Sonos, a rolling offline cache,
 downloads, an editable queue that survives relaunch, sticky shuffle, a
 lossless readout, a sleep timer, lyrics, CarPlay and the AirPlay picker. The
 list below is what a Plexamp or Navidrome user tests in their first ten
@@ -136,7 +135,7 @@ branch lands.
   - [ ] **Crossfade for the device route** — `claude/local-crossfade`
     (the Sonos setting already exists; mirror it)
   - [ ] **Playback speed** — `claude/playback-speed`
-    (books and podcasts have it already, each its own, on this device:
+    (books have it already, each its own, on this device:
     `AudiobookPlayer.rate`)
 
 - [ ] **Autoplay and similar songs** — `claude/local-autoplay`
@@ -174,10 +173,10 @@ branch lands.
   Done when: two Navidrome servers coexist, each with its own library
   cache and downloads, and the active one is switchable from Services.
 
-- [x] **Podcasts by their feeds** — `claude/funny-newton-hpqrrt`
-  Followed by name (Apple's podcast directory) or feed address, no account
-  (`PodcastFeeds`, `MusicService.podcasts`); each episode a book of one file
-  that plays here or on a speaker from where it was left.
+- [ ] **Podcasts** — later (2026-10-27). Built on
+  `claude/funny-newton-hpqrrt` (Audiobookshelf's podcast libraries, and any
+  feed followed by name or address, each episode a book of one file) and
+  taken out to keep the app simple; in git history (`e6f789b`, `923fff4`).
 
 - [ ] **Jellyfin and Emby provider** — `claude/jellyfin`
   Later (2026-10-27).

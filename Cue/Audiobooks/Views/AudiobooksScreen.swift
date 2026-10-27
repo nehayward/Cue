@@ -24,7 +24,6 @@ struct AudiobooksScreen: View {
     @State private var store = AudiobookProgressStore.shared
     @State private var removals = ContinueListeningRemovals.shared
     @State private var shelf = AudiobookshelfBrowseService.shared
-    @State private var podcasts = PodcastFeeds.shared
     @State private var player = AudiobookPlayer.shared
     /// Plex's books, the last read kept from the first frame.
     @State private var plex = PlexBookShelf.shared
@@ -134,7 +133,6 @@ struct AudiobooksScreen: View {
         case .plex: coreFeatures.isEnabled(.plex) ? book : nil
         case .audiobookshelf: showsAudiobookshelf ? book : nil
         case .files: coreFeatures.isEnabled(.files) ? book : nil
-        case .podcasts: book
         default: nil
         }
     }
@@ -188,32 +186,7 @@ struct AudiobooksScreen: View {
                 ))
                 AudiobookCoverRow(books: files)
             }
-            // Podcasts: the newest episodes of those followed by their
-            // feeds and of Audiobookshelf's, the title opening every one and
-            // the way to follow more.
-            let episodes = latestEpisodes
-            AudiobookSectionTitle(title: "Podcasts", destination: .podcasts)
-            if !episodes.isEmpty {
-                AudiobookCoverRow(books: episodes)
-            } else {
-                Text("Follow any podcast by its name or its feed: its episodes play here or on your speakers, each from where you left it.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 8)
-            }
         }
-    }
-
-    /// The newest podcast episodes, those followed here and Audiobookshelf's
-    /// together, newest first.
-    private var latestEpisodes: [PlayableContent] {
-        let followed = podcasts.latestEpisodes()
-        let shelved = showsAudiobookshelf ? shelf.latestEpisodes : []
-        return (followed + shelved)
-            .sorted { ($0.metadata?.albumYear ?? .distantPast) > ($1.metadata?.albumYear ?? .distantPast) }
-            .prefix(12)
-            .map { $0 }
     }
 
     /// Plex's row when the server didn't answer.
@@ -297,8 +270,7 @@ struct AudiobooksScreen: View {
         }
         async let shelfRead: Void = loadAudiobookshelf()
         async let plexRead: Void = loadPlex()
-        async let feedsRead: Void = podcasts.refresh()
-        _ = await (shelfRead, plexRead, feedsRead)
+        _ = await (shelfRead, plexRead)
     }
 
     private func loadAudiobookshelf() async {

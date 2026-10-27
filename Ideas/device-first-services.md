@@ -21,8 +21,7 @@ anything with a stream URL or file. The Sonos side is `PlayableContent.uri`
 | Plex | Full track off the user's server | `x-sonosapi-hls-static:…?sid=212` | **Keep** |
 | Subsonic (Navidrome, Airsonic, Gonic) | Full track via `/rest/stream` (`DirectStreamProvider`) | Speaker fetches the same HTTP URL | **Keep** |
 | TuneIn | Live stream resolved from the station id | `x-sonosapi-stream:…?sid=333` | **Keep** |
-| Audiobookshelf | Books and podcast episodes off the user's server | A listening session's track URL (`DirectStreamProvider`) | **Keep** |
-| Podcasts (any feed) | The episode's own audio URL | The same URL (`PodcastFeeds`, a `DirectStreamProvider`) | **Keep** (added 2026-10-27) |
+| Audiobookshelf | Books off the user's server | A listening session's track URL (`DirectStreamProvider`) | **Keep** |
 | Files (user folder) | The file itself | None (`playsOnDeviceOnly`) | **Keep, decide** (device-only, see Open questions) |
 | Spotify | 30-second preview clip only | `x-sonos-spotify:…?sid=12` | **Remove** |
 | Tidal | None | `…?sid=174` | **Remove** |

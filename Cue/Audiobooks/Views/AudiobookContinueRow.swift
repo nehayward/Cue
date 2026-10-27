@@ -21,11 +21,6 @@ struct AudiobookContinueRow: View {
     /// be in the path already (the author opened from it).
     var opensByLink = false
 
-    /// Under the title in place of the book's own subtitle: an episode's
-    /// date and length on its podcast's page, where the podcast's name
-    /// would say nothing.
-    var subtitle: String? = nil
-
     private var route: PlaybackRoute { .shared }
 
     /// The book is loaded and the player has it.
@@ -113,8 +108,8 @@ struct AudiobookContinueRow: View {
                     .font(.headline)
                     .fontDesign(.serif)
                     .lineLimit(2)
-                if let line = subtitle ?? (book.subtitle.isEmpty ? nil : book.subtitle), !line.isEmpty {
-                    Text(line)
+                if !book.subtitle.isEmpty {
+                    Text(book.subtitle)
                         .font(.subheadline)
                         .fontDesign(.rounded)
                         .foregroundStyle(.secondary)

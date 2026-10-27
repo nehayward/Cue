@@ -1151,11 +1151,7 @@ extension AudiobookshelfItem {
                 artist: bookAuthor,
                 album: bookTitle,
                 albumID: id,
-                // An episode's day, which its podcast's page shows; a
-                // book's year.
-                albumYear: isEpisode
-                    ? addedAt.map { Date(timeIntervalSince1970: TimeInterval($0) / 1000) }
-                    : bookYear(media?.metadata?.publishedYear.flatMap { Int($0) })
+                albumYear: bookYear(media?.metadata?.publishedYear.flatMap { Int($0) })
             )
         )
     }
@@ -1292,49 +1288,6 @@ extension SubsonicPlaylist {
                 id: id,
                 type: .playlist,
                 location: nil
-            )
-        )
-    }
-}
-
-// MARK: Podcasts
-extension PodcastEpisode {
-    /// The episode as a list shows it: a book of one file, by its podcast.
-    public func toPlayable(in feed: PodcastFeed) -> PlayableContent {
-        PlayableContent(
-            title: title,
-            subtitle: feed.title,
-            thumbnail: artworkURL ?? feed.artworkURL,
-            artwork: artworkURL ?? feed.artworkURL,
-            content: .init(service: .podcasts, id: id, type: .audiobook, location: nil),
-            metadata: .init(
-                duration: duration.map { Duration.seconds($0) },
-                popularity: nil,
-                artist: feed.title,
-                album: feed.title,
-                albumID: feed.id,
-                albumYear: published
-            )
-        )
-    }
-
-    /// Its audio as the track the player plays, `length` seconds long (the
-    /// feed's word for it, or the file's own once read).
-    public func partToPlayable(in feed: PodcastFeed, length: TimeInterval? = nil) -> PlayableContent {
-        PlayableContent(
-            title: title,
-            subtitle: feed.title,
-            thumbnail: artworkURL ?? feed.artworkURL,
-            artwork: artworkURL ?? feed.artworkURL,
-            content: .init(service: .podcasts, id: partID, type: .track, location: nil),
-            previewURL: audioURL,
-            metadata: .init(
-                duration: (length ?? duration).map { Duration.seconds($0) },
-                popularity: nil,
-                artist: feed.title,
-                album: feed.title,
-                albumID: feed.id,
-                audioCodec: fileExtension
             )
         )
     }

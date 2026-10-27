@@ -55,23 +55,20 @@ public enum AudiobookshelfURLs {
         url(base: base, path: "/public/session/\(sessionID)/track/\(index)", query: [], fileExtension: fileExtension)
     }
 
-    /// The file itself, signed in with `token`. An episode's file is its
-    /// podcast's (`AudiobookshelfMediaKey`).
+    /// The file itself, signed in with `token`.
     public static func fileURL(base: URL, itemID: String, fileID: String, token: String, fileExtension: String?) -> URL? {
-        let item = AudiobookshelfMediaKey(itemID).itemID
-        return url(base: base, path: "/api/items/\(item)/file/\(fileID)", query: [URLQueryItem(name: "token", value: token)], fileExtension: fileExtension)
+        url(base: base, path: "/api/items/\(itemID)/file/\(fileID)", query: [URLQueryItem(name: "token", value: token)], fileExtension: fileExtension)
     }
 
     /// An item's cover, as a JPEG (which Sonos shows; the server would
     /// otherwise answer WebP to a client that takes it). Covers need no
-    /// sign-in. An episode's is its podcast's.
+    /// sign-in.
     public static func coverURL(base: URL, itemID: String, width: Int? = nil) -> URL? {
         var query = [URLQueryItem(name: "format", value: "jpeg")]
         if let width {
             query.append(URLQueryItem(name: "width", value: "\(width)"))
         }
-        let item = AudiobookshelfMediaKey(itemID).itemID
-        return url(base: base, path: "/api/items/\(item)/cover", query: query, fileExtension: nil)
+        return url(base: base, path: "/api/items/\(itemID)/cover", query: query, fileExtension: nil)
     }
 
     /// An author's picture, as a book's cover is asked for.
@@ -155,52 +152,10 @@ public struct AudiobookshelfPartID: Hashable, Sendable {
 
     /// The same file of the same item, by whichever of index and file id
     /// both sides know (see `AudiobookshelfURLs.partID(fromStreamURL:)`).
-    /// A file URL names an episode's podcast, not the episode, so by file
-    /// id the podcast is enough: a file belongs to one episode.
     public func isSameFile(as other: AudiobookshelfPartID) -> Bool {
-        if index > 0, other.index > 0 { return itemID == other.itemID && index == other.index }
-        guard AudiobookshelfMediaKey(itemID).itemID == AudiobookshelfMediaKey(other.itemID).itemID else { return false }
+        guard itemID == other.itemID else { return false }
+        if index > 0, other.index > 0 { return index == other.index }
         return fileID != "-" && fileID == other.fileID
-    }
-}
-
-/// What Cue plays from an Audiobookshelf server, by one string: a book by
-/// its item id, or a podcast's episode as `<item>~<episode>`. The rest of
-/// Cue treats an episode as a book of one file, so this is the one place
-/// that knows the server asks for an episode by its podcast and its own id
-/// (`/api/items/<item>/play/<episode>`, `/api/me/progress/<item>/<episode>`)
-/// and keeps its file and cover under the podcast. Server ids are letters,
-/// digits, `-` and `_`, so `~` can't be part of one.
-public struct AudiobookshelfMediaKey: Hashable, Sendable {
-    public let itemID: String
-    /// Nil for a book.
-    public let episodeID: String?
-
-    static let separator: Character = "~"
-
-    public init(itemID: String, episodeID: String? = nil) {
-        self.itemID = itemID
-        self.episodeID = episodeID.flatMap { $0.isEmpty ? nil : $0 }
-    }
-
-    public init(_ string: String) {
-        guard let mark = string.firstIndex(of: Self.separator) else {
-            self.init(itemID: string)
-            return
-        }
-        self.init(itemID: String(string[..<mark]), episodeID: String(string[string.index(after: mark)...]))
-    }
-
-    public var string: String {
-        episodeID.map { "\(itemID)\(Self.separator)\($0)" } ?? itemID
-    }
-
-    public var isEpisode: Bool { episodeID != nil }
-
-    /// The path under `/api/items/<item>` or `/api/me/progress/<item>` that
-    /// names it: the item, then the episode for one.
-    var pathSuffix: String {
-        episodeID.map { "\(itemID)/\($0)" } ?? itemID
     }
 }
 

@@ -145,8 +145,6 @@ public final class MusicServiceParser {
         // A book's file from Audiobookshelf: a listening session's track, or
         // the file itself.
         if AudiobookshelfURLs.isStreamURL(decodedURI) { return .audiobookshelf }
-        // A followed podcast's episode: its audio's own address.
-        if PodcastFeeds.isStreamURL(uri) { return .podcasts }
 
         if decodedURI.contains(":3:") { return .plex }
 
@@ -199,7 +197,6 @@ public final class MusicServiceParser {
         case .sonosRadio, .pandora: return extractTuneInTrackID(from: uri)
         case .subsonic: return extractSubsonicTrackID(from: uri)
         case .audiobookshelf: return AudiobookshelfAPI.partID(fromStreamURL: uri) ?? ""
-        case .podcasts: return PodcastFeeds.episodeID(forStreamURL: uri) ?? ""
         case .library, .unknown, .files: return uri
         case .airplay: return ""
         }

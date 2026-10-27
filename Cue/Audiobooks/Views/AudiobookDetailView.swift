@@ -15,11 +15,10 @@ struct AudiobookDetailView: View {
     /// The book as its server read it as the page opened.
     @State private var loaded: Audiobook?
     @State private var failed = false
-    /// Which list is under the summary: the book's chapters, its
-    /// bookmarks or its place history.
-    @State private var list = BookList.chapters
+    /// The list under the summary shows the book's place history rather
+    /// than its chapters.
+    @State private var showsHistory = false
     @State private var history = AudiobookPlaceHistory.shared
-    @State private var bookmarks = AudiobookBookmarks.shared
     @State private var player = AudiobookPlayer.shared
     @State private var store = AudiobookProgressStore.shared
 
@@ -97,34 +96,29 @@ struct AudiobookDetailView: View {
                             .padding(.top, 20)
                     }
 
-                    // Chapters, bookmarks, or where the listener has been.
-                    // One chapter is the whole book, with nothing to choose
-                    // between: its bookmarks and history alone, once it has
-                    // them.
+                    // Chapters, or where the listener has been. One chapter
+                    // is the whole book, with nothing to choose between: its
+                    // history alone, once it has one.
                     if let audiobook {
-                        let lists = lists(for: audiobook)
-                        if let shownList = lists.contains(list) ? list : lists.first {
+                        let hasChapters = audiobook.chapters.count > 1
+                        if hasChapters || !history.places(for: shown).isEmpty {
                             VStack(alignment: .leading) {
-                                if lists.count > 1 {
-                                    Picker("Show", selection: Binding(get: { shownList }, set: { list = $0 })) {
-                                        ForEach(lists, id: \.self) { kind in
-                                            Text(kind.title).tag(kind)
-                                        }
+                                if hasChapters {
+                                    Picker("Show", selection: $showsHistory) {
+                                        Text("Chapters").tag(false)
+                                        Text("History").tag(true)
                                     }
                                     .pickerStyle(.segmented)
                                 } else {
-                                    Text(shownList.title)
+                                    Text("History")
                                         .font(.title3.bold())
                                 }
                             }
                             .padding(.top, 28)
                             .padding(.bottom, 8)
-                            switch shownList {
-                            case .history:
+                            if showsHistory || !hasChapters {
                                 AudiobookHistoryList(book: shown, audiobook: audiobook)
-                            case .bookmarks:
-                                AudiobookBookmarkList(book: shown, audiobook: audiobook)
-                            case .chapters:
+                            } else {
                                 let here = placeChapter
                                 let isFinished = progress?.isFinished == true
                                 ForEach(audiobook.chapters) { chapter in
@@ -204,17 +198,16 @@ struct AudiobookDetailView: View {
                     .font(.title3.bold())
                     .fontDesign(.serif)
                     .multilineTextAlignment(.center)
-                // The author opens their page: their other books. An
-                // episode's podcast opens the podcast's.
+                // The author opens their page: their other books.
                 if !shown.subtitle.isEmpty {
-                    NavigationLink(value: authorDestination) {
+                    NavigationLink(value: RouterDestination.artistDetail(content: shown, group: nil)) {
                         Text(shown.subtitle)
                             .font(.body)
                             .fontDesign(.rounded)
                             .foregroundStyle(.tint)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityHint(shown.isPodcastEpisode ? "Shows its episodes" : "Shows their books")
+                    .accessibilityHint("Shows their books")
                 }
                 // Audiobookshelf's, else Audible's for a Plex book.
                 if let narrator = audiobook?.narrator ?? AudiobookDetails.shared.narrator(for: shown) {
@@ -233,40 +226,6 @@ struct AudiobookDetailView: View {
             .frame(maxWidth: .infinity)
         }
         .padding(.top, 8)
-    }
-
-    /// The lists under the summary.
-    enum BookList: Hashable, CaseIterable {
-        case chapters
-        case bookmarks
-        case history
-
-        var title: String {
-            switch self {
-            case .chapters: "Chapters"
-            case .bookmarks: "Bookmarks"
-            case .history: "History"
-            }
-        }
-    }
-
-    /// The lists the book has something for: chapters for one with more
-    /// than one, bookmarks once it has some (or while it's loaded to play,
-    /// to make the first), history once it has been played.
-    private func lists(for audiobook: Audiobook) -> [BookList] {
-        BookList.allCases.filter { kind in
-            switch kind {
-            case .chapters: audiobook.chapters.count > 1
-            case .bookmarks: !bookmarks.bookmarks(for: shown).isEmpty || player.isLoaded(shown)
-            case .history: !history.places(for: shown).isEmpty
-            }
-        }
-    }
-
-    /// Where the line under the title goes: the author's page, or for an
-    /// episode its podcast's.
-    private var authorDestination: RouterDestination {
-        shown.podcastDestination ?? .artistDetail(content: shown, group: nil)
     }
 
     /// "12 hr, 5 min • 3 hr, 2 min left".
