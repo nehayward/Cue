@@ -254,6 +254,8 @@ enum OnDeviceLibrary {
             let latest = bucket.map(\.added).max() ?? first.added
             let service = first.track.content.service
             let artwork = tracks.compactMap { $0.thumbnail ?? $0.artwork }.first
+            // The full-size cover, for an album page's header.
+            let cover = tracks.compactMap { $0.artwork ?? $0.thumbnail }.first
 
             switch collection {
             case .albums:
@@ -270,7 +272,7 @@ enum OnDeviceLibrary {
                         title: title,
                         subtitle: artist,
                         thumbnail: artwork,
-                        artwork: artwork,
+                        artwork: cover,
                         content: .init(service: service, id: containerID(.albums, key: key), type: .album, location: nil),
                         metadata: .init(artist: artist, album: title)
                     )
@@ -339,11 +341,15 @@ enum OnDeviceLibrary {
         return (artists, albums, searchSongs(query))
     }
 
-    /// The songs of one album or artist that are here, as a list with a
-    /// Play All. Read live, so a download removed inside the list leaves
-    /// the screen too.
+    /// The songs of one album or artist that are here. An album opens on
+    /// its album page, as a server's does, filled from the device
+    /// (`MediaDetailView`); an artist as a list with a Play All. Both read
+    /// live, so a download removed inside one leaves the screen too.
     static func destination(for group: Group) -> RouterDestination {
         let container = group.container
+        if container.content.type == .album {
+            return .mediaDetail(content: container, group: nil)
+        }
         return .playableList(
             title: group.title,
             playAllItem: container,
