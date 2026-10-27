@@ -7,7 +7,7 @@ import SwiftUI
 ///
 /// With nil for the provider it's the Downloads tab (`DownloadsTabScreen`):
 /// the whole on-device library, the same one Offline Mode shows, led by
-/// what's still coming down and the way to Storage. With a provider it's
+/// what's still coming down, with Storage in the toolbar. With a provider it's
 /// that provider's songs here (Apple Music's, from Settings ▸ Storage).
 ///
 /// Plex and Subsonic downloads are Cue's own, managed under Storage;
@@ -16,6 +16,7 @@ import SwiftUI
 struct DownloadedScreen: View {
     let service: MusicService?
 
+    @Environment(Router.self) private var router
     @State private var downloads = DownloadManager.shared
     @State private var apple = AppleDownloadsIndex.shared
     @State private var files = FilesLibraryService.shared
@@ -31,17 +32,14 @@ struct DownloadedScreen: View {
         let isEmpty = OnDeviceLibrary.isEmpty(in: service) && (service != nil || downloads.musicSummary.books == 0)
 
         List {
-            // In the tab, what's coming down leads.
-            if service == nil {
-                manageSection
+            // While songs or books come down, how far they've got leads.
+            if managesDownloads, downloads.musicSummary.remainingDownloads > 0 {
+                downloadingSection
             }
             if isEmpty {
                 emptySection
             } else {
                 OnDeviceLibrarySections(service: service)
-            }
-            if service != nil, service != .apple {
-                manageSection
             }
         }
         .contentMargins(.top, EdgeInsets(), for: .scrollContent)
@@ -49,9 +47,30 @@ struct DownloadedScreen: View {
         .miniPlayerOnScrollHandler()
         .navigationTitle(service == nil ? "Downloads" : "Downloaded")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if managesDownloads {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        router.navigate(to: .downloads)
+                    } label: {
+                        // A gear, as it's the downloads' settings: storage,
+                        // cellular and the cache.
+                        Label("Storage", systemImage: "gearshape")
+                    }
+                }
+            }
+        }
         .onAppear {
             apple.refreshIfNeeded()
         }
+    }
+
+    /// Whether this page leads to where Cue's own downloads are looked
+    /// after — what's coming down, what's here and how big, and the free
+    /// limit. Not Apple Music's, opened from there: nothing of its
+    /// downloads is Cue's to manage.
+    private var managesDownloads: Bool {
+        service != .apple
     }
 
     /// Empty, it says how this provider's songs get here.
@@ -67,24 +86,14 @@ struct DownloadedScreen: View {
         }
     }
 
-    /// Where Cue's own downloads are looked after — what's coming down,
-    /// what's here and how big, and the free limit. Not for Apple Music:
-    /// nothing of its downloads is Cue's to manage. While songs come down
-    /// it says how far the run has got.
-    private var manageSection: some View {
+    /// How far the songs and books coming down have got, opening Storage
+    /// on them. Only while they come down: Storage is otherwise the
+    /// toolbar's.
+    private var downloadingSection: some View {
         Section {
             NavigationLink(value: RouterDestination.downloads) {
                 Label {
-                    if downloads.musicSummary.remainingDownloads > 0 {
-                        DownloadingProgress(summary: downloads.musicSummary)
-                    } else {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Manage Downloads")
-                            Text("Storage, cellular and the playback cache")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+                    DownloadingProgress(summary: downloads.musicSummary)
                 } icon: {
                     Image(systemName: "arrow.down.circle.fill")
                         .foregroundStyle(.primary)
@@ -151,5 +160,6 @@ struct DownloadsTabScreen: View {
     NavigationStack {
         DownloadedScreen(service: .apple)
     }
+    .environment(Router())
     .withEnvironments()
 }

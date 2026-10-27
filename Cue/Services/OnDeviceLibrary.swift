@@ -512,6 +512,59 @@ enum OnDeviceLibrary {
         return "\(containerIDPrefix)\(kind)|\(key)"
     }
 
+    // MARK: - Removing
+
+    /// How many songs of an album, artist or playlist minted here Cue can
+    /// take off this device: its own downloads, and the Files folder's
+    /// songs iCloud keeps a copy of. The Music app's downloads are its own
+    /// to remove, so a group of only those offers nothing.
+    static func removableCount(of container: PlayableContent) -> Int {
+        // Never every song at once, from a Play All's container.
+        guard !isAllSongs(container) else { return 0 }
+        return removable(tracks(inContainer: container) ?? []).count
+    }
+
+    /// Takes an album, artist or playlist minted here off this device, as
+    /// a server's page does with Remove Download: a playlist downloaded
+    /// whole as one (a song another album or playlist holds stays for
+    /// that one), an album or artist song by song, so it leaves the
+    /// library whatever else holds its songs. Apple Music's stay.
+    static func removeDownloads(of container: PlayableContent) {
+        guard !isAllSongs(container) else { return }
+        let manager = DownloadManager.shared
+        if let key = playlistKey(of: container), manager.containers[key] != nil {
+            manager.removeContainer(key: key)
+            return
+        }
+        let tracks = removable(tracks(inContainer: container) ?? [])
+        for track in tracks where track.content.service != .files {
+            manager.remove(key: DownloadManager.key(for: track))
+        }
+        let fileIDs = tracks.filter { $0.content.service == .files }.map(\.content.id)
+        if !fileIDs.isEmpty {
+            FilesLibraryService.shared.removeFromDevice(trackIDs: fileIDs)
+        }
+    }
+
+    /// The songs Cue may take off this device, from those given.
+    private static func removable(_ tracks: [PlayableContent]) -> [PlayableContent] {
+        let files = FilesLibraryService.shared
+        return tracks.filter { track in
+            switch track.content.service {
+            case .plex, .subsonic: true
+            case .files: files.isCloudFolder
+            default: false
+            }
+        }
+    }
+
+    /// The download manager's key for a playlist minted here.
+    private static func playlistKey(of container: PlayableContent) -> String? {
+        let prefix = "\(containerIDPrefix)playlist|"
+        guard container.content.id.hasPrefix(prefix) else { return nil }
+        return String(container.content.id.dropFirst(prefix.count))
+    }
+
     // MARK: - Copy
 
     /// What to do to have something here, for the empty pages: one

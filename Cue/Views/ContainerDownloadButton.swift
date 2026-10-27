@@ -124,6 +124,83 @@ struct ContainerDownloadButton: View {
     }
 }
 
+/// The same button on an album or playlist page of the on-device library
+/// (`OnDeviceLibrary`), which is all here: a filled arrow, with how many
+/// songs and Remove Download behind it. The page goes back once its songs
+/// are gone (`MediaDetailView.loadOnDeviceTracks`). Not for what only the
+/// Music app can remove.
+struct OnDeviceDownloadButton: View {
+    @Environment(AlertService.self) private var alertService
+
+    let container: PlayableContent
+
+    var body: some View {
+        let removable = OnDeviceLibrary.removableCount(of: container)
+        if removable > 0 {
+            Menu {
+                Label("\(ContentType.track.downloadCount(removable)) on this device", systemImage: "arrow.down.circle.fill")
+                Button(role: .destructive) {
+                    HapticManager.shared.fireHaptic(.buttonPress)
+                    OnDeviceLibrary.removeDownloads(of: container)
+                    alertService.showAlertContent(with: container, subtitle: "Removed from this device", symbolName: "trash")
+                } label: {
+                    Label("Remove Download", systemImage: "trash")
+                }
+            } label: {
+                Image(systemName: "arrow.down.circle.fill")
+                    .frame(width: 24, height: 24)
+            }
+            .buttonBorderShape(.circle)
+            .contentShape(.rect)
+            .glassButton()
+            .accessibilityLabel("Downloaded")
+        }
+    }
+}
+
+/// Remove Download for an album, artist or playlist row of the on-device
+/// library, as a swipe and in its long-press menu: the list's own way to
+/// take one off this device without opening it.
+struct OnDeviceRemoveActions: ViewModifier {
+    @Environment(AlertService.self) private var alertService
+
+    let container: PlayableContent
+
+    func body(content: Content) -> some View {
+        if OnDeviceLibrary.removableCount(of: container) > 0 {
+            content
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    Button(role: .destructive, action: remove) {
+                        Label("Remove", systemImage: "trash")
+                    }
+                    // Red, as a delete is: the app's tint wins otherwise.
+                    .tint(.red)
+                }
+                .contextMenu {
+                    Button(role: .destructive, action: remove) {
+                        Label("Remove Download", systemImage: "trash")
+                    }
+                }
+        } else {
+            content
+        }
+    }
+
+    private func remove() {
+        HapticManager.shared.fireHaptic(.buttonPress)
+        OnDeviceLibrary.removeDownloads(of: container)
+        alertService.showAlertContent(with: container, subtitle: "Removed from this device", symbolName: "trash")
+    }
+}
+
+extension View {
+    /// Remove Download on a row of the on-device library: see
+    /// `OnDeviceRemoveActions`.
+    func onDeviceRemoveActions(for container: PlayableContent) -> some View {
+        modifier(OnDeviceRemoveActions(container: container))
+    }
+}
+
 extension ContentType {
     /// How many things a download of this holds, by name: a book's files,
     /// anything else's songs.

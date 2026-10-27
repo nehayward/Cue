@@ -440,9 +440,11 @@ struct CueApp: App {
     }
 
     /// Downloads, last, while there's music or a book here
-    /// (`showsDownloadsTab`), badged with the songs and books still coming
-    /// down, a book counting once: the badge goes when the last lands.
-    /// Meanwhile its icon is a ring filling with the run.
+    /// (`showsDownloadsTab`). While songs or books come down its icon is a
+    /// ring filling with the run, which on the phone says as much as a
+    /// badge would. The iPad's and the Mac's top bar draws titles only, so
+    /// there the songs and books still to come are a badge (a book counting
+    /// once).
     @TabContentBuilder<AppTab>
     private var downloadsTab: some TabContent<AppTab> {
         if showsDownloadsTab {
@@ -455,7 +457,7 @@ struct CueApp: App {
                     downloadsTabIcon
                 }
             }
-            .badge(DownloadManager.shared.musicSummary.remainingDownloads)
+            .badge(isPhone ? 0 : DownloadManager.shared.musicSummary.remainingDownloads)
         }
     }
 

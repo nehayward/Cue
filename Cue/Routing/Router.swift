@@ -21,8 +21,8 @@ enum AppTab: Hashable, Codable {
     /// while either has books.
     case audiobooks
     /// The music on this device, every provider's, with what's still
-    /// coming down. Shown while there's any downloaded or on its way, and
-    /// badged with the songs still to come.
+    /// coming down. Shown while there's any downloaded or on its way, its
+    /// icon a ring filling while they come down (a badge off the phone).
     case downloads
     /// A provider the user added to the tab view, as one tab: its library's
     /// front page (Artists, Albums, … as rows). This is the tab bar's entry

@@ -301,7 +301,7 @@ final class DownloadManager {
     // MARK: - Music here
 
     /// The songs and books here and coming down at a glance, for what
-    /// shows only that: the Downloads tab, its badge and the on-device
+    /// shows only that: the Downloads tab, its icon and the on-device
     /// library's lists. `items` changes several times a second while songs
     /// come down; this changes only when one is queued, lands, stops or
     /// goes.
@@ -323,8 +323,9 @@ final class DownloadManager {
         var revision = 0
 
         var hasDownloads: Bool { downloaded + remaining + books > 0 }
-        /// Songs and books still to come, a book counting once: the tab's
-        /// badge.
+        /// Songs and books still to come, a book counting once: while
+        /// there are any, the tab's icon is the ring, and off the phone
+        /// this is its badge.
         var remainingDownloads: Int { remaining + booksRemaining }
         /// How many of the run have landed (or stopped, or gone).
         var runSettled: Int { runTotal - remaining }
@@ -1214,6 +1215,16 @@ final class DownloadManager {
         }
         trimContainers()
         scheduleSave()
+    }
+
+    /// Every book downloaded whole, off this device, each as Remove does
+    /// one: songs, and books still coming down, stay. Removing the songs
+    /// leaves the books (`completedSongs` has none of their files), so each
+    /// is an action of its own.
+    func removeAllBooks() {
+        for book in completedContainers where book.type == .audiobook {
+            removeContainer(key: book.key)
+        }
     }
 
     func pauseAll() {

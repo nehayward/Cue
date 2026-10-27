@@ -11,6 +11,7 @@ import VibesDS
 
 struct MediaDetailView: View {
     @Environment(Router.self) private var router
+    @Environment(\.dismiss) private var dismiss
     @Environment(PlaylistContainer.self) private var playlistsContainer: PlaylistContainer
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
     @Environment(SelectedGroupService.self) private var selectedGroupService
@@ -457,6 +458,9 @@ struct MediaDetailView: View {
                     .buttonBorderShape(.circle)
                     .contentShape(.rect)
                     .glassButton()
+                } else if isOnDevice {
+                    // All here: the button says so, with Remove behind it.
+                    OnDeviceDownloadButton(container: playableContent)
                 }
             }
             .bold()
@@ -874,9 +878,15 @@ struct MediaDetailView: View {
     /// order.
     private func loadOnDeviceTracks() {
         guard isOnDevice else { return }
+        let hadTracks = !tracks.isEmpty
         tracks = OnDeviceLibrary.tracks(inContainer: playableContent) ?? []
         loadedItemCount = tracks.count
         isLoadingMore = false
+        // Its last song removed, from the header's button or a row's menu:
+        // there's no album or playlist here any more to show.
+        if hadTracks, tracks.isEmpty {
+            dismiss()
+        }
     }
 
     func appendTracksAvoidingDuplicates(newTracks: [PlayableContent], to tracks: inout [PlayableContent]) {

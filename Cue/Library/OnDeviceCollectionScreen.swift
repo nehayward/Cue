@@ -43,6 +43,9 @@ struct OnDeviceCollectionScreen: View {
                 NavigationLink(value: OnDeviceLibrary.destination(for: group)) {
                     OnDeviceGroupRow(group: group, collection: collection)
                 }
+                // The covers part the rows, as on a server's album list.
+                .listRowSeparator(.hidden)
+                .onDeviceRemoveActions(for: group.container)
             }
         }
         // A list of its own for each order, so a new sort lays the rows

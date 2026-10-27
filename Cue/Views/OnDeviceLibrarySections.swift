@@ -15,6 +15,13 @@ struct OnDeviceLibrarySections: View {
     /// The provider to show, or nil for all of them.
     var service: MusicService? = nil
 
+    /// The side margins of the lists these show in
+    /// (`contentMargins(.horizontal, 16)`), which the shelf reaches past.
+    private static let listMargin: CGFloat = 16
+    /// Where the shelf's first cover sits from the screen's edge: in line
+    /// with the rows' text.
+    private static let shelfInset: CGFloat = 32
+
     @State private var downloads = DownloadManager.shared
     @State private var apple = AppleDownloadsIndex.shared
     @State private var files = FilesLibraryService.shared
@@ -101,9 +108,8 @@ struct OnDeviceLibrarySections: View {
                     libraryRow("Books", systemImage: "book", count: bookCount)
                 }
             }
-        } header: {
-            Text("On This Device")
         } footer: {
+            // No header: every screen these show on is about what's here.
             if songCount > 0 {
                 Text(sourcesLine)
             }
@@ -111,31 +117,44 @@ struct OnDeviceLibrarySections: View {
     }
 
     /// The albums and playlists downloaded last, as covers, each opening
-    /// on its page.
+    /// on its page. The shelf runs to the screen's edges, past the list's
+    /// side margins, as the Audiobooks tab's shelves do: in a row it was
+    /// cut off at the margin, a cover scrolled aside half showing, since a
+    /// list clips its rows to their section's rounded card. So it's the
+    /// section's header, which isn't clipped, with no rows under it.
     @ViewBuilder
     private var recentSection: some View {
         let recent = OnDeviceLibrary.recentlyDownloaded(in: service)
         if !recent.isEmpty {
             Section {
-                ScrollView(.horizontal) {
-                    LazyHStack(alignment: .top, spacing: 12) {
-                        ForEach(recent) { group in
-                            NavigationLink(value: OnDeviceLibrary.destination(for: group)) {
-                                RecentDownloadTile(group: group)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .scrollTargetLayout()
-                    .padding(.horizontal, 16)
-                }
-                .scrollIndicators(.hidden)
-                .scrollTargetBehavior(.viewAligned)
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
             } header: {
-                Text("Recently Downloaded")
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Recently Downloaded")
+                        .padding(.leading, Self.shelfInset - Self.listMargin)
+                    ScrollView(.horizontal) {
+                        LazyHStack(alignment: .top, spacing: 12) {
+                            ForEach(recent) { group in
+                                NavigationLink(value: OnDeviceLibrary.destination(for: group)) {
+                                    RecentDownloadTile(group: group)
+                                }
+                                .buttonStyle(.plain)
+                                // No long-press menu: a list's section header
+                                // never presents one, the press ending as a
+                                // tap. Its page has Remove Download.
+                            }
+                        }
+                        .scrollTargetLayout()
+                    }
+                    // Margins, not padding, so the covers settle in line
+                    // with the rows above rather than at the screen's edge.
+                    .contentMargins(.horizontal, Self.shelfInset, for: .scrollContent)
+                    .scrollIndicators(.hidden)
+                    .scrollTargetBehavior(.viewAligned)
+                    .padding(.horizontal, -Self.listMargin)
+                    .textCase(nil)
+                }
+                .padding(.top, 8)
+                .listRowInsets(EdgeInsets())
             }
         }
     }
@@ -235,12 +254,16 @@ private struct RecentDownloadTile: View {
         VStack(alignment: .leading, spacing: 4) {
             ContentArtworkView(content: group.container, showMusicSource: false, preferredSize: 300, cornerRadius: 6)
                 .frame(width: Self.size, height: Self.size)
+            // Its own type and colours, not the section header's it sits
+            // in: the colours themselves, since `.primary` and `.secondary`
+            // as styles go by the header's dimmed one.
             Text(group.title)
                 .font(.footnote)
+                .foregroundStyle(Color.primary)
                 .lineLimit(1)
             Text(group.subtitle)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.secondary)
                 .lineLimit(1)
         }
         .frame(width: Self.size)

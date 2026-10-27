@@ -46,6 +46,7 @@ struct DownloadsScreen: View {
     @State private var picked: Tab?
     @State private var isConfirmingClearCache = false
     @State private var isConfirmingRemoveAll = false
+    @State private var isConfirmingRemoveAllBooks = false
     @AppStorage(AppStorageKeys.hasPlexAudiobooks) private var hasPlexBooks = false
 
     /// Opens on the books rather than the songs.
@@ -172,12 +173,13 @@ struct DownloadsScreen: View {
         if !completed.isEmpty {
             let completedBytes = completed.reduce(0) { $0 + ($1.fileSize ?? 0) }
             // A section of its own above the songs, found without scrolling
-            // past every one of them; so near the top, it asks first.
+            // past every one of them; so near the top, it asks first. The
+            // songs only: books are removed from the Books tab.
             Section {
                 Button(role: .destructive) {
                     isConfirmingRemoveAll = true
                 } label: {
-                    Text("Remove All Downloads")
+                    Text("Remove All Songs")
                         .frame(maxWidth: .infinity)
                 }
                 .confirmationDialog(
@@ -185,11 +187,11 @@ struct DownloadsScreen: View {
                     isPresented: $isConfirmingRemoveAll,
                     titleVisibility: .visible
                 ) {
-                    Button("Remove All Downloads", role: .destructive) {
+                    Button("Remove All Songs", role: .destructive) {
                         manager.removeAllCompletedSongs()
                     }
                 } message: {
-                    Text("They're taken off this iPhone and can be downloaded again.")
+                    Text("They're taken off this iPhone and can be downloaded again. Books stay.")
                 }
             }
 
@@ -364,6 +366,27 @@ struct DownloadsScreen: View {
 
         if !downloaded.isEmpty {
             let bytes = downloaded.reduce(0) { $0 + bookBytes($1) }
+            // The books only, as the Songs tab's removes the songs only.
+            Section {
+                Button(role: .destructive) {
+                    isConfirmingRemoveAllBooks = true
+                } label: {
+                    Text("Remove All Books")
+                        .frame(maxWidth: .infinity)
+                }
+                .confirmationDialog(
+                    downloaded.count == 1 ? "Remove 1 downloaded book?" : "Remove all \(downloaded.count) downloaded books?",
+                    isPresented: $isConfirmingRemoveAllBooks,
+                    titleVisibility: .visible
+                ) {
+                    Button("Remove All Books", role: .destructive) {
+                        manager.removeAllBooks()
+                    }
+                } message: {
+                    Text("They're taken off this iPhone and stay on their servers, with your place in each kept. Songs stay.")
+                }
+            }
+
             Section {
                 ForEach(downloaded) { container in
                     bookRow(container)
