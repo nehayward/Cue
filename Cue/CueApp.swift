@@ -668,6 +668,11 @@ struct CueApp: App {
             // and the bottom bar put the real accent back — `Color("Accent")`
             // by name, since `.accentColor` now resolves to this tint.
 //            .tint(Color.primary.opacity(0.12))
+            // The toasts ("Added to …") on iPad and the Mac, over the content
+            // column. The tab screens draw them only on the phone, so on
+            // those the menu bar's playlist commands, and every other toast
+            // outside the player and the sheets, showed nothing.
+            .withAlert(enabled: !isPhone)
             // The queue panel, beside the whole `TabView`. Inside
             // `withEnvironments()`, which the panel's view reads from.
             .modifier(WindowQueuePanel())
@@ -1838,20 +1843,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 modifierFlags: .command
             )
 
-            // Add to Last Playlist command (dynamic title)
-            let addToLastPlaylistAction: UIMenuElement
-
-            if let last = LastPlaylist.current {
-                addToLastPlaylistAction = UIKeyCommand(
-                    title: "Add to \(last.title)",
-                    image: last.service.uiImage ?? UIImage(systemName: "text.badge.plus"),
-                    action: #selector(addToLastPlaylist),
-                    input: "s",
-                    modifierFlags: [.shift, .command]
-                )
-            } else {
-                addToLastPlaylistAction = UIAction(title: "Add to Last Playlist", attributes: .disabled) { _ in }
-            }
+            // Add to Last Playlist, named for the playlist once there is one
+            // (`LastPlaylist.save` rebuilds the menu) and on while the song
+            // playing can go in it (`canPerformAction`). A disabled action
+            // in its place, built once at launch, stayed off on iPad.
+            let last = LastPlaylist.current
+            let addToLastPlaylistAction = UIKeyCommand(
+                title: last.map { "Add to \($0.title)" } ?? "Add to Last Playlist",
+                image: last?.service.uiImage ?? UIImage(systemName: "text.badge.plus"),
+                action: #selector(addToLastPlaylist),
+                input: "s",
+                modifierFlags: [.shift, .command]
+            )
 
             // Add to Playlist submenu with deferred loading
             let addToPlaylistDeferred = UIDeferredMenuElement.uncached { completion in
@@ -1860,16 +1863,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                     let alertService = AlertService.shared
                     let musicSearchService = MusicSearchService.shared
 
-                    // Get current track from selected group
-                    guard let selectedID = Router.main.selectedID,
-                          let group = sonosService.sorted.first(where: { $0.coordinatorID == selectedID }) else {
+                    // The song the player shows, on this device or a speaker.
+                    guard let track = PlaylistMenuCommands.songToAdd else {
                         completion([
                             UIAction(title: "No Track Playing", attributes: .disabled) { _ in }
                         ])
                         return
                     }
-
-                    let track = group.coordinatorRoom.track.toPlayable
 
                     // Adds `track` to `playlist`, dispatching to Sonos or the streaming service.
                     func action(for playlist: PlayableContent) -> UIAction {
@@ -1907,10 +1907,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                         }
                     }
 
-                    // Sonos playlists accept any track.
-                    let sonosPlaylists = await sonosService.sonosPlaylists()
-                    if !sonosPlaylists.isEmpty {
-                        menuItems.append(UIMenu(title: "Sonos", options: .displayInline, children: sonosPlaylists.map(action)))
+                    // Sonos playlists accept anything a speaker plays, while
+                    // one is in reach (`LastPlaylist.accepts`).
+                    if sonosService.isAvailable, !track.content.service.playsOnDeviceOnly {
+                        let sonosPlaylists = await sonosService.sonosPlaylists()
+                        if !sonosPlaylists.isEmpty {
+                            menuItems.append(UIMenu(title: "Sonos", options: .displayInline, children: sonosPlaylists.map(action)))
+                        }
                     }
 
                     if menuItems.isEmpty {
@@ -1958,6 +1961,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             return PlaylistUndoMenuBridge.shared.editor?.canUndo ?? false
         case #selector(playlistRedo):
             return PlaylistUndoMenuBridge.shared.editor?.canRedo ?? false
+        case #selector(newPlaylist):
+            return PlaylistMenuCommands.newPlaylistService != nil
+        case #selector(addToLastPlaylist):
+            guard let last = LastPlaylist.current, let song = PlaylistMenuCommands.songToAdd else { return false }
+            return last.accepts(song)
         default:
             return super.canPerformAction(action, withSender: sender)
         }
@@ -1970,48 +1978,28 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     @objc func newPlaylist() {
-        Router.main.presentedSheet = .newPlaylist()
+        PlaylistMenuCommands.presentNewPlaylist()
     }
 
+    /// The song the player shows into the last playlist, on this device or a
+    /// speaker. `canPerformAction` keeps the command off while it can't go
+    /// in; the toasts are for a shortcut pressed anyway.
     @objc func addToLastPlaylist() {
-        let sonosService = SonosService.shared
         let alertService = AlertService.shared
-
         guard let last = LastPlaylist.current else {
             alertService.showAlert(with: "No Recent Playlist", imageName: "exclamationmark.triangle")
             return
         }
-
-        guard let selectedID = Router.main.selectedID,
-              let group = sonosService.sorted.first(where: { $0.coordinatorID == selectedID }) else {
-            alertService.showAlert(with: "No Group Selected", imageName: "exclamationmark.triangle")
+        guard let song = PlaylistMenuCommands.songToAdd else {
+            alertService.showAlert(with: "No Track Playing", imageName: "exclamationmark.triangle")
             return
         }
-
-        let currentTrack = group.coordinatorRoom.track.toPlayable
-
+        guard last.accepts(song) else {
+            alertService.showAlert(with: "Can’t add to \(last.title)", imageName: "exclamationmark.triangle")
+            return
+        }
         Task { @MainActor in
-            // Attempt the add and report the real result — the now-playing track's reported service
-            // isn't reliable enough to pre-gate on (a Spotify track can surface as a Sonos item).
-            guard await last.add(currentTrack) else {
-                alertService.showAlert(with: "Couldn’t add to \(last.title)", imageName: "exclamationmark.triangle")
-                return
-            }
-            alertService.showAlertContent(with: currentTrack, subtitle: "Added to \(last.title)", symbolName: "plus")
-
-            // Let tapping the toast open the playlist. Sonos resolves the real playlist for artwork;
-            // streaming opens from a lightweight stub (the detail view loads it by id).
-            let target: PlayableContent?
-            if last.service == .library {
-                target = await sonosService.sonosPlaylists().first(where: { $0.id == last.id })
-            } else {
-                target = last.playableContent
-            }
-            if let target {
-                alertService.alert.handleTap = {
-                    Router.main.presentedSheet = .mediaDetail(content: target, group: nil)
-                }
-            }
+            await last.addAndAnnounce(song)
         }
     }
 }

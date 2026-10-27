@@ -14,6 +14,10 @@ struct NewPlaylistView: View {
     @State var playlist: PlayableContent? = nil
     @State var playlistName: String = ""
 
+    /// The sheet's height: its detent here, and what the menu bar's New
+    /// Playlist sizes the sheet it presents to (`PlaylistMenuCommands`).
+    static let sheetHeight: CGFloat = 260
+
     private var titleText: String {
         if playlist != nil { return "Rename Playlist" }
         return service == .library ? "New Playlist" : "New \(service.title) Playlist"
@@ -59,7 +63,7 @@ struct NewPlaylistView: View {
                 }
             }
         }
-        .presentationDetents([.height(260)])
+        .presentationDetents([.height(Self.sheetHeight)])
         .presentationDragIndicator(.hidden)
         .presentationBackground(.regularMaterial)
         .task {
