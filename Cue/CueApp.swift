@@ -43,17 +43,21 @@ struct MusicPlaybackView: View {
     private var sonosService: SonosService { .shared }
 
     var body: some View {
-        // On iPhone the buttons sit in cells of their own width, which
-        // space them, so the row's own spacing is small there.
-        HStack(spacing: isPhone ? 4 : 12) {
+        // The buttons sit in cells of their own width, which space them, so
+        // the row's own spacing is small.
+        HStack(spacing: 4) {
             nowPlayingContent
 
-            // Always present, playing or not: the route is set ahead of Play,
-            // which is the whole point of it no longer asking.
-            PlaybackRouteButton()
-                .buttonStyle(.plain)
-                .font(.title3)
-                .frame(width: isPhone ? Self.phoneButtonSide : nil)
+            // Present playing or not: the route is set ahead of Play, which
+            // is the whole point of it no longer asking. Not in the bar
+            // folded into the tab bar, which has room for Play and Pause
+            // alone; it's back as the bar opens out.
+            if placement != .inline {
+                PlaybackRouteButton()
+                    .buttonStyle(.plain)
+                    .font(.title3)
+                    .frame(width: Self.buttonSide)
+            }
 
             // The queue panel's show/hide on iPad, where there is no sidebar
             // header to hold it. Only at a regular width: a compact window
@@ -75,7 +79,8 @@ struct MusicPlaybackView: View {
                         // easy to read.
                         .padding(5)
                         .background(Color("Accent").opacity(showQueue ? 0.25 : 0), in: .circle)
-                        .contentShape(.circle)
+                        .frame(width: Self.buttonSide, height: Self.buttonSide)
+                        .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
                 .animation(.snappy, value: showQueue)
@@ -88,24 +93,24 @@ struct MusicPlaybackView: View {
         .frame(maxWidth: 500, maxHeight: 120)
     }
 
-    /// The iPhone's bar is as tall as the system makes it, room for one row
-    /// as Apple Music's has: the cover, the title and artist, and the
-    /// buttons, centred. How far the song has got goes round Play and
-    /// Pause, as on the watch, rather than in a line of its own, which
-    /// pushed the row up against the top. The wider iPad and Mac bars keep
-    /// the line under the track text.
-    private var isPhone: Bool {
-        UIDevice.current.userInterfaceIdiom == .phone
+    /// The iPhone's bar, and an iPad window's at a compact width, is as
+    /// tall as the system makes it, room for one row as Apple Music's has:
+    /// the cover, the title and artist, and the buttons, centred. How far
+    /// the song has got goes round Play and Pause, as on the watch, rather
+    /// than in a line of its own, which pushed the row up against the top.
+    /// The wider iPad and Mac bars keep the line under the track text.
+    private var isCompact: Bool {
+        UIDevice.current.userInterfaceIdiom == .phone || horizontalSizeClass == .compact
     }
 
-    /// The cover's side: smaller on iPhone, with the bar's room around it.
+    /// The cover's side: smaller in the compact bar, with its room around it.
     private var artworkSide: CGFloat {
-        isPhone ? 32 : 40
+        isCompact ? 32 : 40
     }
 
-    /// Each button's cell on iPhone, all of it taking the tap: wider than
-    /// the glyphs, so they stand apart and a tap between two still lands.
-    static let phoneButtonSide: CGFloat = 40
+    /// Each button's cell, all of it taking the tap: wider than the glyphs,
+    /// so they stand apart and a tap between two still lands.
+    static let buttonSide: CGFloat = 40
 
     /// The progress line for what's on screen, in seconds whichever it is.
     @ViewBuilder
@@ -170,7 +175,7 @@ struct MusicPlaybackView: View {
                 } else if let item {
                     ContentArtworkView(content: item, showMusicSource: false)
                         .frame(width: artworkSide, height: artworkSide)
-                        .clipShape(RoundedRectangle(cornerRadius: isPhone ? 6 : 8))
+                        .clipShape(RoundedRectangle(cornerRadius: isCompact ? 6 : 8))
                 } else {
                     Image(systemName: idleSymbol(for: group))
                         .foregroundStyle(.secondary)
@@ -198,7 +203,7 @@ struct MusicPlaybackView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
-                        if !isPhone {
+                        if !isCompact {
                             progressLine
                         }
                     }
@@ -218,7 +223,7 @@ struct MusicPlaybackView: View {
                 HapticManager.shared.fireHaptic(.buttonPress)
                 Task { await controller.togglePlayback() }
             } label: {
-                MiniPlayerPlayPauseLabel(controller: controller, isRinged: isPhone, showsProgress: item != nil)
+                MiniPlayerPlayPauseLabel(controller: controller, isRinged: isCompact, showsProgress: item != nil)
             }
             .buttonStyle(.plain)
             .font(.title3)
@@ -243,7 +248,7 @@ struct MusicPlaybackView: View {
                     }
                 } label: {
                     Image(systemName: isBook ? "goforward.\(Int(AudiobookPlayer.skipForwardInterval))" : "forward.fill")
-                        .frame(width: isPhone ? Self.phoneButtonSide : nil, height: isPhone ? Self.phoneButtonSide : nil)
+                        .frame(width: Self.buttonSide, height: Self.buttonSide)
                         .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
@@ -1578,9 +1583,10 @@ private struct MiniPlayerProgressLine: View {
     }
 }
 
-/// The mini player's Play or Pause. On iPhone it sits in the ring of how
-/// far the song has got (`MiniPlayerProgressRing`), in a cell that takes
-/// the tap all over; the wider iPad and Mac bars have the bare glyph.
+/// The mini player's Play or Pause, in a cell that takes the tap all
+/// over. In the compact bar it sits in the ring of how far the song has
+/// got (`MiniPlayerProgressRing`); the wider iPad and Mac bars have the
+/// glyph alone, with the line under the track text.
 fileprivate struct MiniPlayerPlayPauseLabel: View {
     let controller: any PlaybackController
     let isRinged: Bool
@@ -1591,28 +1597,30 @@ fileprivate struct MiniPlayerPlayPauseLabel: View {
         let glyph = Image(systemName: controller.isPlaying ? "pause.fill" : "play.fill")
             .contentTransition(GroupMediaControlsView.animatesPlayPause ? .symbolEffect(.replace) : .identity)
             .sustainedPulse(isActive: GroupMediaControlsView.animatesPlayPause && controller.isLoading)
-        if isRinged {
-            glyph
-                .font(.body.weight(.semibold))
-                .frame(width: 32, height: 32)
-                .background {
-                    if showsProgress {
-                        MiniPlayerProgressRing(
-                            duration: controller.duration,
-                            isRunning: controller.isClockRunning,
-                            position: { controller.position() }
-                        )
+        Group {
+            if isRinged {
+                glyph
+                    .font(.body.weight(.semibold))
+                    .frame(width: 32, height: 32)
+                    .background {
+                        if showsProgress {
+                            MiniPlayerProgressRing(
+                                duration: controller.duration,
+                                isRunning: controller.isClockRunning,
+                                position: { controller.position() }
+                            )
+                        }
                     }
-                }
-                .frame(width: MusicPlaybackView.phoneButtonSide, height: MusicPlaybackView.phoneButtonSide)
-                .contentShape(.rect)
-        } else {
-            glyph
+            } else {
+                glyph
+            }
         }
+        .frame(width: MusicPlaybackView.buttonSide, height: MusicPlaybackView.buttonSide)
+        .contentShape(.rect)
     }
 }
 
-/// How far the song has got as a ring round the iPhone mini player's Play
+/// How far the song has got as a ring round the compact mini player's Play
 /// and Pause, as the watch's Now Playing draws it: the same clock as
 /// `MiniPlayerProgressLine`, redrawn once per pixel of the ring's length.
 /// Hidden for a live stream, which has no length to go round.
