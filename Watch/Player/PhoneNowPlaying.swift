@@ -37,6 +37,9 @@ final class PhoneNowPlaying {
     /// Where the iPhone can play — itself and its Sonos groups — for Play
     /// On: nil until asked for.
     private(set) var routes: WatchPhoneRoutes?
+    /// When the iPhone last said what it plays: what came before the app
+    /// last opened may be stale.
+    private(set) var heardAt: Date?
 
     /// The watch app is on screen: only then is a dropped session news.
     @ObservationIgnored private var isAppActive = true
@@ -185,6 +188,7 @@ final class PhoneNowPlaying {
             chapters = nil
         }
         current = nowPlaying
+        heardAt = .now
         isPhoneInReach = true
     }
 

@@ -63,7 +63,10 @@ private enum HomeLibrary: Hashable {
 /// top left. No title: the rows say what's what. Screens zoom out of the
 /// row that opens them. The widget opens it on Downloads or Now Playing.
 /// The first time there's music to fetch, it asks at what quality. Play on
-/// a book asks where, with the iPhone in reach (`BookPlayback`).
+/// a book asks where, with the iPhone in reach (`BookPlayback`). Opened
+/// while something plays — launched, or back from the watch face — it goes
+/// straight to that player, the watch's or else the iPhone's, as other
+/// players' watch apps do.
 struct LibraryScreen: View {
     @Environment(WatchDownloadStore.self) private var store
     @Environment(WatchPlayer.self) private var player
@@ -75,7 +78,17 @@ struct LibraryScreen: View {
     @State private var sheet: Sheet?
     @State private var hasAskedQuality = false
     @State private var playRequest: PlayRequest?
+    @Environment(\.scenePhase) private var scenePhase
+    /// When the app last opened, launched or back from the background: it
+    /// goes to the player of what's playing if it hears of it soon after.
+    @State private var openedAt: Date? = .now
+    @State private var wasInBackground = false
     @Namespace private var zoom
+
+    /// How long after opening it still goes to the player: long enough for
+    /// the iPhone to answer, short enough not to take the screen from
+    /// someone already browsing.
+    private static let openToPlayerWindow: TimeInterval = 8
 
     private enum Sheet: String, Identifiable {
         case quality, library
@@ -209,6 +222,7 @@ struct LibraryScreen: View {
             }
             // From the Smart Stack widget.
             .onOpenURL { url in
+                openedAt = nil
                 switch url.host() {
                 case "downloads": path = NavigationPath([HomeRoute.downloads])
                 case "nowplaying": path = NavigationPath([HomeRoute.nowPlaying])
@@ -220,6 +234,9 @@ struct LibraryScreen: View {
             // `-dance.cue.watchScreen phone` (the iPhone's player) or
             // `phoneChapters`, with `-dance.cue.phonePreview YES`.
             .task {
+                if UserDefaults.standard.string(forKey: "dance.cue.watchScreen") != nil {
+                    openedAt = nil
+                }
                 switch UserDefaults.standard.string(forKey: "dance.cue.watchScreen") {
                 case "phone": path = NavigationPath([HomeRoute.phoneNowPlaying])
                 case "phoneChapters": path = NavigationPath([HomeRoute.phoneNowPlaying, HomeRoute.phoneChapters])
@@ -246,6 +263,41 @@ struct LibraryScreen: View {
             path = NavigationPath([route])
         }
         .askingWhereToPlay($playRequest)
+        .onChange(of: scenePhase) { _, phase in
+            switch phase {
+            case .background:
+                wasInBackground = true
+            case .active where wasInBackground:
+                wasInBackground = false
+                openedAt = .now
+                openPlayerIfPlaying()
+            default:
+                break
+            }
+        }
+        .onChange(of: player.isPlaying, initial: true) {
+            openPlayerIfPlaying()
+        }
+        .onChange(of: phone.heardAt) {
+            openPlayerIfPlaying()
+        }
+    }
+
+    /// Just opened, and something's playing: its player, in place of
+    /// whatever was on screen. The watch's own first; the iPhone's once it
+    /// has said so since the app opened (what it said before may be stale).
+    private func openPlayerIfPlaying() {
+        guard let openedAt, Date.now.timeIntervalSince(openedAt) < Self.openToPlayerWindow else { return }
+        let route: HomeRoute
+        if player.isPlaying {
+            route = .nowPlaying
+        } else if phone.current?.isPlaying == true, let heardAt = phone.heardAt, heardAt >= openedAt {
+            route = .phoneNowPlaying
+        } else {
+            return
+        }
+        self.openedAt = nil
+        path = NavigationPath([route])
     }
 
     private func nowPlayingCard(showsPhone: Bool) -> some View {
