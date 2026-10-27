@@ -248,6 +248,116 @@ final class WatchSyncMessageTests: XCTestCase {
         }
     }
 
+    func testABooksClockAndChapterCross() throws {
+        let clockAt = Date(timeIntervalSince1970: 2_000)
+        let book = WatchPhoneNowPlaying(
+            title: "Book", artist: "Author", destination: "iPhone", isPlaying: true, isBook: true,
+            elapsed: 90, duration: 600, clockAt: clockAt, rate: 1.5,
+            chapter: "Chapter 3", chapterID: 2, bookKey: "audiobook-plex-7",
+            sleepsAt: clockAt.addingTimeInterval(900), sleepsAtEnd: false
+        )
+        XCTAssertEqual(WatchSyncMessage.nowPlaying(in: try WatchSyncMessage.nowPlayingMessage(book)), book)
+    }
+
+    func testTheClockRunsOnWhilePlayingAndHoldsWhilePaused() {
+        let clockAt = Date(timeIntervalSince1970: 2_000)
+        var playing = WatchPhoneNowPlaying(title: "Book", destination: "iPhone", isPlaying: true, elapsed: 90, duration: 100, clockAt: clockAt, rate: 1.5)
+        XCTAssertEqual(playing.elapsed(at: clockAt.addingTimeInterval(4)), 96)
+        // Never past the end.
+        XCTAssertEqual(playing.elapsed(at: clockAt.addingTimeInterval(60)), 100)
+        XCTAssertEqual(playing.startDate(at: clockAt.addingTimeInterval(4)), clockAt.addingTimeInterval(4 - 64))
+        playing.isPlaying = false
+        XCTAssertEqual(playing.elapsed(at: clockAt.addingTimeInterval(4)), 90)
+        // A live station has no bar.
+        XCTAssertNil(WatchPhoneNowPlaying(title: "Radio", destination: "iPhone", isPlaying: true).barLength)
+    }
+
+    func testTheiPhonesBookRequestsCross() throws {
+        let chapters = WatchPhoneChapters(bookKey: "audiobook-plex-7", chapters: [.init(id: 0, title: "One", start: 0, end: 60), .init(id: 1, title: "Two", start: 60, end: 200)])
+        XCTAssertEqual(WatchSyncMessage.chapters(in: try WatchSyncMessage.chaptersMessage(chapters)), chapters)
+        XCTAssertEqual(chapters.chapters[1].duration, 140)
+        XCTAssertTrue(WatchSyncMessage.isChaptersRequest(WatchSyncMessage.chaptersRequest))
+        XCTAssertNil(WatchSyncMessage.chapters(in: WatchSyncMessage.chaptersRequest))
+
+        XCTAssertEqual(WatchSyncMessage.chapterToPlay(in: WatchSyncMessage.playChapterRequest(4)), 4)
+        XCTAssertEqual(WatchSyncMessage.chapterToPlay(in: WatchSyncMessage.playChapterRequest(0)), 0)
+        XCTAssertEqual(WatchSyncMessage.speed(in: WatchSyncMessage.speedRequest(1.25)), 1.25)
+        for sleep in [WatchPhoneSleep.off, .end, .minutes(15)] {
+            XCTAssertEqual(WatchSyncMessage.sleepTimer(in: WatchSyncMessage.sleepTimerRequest(sleep)), sleep)
+        }
+
+        let pick = WatchPick(source: .plex, kind: .audiobook, id: "7", title: "Book", addedAt: Date(timeIntervalSince1970: 1))
+        let place = WatchBookPlace(position: 300, duration: 900, isFinished: false, updatedAt: Date(timeIntervalSince1970: 5))
+        let play = try XCTUnwrap(WatchSyncMessage.bookToPlay(in: try WatchSyncMessage.playBookRequest(pick, place: place, from: 60, on: .iPhone)))
+        XCTAssertEqual(play.pick, pick)
+        XCTAssertEqual(play.place, place)
+        XCTAssertEqual(play.time, 60)
+        XCTAssertEqual(play.target, .iPhone)
+        let plain = try XCTUnwrap(WatchSyncMessage.bookToPlay(in: try WatchSyncMessage.playBookRequest(pick, place: nil, on: .route)))
+        XCTAssertNil(plain.place)
+        XCTAssertNil(plain.time)
+        XCTAssertEqual(plain.target, .route)
+
+        // None reads as any other request, so an iPhone a version behind
+        // answers with what it plays and does nothing else.
+        let requests = [
+            WatchSyncMessage.chaptersRequest, WatchSyncMessage.playChapterRequest(1), WatchSyncMessage.speedRequest(2),
+            WatchSyncMessage.sleepTimerRequest(.end), try WatchSyncMessage.playBookRequest(pick, place: nil, on: .route),
+        ]
+        for request in requests {
+            XCTAssertNil(WatchSyncMessage.command(in: request))
+            XCTAssertNil(WatchSyncMessage.queuePositionToPlay(in: request))
+            XCTAssertFalse(WatchSyncMessage.isNowPlayingRequest(request))
+            XCTAssertFalse(WatchSyncMessage.isQueueRequest(request))
+            XCTAssertFalse(WatchSyncMessage.isCredentialsRequest(request))
+        }
+    }
+
+    func testTargetsCrossAsThemselves() {
+        for target in [WatchPhoneTarget.iPhone, .route, .group("RINCON_1:400")] {
+            XCTAssertEqual(WatchPhoneTarget(key: target.key), target)
+        }
+        XCTAssertNil(WatchPhoneTarget(key: "speaker"))
+        XCTAssertEqual(WatchPhoneTarget(routeID: WatchPhoneRoutes.iPhoneID), .iPhone)
+        XCTAssertEqual(WatchPhoneTarget(routeID: "RINCON_1"), .group("RINCON_1"))
+        XCTAssertNil(WatchPhoneTarget.route.routeID)
+    }
+
+    func testABookOnTheiPhoneGivesItsBookTime() {
+        let clockAt = Date(timeIntervalSince1970: 2_000)
+        let book = WatchPhoneNowPlaying(title: "Book", destination: "iPhone", isPlaying: false, isBook: true, elapsed: 90, duration: 600, clockAt: clockAt, chapterStart: 1_000)
+        XCTAssertEqual(book.bookTime(at: clockAt), 1_090)
+        XCTAssertNil(WatchPhoneNowPlaying(title: "Song", destination: "iPhone", isPlaying: false, elapsed: 90, duration: 200, clockAt: clockAt).bookTime(at: clockAt))
+    }
+
+    func testPlayingTheWatchsMusicAndRoutesCross() throws {
+        let pick = WatchPick(source: .plex, kind: .album, id: "S12", title: "Album", addedAt: Date(timeIntervalSince1970: 1))
+        let play = try XCTUnwrap(WatchSyncMessage.itemToPlay(in: try WatchSyncMessage.playItemRequest(pick, from: "S13", shuffled: true, on: .group("RINCON_1"))))
+        XCTAssertEqual(play.pick, pick)
+        XCTAssertEqual(play.songID, "S13")
+        XCTAssertTrue(play.shuffled)
+        XCTAssertEqual(play.target, .group("RINCON_1"))
+        let plain = try XCTUnwrap(WatchSyncMessage.itemToPlay(in: try WatchSyncMessage.playItemRequest(pick, on: .iPhone)))
+        XCTAssertNil(plain.songID)
+        XCTAssertFalse(plain.shuffled)
+        XCTAssertNil(WatchSyncMessage.bookToPlay(in: try WatchSyncMessage.playItemRequest(pick, on: .iPhone)))
+
+        let routes = WatchPhoneRoutes(routes: [.init(id: WatchPhoneRoutes.iPhoneID, name: "iPhone"), .init(id: "RINCON_1", name: "Kitchen")], current: "RINCON_1")
+        XCTAssertEqual(WatchSyncMessage.routes(in: try WatchSyncMessage.routesMessage(routes)), routes)
+        XCTAssertFalse(routes.routes[0].isSpeaker)
+        XCTAssertTrue(routes.routes[1].isSpeaker)
+        XCTAssertTrue(WatchSyncMessage.isRoutesRequest(WatchSyncMessage.routesRequest))
+        XCTAssertEqual(WatchSyncMessage.routeToSwitch(in: WatchSyncMessage.switchRouteRequest(to: "RINCON_1")), "RINCON_1")
+        XCTAssertNil(WatchSyncMessage.routeToSwitch(in: WatchSyncMessage.switchRouteRequest(to: "")))
+
+        for request in [WatchSyncMessage.routesRequest, WatchSyncMessage.switchRouteRequest(to: "RINCON_1"), try WatchSyncMessage.playItemRequest(pick, on: .route)] {
+            XCTAssertNil(WatchSyncMessage.command(in: request))
+            XCTAssertFalse(WatchSyncMessage.isNowPlayingRequest(request))
+            XCTAssertFalse(WatchSyncMessage.isQueueRequest(request))
+            XCTAssertFalse(WatchSyncMessage.isChaptersRequest(request))
+        }
+    }
+
     func testQualitiesSayWhatTheyCost() {
         XCTAssertEqual(WatchDownloadQuality.high.megabytesPerSong, 8)
         XCTAssertEqual(WatchDownloadQuality.small.detail, "MP3 128 kbps • about 4 MB a song")

@@ -294,21 +294,32 @@ final class WatchSyncService {
     /// watch's mustn't bring them back. The same for iCloud's, which are
     /// the watch's, or this iPhone's own coming back.
     private func apply(_ theirs: WatchBookPlaces, from source: String = "the watch") {
-        let store = AudiobookProgressStore.shared
         for pick in picks.items where pick.kind == .audiobook && Self.isSignedIn(to: pick.source) {
             guard let place = theirs[pick.key] else { continue }
-            let book = Self.book(for: pick)
-            let held = store.progress(for: book)
-            if let held, !place.supersedes(WatchBookPlace(held)) { continue }
-            let reading = AudiobookProgress(place)
-            if let held, held != takenFromWatch[pick.key], !held.isFinished, held.position > 0, abs(held.position - reading.position) > 60 {
-                AudiobookPlaceHistory.shared.record(.replaced, at: held.position, to: reading.position, for: book, from: .watch)
-            }
-            logger.info("\(pick.title, privacy: .public): the place from \(source, privacy: .public), \(Int(reading.position)) s, is newer")
-            takenFromWatch[pick.key] = reading
-            store.record(reading, for: book)
+            take(place, for: pick, from: source)
+        }
+    }
+
+    /// One book's place from the watch (or iCloud), kept where it's newer
+    /// than this iPhone's; the book loaded here gives way to it, unless the
+    /// caller does that itself (`movesPlayer`). The place taken, if it was.
+    @discardableResult
+    private func take(_ place: WatchBookPlace, for pick: WatchPick, from source: String, movesPlayer: Bool = true) -> AudiobookProgress? {
+        let store = AudiobookProgressStore.shared
+        let book = Self.book(for: pick)
+        let held = store.progress(for: book)
+        if let held, !place.supersedes(WatchBookPlace(held)) { return nil }
+        let reading = AudiobookProgress(place)
+        if let held, held != takenFromWatch[pick.key], !held.isFinished, held.position > 0, abs(held.position - reading.position) > 60 {
+            AudiobookPlaceHistory.shared.record(.replaced, at: held.position, to: reading.position, for: book, from: .watch)
+        }
+        logger.info("\(pick.title, privacy: .public): the place from \(source, privacy: .public), \(Int(reading.position)) s, is newer")
+        takenFromWatch[pick.key] = reading
+        store.record(reading, for: book)
+        if movesPlayer {
             Task { await AudiobookPlayer.shared.notePlaceMoved(book, to: reading) }
         }
+        return reading
     }
 
     private static func isSignedIn(to source: WatchSource) -> Bool {
@@ -441,8 +452,8 @@ final class WatchSyncService {
     // MARK: - Now Playing
 
     #if os(iOS) && !targetEnvironment(macCatalyst)
-    /// What the watch's card shows of the playback here, short of the cover
-    /// itself: a change to any of it goes across.
+    /// What the watch's card and player show of the playback here, short of
+    /// the cover itself and the clock: a change to any of it goes across.
     private struct NowPlayingState: Equatable {
         var title: String
         var artist: String?
@@ -455,14 +466,42 @@ final class WatchSyncService {
         var queuePosition: Int
         var queueCount: Int
         var artworkURL: URL?
+        var duration: TimeInterval?
+        var rate: Double
+        var chapter: String?
+        var chapterID: Int?
+        var chapterStart: TimeInterval?
+        var bookKey: String?
+        var sleepsAt: Date?
+        var sleepsAtEnd: Bool
     }
+
+    /// Where the song (or a book's chapter) was, and when: the watch runs
+    /// its own clock on from it.
+    private struct Clock {
+        var elapsed: TimeInterval?
+        var at: Date
+        var rate: Double
+        var isPlaying: Bool
+
+        /// Where this clock says it is at `date`.
+        func elapsed(at date: Date) -> TimeInterval? {
+            elapsed.map { $0 + (isPlaying ? date.timeIntervalSince(at) * rate : 0) }
+        }
+    }
+
+    private typealias NowPlaying = (state: NowPlayingState, clock: Clock, item: PlayableContent)
 
     /// What the player shows, here or on a speaker: a book as itself, by
     /// its author, as the watch's own card has it, with the player's skips
-    /// (a book's 15 and 30 s).
-    private func currentNowPlaying() -> (state: NowPlayingState, item: PlayableContent)? {
+    /// (a book's 15 and 30 s), the chapter playing and the time into it
+    /// against its length (the book's, without chapters), at the book's
+    /// speed here (a speaker plays at 1×); a song's time against its length.
+    private func currentNowPlaying() -> NowPlaying? {
         let controller = PlaybackRoute.shared.presented
         guard let item = controller.nowPlayingDisplay else { return nil }
+        let books = AudiobookPlayer.shared
+        let sleepsAtChapterEnd = books.sleepsAt != nil
         var state = NowPlayingState(
             title: item.title,
             artist: item.metadata?.artist ?? item.subtitle,
@@ -474,18 +513,54 @@ final class WatchSyncService {
             hasNext: controller.showsNext && controller.hasNext,
             queuePosition: controller.queuePosition,
             queueCount: controller.queueCount,
-            artworkURL: item.artwork ?? item.thumbnail
+            artworkURL: item.artwork ?? item.thumbnail,
+            duration: controller.duration > 0 ? controller.duration : nil,
+            rate: 1,
+            sleepsAt: controller.sleepTimerEndDate.flatMap { $0 > .now ? $0 : nil },
+            sleepsAtEnd: controller.sleepsAtEndOfTrack
         )
-        let books = AudiobookPlayer.shared
-        if let book = books.current, books.contains(item) {
+        var clock = Clock(elapsed: state.duration == nil ? nil : controller.position(), at: .now, rate: 1, isPlaying: state.isPlaying)
+        if let book = books.current, let part = book.partIndex(of: item) {
             state.title = book.book.title
             state.artist = book.book.subtitle
             state.artworkURL = book.book.artwork ?? state.artworkURL
             state.isBook = true
             state.canGoBack = true
             state.hasNext = true
+            state.bookKey = Self.pick(for: book.book)?.key
+            state.rate = controller.group == nil ? books.rate : 1
+            state.sleepsAtEnd = sleepsAtChapterEnd
+            // Read for its change, which a new chapter is (within the
+            // follow's couple of seconds): the clock alone doesn't change
+            // as a chapter ends.
+            _ = books.currentChapter
+            let time = book.time(part: part, offset: controller.position())
+            if books.hasChapters, let chapter = book.chapter(at: time) {
+                state.chapter = chapter.title
+                state.chapterID = chapter.id
+                state.chapterStart = chapter.start
+                state.duration = chapter.duration
+                clock.elapsed = min(max(time - chapter.start, 0), chapter.duration)
+            } else {
+                state.duration = book.duration
+                clock.elapsed = time
+            }
+            clock.rate = state.rate
         }
-        return (state, item)
+        return (state, clock, item)
+    }
+
+    /// The clock the watch last heard.
+    @ObservationIgnored private var sentClock: Clock?
+
+    /// The watch's clock has drifted from this one, or it was moved: worth
+    /// sending again though nothing else changed.
+    private func clockMoved(_ clock: Clock) -> Bool {
+        guard let sentClock else { return true }
+        guard let now = clock.elapsed(at: .now), let heard = sentClock.elapsed(at: .now) else {
+            return (clock.elapsed == nil) != (sentClock.elapsed == nil)
+        }
+        return abs(now - heard) > 2
     }
 
     fileprivate func reachabilityDidChange(_ isReachable: Bool) {
@@ -493,6 +568,7 @@ final class WatchSyncService {
         if isReachable {
             // The watch app just opened: it hears afresh.
             sentNowPlaying = nil
+            sentClock = nil
             trackNowPlaying()
         } else {
             nowPlayingTask?.cancel()
@@ -513,14 +589,17 @@ final class WatchSyncService {
                 self.trackNowPlaying()
             }
         }
-        guard now?.state != sentNowPlaying else { return }
+        guard now?.state != sentNowPlaying || now.map({ clockMoved($0.clock) }) == true else { return }
         sentNowPlaying = now?.state
+        sentClock = now?.clock
         nowPlayingTask?.cancel()
         nowPlayingTask = Task { [weak self] in
             // A burst (a skip, a load and its buffering) goes as one.
             try? await Task.sleep(for: .milliseconds(300))
             guard let self, !Task.isCancelled else { return }
-            let message = await self.nowPlayingMessage(now)
+            // Read again: the clock has run on through the wait.
+            let latest = self.currentNowPlaying()
+            let message = await self.nowPlayingMessage(latest ?? now)
             guard !Task.isCancelled, WCSession.default.isReachable else { return }
             WCSession.default.sendMessage(message, replyHandler: nil) { [logger] error in
                 logger.error("Couldn't tell the watch what's playing: \(error.localizedDescription, privacy: .public)")
@@ -528,20 +607,58 @@ final class WatchSyncService {
         }
     }
 
-    /// The watch asking what plays, or to play, pause or skip it, as the
-    /// player's own buttons do (a book skips back 15 s and ahead 30 s):
-    /// answered with what plays then, the play state as it's been asked to
-    /// be (a speaker says so a moment later; if it doesn't, the watch hears
-    /// what it does say).
-    fileprivate func answerNowPlaying(to command: WatchPhoneCommand?) async -> [String: Any] {
+    /// The watch asking what plays, or to play, pause or skip it as the
+    /// player's own buttons do (a book skips back 15 s and ahead 30 s), to
+    /// play a song in the queue or a chapter, to set the sleep timer or a
+    /// book's speed, or to play one of its books here: answered with what
+    /// plays then, the play state as it's been asked to be (a speaker says
+    /// so a moment later; if it doesn't, the watch hears what it does say).
+    fileprivate func answer(_ ask: WatchAsk) async -> [String: Any] {
         isWatchReachable = WCSession.default.isReachable
         trackNowPlaying()
+        var playing: Bool?
+        switch ask {
+        case .nowPlaying:
+            break
+        case let .command(command):
+            playing = await perform(command)
+        case let .playQueue(position):
+            await playFromQueue(at: position)
+        case let .playChapter(id):
+            await playChapter(id)
+        case let .sleepTimer(sleep):
+            await setSleepTimer(sleep)
+        case let .speed(rate):
+            if AudiobookPlayer.shared.current != nil {
+                AudiobookPlayer.shared.setRate(rate)
+            }
+        case let .playBook(pick, place, time, target):
+            await playBook(pick, place: place, from: time, on: target)
+        case let .playItem(pick, songID, shuffled, target):
+            await playItem(pick, from: songID, shuffled: shuffled, on: target)
+        case let .switchRoute(id):
+            switchRoute(to: id)
+        }
+        var now = currentNowPlaying()
+        if let playing {
+            now?.state.isPlaying = playing
+            now?.clock.isPlaying = playing
+        }
+        sentNowPlaying = now?.state
+        sentClock = now?.clock
+        return await nowPlayingMessage(now)
+    }
+
+    /// A press on the watch's player of this one. For play and pause, the
+    /// play state it asked for.
+    private func perform(_ command: WatchPhoneCommand) async -> Bool? {
         let controller = PlaybackRoute.shared.presented
-        let wasPlaying = controller.isPlaying
         let books = AudiobookPlayer.shared
         switch command {
         case .togglePlayPause:
+            let wasPlaying = controller.isPlaying
             await controller.togglePlayback()
+            return !wasPlaying
         case .previous:
             if books.isPlayingBook(on: controller) {
                 await books.skip(by: -AudiobookPlayer.skipBackInterval)
@@ -554,15 +671,8 @@ final class WatchSyncService {
             } else if controller.showsNext, controller.hasNext {
                 await controller.next()
             }
-        case nil:
-            break
         }
-        var now = currentNowPlaying()
-        if command == .togglePlayPause {
-            now?.state.isPlaying = !wasPlaying
-        }
-        sentNowPlaying = now?.state
-        return await nowPlayingMessage(now)
+        return nil
     }
 
     /// The watch's Up Next playing a song in the queue, as a tap on a row of
@@ -570,7 +680,7 @@ final class WatchSyncService {
     /// front of it put away), on a speaker from its queue (`seek(trackNumber:)`
     /// points it back at the queue from radio or TV). Not through a
     /// hand-off: the rows are the source's, on their way out.
-    fileprivate func playFromQueue(at position: Int) async {
+    private func playFromQueue(at position: Int) async {
         let route = PlaybackRoute.shared
         guard !route.isHolding else { return }
         if let group = route.presentedGroup {
@@ -578,6 +688,265 @@ final class WatchSyncService {
         } else {
             LocalPlaybackService.shared.play(at: position - 1)
         }
+    }
+
+    /// The watch's chapters of the book playing here, a tap on one: from
+    /// its start, as the Chapters sheet plays it.
+    private func playChapter(_ id: Int) async {
+        let books = AudiobookPlayer.shared
+        guard !PlaybackRoute.shared.isHolding, let book = books.current,
+              books.isPlayingBook(on: PlaybackRoute.shared.presented),
+              let chapter = book.chapters.first(where: { $0.id == id }) else { return }
+        await books.play(chapter: chapter)
+    }
+
+    /// The watch's sleep timer for what plays here, as the player's menu
+    /// sets one: End of Chapter for a book, End of Song for anything else,
+    /// on the speaker for a group. Any other choice puts End of Chapter
+    /// away, or it would move the new timer back to the chapter's end.
+    private func setSleepTimer(_ sleep: WatchPhoneSleep) async {
+        let route = PlaybackRoute.shared
+        guard !route.isHolding else { return }
+        let controller = route.presented
+        let books = AudiobookPlayer.shared
+        let sonos = SonosService.shared
+        switch sleep {
+        case .off:
+            books.forgetChapterSleep()
+            await controller.cancelSleepTimer()
+        case .end:
+            if books.isPlayingBook(on: controller) {
+                await books.sleepAtEndOfChapter()
+            } else if let group = controller.group {
+                books.forgetChapterSleep()
+                _ = await sonos.sleepAtEndOfTrack(group: group)
+            } else {
+                books.forgetChapterSleep()
+                LocalPlaybackService.shared.sleepAtEndOfTrack()
+            }
+        case let .minutes(minutes):
+            books.forgetChapterSleep()
+            let duration = Duration.seconds(minutes * 60)
+            if let group = controller.group {
+                await sonos.sleepTimer(group: group, duration: duration)
+            } else {
+                LocalPlaybackService.shared.sleepTimer(duration)
+            }
+        }
+    }
+
+    /// One of the watch's books, to play here, from `time` or its place:
+    /// the watch's when it's newer than this iPhone's, which the watch sends
+    /// along rather than wait for its context to arrive. The book loaded and
+    /// on the player where it's asked for plays on; any other is read from
+    /// its server and started — on this iPhone itself (the route coming back
+    /// here, as for a book in the Files folder), on a speaker (the route
+    /// going there), or where the route goes.
+    private func playBook(_ pick: WatchPick, place: WatchBookPlace?, from time: TimeInterval?, on target: WatchPhoneTarget) async {
+        guard pick.kind == .audiobook, Self.isSignedIn(to: pick.source) else { return }
+        let book = Self.book(for: pick)
+        let route = PlaybackRoute.shared
+        let books = AudiobookPlayer.shared
+        // Moved there before Play, so Play starts from it.
+        if let place, let reading = take(place, for: pick, from: "the watch", movesPlayer: false) {
+            await books.notePlaceMoved(book, to: reading)
+        }
+        logger.info("The watch asks to play \(pick.title, privacy: .public) on \(target.key, privacy: .public)")
+        if books.isLoaded(book), Self.isOn(target, route.presented) {
+            if let time {
+                await books.playLoaded(from: time)
+            } else if !route.presented.isPlaying {
+                await route.presented.togglePlayback()
+            }
+            return
+        }
+        guard moveRoute(to: target) else { return }
+        await books.play(book, from: time, on: target == .iPhone ? .device : .route)
+    }
+
+    /// An album, playlist, artist or song from the watch's library, to play
+    /// here: read from its server as the watch reads it, from the song
+    /// `songID` in it or shuffled, on this iPhone, a speaker or where the
+    /// route goes — the whole list in the queue, in place of what was there.
+    private func playItem(_ pick: WatchPick, from songID: String?, shuffled: Bool, on target: WatchPhoneTarget) async {
+        guard pick.kind != .audiobook, Self.isSignedIn(to: pick.source) else { return }
+        logger.info("The watch asks to play \(pick.title, privacy: .public) on \(target.key, privacy: .public)")
+        guard var songs = await Self.songs(for: pick), !songs.isEmpty else {
+            logger.error("Couldn't read \(pick.title, privacy: .public) from its server for the watch")
+            AlertService.shared.showAlert(with: "Couldn't open “\(pick.title)”", imageName: "exclamationmark.triangle")
+            return
+        }
+        if shuffled {
+            songs.shuffle()
+        }
+        var start = songID.flatMap { id in songs.firstIndex { $0.content.id == id } } ?? 0
+        // Shuffled from a song: that one first.
+        if shuffled, start > 0 {
+            songs.swapAt(0, start)
+            start = 0
+        }
+        guard moveRoute(to: target) else { return }
+        do {
+            if let group = PlaybackRoute.shared.group {
+                // As a play on a speaker from here does: this device's
+                // queue keeps its place for the route coming back.
+                LocalPlaybackService.shared.park()
+                try await SonosService.shared.queue(contents: songs, group: group, position: .replace, startIndex: start)
+            } else {
+                try await LocalPlaybackService.shared.play(songs, startingAt: start)
+            }
+        } catch {
+            logger.error("Couldn't play \(pick.title, privacy: .public) for the watch: \(error.localizedDescription, privacy: .public)")
+            AlertService.shared.showAlert(with: "Couldn't play “\(pick.title)”", imageName: "exclamationmark.triangle")
+        }
+    }
+
+    /// Whether `controller` plays where `target` asks for.
+    private static func isOn(_ target: WatchPhoneTarget, _ controller: any PlaybackController) -> Bool {
+        switch target {
+        case .route: true
+        case .iPhone: controller.group == nil
+        case let .group(id): controller.group?.coordinatorID == id
+        }
+    }
+
+    /// Points the route at `target` before something plays there, carrying
+    /// nothing: this iPhone, or a speaker it reaches and may play to. False
+    /// for a speaker that's gone or is Super's.
+    private func moveRoute(to target: WatchPhoneTarget) -> Bool {
+        let route = PlaybackRoute.shared
+        switch target {
+        case .route:
+            return true
+        case .iPhone:
+            if route.chosen != .device {
+                route.switchTo(.device, carrying: false)
+            }
+            return true
+        case let .group(id):
+            guard Self.canPlay(onGroup: id) else {
+                logger.notice("The watch asked for a speaker that's gone or needs Super")
+                return false
+            }
+            if route.destination != .group(id) {
+                route.switchTo(.group(id), carrying: false)
+            }
+            return true
+        }
+    }
+
+    /// A Sonos group in reach that this iPhone may play to (without Super,
+    /// the free one).
+    private static func canPlay(onGroup id: String) -> Bool {
+        let sonos = SonosService.shared
+        return sonos.isAvailable && sonos.groups.contains { $0.coordinatorID == id } && FeatureGate.shared.isGroupUnlocked(id)
+    }
+
+    /// The watch's Play On moving what plays here to another route, carried
+    /// across as the player's own Play On carries it.
+    private func switchRoute(to id: String) {
+        let route = PlaybackRoute.shared
+        if id == WatchPhoneRoutes.iPhoneID {
+            route.switchTo(.device)
+        } else if Self.canPlay(onGroup: id) {
+            route.switchTo(.group(id))
+        }
+    }
+
+    /// Where this iPhone can play, for the watch's Play On: itself, then each
+    /// group it may play to, by name, with the one its player is on.
+    fileprivate func routesForWatch() -> [String: Any] {
+        var routes = [WatchPhoneRoutes.Route(id: WatchPhoneRoutes.iPhoneID, name: "iPhone")]
+        let sonos = SonosService.shared
+        if sonos.isAvailable {
+            routes += sonos.groups
+                .filter { FeatureGate.shared.isGroupUnlocked($0.coordinatorID) }
+                .map { WatchPhoneRoutes.Route(id: $0.coordinatorID, name: $0.nameWithCount) }
+                .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        }
+        let current = PlaybackRoute.shared.presented.group?.coordinatorID ?? WatchPhoneRoutes.iPhoneID
+        return (try? WatchSyncMessage.routesMessage(WatchPhoneRoutes(routes: routes, current: current))) ?? [:]
+    }
+
+    /// The songs of a watch pick, as this iPhone plays them: read from the
+    /// server by the ids the watch has, as the watch reads them. An artist
+    /// is its albums' songs, bounded as on the watch (30 albums, 200 songs).
+    /// Nil when the server couldn't be asked.
+    private static func songs(for pick: WatchPick) async -> [PlayableContent]? {
+        let plex = PlexAPI.shared
+        let subsonic = SubsonicAPI.shared
+        let ratingKey = ConvertedStream.plexRatingKey(contentID: pick.id) ?? pick.id
+        // `toPlayable` needs the Sonos-style id a Plex row plays by.
+        func playable(_ metadata: [PlexMetadata]) -> [PlayableContent] {
+            metadata.filter { $0.sonosID != nil }.map(\.toPlayable)
+        }
+        switch (pick.source, pick.kind) {
+        case (.plex, .song):
+            return await plex.lookupPlexSong(key: ratingKey)?.metadata.map(playable)
+        case (.plex, .album):
+            return await plex.lookupAlbumTracks(key: ratingKey)?.metadata.map(playable)
+        case (.plex, .playlist):
+            // Paged: Plex caps each response at 200.
+            var fetched: [PlexMetadata] = []
+            for _ in 0 ..< 50 {
+                guard let page = await plex.lookupPlaylist(key: ratingKey, type: .song, ascending: true, offset: fetched.count) else {
+                    return fetched.isEmpty ? nil : playable(fetched)
+                }
+                fetched += page.metadata
+                if page.metadata.count < 200 || fetched.count >= (page.totalSize ?? .max) { break }
+            }
+            return playable(fetched)
+        case (.plex, .artist):
+            guard let albums = await plex.lookupArtistAlbums(key: ratingKey)?.metadata else { return nil }
+            let keys = albums.prefix(30).map(\.ratingKey)
+            let byAlbum = await withTaskGroup(of: (Int, [PlexMetadata]).self) { group in
+                for (index, key) in keys.enumerated() {
+                    group.addTask { (index, await plex.lookupAlbumTracks(key: key)?.metadata ?? []) }
+                }
+                var results = [[PlexMetadata]](repeating: [], count: keys.count)
+                for await (index, tracks) in group {
+                    results[index] = tracks
+                }
+                return results
+            }
+            return Array(playable(byAlbum.flatMap { $0 }).prefix(200))
+        case (.subsonic, .song):
+            return await subsonic.song(for: pick.id).map { [$0.toPlayable] }
+        case (.subsonic, .album):
+            return await subsonic.album(for: pick.id).map { ($0.song ?? []).map(\.toPlayable) }
+        case (.subsonic, .playlist):
+            return await subsonic.playlist(for: pick.id).map { ($0.entry ?? []).map(\.toPlayable) }
+        case (.subsonic, .artist):
+            guard let artist = await subsonic.artist(for: pick.id) else { return nil }
+            let ids = (artist.album ?? []).prefix(30).map(\.id)
+            let byAlbum = await withTaskGroup(of: (Int, [SubsonicSong]).self) { group in
+                for (index, id) in ids.enumerated() {
+                    group.addTask { (index, await subsonic.album(for: id)?.song ?? []) }
+                }
+                var results = [[SubsonicSong]](repeating: [], count: ids.count)
+                for await (index, songs) in group {
+                    results[index] = songs
+                }
+                return results
+            }
+            return Array(byAlbum.flatMap { $0 }.map(\.toPlayable).prefix(200))
+        default:
+            return nil
+        }
+    }
+
+    /// The chapters of the book playing here, for the watch's player of it;
+    /// none for anything else.
+    fileprivate func chaptersForWatch() -> [String: Any] {
+        let books = AudiobookPlayer.shared
+        var chapters = WatchPhoneChapters(bookKey: nil, chapters: [])
+        if let book = books.current, books.isPlayingBook(on: PlaybackRoute.shared.presented) {
+            chapters.bookKey = Self.pick(for: book.book)?.key
+            chapters.chapters = book.chapters.map {
+                WatchPhoneChapters.Chapter(id: $0.id, title: $0.title, start: $0.start, end: $0.end)
+            }
+        }
+        return (try? WatchSyncMessage.chaptersMessage(chapters)) ?? [:]
     }
 
     /// The queue the player plays from, for the watch's Up Next: from the
@@ -626,7 +995,7 @@ final class WatchSyncService {
         return artist.isEmpty ? nil : artist
     }
 
-    private func nowPlayingMessage(_ now: (state: NowPlayingState, item: PlayableContent)?) async -> [String: Any] {
+    private func nowPlayingMessage(_ now: NowPlaying?) async -> [String: Any] {
         var nowPlaying: WatchPhoneNowPlaying?
         if let now {
             nowPlaying = WatchPhoneNowPlaying(
@@ -640,7 +1009,18 @@ final class WatchSyncService {
                 hasNext: now.state.hasNext,
                 queuePosition: now.state.queuePosition,
                 queueCount: now.state.queueCount,
-                artwork: await Self.watchArtwork(for: now.item, url: now.state.artworkURL)
+                artwork: await Self.watchArtwork(for: now.item, url: now.state.artworkURL),
+                // Read as it goes, after the cover: the clock has run on.
+                elapsed: now.clock.elapsed(at: .now),
+                duration: now.state.duration,
+                clockAt: .now,
+                rate: now.clock.rate,
+                chapter: now.state.chapter,
+                chapterID: now.state.chapterID,
+                chapterStart: now.state.chapterStart,
+                bookKey: now.state.bookKey,
+                sleepsAt: now.state.sleepsAt,
+                sleepsAtEnd: now.state.sleepsAtEnd
             )
         }
         return (try? WatchSyncMessage.nowPlayingMessage(nowPlaying)) ?? [:]
@@ -687,6 +1067,45 @@ final class WatchSyncService {
 }
 
 #if os(iOS) && !targetEnvironment(macCatalyst)
+/// What the watch asks of the playback here, each answered with what
+/// plays then. Read off WatchConnectivity's queue, as its messages
+/// aren't `Sendable`.
+private enum WatchAsk: Sendable {
+    case nowPlaying
+    case command(WatchPhoneCommand)
+    case playQueue(Int)
+    case playChapter(Int)
+    case sleepTimer(WatchPhoneSleep)
+    case speed(Double)
+    case playBook(WatchPick, place: WatchBookPlace?, time: TimeInterval?, target: WatchPhoneTarget)
+    case playItem(WatchPick, songID: String?, shuffled: Bool, target: WatchPhoneTarget)
+    case switchRoute(String)
+
+    init?(_ message: [String: Any]) {
+        if let command = WatchSyncMessage.command(in: message) {
+            self = .command(command)
+        } else if let position = WatchSyncMessage.queuePositionToPlay(in: message) {
+            self = .playQueue(position)
+        } else if let chapter = WatchSyncMessage.chapterToPlay(in: message) {
+            self = .playChapter(chapter)
+        } else if let sleep = WatchSyncMessage.sleepTimer(in: message) {
+            self = .sleepTimer(sleep)
+        } else if let rate = WatchSyncMessage.speed(in: message) {
+            self = .speed(rate)
+        } else if let book = WatchSyncMessage.bookToPlay(in: message) {
+            self = .playBook(book.pick, place: book.place, time: book.time, target: book.target)
+        } else if let item = WatchSyncMessage.itemToPlay(in: message) {
+            self = .playItem(item.pick, songID: item.songID, shuffled: item.shuffled, target: item.target)
+        } else if let route = WatchSyncMessage.routeToSwitch(in: message) {
+            self = .switchRoute(route)
+        } else if WatchSyncMessage.isNowPlayingRequest(message) {
+            self = .nowPlaying
+        } else {
+            return nil
+        }
+    }
+}
+
 /// The session's delegate, off the main actor because WatchConnectivity
 /// calls it on its own queue; everything it hears goes to the service.
 private final class WatchSessionRelay: NSObject, WCSessionDelegate, @unchecked Sendable {
@@ -741,21 +1160,30 @@ private final class WatchSessionRelay: NSObject, WCSessionDelegate, @unchecked S
 
     /// The watch asking for the sign-ins afresh (its Audiobookshelf token is
     /// about to run out), what plays here, or to play, pause or skip it; for
-    /// the queue, or to play a song in it. The system wakes Cue to answer.
+    /// the queue, or to play a song in it; for a book's chapters, to play
+    /// one, for a sleep timer or a speed, or to play one of its books here.
+    /// The system wakes Cue to answer.
     func session(_ session: WCSession, didReceiveMessage message: [String: Any], replyHandler: @escaping ([String: Any]) -> Void) {
         let reply = UncheckedReply(send: replyHandler)
-        let command = WatchSyncMessage.command(in: message)
-        let queuePosition = WatchSyncMessage.queuePositionToPlay(in: message)
-        if command != nil || queuePosition != nil || WatchSyncMessage.isNowPlayingRequest(message) {
+        if let ask = WatchAsk(message) {
             Task { @MainActor in
                 guard let service = self.service else {
                     reply.send([:])
                     return
                 }
-                if let queuePosition {
-                    await service.playFromQueue(at: queuePosition)
-                }
-                reply.send(await service.answerNowPlaying(to: command))
+                reply.send(await service.answer(ask))
+            }
+            return
+        }
+        if WatchSyncMessage.isChaptersRequest(message) {
+            Task { @MainActor in
+                reply.send(self.service?.chaptersForWatch() ?? [:])
+            }
+            return
+        }
+        if WatchSyncMessage.isRoutesRequest(message) {
+            Task { @MainActor in
+                reply.send(self.service?.routesForWatch() ?? [:])
             }
             return
         }

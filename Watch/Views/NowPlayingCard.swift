@@ -2,14 +2,14 @@ import SwiftUI
 import WatchSync
 
 /// What's playing, at the top of the home screen whichever library is on
-/// show: the watch's own (`WatchPlayer`), or the iPhone's (`PhoneNowPlaying`,
-/// with where it plays under it) while the watch has nothing playing. The
-/// cover, the song and its artist (a book and its author), and a waveform
-/// that moves while it plays, on the cover's own gradient
-/// (`WatchArtworkMesh`), as behind the iPhone's player. The home screen
-/// opens the player of the one it shows from it (`NowPlayingScreen` for
-/// the watch's, `PhoneNowPlayingScreen` for the iPhone's), where play and
-/// pause are.
+/// show: the watch's own (`WatchPlayer`) and, under it, the iPhone's
+/// (`PhoneNowPlaying`), each marked with a glyph of where it plays — the
+/// watch, the iPhone, or a speaker the iPhone plays to. The cover, the song
+/// and its artist (a book and its author), and a waveform that moves while
+/// it plays, on the cover's own gradient (`WatchArtworkMesh`), as behind
+/// the iPhone's player. The home screen opens the player of the one it
+/// shows from it (`NowPlayingScreen` for the watch's,
+/// `PhoneNowPlayingScreen` for the iPhone's), where play and pause are.
 struct NowPlayingCard: View {
     @Environment(WatchPlayer.self) private var player
     @Environment(PhoneNowPlaying.self) private var phone
@@ -18,19 +18,15 @@ struct NowPlayingCard: View {
 
     var body: some View {
         if showsPhone, let playing = phone.current {
-            CardLayout(title: playing.title, subtitle: playing.artist ?? "", isPlaying: playing.isPlaying) {
+            CardLayout(title: playing.title, subtitle: playing.artist ?? "", isPlaying: playing.isPlaying, place: playing.isOnSpeaker ? .speaker(playing.destination) : .iPhone) {
                 PhoneArtwork(image: phone.artwork, symbol: playing.isBook ? "book.closed" : "music.note")
-            } place: {
-                Label(playing.destination, systemImage: playing.isOnSpeaker ? "hifispeaker.fill" : "iphone")
             } fill: {
                 ImageMeshFill(image: phone.artwork)
             }
         } else {
             let artwork = player.book?.artworkURL ?? player.current?.artworkURL
-            CardLayout(title: player.nowPlayingTitle ?? "", subtitle: player.nowPlayingArtist ?? "", isPlaying: player.isPlaying) {
+            CardLayout(title: player.nowPlayingTitle ?? "", subtitle: player.nowPlayingArtist ?? "", isPlaying: player.isPlaying, place: .watch) {
                 ArtworkView(url: artwork, symbol: player.book == nil ? "music.note" : "book.closed")
-            } place: {
-                EmptyView()
             } fill: {
                 CoverMeshFill(url: artwork)
             }
@@ -38,14 +34,14 @@ struct NowPlayingCard: View {
     }
 }
 
-/// The card itself: the cover, two lines and a waveform, on a fill.
-private struct CardLayout<Cover: View, Place: View, Fill: View>: View {
+/// The card itself: the cover, two lines, and where it plays over a
+/// waveform, on a fill.
+private struct CardLayout<Cover: View, Fill: View>: View {
     let title: String
     let subtitle: String
     let isPlaying: Bool
+    let place: PlaybackPlace
     @ViewBuilder let cover: Cover
-    /// Where it plays, when that's somewhere else.
-    @ViewBuilder let place: Place
     @ViewBuilder let fill: Fill
 
     var body: some View {
@@ -60,16 +56,17 @@ private struct CardLayout<Cover: View, Place: View, Fill: View>: View {
                     .font(.footnote)
                     .foregroundStyle(.white.opacity(0.75))
                     .lineLimit(1)
-                place
-                    .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.75))
-                    .lineLimit(1)
             }
             Spacer(minLength: 0)
-            Image(systemName: "waveform")
-                .font(.footnote)
-                .symbolEffect(.variableColor.iterative, isActive: isPlaying)
-                .foregroundStyle(.white.opacity(isPlaying ? 0.9 : 0.5))
+            VStack(spacing: 6) {
+                PlaceGlyph(place: place)
+                    .font(.footnote)
+                    .foregroundStyle(.white.opacity(0.9))
+                Image(systemName: "waveform")
+                    .font(.footnote)
+                    .symbolEffect(.variableColor.iterative, isActive: isPlaying)
+                    .foregroundStyle(.white.opacity(isPlaying ? 0.9 : 0.5))
+            }
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -78,7 +75,7 @@ private struct CardLayout<Cover: View, Place: View, Fill: View>: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Now Playing, \(title)")
+        .accessibilityLabel("Now Playing on \(place.name), \(title)")
     }
 }
 

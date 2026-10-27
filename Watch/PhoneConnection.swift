@@ -73,15 +73,30 @@ final class PhoneConnection {
     }
 
     /// Asks the iPhone what it plays, or to play or pause it; its answer is
-    /// what it plays then. Or asks for its queue, which is the answer. Only
-    /// with the iPhone in reach (the system wakes Cue there to answer).
+    /// what it plays then. Or asks for its queue or a book's chapters, which
+    /// are the answer. Only with the iPhone in reach (the system wakes Cue
+    /// there to answer): one asked while the session is down, as it is for
+    /// a moment as the wrist comes up, goes once it's back, if that's soon.
     func askPhone(_ request: [String: Any]) {
         let session = WCSession.default
-        guard session.activationState == .activated, session.isReachable else { return }
+        guard session.activationState == .activated, session.isReachable else {
+            waiting = waiting.suffix(Self.waitingLimit - 1) + [(request, .now)]
+            return
+        }
         session.sendMessage(request, replyHandler: { @Sendable reply in
             if let queue = WatchSyncMessage.queue(in: reply) {
                 Task { @MainActor in
                     PhoneNowPlaying.shared.apply(queue: queue)
+                }
+            }
+            if let chapters = WatchSyncMessage.chapters(in: reply) {
+                Task { @MainActor in
+                    PhoneNowPlaying.shared.apply(chapters: chapters)
+                }
+            }
+            if let routes = WatchSyncMessage.routes(in: reply) {
+                Task { @MainActor in
+                    PhoneNowPlaying.shared.apply(routes: routes)
                 }
             }
             guard WatchSyncMessage.carriesNowPlaying(reply) else { return }
@@ -95,6 +110,20 @@ final class PhoneConnection {
                 PhoneConnection.shared.logger.error("The iPhone didn't answer about what it plays: \(message, privacy: .public)")
             }
         })
+    }
+
+    /// Requests asked while the session was down, sent once it's back, if
+    /// within `waitLimit`; a press much older than that would surprise.
+    private var waiting: [(request: [String: Any], at: Date)] = []
+    private static let waitLimit: TimeInterval = 10
+    private static let waitingLimit = 8
+
+    private func sendWaiting() {
+        let due = waiting.filter { Date.now.timeIntervalSince($0.at) < Self.waitLimit }
+        waiting = []
+        for (request, _) in due {
+            askPhone(request)
+        }
     }
 
     /// Keeps a WatchConnectivity wake open until what the iPhone sent has
@@ -121,10 +150,13 @@ final class PhoneConnection {
             hasPending = false
             send()
         }
-        PhoneNowPlaying.shared.reachabilityDidChange(WCSession.default.isReachable)
+        reachabilityDidChange(WCSession.default.isReachable)
     }
 
     fileprivate func reachabilityDidChange(_ isReachable: Bool) {
+        if isReachable {
+            sendWaiting()
+        }
         PhoneNowPlaying.shared.reachabilityDidChange(isReachable)
     }
 
