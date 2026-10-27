@@ -76,6 +76,28 @@ enum Commands {
         print("\(key): \(url.path)")
     }
 
+    /// The product page header and search results art:
+    /// `<output>/banners/<name>.png`.
+    static func banners(_ workspace: Workspace, names: [String]) throws {
+        let project = workspace.project
+        let banners = (project.banners ?? []).filter { names.isEmpty || names.contains($0.name) }
+        guard !banners.isEmpty else { throw Failure("no banners in the project\(names.isEmpty ? "" : " named \(names.joined(separator: ", "))")") }
+        func load(_ device: BannerDevice) throws -> (model: DeviceModel, screen: CGImage) {
+            (try workspace.model(device.device), try Renderer.load(workspace.raw(device.device, device.screen)))
+        }
+        for banner in banners {
+            let view = try BannerView(banner: banner, theme: project.theme, devices: try banner.devices.map(load),
+                                      companion: try banner.companion.map(load))
+            let flat = try Renderer.opaque(try Renderer.image(view, size: view.canvas), background: project.theme.base.cgColor)
+            guard flat.width == banner.size[0], flat.height == banner.size[1] else {
+                throw Failure("\(banner.name) came out \(flat.width)×\(flat.height), not \(banner.size[0])×\(banner.size[1])")
+            }
+            let url = workspace.outputFolder.appendingPathComponent("banners").appendingPathComponent(banner.name + ".png")
+            try Renderer.write(flat, to: url)
+            print("banner: \(url.lastPathComponent) \(flat.width)×\(flat.height)")
+        }
+    }
+
     /// Each device's finished images side by side, small, to look over at once.
     static func sheet(_ workspace: Workspace) throws {
         let fileManager = FileManager.default

@@ -1,8 +1,8 @@
 import { appStoreUrl, site } from '../config.js';
-import { beyondPhone, faq, features, handoff, hero, plans, screens, services, spotlights } from '../content/home.js';
+import { beyondPhone, faq, features, handoff, hero, plans, promo, screens, services, spotlights } from '../content/home.js';
 import { brandMarks } from '../lib/brand-marks.js';
 import { html, icon, inline, raw } from '../lib/html.js';
-import { downloadButton, iphone, page } from '../lib/layout.js';
+import { downloadButton, iphone, page, watch } from '../lib/layout.js';
 import { releases } from './releases.js';
 
 const structuredData = {
@@ -36,6 +36,16 @@ const body = html`
 				${screens.map((shot, i) => iphone(shot, { priority: i === 0 }))}
 			</div>
 		</div>
+	</section>
+
+	<section class="section container" id="film">
+		<div class="section-head reveal">
+			<h2>${promo.title}</h2>
+			<p>${promo.lede}</p>
+		</div>
+		<figure class="promo reveal">
+			<video src="/${promo.video}" poster="/${promo.poster}" width="720" height="1280" autoplay muted loop playsinline preload="metadata" aria-label="${promo.label}"></video>
+		</figure>
 	</section>
 
 	<section class="section container" id="handoff">
@@ -103,6 +113,7 @@ const body = html`
 						<h3>${p.name}</h3>
 						<p>${p.body}</p>
 						<ul>${p.points.map((point) => html`<li>${icon('check')}${point}</li>`)}</ul>
+						${p.screens && html`<div class="platform-screens">${p.screens.map((s) => watch(s))}</div>`}
 					</article>`,
 			)}
 		</div>

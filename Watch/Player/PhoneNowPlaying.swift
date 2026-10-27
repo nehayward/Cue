@@ -266,7 +266,8 @@ final class PhoneNowPlaying {
     // MARK: - Preview
 
     /// A made-up book playing on the iPhone, for the simulator, which has
-    /// no iPhone to hear from: `-dance.cue.phonePreview YES` (Debug).
+    /// no iPhone to hear from: `-dance.cue.phonePreview YES` (Debug), with
+    /// `-dance.cue.phonePreviewArtwork <image path>` for its cover.
     private var isPreview = false
 
     #if DEBUG
@@ -274,8 +275,8 @@ final class PhoneNowPlaying {
         guard UserDefaults.standard.bool(forKey: "dance.cue.phonePreview") else { return }
         isPreview = true
         current = WatchPhoneNowPlaying(
-            title: "Project Hail Mary",
-            artist: "Andy Weir",
+            title: "The Two Towers",
+            artist: "J. R. R. Tolkien",
             destination: "iPhone",
             isPlaying: true,
             isBook: true,
@@ -291,6 +292,10 @@ final class PhoneNowPlaying {
         chapters = WatchPhoneChapters(bookKey: "audiobook-plex-preview", chapters: (0 ..< 30).map {
             .init(id: $0, title: "Chapter \($0 + 1)", start: Double($0) * 1_800, end: Double($0 + 1) * 1_800)
         })
+        if let path = UserDefaults.standard.string(forKey: "dance.cue.phonePreviewArtwork"),
+           let image = UIImage(contentsOfFile: path) {
+            artwork = WatchScreenshotArtwork.prepared(image)
+        }
     }
     #endif
 }

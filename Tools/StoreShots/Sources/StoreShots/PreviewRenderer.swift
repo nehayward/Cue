@@ -51,23 +51,21 @@ enum PreviewRenderer {
         let available = CGSize(width: size.width * 0.82, height: size.height - top - band - bottom - size.height * 0.015)
         // Core Image's origin is the bottom left.
         let layout: Layout
-        var device: Pieces.Device?
+        var phone: Phone3D?
         if spec.frame == true {
-            // The screen inside the drawn device: the device fills what's left.
+            // The screen inside the device in 3D: the device fills what's
+            // left, rendered on a canvas with room round it to turn.
             let border = 2 * (model.bezel + model.rim) * min(1, aspect)
             let width = min(available.width / (1 + border), available.height / (aspect + border)).rounded()
             let screenSize = CGSize(width: width, height: (width * aspect).rounded())
-            let frame = DeviceFrame(model: model, screen: try blank(screenSize), width: width,
-                                    finish: Finish(project.theme.finish))
-            let pad = (frame.rim * 2).rounded()
-            let box = CGSize(width: frame.size.width + 2 * pad, height: frame.size.height + 2 * pad)
-            let art = try Renderer.image(frame.frame(width: box.width, height: box.height), size: box)
-            let inset = pad + frame.rim + frame.bezel
-            device = Pieces.Device(art: CIImage(cgImage: art), screenOffset: CGPoint(x: inset, y: inset),
-                                   island: model.kind == .phone ? try island(frame, pad: pad, box: box) : nil)
+            let device = CGSize(width: width * (1 + border), height: width * (aspect + border))
+            let canvas = CGSize(width: (device.width * 1.36).rounded(), height: (device.height * 1.14).rounded())
+            phone = Phone3D(model: model, screenSize: screenSize, canvas: canvas, finish: project.theme.finish)
             layout = Layout(size: size,
-                            box: CGRect(x: ((size.width - box.width) / 2).rounded(), y: bottom - pad, width: box.width, height: box.height),
-                            screen: screenSize, radius: frame.screenRadius, captionTop: size.height - top)
+                            box: CGRect(x: ((size.width - canvas.width) / 2).rounded(),
+                                        y: (bottom - (canvas.height - device.height) / 2).rounded(),
+                                        width: canvas.width, height: canvas.height),
+                            screen: screenSize, radius: width * model.screenRadius, captionTop: size.height - top)
         } else {
             let width = min(available.width, available.height / aspect).rounded()
             let screenSize = CGSize(width: width, height: (width * aspect).rounded())
@@ -77,7 +75,7 @@ enum PreviewRenderer {
         }
 
         // The backdrop: one strip as wide as every scene side by side.
-        let strip = try Renderer.image(
+        let strip = try Renderer.smooth(
             HStack(spacing: 0) {
                 ForEach(0..<scenes.count, id: \.self) { index in
                     Backdrop(theme: project.theme, index: index).frame(width: size.width, height: size.height)
@@ -85,7 +83,7 @@ enum PreviewRenderer {
             },
             size: CGSize(width: size.width * CGFloat(scenes.count), height: size.height))
         let pieces = Pieces(layout: layout, strip: CIImage(cgImage: strip), captions: captions.map { CIImage(cgImage: $0) },
-                            device: device)
+                            phone: phone)
 
         let url = workspace.outputFolder.appendingPathComponent("previews").appendingPathComponent(spec.name + ".mp4")
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -117,8 +115,17 @@ enum PreviewRenderer {
                 let screen = try scenes[index].frame(at: sceneTime)
                 let swing = index == 0 && (spec.tiltIn ?? true) ? max(0, 1 - ease(min(1, time / 1.1))) : 0
                 // A slow sway, so a held scene still feels alive.
-                let sway = spec.float == true ? 0.1 * sin(2 * .pi * time / 7) : 0
-                image = pieces.screen(screen, offset: offset, swing: swing + sway).composited(over: image)
+                let sway = spec.float == true ? sin(2 * .pi * time / 7) : 0
+                if pieces.phone != nil {
+                    guard let pixels = context.createCGImage(screen, from: screen.extent) else {
+                        throw Failure("couldn't read a frame of scene \(index + 1)")
+                    }
+                    let nod = spec.float == true ? sin(2 * .pi * time / 9 + 1) : 0
+                    image = try pieces.phone(pixels, offset: offset, yaw: -0.55 * swing + 0.13 * sway,
+                                             pitch: 0.16 * swing + 0.035 * nod).composited(over: image)
+                } else {
+                    image = pieces.screen(screen, offset: offset, swing: swing + 0.1 * sway).composited(over: image)
+                }
                 image = pieces.caption(index, offset: offset * 1.15, fade: 1 - min(1, abs(Double(index) - position) * 1.6))
                     .composited(over: image)
             }
@@ -136,33 +143,6 @@ enum PreviewRenderer {
 
     private static func ease(_ x: Double) -> Double {
         x < 0.5 ? 4 * x * x * x : 1 - pow(-2 * x + 2, 3) / 2
-    }
-
-    /// A black screen the size of the recordings, for drawing the device round.
-    private static func blank(_ size: CGSize) throws -> CGImage {
-        guard let context = CGContext(data: nil, width: Int(size.width), height: Int(size.height), bitsPerComponent: 8,
-                                      bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
-                                      bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue),
-              let image = context.makeImage() else { throw Failure("couldn't make a blank screen") }
-        return image
-    }
-
-    /// The Dynamic Island alone, placed in the device's box, to lay over the recording.
-    private static func island(_ frame: DeviceFrame, pad: CGFloat, box: CGSize) throws -> CIImage {
-        let rect = frame.islandFrame.offsetBy(dx: pad, dy: pad)
-        guard let context = CGContext(data: nil, width: Int(box.width), height: Int(box.height), bitsPerComponent: 8,
-                                      bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
-                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
-            throw Failure("couldn't draw the island")
-        }
-        // Flipped: the frame measures from the top, Core Graphics from the bottom.
-        let flipped = CGRect(x: rect.minX, y: box.height - rect.maxY, width: rect.width, height: rect.height)
-        let radius = min(rect.width, rect.height) / 2
-        context.addPath(CGPath(roundedRect: flipped, cornerWidth: radius, cornerHeight: radius, transform: nil))
-        context.setFillColor(.black)
-        context.fillPath()
-        guard let image = context.makeImage() else { throw Failure("couldn't draw the island") }
-        return CIImage(cgImage: image)
     }
 
     /// Frames every two seconds side by side, small, to look the movie over.
@@ -200,23 +180,16 @@ enum PreviewRenderer {
         let layout: Layout
         let strip: CIImage
         let captions: [CIImage]
-        let device: Device?
+        /// The device in 3D round the recording, for framed previews.
+        let phone: Phone3D?
         let mask: CIImage
         let shadow: CIImage
 
-        /// The drawn device round the recording, its island over it.
-        struct Device {
-            let art: CIImage
-            /// The screen's corner in the art, from the bottom left.
-            let screenOffset: CGPoint
-            let island: CIImage?
-        }
-
-        init(layout: Layout, strip: CIImage, captions: [CIImage], device: Device?) {
+        init(layout: Layout, strip: CIImage, captions: [CIImage], phone: Phone3D?) {
             self.layout = layout
             self.strip = strip
             self.captions = captions
-            self.device = device
+            self.phone = phone
             let rect = CGRect(origin: .zero, size: layout.screen)
             let path = CGPath(roundedRect: rect, cornerWidth: layout.radius, cornerHeight: layout.radius, transform: nil)
             let context = CGContext(data: nil, width: Int(rect.width), height: Int(rect.height), bitsPerComponent: 8,
@@ -227,7 +200,7 @@ enum PreviewRenderer {
             context.fillPath()
             mask = CIImage(cgImage: context.makeImage()!)
             let blur = CIFilter.gaussianBlur()
-            blur.inputImage = (device?.art ?? mask).applyingFilter("CIColorMatrix", parameters: [
+            blur.inputImage = mask.applyingFilter("CIColorMatrix", parameters: [
                 "inputRVector": CIVector(x: 0, y: 0, z: 0, w: 0),
                 "inputGVector": CIVector(x: 0, y: 0, z: 0, w: 0),
                 "inputBVector": CIVector(x: 0, y: 0, z: 0, w: 0),
@@ -251,20 +224,19 @@ enum PreviewRenderer {
             let rounded = scaled.applyingFilter("CIBlendWithAlphaMask", parameters: [
                 kCIInputBackgroundImageKey: CIImage.empty(), kCIInputMaskImageKey: mask,
             ])
-            var layer: CIImage
-            if let device {
-                layer = rounded
-                    .transformed(by: CGAffineTransform(translationX: device.screenOffset.x, y: device.screenOffset.y))
-                    .composited(over: device.art)
-                if let island = device.island { layer = island.composited(over: layer) }
-                layer = layer.composited(over: shadow)
-            } else {
-                layer = rounded.composited(over: shadow)
-            }
+            var layer = rounded.composited(over: shadow)
             if swing != 0 {
                 layer = turned(layer, size: layout.box.size, amount: swing)
             }
             return layer.transformed(by: CGAffineTransform(translationX: layout.box.minX + offset, y: layout.box.minY))
+        }
+
+        /// The device in 3D with `frame` on its screen, turned by `yaw` and
+        /// `pitch` (radians).
+        func phone(_ frame: CGImage, offset: Double, yaw: Double, pitch: Double) throws -> CIImage {
+            guard let phone else { return .empty() }
+            return try phone.render(frame, yaw: yaw, pitch: pitch)
+                .transformed(by: CGAffineTransform(translationX: layout.box.minX + offset, y: layout.box.minY))
         }
 
         /// The layer turned about its vertical axis and drawn back, in perspective.

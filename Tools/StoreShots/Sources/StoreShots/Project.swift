@@ -25,13 +25,15 @@ struct Project: Decodable {
     var devices: [String: DeviceSetup]
     var shots: [Shot]
     var previews: [PreviewSpec]?
+    /// Wide art for the product page's header and the search results.
+    var banners: [Banner]?
 }
 
 struct Theme: Decodable {
-    /// The darkest colour, at the backdrop's edges.
+    /// The backdrop's colour.
     var base: HexColor
-    /// The backdrop's colours, one per shot in order; the gradient flows from
-    /// each into the next across the set, so neighbours join up in the store.
+    /// The colour the backdrop is lit with behind the device; with several,
+    /// each shot takes the next in turn.
     var palette: [HexColor]
     var title: HexColor?
     var subtitle: HexColor?
@@ -85,7 +87,8 @@ struct Shot: Decodable {
     /// The devices that get this shot. Unset: every device with a raw
     /// screenshot named after it.
     var devices: [String]?
-    /// The hero's tilt.
+    /// The hero's device turned in 3D (`Tilt.hero` is a good start);
+    /// unset, it stands upright.
     var tilt: Tilt?
     /// The second device in a pair.
     var companion: Companion?
@@ -140,6 +143,36 @@ struct Tilt: Decodable {
     var perspective: Double?
 
     static let hero = Tilt(angle: 24, axis: [0.22, -1, 0.08], perspective: 0.55)
+}
+
+/// A product page header or search results asset: a caption over a fan of
+/// devices that runs off the bottom, the middle one front and largest.
+struct Banner: Decodable {
+    /// The file's name, without extension: `<output>/banners/<name>.png`.
+    var name: String
+    /// Width and height in pixels.
+    var size: [Int]
+    var title: String
+    var subtitle: String?
+    /// Width and height, centred, that the caption and the devices' faces
+    /// stay inside: a universal asset is cropped to 21:9 for the header and
+    /// to 3:2 for search results. Unset: the whole canvas.
+    var safe: [Int]?
+    /// The fan, left to right, an odd number: the middle device upright,
+    /// the others smaller and turned towards it.
+    var devices: [BannerDevice]
+    /// A device in front of the fan, between the middle and the next on its
+    /// right (the watch).
+    var companion: BannerDevice?
+    /// Which palette colour lights the backdrop.
+    var palette: Int?
+}
+
+struct BannerDevice: Decodable {
+    /// The device's key, for its frame and its raw folder.
+    var device: String
+    /// A raw screenshot in that folder.
+    var screen: String
 }
 
 struct PreviewSpec: Decodable {
