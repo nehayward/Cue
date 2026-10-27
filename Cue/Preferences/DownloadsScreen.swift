@@ -4,166 +4,370 @@ import NukeUI
 import SonosKit
 import SwiftUI
 
-/// The download manager: the songs kept on this device, the albums and
-/// playlists they came from, the books downloaded whole, and how
-/// downloading behaves (and the caches, which take room here too) — one
-/// face each, switched by the segmented control under the title. A Files folder in iCloud Drive reports how much of it
-/// is here under Settings. Reached from Settings, and on Books
-/// from the Audiobooks tab's Downloads.
-struct DownloadsScreen: View {
-    /// The screen's faces. Songs is home: what's on the device is what the
-    /// screen is for, and it's what the Storage row's size describes. Albums
-    /// and Playlists show while there are any of them; Books while there are
-    /// books to download, or any downloaded.
-    enum Tab: String, CaseIterable, Identifiable {
-        case songs, albums, playlists, books, settings
+/// A page of Storage's own: what's coming down, and what's kept here by
+/// kind, each listed whole and removable from there.
+public enum StoragePage: String, Hashable, Sendable {
+    case downloading, songs, albums, playlists, books
 
-        var id: Self { self }
-
-        /// The tab a container is listed under: a playlist's own, anything
-        /// else downloaded whole under Albums.
-        static func of(_ container: DownloadManager.Container) -> Tab {
-            [.playlist, .libraryPlaylist].contains(container.type) ? .playlists : .albums
-        }
-
-        var title: LocalizedStringKey {
-            switch self {
-            case .songs: "Songs"
-            case .albums: "Albums"
-            case .playlists: "Playlists"
-            case .books: "Books"
-            case .settings: "Settings"
-            }
+    var title: LocalizedStringKey {
+        switch self {
+        case .downloading: "Downloading"
+        case .songs: "Songs"
+        case .albums: "Albums"
+        case .playlists: "Playlists"
+        case .books: "Books"
         }
     }
 
+    /// The page a container is listed on: a book under Books, a playlist
+    /// under Playlists, anything else downloaded whole under Albums.
+    static func of(_ container: DownloadManager.Container) -> StoragePage {
+        if container.type == .audiobook { return .books }
+        return [.playlist, .libraryPlaylist].contains(container.type) ? .playlists : .albums
+    }
+}
+
+/// Storage: what Cue keeps on this device and how it behaves, as one list.
+/// The room taken on top (songs, books, the playback cache), then a row
+/// each for what's coming down and what's kept — songs, albums, playlists,
+/// books, Apple Music's — opening its own page (`StoragePage`) to look
+/// through and remove, then the settings: cellular, the playback cache, a
+/// Files folder in iCloud Drive, and the caches. Reached from Settings and
+/// the Downloads tab's gear; the Audiobooks tab's Downloads opens Books.
+struct DownloadsScreen: View {
     @State private var manager = DownloadManager.shared
     @State private var cache = PlaybackCache.shared
     @State private var apple = AppleDownloadsIndex.shared
     @State private var files = FilesLibraryService.shared
     @State private var cloudSummary: (local: Int, remote: Int)?
-    /// The face picked here; until one is, the one the screen opened on.
-    @State private var picked: Tab?
     @State private var isConfirmingClearCache = false
     @State private var isConfirmingRemoveAll = false
     @State private var isConfirmingRemoveAllBooks = false
-    @AppStorage(AppStorageKeys.hasPlexAudiobooks) private var hasPlexBooks = false
 
-    /// The tab it opens on: the books from a book's Downloads, the settings
-    /// from the Downloads tab's gear.
-    var opensOn: Tab = .songs
-    /// Storage wherever it opens, the caches at the foot of its Settings
-    /// tab making it the place for everything that takes room here: the
-    /// Downloads tab is the music on this device, and a screen of the same
-    /// name inside it read as the tab again.
-    var title: LocalizedStringKey = "Storage"
-
-    private var tab: Tab {
-        picked ?? opensOn
-    }
+    /// Nil for Storage itself; one of its pages otherwise.
+    var page: StoragePage? = nil
 
     var body: some View {
-        // Each is a filter and sort over every download; once per render,
-        // not once per mention.
-        let active = manager.active
-        // Books' files are listed with their books, under Books.
-        let completed = manager.completedSongs
-
         List {
-            switch tab {
+            switch page {
+            case nil:
+                overviewSections
+            case .downloading:
+                downloadingSections
             case .songs:
-                songsSections(active: active.filter { $0.isBookFile != true }, completed: completed)
+                songsSections
             case .albums:
                 containerSections(kind: .albums)
             case .playlists:
                 containerSections(kind: .playlists)
             case .books:
                 booksSections
-            case .settings:
-                settingsSections
             }
         }
-        // A fresh list per tab: switching lands at the top of the new one
-        // rather than wherever the last was scrolled to.
-        .id(tab)
-        .pinnedUnderTitle {
-            Picker("Show", selection: Binding { tab } set: { picked = $0 }) {
-                ForEach(Tab.allCases.filter(shows)) { tab in
-                    Text(tab.title).tag(tab)
-                }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .padding(.horizontal)
-            .padding(.bottom, 8)
-        }
-        .navigationTitle(title)
+        .navigationTitle(page?.title ?? "Storage")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if !active.isEmpty {
-                ToolbarItem(placement: .primaryAction) {
-                    Menu {
-                        let held = manager.cellularHeldKeys
-                        if !held.isEmpty {
-                            Button {
-                                manager.allowCellular(forKeys: held)
-                            } label: {
-                                Label(held.count == 1 ? "Download Now Over Cellular" : "Download \(held.count) Now Over Cellular", systemImage: "antenna.radiowaves.left.and.right")
-                            }
-                            Divider()
-                        }
-                        Button {
-                            manager.pauseAll()
-                        } label: {
-                            Label("Pause All", systemImage: "pause.circle")
-                        }
-                        Button {
-                            manager.resumeAll()
-                        } label: {
-                            Label("Resume All", systemImage: "play.circle")
-                        }
-                        Divider()
-                        Button(role: .destructive) {
-                            manager.cancel(keys: active.map(\.key))
-                        } label: {
-                            Label("Cancel All", systemImage: "xmark.circle")
-                        }
-                    } label: {
-                        Label("Downloads", systemImage: "ellipsis")
-                    }
-                }
+            toolbarContent
+        }
+        .confirmationDialog(
+            manager.completedSongs.count == 1 ? "Remove 1 downloaded song?" : "Remove all \(manager.completedSongs.count) downloaded songs?",
+            isPresented: $isConfirmingRemoveAll,
+            titleVisibility: .visible
+        ) {
+            Button("Remove All Songs", role: .destructive) {
+                manager.removeAllCompletedSongs()
             }
+        } message: {
+            Text("They're taken off this device and can be downloaded again. Books stay.")
+        }
+        .confirmationDialog(
+            downloadedBooks.count == 1 ? "Remove 1 downloaded book?" : "Remove all \(downloadedBooks.count) downloaded books?",
+            isPresented: $isConfirmingRemoveAllBooks,
+            titleVisibility: .visible
+        ) {
+            Button("Remove All Books", role: .destructive) {
+                manager.removeAllBooks()
+            }
+        } message: {
+            Text("They're taken off this device and stay on their servers, with your place in each kept. Songs stay.")
         }
         .task {
+            guard page == nil else { return }
             apple.refreshIfNeeded()
             files.startCloudMonitor()
             await refreshCloudSummary()
         }
         .onDisappear {
+            guard page == nil else { return }
             files.stopCloudMonitor()
         }
         .onChange(of: files.cloudProgress.isEmpty) {
+            guard page == nil else { return }
             Task { await refreshCloudSummary() }
         }
     }
 
-    // MARK: - Songs
+    /// Each page's own actions: the downloads' Pause, Resume and Cancel
+    /// All, or removing every song or book at once.
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        switch page {
+        case .downloading where !manager.active.isEmpty:
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    let held = manager.cellularHeldKeys
+                    if !held.isEmpty {
+                        Button {
+                            manager.allowCellular(forKeys: held)
+                        } label: {
+                            Label(held.count == 1 ? "Download Now Over Cellular" : "Download \(held.count) Now Over Cellular", systemImage: "antenna.radiowaves.left.and.right")
+                        }
+                        Divider()
+                    }
+                    Button {
+                        manager.pauseAll()
+                    } label: {
+                        Label("Pause All", systemImage: "pause.circle")
+                    }
+                    Button {
+                        manager.resumeAll()
+                    } label: {
+                        Label("Resume All", systemImage: "play.circle")
+                    }
+                    Divider()
+                    Button(role: .destructive) {
+                        manager.cancel(keys: manager.active.map(\.key))
+                    } label: {
+                        Label("Cancel All", systemImage: "xmark.circle")
+                    }
+                    .tint(.red)
+                } label: {
+                    Label("Downloads", systemImage: "ellipsis")
+                }
+            }
+        case .songs where !manager.completedSongs.isEmpty:
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Button(role: .destructive) {
+                        isConfirmingRemoveAll = true
+                    } label: {
+                        Label("Remove All Songs", systemImage: "trash")
+                    }
+                    .tint(.red)
+                } label: {
+                    Label("Songs", systemImage: "ellipsis")
+                }
+            }
+        case .books where !downloadedBooks.isEmpty:
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Button(role: .destructive) {
+                        isConfirmingRemoveAllBooks = true
+                    } label: {
+                        Label("Remove All Books", systemImage: "trash")
+                    }
+                    .tint(.red)
+                } label: {
+                    Label("Books", systemImage: "ellipsis")
+                }
+            }
+        default:
+            ToolbarItem(placement: .primaryAction) {
+                EmptyView()
+            }
+        }
+    }
 
-    /// What's coming down and what's here, song by song, under the free
-    /// meter when there is one.
+    private var downloadedBooks: [DownloadManager.Container] {
+        manager.completedContainers.filter { $0.type == .audiobook }
+    }
+
+    // MARK: - Storage
+
+    /// The room taken, the free meter, a row for each kind of thing kept,
+    /// and the settings under them.
     @ViewBuilder
-    private func songsSections(active: [DownloadManager.Item], completed: [DownloadManager.Item]) -> some View {
+    private var overviewSections: some View {
+        let songs = manager.completedSongs
+        let books = downloadedBooks
+        let containers = Array(manager.containers.values)
+        let albums = containers.filter { StoragePage.of($0) == .albums }.count
+        let playlists = containers.filter { StoragePage.of($0) == .playlists }.count
+        let hasBooks = containers.contains { $0.type == .audiobook }
+        let isDownloading = !manager.active.isEmpty
+        let parts = [
+            StorageUsageBar.Part(name: "Songs", bytes: songs.reduce(0) { $0 + ($1.fileSize ?? 0) }, color: .accent),
+            StorageUsageBar.Part(name: "Books", bytes: books.reduce(0) { $0 + bookBytes($1) }, color: .orange),
+            StorageUsageBar.Part(name: "Playback Cache", bytes: cache.totalBytes, color: .gray),
+        ].filter { $0.bytes > 0 }
+
+        if !parts.isEmpty {
+            usageSection(parts)
+        }
+
         if let remaining = manager.remainingFreeSlots {
             freeLimitSection(remaining: remaining)
         }
 
-        if !active.isEmpty {
+        if isDownloading || !songs.isEmpty || albums + playlists > 0 || hasBooks || !apple.songs.isEmpty {
             Section {
-                ForEach(active) { item in
+                if isDownloading {
+                    NavigationLink(value: RouterDestination.storagePage(.downloading)) {
+                        downloadingRow
+                    }
+                }
+                if !songs.isEmpty {
+                    pageRow(.songs, systemImage: "music.note", count: songs.count)
+                }
+                if albums > 0 {
+                    pageRow(.albums, systemImage: "square.stack", count: albums)
+                }
+                if playlists > 0 {
+                    pageRow(.playlists, systemImage: "music.note.list", count: playlists)
+                }
+                if hasBooks {
+                    pageRow(.books, systemImage: "book", count: books.count)
+                }
+                if !apple.songs.isEmpty {
+                    // The Music app's downloads, counted rather than kept:
+                    // nothing of them is Cue's to pause, remove or count
+                    // against the free limit.
+                    NavigationLink(value: RouterDestination.downloaded(service: .apple)) {
+                        LabeledContent {
+                            Text(apple.songs.count.formatted())
+                                .monospacedDigit()
+                        } label: {
+                            Label("Downloaded in Music", systemImage: "applelogo")
+                        }
+                    }
+                }
+            } footer: {
+                Text(apple.songs.isEmpty
+                     ? "Kept until you remove them, and left out of backups."
+                     : "Kept until you remove them, and left out of backups. Apple Music's downloads are added and removed in the Music app, and don't count toward the free limit.")
+            }
+        } else {
+            Section {
+                ContentUnavailableView {
+                    Label("No Downloads", systemImage: "arrow.down.circle")
+                } description: {
+                    Text(manager.remainingFreeSlots == nil
+                         ? "Download a Plex or Subsonic song, album or playlist, or a Plex or Audiobookshelf book, to keep it on this device."
+                         : "Download a Plex or Subsonic song, album or playlist to keep it on this device. Up to \(DownloadManager.freeSongLimit) songs are free.")
+                }
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+            }
+        }
+
+        settingsSections
+    }
+
+    /// How much room Cue's songs, books and playback cache take, as one
+    /// bar split between them.
+    private func usageSection(_ parts: [StorageUsageBar.Part]) -> some View {
+        let total = parts.reduce(0) { $0 + $1.bytes }
+        return Section {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(ByteCountFormatter.string(fromByteCount: total, countStyle: .file))
+                        .font(.title2.bold())
+                        .monospacedDigit()
+                    Text("used by Cue")
+                        .foregroundStyle(.secondary)
+                }
+                StorageUsageBar(parts: parts)
+                // Each its name over its size, so three fit a phone's width
+                // without one wrapping.
+                HStack(alignment: .top, spacing: 18) {
+                    ForEach(parts) { part in
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack(spacing: 5) {
+                                Circle()
+                                    .fill(part.color)
+                                    .frame(width: 8, height: 8)
+                                Text(part.name)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Text(ByteCountFormatter.string(fromByteCount: part.bytes, countStyle: .file))
+                                .monospacedDigit()
+                                .padding(.leading, 13)
+                        }
+                        .lineLimit(1)
+                    }
+                }
+                .font(.caption)
+            }
+            .padding(.vertical, 4)
+        }
+    }
+
+    /// A row opening one of Storage's pages, with how many it holds.
+    private func pageRow(_ page: StoragePage, systemImage: String, count: Int) -> some View {
+        NavigationLink(value: RouterDestination.storagePage(page)) {
+            LabeledContent {
+                Text(count.formatted())
+                    .monospacedDigit()
+            } label: {
+                Label(page.title, systemImage: systemImage)
+            }
+        }
+    }
+
+    /// What's coming down: the run's bar while it moves, else how many
+    /// stopped.
+    private var downloadingRow: some View {
+        Label {
+            if manager.musicSummary.remainingDownloads > 0 {
+                DownloadingProgress(summary: manager.musicSummary)
+            } else {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Downloading")
+                    Text(manager.stoppedCount == 1 ? "1 stopped" : "\(manager.stoppedCount) stopped")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            }
+        } icon: {
+            Image(systemName: "arrow.down.circle")
+        }
+    }
+
+    // MARK: - Downloading
+
+    /// Everything still coming down, stopped or waiting: the books whole,
+    /// the songs one by one.
+    @ViewBuilder
+    private var downloadingSections: some View {
+        let songs = manager.active.filter { $0.isBookFile != true }
+        let books = manager.activeContainers.filter { $0.type == .audiobook }
+
+        if !books.isEmpty {
+            Section {
+                ForEach(books) { container in
+                    bookRow(container)
+                }
+                .onDelete { offsets in
+                    for index in offsets where books.indices.contains(index) {
+                        manager.removeContainer(key: books[index].key)
+                    }
+                }
+            } header: {
+                Text("Books")
+            } footer: {
+                Text("Swipe to cancel a book; the files of it already here go too.")
+            }
+        }
+
+        if !songs.isEmpty {
+            Section {
+                ForEach(songs) { item in
                     activeRow(item)
                 }
             } header: {
-                Text("Downloading")
+                if !books.isEmpty {
+                    Text("Songs")
+                }
             } footer: {
                 Text(manager.allowsCellular
                      ? "Downloads carry on when Cue is in the background, with their progress on the Lock Screen, and pick up where they left off after a relaunch."
@@ -171,31 +375,21 @@ struct DownloadsScreen: View {
             }
         }
 
-        if !completed.isEmpty {
-            let completedBytes = completed.reduce(0) { $0 + ($1.fileSize ?? 0) }
-            // A section of its own above the songs, found without scrolling
-            // past every one of them; so near the top, it asks first. The
-            // songs only: books are removed from the Books tab.
-            Section {
-                Button(role: .destructive) {
-                    isConfirmingRemoveAll = true
-                } label: {
-                    Text("Remove All Songs")
-                        .frame(maxWidth: .infinity)
-                }
-                .confirmationDialog(
-                    completed.count == 1 ? "Remove 1 downloaded song?" : "Remove all \(completed.count) downloaded songs?",
-                    isPresented: $isConfirmingRemoveAll,
-                    titleVisibility: .visible
-                ) {
-                    Button("Remove All Songs", role: .destructive) {
-                        manager.removeAllCompletedSongs()
-                    }
-                } message: {
-                    Text("They're taken off this iPhone and can be downloaded again. Books stay.")
-                }
-            }
+        if songs.isEmpty, books.isEmpty {
+            emptySection("Nothing Downloading", systemImage: "arrow.down.circle", description: "Everything you've downloaded is on this device.")
+        }
+    }
 
+    // MARK: - Songs
+
+    /// The songs kept here, one by one, each with its size.
+    @ViewBuilder
+    private var songsSections: some View {
+        let completed = manager.completedSongs
+        if completed.isEmpty {
+            emptySection("No Songs", systemImage: "music.note", description: "Download a Plex or Subsonic song, album or playlist from its menu, or an album's download button, to keep it on this device.")
+        } else {
+            let completedBytes = completed.reduce(0) { $0 + ($1.fileSize ?? 0) }
             Section {
                 ForEach(completed) { item in
                     completedRow(item)
@@ -207,72 +401,18 @@ struct DownloadsScreen: View {
                 }
             } footer: {
                 let withLyrics = completed.filter { DownloadLyrics.shared.withLyrics.contains($0.key) }.count
-                Text("\(completed.count == 1 ? "1 song" : "\(completed.count) songs") • \(ByteCountFormatter.string(fromByteCount: completedBytes, countStyle: .file))\(withLyrics > 0 ? " • lyrics for \(withLyrics == completed.count ? "all" : "\(withLyrics)") offline" : ""). Kept until you remove them; not included in backups.")
+                Text("\(completed.count == 1 ? "1 song" : "\(completed.count) songs") • \(ByteCountFormatter.string(fromByteCount: completedBytes, countStyle: .file))\(withLyrics > 0 ? " • lyrics for \(withLyrics == completed.count ? "all" : "\(withLyrics)") offline" : ""). Swipe to remove one.")
             }
-        } else if active.isEmpty {
-            Section {
-                ContentUnavailableView {
-                    Label("No Downloads", systemImage: "arrow.down.circle")
-                } description: {
-                    Text(manager.remainingFreeSlots == nil
-                         ? "Download a Plex or Subsonic song, album or playlist from its menu — or an album's download button — to keep it on this device."
-                         : "Download a Plex or Subsonic song, album or playlist from its menu — or an album's download button — to keep it on this device. Up to \(DownloadManager.freeSongLimit) songs are free.")
-                }
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-            }
-        }
-
-        if !apple.songs.isEmpty {
-            appleSection
-        }
-    }
-
-    /// The Music app's downloads, counted rather than listed: they're the
-    /// system's, not the manager's — nothing here to pause, remove or count
-    /// against the free limit — and they're browsed in the Downloads tab
-    /// with everything else here, or on their own from this row.
-    private var appleSection: some View {
-        Section {
-            NavigationLink(value: RouterDestination.downloaded(service: .apple)) {
-                LabeledContent {
-                    Text(apple.songs.count == 1 ? "1 song" : "\(apple.songs.count.formatted()) songs")
-                } label: {
-                    Label("Downloaded in Music", systemImage: "arrow.down.circle.fill")
-                }
-            }
-        } header: {
-            Text("Apple Music")
-        } footer: {
-            Text("Songs the Music app has downloaded. Cue plays them on this device with or without a network; adding and removing them is done in Music, and they don't count toward the free limit.")
         }
     }
 
     // MARK: - Albums and playlists
 
-    /// Whether a tab is offered: Albums and Playlists while there are any
-    /// (books aside), Books by its own rule, and the one showing always.
-    private func shows(_ candidate: Tab) -> Bool {
-        if candidate == tab { return true }
-        switch candidate {
-        case .albums, .playlists:
-            return manager.containers.values.contains { $0.type != .audiobook && Tab.of($0) == candidate }
-        case .books:
-            return showsBooks
-        case .songs, .settings:
-            return true
-        }
-    }
-
     /// What was downloaded whole, still coming or all here, each removable
-    /// as one: the albums under Albums, the playlists under Playlists. The
-    /// songs themselves are listed under Songs; books have a tab of their
-    /// own.
+    /// as one. The songs themselves are listed under Songs.
     @ViewBuilder
-    private func containerSections(kind: Tab) -> some View {
-        let isKind = { (container: DownloadManager.Container) in
-            container.type != .audiobook && Tab.of(container) == kind
-        }
+    private func containerSections(kind: StoragePage) -> some View {
+        let isKind = { (container: DownloadManager.Container) in StoragePage.of(container) == kind }
         let downloading = manager.activeContainers.filter(isKind)
         let downloaded = manager.completedContainers.filter(isKind)
         let noun = kind == .playlists ? "playlist" : "album"
@@ -286,22 +426,13 @@ struct DownloadsScreen: View {
         }
 
         if !downloaded.isEmpty {
-            // No header: what's here is the screen's subject.
             containersSection(downloaded) {
                 EmptyView()
             } footer: {
-                Text("Swipe to remove every song of a \(noun) at once. The songs themselves are listed under Songs; remove one there and the rest stay here.")
+                Text("Swipe to remove every song of a \(noun) at once. Its songs are listed under Songs too; remove one there and the rest stay.")
             }
         } else if downloading.isEmpty {
-            Section {
-                ContentUnavailableView {
-                    Label(kind == .playlists ? "No Playlists" : "No Albums", systemImage: kind == .playlists ? "music.note.list" : "square.stack")
-                } description: {
-                    Text("Download a Plex or Subsonic \(noun) whole — from its menu or its download button — and it's listed here as one thing, to remove as one.")
-                }
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-            }
+            emptySection(kind == .playlists ? "No Playlists" : "No Albums", systemImage: kind == .playlists ? "music.note.list" : "square.stack", description: "Download a Plex or Subsonic \(noun) whole, from its menu or its download button, and it's listed here to remove as one.")
         }
     }
 
@@ -328,24 +459,13 @@ struct DownloadsScreen: View {
 
     // MARK: - Books
 
-    /// Whether the Books tab shows: books to download (the Audiobooks tab's
-    /// rule, an Audiobookshelf sign-in or a Plex server that had books), or
-    /// any downloaded or on their way, or the screen opened on them.
-    private var showsBooks: Bool {
-        let features = CoreFeatures.shared
-        return tab == .books
-            || (features.isEnabled(.audiobookshelf) && AudiobookshelfAPI.shared.isConfigured)
-            || (features.isEnabled(.plex) && hasPlexBooks)
-            || manager.containers.values.contains { $0.type == .audiobook }
-    }
-
     /// The books downloaded whole, coming down or all here: each its cover,
     /// how far into it the listener is, and the room it takes; a tap opens
     /// its page, a swipe removes it, a long press plays it.
     @ViewBuilder
     private var booksSections: some View {
         let downloading = manager.activeContainers.filter { $0.type == .audiobook }
-        let downloaded = manager.completedContainers.filter { $0.type == .audiobook }
+        let downloaded = downloadedBooks
 
         if !downloading.isEmpty {
             Section {
@@ -366,27 +486,6 @@ struct DownloadsScreen: View {
 
         if !downloaded.isEmpty {
             let bytes = downloaded.reduce(0) { $0 + bookBytes($1) }
-            // The books only, as the Songs tab's removes the songs only.
-            Section {
-                Button(role: .destructive) {
-                    isConfirmingRemoveAllBooks = true
-                } label: {
-                    Text("Remove All Books")
-                        .frame(maxWidth: .infinity)
-                }
-                .confirmationDialog(
-                    downloaded.count == 1 ? "Remove 1 downloaded book?" : "Remove all \(downloaded.count) downloaded books?",
-                    isPresented: $isConfirmingRemoveAllBooks,
-                    titleVisibility: .visible
-                ) {
-                    Button("Remove All Books", role: .destructive) {
-                        manager.removeAllBooks()
-                    }
-                } message: {
-                    Text("They're taken off this iPhone and stay on their servers, with your place in each kept. Songs stay.")
-                }
-            }
-
             Section {
                 ForEach(downloaded) { container in
                     bookRow(container)
@@ -400,15 +499,20 @@ struct DownloadsScreen: View {
                 Text("\(downloaded.count == 1 ? "1 book" : "\(downloaded.count) books") • \(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)). Swipe to remove a book from this device; it stays on its server, and your place in it is kept.")
             }
         } else if downloading.isEmpty {
-            Section {
-                ContentUnavailableView {
-                    Label("No Books", systemImage: "books.vertical")
-                } description: {
-                    Text("Download a Plex or Audiobookshelf book from its page or its menu to listen with no network.")
-                }
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
+            emptySection("No Books", systemImage: "books.vertical", description: "Download a Plex or Audiobookshelf book from its page or its menu to listen with no network.")
+        }
+    }
+
+    /// A page with nothing on it, saying how things get there.
+    private func emptySection(_ title: LocalizedStringKey, systemImage: String, description: LocalizedStringKey) -> some View {
+        Section {
+            ContentUnavailableView {
+                Label(title, systemImage: systemImage)
+            } description: {
+                Text(description)
             }
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
         }
     }
 
@@ -473,12 +577,22 @@ struct DownloadsScreen: View {
 
     // MARK: - Settings
 
-    /// How downloading behaves: the playback cache, cellular, and the Files
-    /// folder in iCloud Drive when there is one.
+    /// How downloading behaves: cellular, the playback cache, the Files
+    /// folder in iCloud Drive when there is one, and the caches.
     @ViewBuilder
     private var settingsSections: some View {
         @Bindable var manager = manager
         @Bindable var cache = cache
+
+        Section {
+            Toggle(isOn: $manager.allowsCellular) {
+                Label("Use Cellular Data", systemImage: "antenna.radiowaves.left.and.right")
+            }
+        } header: {
+            Text("Downloads")
+        } footer: {
+            Text("Off, downloads on cellular wait for Wi‑Fi and start by themselves when it's back, and Cue asks before downloading over cellular. Songs fetched ahead from iCloud Drive wait for Wi‑Fi unless the playback cache allows cellular.")
+        }
 
         Section {
             Picker(selection: $cache.songLimit) {
@@ -541,16 +655,6 @@ struct DownloadsScreen: View {
             Text("Playback Cache")
         } footer: {
             Text("Songs coming up in the on-device queue are fetched before they play, and recent ones kept, so playback holds through a tunnel or a dead spot. The least recently played goes first when the cap is reached. Covers Plex and Subsonic, and a Files folder in iCloud Drive when streaming is on below. Downloads you choose yourself are kept separately.")
-        }
-
-        Section {
-            Toggle(isOn: $manager.allowsCellular) {
-                Label("Use Cellular Data", systemImage: "antenna.radiowaves.left.and.right")
-            }
-        } header: {
-            Text("Downloads")
-        } footer: {
-            Text("Off, downloads on cellular wait for Wi‑Fi and start by themselves when it's back, and Cue asks before downloading over cellular. Songs fetched ahead from iCloud Drive wait for Wi‑Fi unless the playback cache allows cellular.")
         }
 
         if files.isConfigured, files.isCloudFolder {
@@ -857,20 +961,34 @@ struct DownloadsScreen: View {
     }
 }
 
-private extension View {
-    /// A bar pinned under the navigation title. On iOS 26 the system draws
-    /// the scroll edge beneath it, as it does for the bar itself; before,
-    /// a material band does the same job.
-    @ViewBuilder
-    func pinnedUnderTitle<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        if #available(iOS 26.0, macOS 26.0, visionOS 26.0, *) {
-            safeAreaBar(edge: .top, spacing: 0, content: content)
-        } else {
-            safeAreaInset(edge: .top, spacing: 0) {
-                content()
-                    .background(.bar)
+/// The room Cue takes, as one bar split between what takes it.
+private struct StorageUsageBar: View {
+    struct Part: Identifiable {
+        let name: String
+        let bytes: Int64
+        let color: Color
+
+        var id: String { name }
+    }
+
+    let parts: [Part]
+
+    private static let gap: CGFloat = 2
+
+    var body: some View {
+        let total = max(parts.reduce(0) { $0 + $1.bytes }, 1)
+        GeometryReader { geometry in
+            let width = geometry.size.width - Self.gap * CGFloat(max(parts.count - 1, 0))
+            HStack(spacing: Self.gap) {
+                ForEach(parts) { part in
+                    part.color
+                        .frame(width: max(3, width * CGFloat(part.bytes) / CGFloat(total)))
+                }
             }
         }
+        .frame(height: 10)
+        .clipShape(Capsule())
+        .accessibilityHidden(true)
     }
 }
 

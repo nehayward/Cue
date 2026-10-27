@@ -34,8 +34,9 @@ public enum RouterDestination: Hashable, Identifiable {
     case downloads
     /// The same, open on the books downloaded whole.
     case bookDownloads
-    /// The same, open on its settings: the Downloads tab's gear.
-    case downloadSettings
+    /// One of Storage's pages: what's coming down, or the songs, albums,
+    /// playlists or books kept here.
+    case storagePage(StoragePage)
     /// What's on this device from one provider — or every provider for
     /// nil, the Downloads tab — as a small library: Artists, Albums and
     /// Songs. Settings ▸ Storage opens Apple Music's.
@@ -104,8 +105,8 @@ public enum RouterDestination: Hashable, Identifiable {
             return "downloads"
         case .bookDownloads:
             return "bookDownloads"
-        case .downloadSettings:
-            return "downloadSettings"
+        case let .storagePage(page):
+            return "storagePage.\(page.rawValue)"
         case .bookWords:
             return "bookWords"
         case let .downloaded(service):
@@ -177,8 +178,8 @@ public enum RouterDestination: Hashable, Identifiable {
             return true
         case (.bookDownloads, .bookDownloads):
             return true
-        case (.downloadSettings, .downloadSettings):
-            return true
+        case let (.storagePage(page1), .storagePage(page2)):
+            return page1 == page2
         case (.bookWords, .bookWords):
             return true
         case let (.downloaded(service1), .downloaded(service2)):
@@ -249,8 +250,9 @@ public enum RouterDestination: Hashable, Identifiable {
             hasher.combine("downloads")
         case .bookDownloads:
             hasher.combine("bookDownloads")
-        case .downloadSettings:
-            hasher.combine("downloadSettings")
+        case let .storagePage(page):
+            hasher.combine("storagePage")
+            hasher.combine(page)
         case .bookWords:
             hasher.combine("bookWords")
         case let .downloaded(service):

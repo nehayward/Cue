@@ -51,10 +51,10 @@ struct DownloadedScreen: View {
             if managesDownloads {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
-                        router.navigate(to: .downloadSettings)
+                        router.navigate(to: .downloads)
                     } label: {
-                        // A gear, as it's the downloads' settings: storage,
-                        // cellular and the cache.
+                        // A gear, as Storage is where downloading is set up:
+                        // cellular, the cache, and what's kept and its room.
                         Label("Storage", systemImage: "gearshape")
                     }
                 }
@@ -86,12 +86,12 @@ struct DownloadedScreen: View {
         }
     }
 
-    /// How far the songs and books coming down have got, opening Storage
-    /// on them. Only while they come down: Storage is otherwise the
-    /// toolbar's.
+    /// How far the songs and books coming down have got, opening Storage's
+    /// Downloading page. Only while they come down: Storage is otherwise
+    /// the toolbar's.
     private var downloadingSection: some View {
         Section {
-            NavigationLink(value: RouterDestination.downloads) {
+            NavigationLink(value: RouterDestination.storagePage(.downloading)) {
                 Label {
                     DownloadingProgress(summary: downloads.musicSummary)
                 } icon: {
@@ -106,8 +106,8 @@ struct DownloadedScreen: View {
 /// How far the songs and books coming down have got: the run's songs and
 /// the books, and a bar that moves with the bytes. Its own view, the one
 /// that reads every byte of progress, so only this row redraws as they
-/// arrive.
-private struct DownloadingProgress: View {
+/// arrive. Storage's Downloading row draws it too.
+struct DownloadingProgress: View {
     let summary: DownloadManager.MusicSummary
 
     @State private var downloads = DownloadManager.shared
