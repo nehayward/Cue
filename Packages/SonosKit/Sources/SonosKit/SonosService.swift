@@ -2403,7 +2403,14 @@ public final class SonosService {
     }
 
     @MainActor
+    /// Runs before a group is told to play, by its coordinator's address:
+    /// Cue's Smart Resume moves a book paused there back a little first.
+    /// Every Play Cue sends a speaker comes through `play(ip:)`, so the
+    /// player, the Lock Screen and the mini player all get it.
+    @ObservationIgnored public var beforePlay: (@MainActor (String) async -> Void)?
+
     public func play(ip: String) async {
+        await beforePlay?(ip)
         if let group = groups.first(where: { $0.coordinatorRoom.ip == ip }) {
             for room in group.rooms {
                 room.setPlaying(true, source: .localCommand)
