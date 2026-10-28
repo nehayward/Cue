@@ -32,6 +32,7 @@ enum Screens {
         HomeScreen()
             .tint(Color("Accent"))
             .environment(selectedGroupService)
+            .modifier(WindowQueuePanel(placement: .tab))
     }
     
     @ViewBuilder
@@ -48,6 +49,7 @@ enum Screens {
                 Router.search.path.removeAll()
                 Router.search.presentedSheet = nil
             }
+            .modifier(WindowQueuePanel(placement: .tab))
     }
     
     @ViewBuilder
@@ -57,6 +59,7 @@ enum Screens {
         BrowseScreen()
             .tint(Color("Accent"))
             .environment(selectedGroupService)
+            .modifier(WindowQueuePanel(placement: .tab))
         
     }
 
@@ -68,6 +71,7 @@ enum Screens {
         RadioScreen()
             .tint(Color("Accent"))
             .environment(selectedGroupService)
+            .modifier(WindowQueuePanel(placement: .tab))
     }
 
     /// The Audiobooks tab: the book listened to last, and every book.
@@ -78,6 +82,7 @@ enum Screens {
         AudiobooksScreen()
             .tint(Color("Accent"))
             .environment(selectedGroupService)
+            .modifier(WindowQueuePanel(placement: .tab))
     }
 
     /// The Downloads tab: the music on this device, and what's coming down.
@@ -88,6 +93,7 @@ enum Screens {
         DownloadsTabScreen()
             .tint(Color("Accent"))
             .environment(selectedGroupService)
+            .modifier(WindowQueuePanel(placement: .tab))
     }
 
     /// A provider's own tab — its library's front page, listing the
@@ -99,6 +105,7 @@ enum Screens {
         ProviderTabScreen(service: service, collections: collections)
             .tint(Color("Accent"))
             .environment(selectedGroupService)
+            .modifier(WindowQueuePanel(placement: .tab))
     }
 
     /// One collection of a provider — a tab in its sidebar section.
@@ -109,6 +116,7 @@ enum Screens {
         ProviderTabScreen(service: service, collections: collections, collection: collection)
             .tint(Color("Accent"))
             .environment(selectedGroupService)
+            .modifier(WindowQueuePanel(placement: .tab))
     }
 }
 
@@ -125,11 +133,37 @@ enum Screens {
 ///
 /// The flag is observed (`AppState.showsQueuePanel`): as `@AppStorage` this
 /// ran on every UserDefaults write, round the `TabView`.
+///
+/// On a phone it goes inside each tab instead (`isInTabs`). An iPhone Duo
+/// open draws its tab bar down the trailing edge, beside the status bar,
+/// and round the `TabView` the panel put that bar mid-screen, between the
+/// content and the panel. Inside a tab the bar stays at the edge, with the
+/// panel to its left; a screen's own toolbar buttons are its navigation
+/// bar's, inside the tab, so they stay beside the panel, and the panel
+/// ends above the mini player.
 struct WindowQueuePanel: ViewModifier {
+    enum Placement {
+        /// Round the whole `TabView`.
+        case window
+        /// Inside one tab, round its screen.
+        case tab
+    }
+
+    /// On a phone, the panel is inside each tab. The idiom never changes
+    /// while the app runs, so neither place ever swaps its view.
+    static let isInTabs = UIDevice.current.userInterfaceIdiom == .phone
+
+    var placement: Placement = .window
+
     @State private var appState = AppState.shared
 
+    @ViewBuilder
     func body(content: Content) -> some View {
-        content.queuePanel(isPresented: $appState.showsQueuePanel, compact: .hidden) { QueueNextUpView() }
+        if (placement == .tab) == Self.isInTabs {
+            content.queuePanel(isPresented: $appState.showsQueuePanel, compact: .hidden) { QueueNextUpView() }
+        } else {
+            content
+        }
     }
 }
 

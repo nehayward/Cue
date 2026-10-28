@@ -641,7 +641,9 @@ struct CueApp: App {
             // commands, and every other toast outside the player and the
             // sheets, showed nothing.
             .modifier(WindowToasts())
-            // The queue panel, beside the whole `TabView`. Inside
+            // The queue panel, beside the whole `TabView` on iPad and the
+            // Mac; on a phone each tab has its own (`Screens`), so an iPhone
+            // Duo open keeps its tab bar at the trailing edge. Inside
             // `withEnvironments()`, which the panel's view reads from.
             .modifier(WindowQueuePanel())
             .withEnvironments()

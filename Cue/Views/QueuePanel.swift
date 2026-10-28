@@ -56,11 +56,16 @@ struct QueuePanel<Panel: View>: ViewModifier {
     /// only thing that gives, down to a few points of vertically-wrapped text.
     static var minContentWidth: CGFloat { 600 }
 
-    @AppStorage(AppStorageKeys.queuePanelWidth) private var storedWidth: Double = 320
-    /// The width while a drag is in flight. `storedWidth` is `UserDefaults` —
-    /// writing it per drag frame means a synchronous write plus a defaults
-    /// notification on every frame, which is what made the resize feel sticky.
-    /// The drag runs entirely on this, and commits once on release.
+    /// The width every panel shares (`AppState.queuePanelWidth`), observed
+    /// rather than `@AppStorage`: on a phone a panel wraps each tab's screen,
+    /// and `@AppStorage` would run them all again on every UserDefaults
+    /// write.
+    private var appState: AppState { .shared }
+    /// The width while a drag is in flight. The shared width is saved to
+    /// `UserDefaults` — writing it per drag frame means a synchronous write
+    /// plus a defaults notification on every frame, which is what made the
+    /// resize feel sticky. The drag runs entirely on this, and commits once
+    /// on release.
     @State private var dragWidth: CGFloat?
     /// Width at the moment the drag began. Resizing from the live width instead
     /// compounds each frame's translation against the previous frame's result,
@@ -78,7 +83,7 @@ struct QueuePanel<Panel: View>: ViewModifier {
     @State private var availableWidth: CGFloat?
 
     private var width: CGFloat {
-        min(clamped(dragWidth ?? CGFloat(storedWidth)), widthCeiling)
+        min(clamped(dragWidth ?? CGFloat(appState.queuePanelWidth)), widthCeiling)
     }
 
     /// The panel yields first when the window gets narrow, rather than letting
@@ -231,7 +236,7 @@ struct QueuePanel<Panel: View>: ViewModifier {
                                 isPresented = false
                             }
                         } else if let dragWidth {
-                            storedWidth = Double(dragWidth)
+                            appState.queuePanelWidth = Double(dragWidth)
                         }
                         withAnimation(.snappy) {
                             dismissOvershoot = 0

@@ -56,6 +56,13 @@ final class AppState {
         didSet { save(showsQueuePanel, from: oldValue, as: AppStorageKeys.queueInspectorVisible) }
     }
 
+    /// The queue panel's width, which every panel shares (the window's,
+    /// each tab's on a phone, the player's), set by dragging its divider:
+    /// written once as the drag ends.
+    var queuePanelWidth: Double {
+        didSet { save(queuePanelWidth, from: oldValue, as: AppStorageKeys.queuePanelWidth) }
+    }
+
     /// The sidebar's edits: which provider tabs show, and the order of their
     /// sections. Only with the library sections (`showsLibrarySections`),
     /// off for now, so it has never been written; kept as JSON.
@@ -76,6 +83,7 @@ final class AppState {
         minimizesTabBar = Self.bool(Self.minimizesTabBarKey, default: true)
         #endif
         showsQueuePanel = defaults.bool(forKey: AppStorageKeys.queueInspectorVisible)
+        queuePanelWidth = defaults.object(forKey: AppStorageKeys.queuePanelWidth) as? Double ?? 320
         tabCustomization = defaults.data(forKey: AppStorageKeys.tabViewCustomization)
             .flatMap { try? JSONDecoder().decode(TabViewCustomization.self, from: $0) } ?? TabViewCustomization()
     }
