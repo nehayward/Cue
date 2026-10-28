@@ -123,13 +123,13 @@ enum Screens {
 /// player's, and a sheet here would fight the one it presents (they share
 /// the stored flag).
 ///
-/// The flag is observed (`QueuePanelVisibility`): as `@AppStorage` this ran
-/// on every UserDefaults write, round the `TabView`.
+/// The flag is observed (`AppState.showsQueuePanel`): as `@AppStorage` this
+/// ran on every UserDefaults write, round the `TabView`.
 struct WindowQueuePanel: ViewModifier {
-    @State private var visibility = QueuePanelVisibility.shared
+    @State private var appState = AppState.shared
 
     func body(content: Content) -> some View {
-        content.queuePanel(isPresented: $visibility.isShown, compact: .hidden) { QueueNextUpView() }
+        content.queuePanel(isPresented: $appState.showsQueuePanel, compact: .hidden) { QueueNextUpView() }
     }
 }
 

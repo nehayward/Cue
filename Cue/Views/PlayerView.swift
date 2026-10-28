@@ -29,7 +29,8 @@ struct PlayerView: View {
     @AppStorage(AppStorageKeys.showArtworkOnly) private var showArtworkOnly: Bool = false
     /// The same key the main window's panel uses, so showing the queue here
     /// shows it there too rather than the two disagreeing.
-    @AppStorage(AppStorageKeys.queueInspectorVisible) private var showQueue: Bool = false
+    /// The queue panel's flag, shared with the window's (`AppState`).
+    @State private var appState = AppState.shared
     /// Lyrics in the artwork's place, held from song to song.
     @AppStorage(AppStorageKeys.lyricsShown) private var showLyrics: Bool = false
     @Environment(\.dismiss) private var dismiss
@@ -192,7 +193,7 @@ struct PlayerView: View {
         // it shows and hides in place, and the artwork reflows around it —
         // and a half-height sheet on a phone, where a side panel would only
         // squeeze both halves. `QueueNextUpView` follows the route too.
-        .queuePanel(isPresented: $showQueue) {
+        .queuePanel(isPresented: $appState.showsQueuePanel) {
             QueueNextUpView()
         }
         .background { backdrop }
@@ -352,7 +353,7 @@ struct PlayerView: View {
                 volumeRow
                     .padding(.horizontal, -12)
                     .frame(maxWidth: 500)
-                PlayerBottomToolbarView(group: group, showQueue: $showQueue)
+                PlayerBottomToolbarView(group: group, showQueue: $appState.showsQueuePanel)
             }
             // In lyrics a finger on the controls keeps them up; a drag on
             // the volume or the scrubber tells the timer once a second.
@@ -436,7 +437,7 @@ struct PlayerView: View {
                     .padding(.horizontal, -12)
                     .frame(maxWidth: 500)
 
-                PlayerBottomToolbarView(group: group, showQueue: $showQueue)
+                PlayerBottomToolbarView(group: group, showQueue: $appState.showsQueuePanel)
             }
             .transition(.opacity)
         }
@@ -603,7 +604,7 @@ struct PlayerView: View {
                 .padding(.horizontal, -12)
                 .frame(maxWidth: 500)
 
-            PlayerBottomToolbarView(group: group, showQueue: $showQueue)
+            PlayerBottomToolbarView(group: group, showQueue: $appState.showsQueuePanel)
         }
         .transition(.opacity)
     }
@@ -687,14 +688,14 @@ struct PlayerView: View {
                 Button {
                     HapticManager.shared.fireHaptic(.selection)
                     withAnimation(.snappy) {
-                        showQueue.toggle()
+                        appState.showsQueuePanel.toggle()
                     }
                 } label: {
-                    Label(showQueue ? "Hide Up Next" : "Show Up Next", systemImage: "list.bullet")
+                    Label(appState.showsQueuePanel ? "Hide Up Next" : "Show Up Next", systemImage: "list.bullet")
                         .labelStyle(.iconOnly)
                 }
-                .tint(showQueue ? Color("Accent") : .primary)
-                .accessibilityAddTraits(showQueue ? .isSelected : [])
+                .tint(appState.showsQueuePanel ? Color("Accent") : .primary)
+                .accessibilityAddTraits(appState.showsQueuePanel ? .isSelected : [])
             }
         }
     }
