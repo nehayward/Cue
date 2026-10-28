@@ -112,6 +112,7 @@ struct AudiobookSeriesView: View {
                         .padding(.horizontal, 16)
                 }
             }
+            .readableColumn()
         }
         .contentMargins(.bottom, 120, for: .scrollContent)
         .navigationTitle(name)
