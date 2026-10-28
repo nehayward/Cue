@@ -30,6 +30,7 @@ struct PreferenceScreen: View {
     // (`CarPlayInterface.start`).
     @AppStorage(Defaults.AppStorageKeys.carPlayMiniPlayer) private var carPlayMiniPlayer: Bool = false
     @AppStorage(Defaults.AppStorageKeys.nowPlayingSession) private var nowPlayingSession: Bool = false
+    @State private var offline = OfflineMode.shared
 #endif
     @AppStorage(Defaults.AppStorageKeys.lastSeenWhatsNewVersion) private var lastSeenWhatsNewVersion: String = ""
     @AppStorage(Defaults.AppStorageKeys.latestReleaseVersion) private var latestReleaseVersion: String = ""
@@ -355,6 +356,11 @@ struct PreferenceScreen: View {
 #endif
                     Toggle(isOn: $nowPlayingSession) {
                         Label("Now Playing Session", systemImage: "play.rectangle")
+                    }
+                    // The offline app with the network up: the tab bar's
+                    // swap and Search's, switched while Cue runs.
+                    Toggle(isOn: $offline.simulatesOffline) {
+                        Label("Simulate No Network", systemImage: "wifi.slash")
                     }
                 } header: {
                     Text("Debug")
