@@ -7,50 +7,22 @@ import SwiftUI
 /// With nothing typed, the songs downloaded last, to play. The field's
 /// prompt says what it searches (`SearchScreen`), so there's no banner, and
 /// no way into Artists or Albums: the Downloads tab beside it has those.
-/// Sections for the `List` the search screen already owns.
+/// Sections for the `List` the search screen already owns, which runs the
+/// search (`OfflineSearch`) from its own `.task`: run from a row of these,
+/// it took an empty row, and the gap it left, at the top.
 struct OfflineSearchView: View {
     let query: String
+    let search: OfflineSearch
 
     @State private var downloads = DownloadManager.shared
-    @State private var apple = AppleDownloadsIndex.shared
-    @State private var files = FilesLibraryService.shared
-
-    /// The last search's answer, and the query it was for.
-    @State private var results: (artists: [OnDeviceLibrary.Group], albums: [OnDeviceLibrary.Group], songs: [PlayableContent]) = ([], [], [])
-    @State private var searchedQuery = ""
-
-    private struct SearchKey: Equatable {
-        let query: String
-        let changeToken: Int
-    }
 
     /// How many of the songs downloaded last show with nothing typed.
     private static let recentCount = 25
 
     var body: some View {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        Color.clear
-            .frame(height: 0)
-            .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
-            .listRowInsets(EdgeInsets())
-            .onAppear {
-                apple.refreshIfNeeded()
-            }
-            // Searched here rather than in the body: the body runs again on
-            // every keystroke and every tick of a download's progress, and
-            // each run rebuilt and sorted the whole on-device library. This
-            // runs once the typing settles, and again when the songs here
-            // change — a download finishing, an index rebuilding.
-            .task(id: SearchKey(query: trimmed, changeToken: OnDeviceLibrary.changeToken)) {
-                if !trimmed.isEmpty, !searchedQuery.isEmpty {
-                    try? await Task.sleep(for: .milliseconds(150))
-                    guard !Task.isCancelled else { return }
-                }
-                results = OnDeviceLibrary.search(trimmed)
-                searchedQuery = trimmed
-            }
+        let results = search.results
+        let searchedQuery = search.searchedQuery
 
         if trimmed.isEmpty {
             if OnDeviceLibrary.isEmpty {
@@ -65,38 +37,25 @@ struct OfflineSearchView: View {
         } else {
             if !results.artists.isEmpty {
                 Section {
+                    titleRow("Artists")
                     ForEach(results.artists) { group in
-                        NavigationLink(value: OnDeviceLibrary.destination(for: group)) {
-                            OnDeviceGroupRow(group: group, collection: .artists)
-                        }
+                        groupRow(group, collection: .artists)
                     }
-                } header: {
-                    Text("Artists")
                 }
             }
             if !results.albums.isEmpty {
                 Section {
+                    titleRow("Albums")
                     ForEach(results.albums) { group in
-                        NavigationLink(value: OnDeviceLibrary.destination(for: group)) {
-                            OnDeviceGroupRow(group: group, collection: .albums)
-                        }
+                        groupRow(group, collection: .albums)
                     }
-                } header: {
-                    Text("Albums")
                 }
             }
             if !results.songs.isEmpty {
                 Section {
+                    titleRow("Songs", count: results.songs.count == 1 ? "1 song" : "\(results.songs.count.formatted()) songs")
                     ForEach(results.songs) { song in
                         PlayableContentView(item: song, hideContentType: true)
-                    }
-                } header: {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text("Songs")
-                        Spacer()
-                        Text(results.songs.count == 1 ? "1 song" : "\(results.songs.count.formatted()) songs")
-                            .textCase(nil)
-                            .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -109,12 +68,40 @@ struct OfflineSearchView: View {
         let _ = downloads.musicSummary
         let songs = Array(OnDeviceLibrary.songs(sortedBy: .added, descending: true).prefix(Self.recentCount))
         return Section {
+            titleRow("Recently Downloaded")
             ForEach(songs) { song in
                 PlayableContentView(item: song, hideContentType: true)
             }
-        } header: {
-            Text("Recently Downloaded")
         }
+    }
+
+    /// A section's title as its first row, not its header, which a plain
+    /// list pads well clear of what's above; a count on the right.
+    private func titleRow(_ title: LocalizedStringKey, count: String? = nil) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title)
+                .font(.title3.bold())
+            Spacer(minLength: 8)
+            if let count {
+                Text(count)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+        }
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
+        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 4, trailing: 16))
+    }
+
+    /// An artist or album, drawn as the Albums and Artists pages draw
+    /// theirs: tight, no separators.
+    private func groupRow(_ group: OnDeviceLibrary.Group, collection: OnDeviceCollection) -> some View {
+        NavigationLink(value: OnDeviceLibrary.destination(for: group)) {
+            OnDeviceGroupRow(group: group, collection: collection)
+        }
+        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+        .listRowSeparator(.hidden)
     }
 
     private var emptyLibrary: some View {
@@ -128,10 +115,38 @@ struct OfflineSearchView: View {
     }
 }
 
+/// The offline search's answer and the query it was for. Searched off
+/// the body: the body runs on every keystroke, and each run rebuilt and
+/// sorted the whole on-device library. `SearchScreen` runs it once the
+/// typing settles, and again when the songs here change — a download
+/// finishing, an index rebuilding (`Key`).
+@MainActor
+@Observable
+final class OfflineSearch {
+    struct Key: Equatable {
+        let query: String
+        let changeToken: Int
+    }
+
+    private(set) var results: (artists: [OnDeviceLibrary.Group], albums: [OnDeviceLibrary.Group], songs: [PlayableContent]) = ([], [], [])
+    private(set) var searchedQuery = ""
+
+    func run(_ query: String) async {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty, !searchedQuery.isEmpty {
+            try? await Task.sleep(for: .milliseconds(150))
+            guard !Task.isCancelled else { return }
+        }
+        AppleDownloadsIndex.shared.refreshIfNeeded()
+        results = OnDeviceLibrary.search(trimmed)
+        searchedQuery = trimmed
+    }
+}
+
 #Preview {
     NavigationStack {
         List {
-            OfflineSearchView(query: "a")
+            OfflineSearchView(query: "a", search: OfflineSearch())
         }
         .listStyle(.plain)
     }
