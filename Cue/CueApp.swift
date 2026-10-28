@@ -45,8 +45,9 @@ private struct TabBarMinimize: ViewModifier {
 struct MusicPlaybackView: View {
     @Environment(\.tabViewBottomAccessoryPlacement) var placement
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    /// The same key each tab's queue panel reads.
-    @AppStorage(AppStorageKeys.queueInspectorVisible) private var showQueue: Bool = false
+    /// The queue panel's flag, observed (`QueuePanelVisibility`), not
+    /// `@AppStorage`, which ran this again on every UserDefaults write.
+    @State private var queuePanel = QueuePanelVisibility.shared
     /// Owned by `CueApp`, not by this view. The tab bar accessory is hosted
     /// outside the tab content and gets re-created when its placement changes
     /// or the scene comes back to the foreground — `@State` here reset to
@@ -87,7 +88,7 @@ struct MusicPlaybackView: View {
             if UIDevice.current.userInterfaceIdiom == .pad, horizontalSizeClass == .regular {
                 Button {
                     withAnimation(.snappy) {
-                        showQueue.toggle()
+                        queuePanel.isShown.toggle()
                     }
                 } label: {
                     // The player's queue gauge: how far through the queue
@@ -98,14 +99,14 @@ struct MusicPlaybackView: View {
                         // than the gauge itself in accent, so its number stays
                         // easy to read.
                         .padding(5)
-                        .background(Color("Accent").opacity(showQueue ? 0.25 : 0), in: .circle)
+                        .background(Color("Accent").opacity(queuePanel.isShown ? 0.25 : 0), in: .circle)
                         .frame(width: Self.buttonSide, height: Self.buttonSide)
                         .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
-                .animation(.snappy, value: showQueue)
-                .accessibilityLabel(showQueue ? "Hide Queue" : "Show Queue")
-                .accessibilityAddTraits(showQueue ? .isSelected : [])
+                .animation(.snappy, value: queuePanel.isShown)
+                .accessibilityLabel(queuePanel.isShown ? "Hide Queue" : "Show Queue")
+                .accessibilityAddTraits(queuePanel.isShown ? .isSelected : [])
             }
 #endif
         }
@@ -1950,6 +1951,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         UserDefaults.standard.set(true, forKey: "NSDisabledDictationMenuItem")
         UserDefaults.standard.set(true, forKey: "NSDisabledCharacterPaletteMenuItem")
         #endif
+        // Before the tab view is built: SwiftUI's tabs handed over again
+        // unchanged took Search's keyboard and stopped scrolls.
+        SameTabsFilter.install()
         // Sonos is opt-in here. This runs before any view body or `.task` can
         // call `monitor()`, which is what would put up the Local Network
         // prompt on a device that has never seen a speaker.
@@ -2373,18 +2377,43 @@ final class ToolbarDelegate: NSObject {
     }
 }
 
-/// The queue panel's stored show/hide flag, for the places outside SwiftUI
-/// that flip it: the Mac's toolbar item and its View menu command. The
-/// `@AppStorage` readers (`PlayerView`, each tab's panel) pick the change
-/// up from `UserDefaults` like any other.
+/// The queue panel's show/hide flag (`AppStorageKeys.queueInspectorVisible`),
+/// observed rather than held in `@AppStorage`: the window's panel
+/// (`WindowQueuePanel`, wrapped round the `TabView`) and the mini player
+/// read it, and as `@AppStorage` both ran again on every UserDefaults
+/// write, the mini player among them as Search was typed in. Written only
+/// when it changes; the Mac's toolbar item and View menu
+/// command flip it through `toggle()`, and `PlayerView` still reads the key.
 @MainActor
-enum QueuePanelVisibility {
-    static var isShown: Bool {
-        UserDefaults.standard.bool(forKey: AppStorageKeys.queueInspectorVisible)
+@Observable
+final class QueuePanelVisibility {
+    static let shared = QueuePanelVisibility()
+
+    var isShown: Bool {
+        didSet {
+            guard isShown != oldValue else { return }
+            UserDefaults.standard.set(isShown, forKey: AppStorageKeys.queueInspectorVisible)
+        }
     }
 
+    private init() {
+        isShown = UserDefaults.standard.bool(forKey: AppStorageKeys.queueInspectorVisible)
+        // `PlayerView` writes the key itself: taken up here, and only when
+        // it changed.
+        NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated {
+                let stored = UserDefaults.standard.bool(forKey: AppStorageKeys.queueInspectorVisible)
+                if stored != QueuePanelVisibility.shared.isShown {
+                    QueuePanelVisibility.shared.isShown = stored
+                }
+            }
+        }
+    }
+
+    static var isShown: Bool { shared.isShown }
+
     static func toggle() {
-        UserDefaults.standard.set(!isShown, forKey: AppStorageKeys.queueInspectorVisible)
+        shared.isShown.toggle()
     }
 }
 
