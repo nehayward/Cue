@@ -214,8 +214,9 @@ private struct SongsRow: View {
     }
 }
 
-/// An album, playlist or artist on the watch, with how far it's got.
-private struct PickRow: View {
+/// An album, playlist or artist on the watch, with how far it's got: on
+/// Downloads, and in a library list when its server can't be reached.
+struct PickRow: View {
     @Environment(WatchDownloadStore.self) private var store
     let pick: WatchPick
 
