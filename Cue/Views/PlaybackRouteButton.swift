@@ -62,10 +62,26 @@ struct PlaybackRouteButton: View {
 
 /// The Play On button while Sonos is on: opens `PlayOnSheet`.
 private struct SonosRouteButton: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
     private var route: PlaybackRoute { .shared }
 
     @State private var isPresented = false
     @Namespace private var transition
+
+    /// Where there's room, a popover from the button, as the system's
+    /// AirPlay picker is on iPad; a sheet zooming out of it otherwise.
+    private var presentsPopover: Bool {
+        horizontalSizeClass == .regular
+    }
+
+    private var showsSheet: Binding<Bool> {
+        Binding(get: { isPresented && !presentsPopover }, set: { isPresented = $0 })
+    }
+
+    private var showsPopover: Binding<Bool> {
+        Binding(get: { isPresented && presentsPopover }, set: { isPresented = $0 })
+    }
 
     var body: some View {
         Button {
@@ -81,9 +97,12 @@ private struct SonosRouteButton: View {
         // rather than sliding up from the bottom edge, far from where the
         // tap was.
         .zoomSource(.playOn, in: transition)
-        .sheet(isPresented: $isPresented) {
+        .sheet(isPresented: showsSheet) {
             PlayOnSheet()
                 .zoomTransition(from: .playOn, in: transition)
+        }
+        .popover(isPresented: showsPopover) {
+            PlayOnSheet(isPopover: true)
         }
     }
 }

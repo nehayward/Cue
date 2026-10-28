@@ -67,14 +67,23 @@ struct MusicPlaybackView: View {
             // toolbar and the View menu.
 #if !targetEnvironment(macCatalyst)
             if UIDevice.current.userInterfaceIdiom == .pad, horizontalSizeClass == .regular {
+                // A book's chapters take the panel (`QueueNextUpView`).
+                let isBook = AudiobookPlayer.shared.isPlayingBook(on: route.presented)
                 Button {
                     withAnimation(.snappy) {
                         appState.showsQueuePanel.toggle()
                     }
                 } label: {
                     // The player's queue gauge: how far through the queue
-                    // playback is, for what's on screen.
-                    PresentedQueueIconView()
+                    // playback is, for what's on screen. For a book, the
+                    // player's bookmark with the chapter's number.
+                    Group {
+                        if isBook {
+                            AudiobookChapterIconView()
+                        } else {
+                            PresentedQueueIconView()
+                        }
+                    }
                         .font(.title3)
                         // Shown: a soft accent disc behind the gauge rather
                         // than the gauge itself in accent, so its number stays
@@ -86,13 +95,13 @@ struct MusicPlaybackView: View {
                 }
                 .buttonStyle(.plain)
                 .animation(.snappy, value: appState.showsQueuePanel)
-                .accessibilityLabel(appState.showsQueuePanel ? "Hide Queue" : "Show Queue")
+                .accessibilityLabel(isBook ? (appState.showsQueuePanel ? "Hide Chapters" : "Show Chapters") : (appState.showsQueuePanel ? "Hide Queue" : "Show Queue"))
                 .accessibilityAddTraits(appState.showsQueuePanel ? .isSelected : [])
             }
 #endif
         }
         .padding(.horizontal, 12)
-        .frame(maxWidth: 500, maxHeight: 120)
+        .frame(maxWidth: maxWidth, maxHeight: 120)
         // The system hosts the accessory again as its placement changes
         // and as the scene comes back: each is noted for `ScrollStopLog`.
         .onChange(of: placement) { old, new in
@@ -107,6 +116,15 @@ struct MusicPlaybackView: View {
         case .expanded: "expanded"
         default: "none"
         }
+    }
+
+    /// iPad's bar has the room for a longer title before it scrolls.
+    private var maxWidth: CGFloat {
+#if targetEnvironment(macCatalyst)
+        500
+#else
+        UIDevice.current.userInterfaceIdiom == .pad ? 720 : 500
+#endif
     }
 
     /// The iPhone's bar, and an iPad window's at a compact width, is as
