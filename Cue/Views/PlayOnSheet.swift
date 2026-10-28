@@ -6,7 +6,9 @@ import VibesDS
 /// Where playback goes, and how loud each place is: the sheet behind the Play
 /// On button while speakers can be reached (`SonosService.isAvailable`). It
 /// zooms out of the button, one height fitted to its rooms, and a pull down
-/// puts it back.
+/// puts it back. At a regular width it's a popover from the button instead,
+/// as the system's AirPlay picker is on iPad (`isPopover`): the same rows,
+/// at a fixed width and the same fitted height.
 ///
 /// Laid out like the system's AirPlay picker: what's playing on top, then This
 /// Device and every active room. Each row is its own volume slider — the fill
@@ -31,6 +33,14 @@ struct PlayOnSheet: View {
     /// the tab bar accessory, outside what `withEnvironments()` installs.
     private var sonosService: SonosService { .shared }
     private var route: PlaybackRoute { .shared }
+
+    /// Shown in a popover rather than a sheet: no pull to dismiss to keep
+    /// clear of, and its size is its ideal one.
+    let isPopover: Bool
+
+    init(isPopover: Bool = false) {
+        self.isPopover = isPopover
+    }
 
     /// A switch waiting on the transfer prompt's answer.
     @State private var pending: PendingSwitch?
@@ -62,9 +72,10 @@ struct PlayOnSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             // Outside the list, so a pull down on it is always the sheet's.
-            PlayOnHeader()
+            PlayOnHeader(isPopover: isPopover)
                 .padding(.horizontal, 24)
-                .padding(.top, 28)
+                // Clear of the sheet's grabber; a popover has none.
+                .padding(.top, isPopover ? 20 : 28)
                 .padding(.bottom, 8)
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
                     headerHeight = $0
@@ -78,6 +89,12 @@ struct PlayOnSheet: View {
             bottomInset = $0
             refit()
         }
+        // A popover takes its content's ideal size: a fixed width, and the
+        // height a sheet would be fitted to.
+        .frame(
+            idealWidth: isPopover ? 400 : nil,
+            idealHeight: isPopover ? (sheetHeight ?? openingSheetHeight) : nil
+        )
         // Opens fitted to the rooms, as the system's picker does, and a swipe
         // up still takes it to full height. The binding keeps it fitted as
         // the fit changes, unless it's been pulled up.
@@ -120,7 +137,9 @@ struct PlayOnSheet: View {
         // Off outright when the rows fit, so every vertical drag is the
         // sheet's. A volume drag needs nothing here: the list's pan waits
         // for `SidewaysPan` to fail, so it can't scroll while one runs.
-        .scrollDisabled(listFits)
+        // A popover has no pull to leave room for, and the system can make
+        // it shorter than it asked for, so its list always scrolls.
+        .scrollDisabled(listFits && !isPopover)
         .scrollBounceBehavior(.basedOnSize)
         // With more rooms than fit, the indicator shows on open that the
         // list goes on; with nothing to scroll, nothing shows.
@@ -178,9 +197,10 @@ struct PlayOnSheet: View {
         1 + (activeRooms.isEmpty ? 1 : speakerItems.count)
     }
 
-    /// What decides the height, as `FittedSheetHeights` files it.
+    /// What decides the height, as `FittedSheetHeights` files it. A
+    /// popover's has no safe area under it, so it's filed apart.
     private var layout: String {
-        "rows \(rowCount), buttons \(showsGroupingBar ? 1 : 0)"
+        "\(isPopover ? "popover, " : "")rows \(rowCount), buttons \(showsGroupingBar ? 1 : 0)"
     }
 
     private var fittedDetent: PresentationDetent {
@@ -191,14 +211,14 @@ struct PlayOnSheet: View {
     /// sheet zooms out of the button at its size instead of changing size
     /// once it's up. A guess the first time.
     private var openingSheetHeight: CGFloat {
-        min(FittedSheetHeights.height(for: layout) ?? estimatedSheetHeight, Self.tallestSheet)
+        min(FittedSheetHeights.height(for: layout) ?? estimatedSheetHeight, tallest)
     }
 
     /// The header, the rows and the buttons on a speaker, at the default
     /// text size.
     private var estimatedSheetHeight: CGFloat {
         let buttons: CGFloat = showsGroupingBar ? 96 : 0
-        return min(106 + CGFloat(rowCount) * 68 + buttons, Self.tallestSheet)
+        return min(106 + CGFloat(rowCount) * 68 + buttons, tallest)
     }
 
     /// Fits the sheet to its parts, once the rows are measured: up to about
@@ -209,8 +229,8 @@ struct PlayOnSheet: View {
         // A point to spare, so rounding never leaves the list a hair too
         // long to sit still.
         let needed = headerHeight + rowsHeight + bar + bottomInset + 1
-        listFits = needed <= Self.tallestSheet
-        let target = min(max(needed, Self.shortestSheet), Self.tallestSheet)
+        listFits = needed <= tallest
+        let target = min(max(needed, Self.shortestSheet), tallest)
         let current = sheetHeight ?? openingSheetHeight
         guard abs(target - current) > 0.5 else { return }
         // Grows with the rows as a group opens out into its rooms.
@@ -221,6 +241,12 @@ struct PlayOnSheet: View {
     }
 
     private static let shortestSheet: CGFloat = 240
+
+    /// A popover hangs above its button rather than rising from the bottom
+    /// edge, so it gets less of the window.
+    private var tallest: CGFloat {
+        isPopover ? Self.tallestSheet * 0.75 : Self.tallestSheet
+    }
 
     private static var tallestSheet: CGFloat {
         let windows = UIApplication.shared.connectedScenes
@@ -708,6 +734,9 @@ private enum FittedSheetHeights {
 private struct PlayOnHeader: View {
     @Environment(\.dismiss) private var dismiss
 
+    /// A popover closes on a click outside it, so it needs no close button.
+    let isPopover: Bool
+
     private var route: PlaybackRoute { .shared }
 
     /// The speaker's track on a group, this device's display item otherwise
@@ -762,17 +791,19 @@ private struct PlayOnHeader: View {
 #if targetEnvironment(macCatalyst)
             // A Mac sheet has no pull to close it, and a click outside
             // doesn't either.
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.body.weight(.semibold))
-                    .frame(width: 24, height: 24)
+            if !isPopover {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.body.weight(.semibold))
+                        .frame(width: 24, height: 24)
+                }
+                .buttonBorderShape(.circle)
+                .glassButton()
+                .keyboardShortcut(.cancelAction)
+                .accessibilityLabel("Close")
             }
-            .buttonBorderShape(.circle)
-            .glassButton()
-            .keyboardShortcut(.cancelAction)
-            .accessibilityLabel("Close")
 #endif
         }
     }
