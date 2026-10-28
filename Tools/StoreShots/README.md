@@ -82,6 +82,9 @@ Tools/StoreShots/.build/release/storeshots <command> <project.json>
   the watch round it). `bleed`, on a device or a shot (or a shot's override),
   lets the device run off the bottom at `deviceWidth` instead of shrinking to
   fit (an iPad screen with empty space below).
+- A device's `bundleID` is the app `shoot --launch` relaunches there when it
+  isn't the project's (a watch app has its own). `apple-tv` takes a
+  landscape screenshot (`"landscape": true`) and renders at 3840×2160.
 - A title's lines are balanced, so no word sits alone; a ` ` keeps two
   words together.
 - Banners are the product page header (21:9, 3840×1646) and search

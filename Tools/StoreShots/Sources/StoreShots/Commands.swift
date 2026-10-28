@@ -54,7 +54,9 @@ enum Commands {
         let simulator = try Simulator.named(simulatorName)
         if setup.statusBar ?? true { try simulator.overrideStatusBar() }
         if launch {
-            guard let bundleID = workspace.project.bundleID else { throw Failure("the project has no bundleID to launch") }
+            guard let bundleID = setup.bundleID ?? workspace.project.bundleID else {
+                throw Failure("the project has no bundleID to launch")
+            }
             let shot = workspace.project.shots.first { $0.name == name }
             try simulator.relaunch(bundleID, arguments: (workspace.project.launch ?? []) + (shot?.launch ?? []))
             Thread.sleep(forTimeInterval: shot?.wait ?? 8)
@@ -132,7 +134,9 @@ enum Commands {
     static func listDevices() {
         for model in DeviceModel.catalog.values.sorted(by: { $0.id < $1.id }) {
             let preview = model.preview.map { " · preview \(Int($0.width))×\(Int($0.height))" } ?? ""
-            print("\(model.id.padding(toLength: 18, withPad: " ", startingAt: 0)) \(Int(model.canvas.width))×\(Int(model.canvas.height))\(preview)  \(model.slot)")
+            // A television's art is landscape.
+            let canvas = model.canvas(landscape: model.kind == .tv)
+            print("\(model.id.padding(toLength: 18, withPad: " ", startingAt: 0)) \(Int(canvas.width))×\(Int(canvas.height))\(preview)  \(model.slot)")
         }
     }
 }
