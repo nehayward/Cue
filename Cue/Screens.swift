@@ -138,9 +138,11 @@ enum Screens {
 /// open draws its tab bar down the trailing edge, beside the status bar,
 /// and round the `TabView` the panel put that bar mid-screen, between the
 /// content and the panel. Inside a tab the bar stays at the edge, with the
-/// panel to its left; a screen's own toolbar buttons are its navigation
-/// bar's, inside the tab, so they stay beside the panel, and the panel
-/// ends above the mini player.
+/// panel to its left, and the panel ends above the mini player. There it's
+/// a trailing safe-area inset on the screen (`QueuePanel.Arrangement.inset`)
+/// rather than beside it: the screen's navigation stack keeps a column at
+/// its trailing edge for its bar, drawn in the window's strip, and a stack
+/// narrowed beside the panel left that column as a wide gap.
 struct WindowQueuePanel: ViewModifier {
     enum Placement {
         /// Round the whole `TabView`.
@@ -160,7 +162,10 @@ struct WindowQueuePanel: ViewModifier {
     @ViewBuilder
     func body(content: Content) -> some View {
         if (placement == .tab) == Self.isInTabs {
-            content.queuePanel(isPresented: $appState.showsQueuePanel, compact: .hidden) { QueueNextUpView() }
+            let arrangement: QueuePanel<QueueNextUpView>.Arrangement = placement == .tab ? .inset : .beside
+            content.queuePanel(isPresented: $appState.showsQueuePanel, compact: .hidden, arrangement: arrangement) {
+                QueueNextUpView()
+            }
         } else {
             content
         }

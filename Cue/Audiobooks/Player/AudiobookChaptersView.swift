@@ -35,7 +35,7 @@ struct AudiobookChaptersView: View {
                     .padding(.horizontal, 16)
                     .padding(.top, 14)
                     .padding(.bottom, 10)
-                pages
+                panelPage
             }
             .fontDesign(.rounded)
         } else {
@@ -58,6 +58,24 @@ struct AudiobookChaptersView: View {
             }
             .fontDesign(.rounded)
         }
+    }
+
+    /// In the panel, the page the switch shows, the other faded out. Not
+    /// the sheet's paging `TabView`: made as the panel slid in, a paging
+    /// view could settle with its pages out of step with the panel's width,
+    /// History showing at its edge.
+    @ViewBuilder
+    private var panelPage: some View {
+        ZStack {
+            if page == .chapters {
+                chapterList(player.current?.chapters ?? [])
+                    .transition(.opacity)
+            } else {
+                historyPage
+                    .transition(.opacity)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     /// Side by side: a swipe moves between them, as the switch does.

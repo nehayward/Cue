@@ -24,8 +24,18 @@ struct QueuePanel<Panel: View>: ViewModifier {
         case hidden
     }
 
+    /// How the side panel takes its room from `content`.
+    enum Arrangement {
+        /// An `HStack` sibling: `content` is laid out the narrower.
+        case beside
+        /// A trailing safe-area inset on `content`, which keeps its full
+        /// width and keeps its own views out of the panel's way.
+        case inset
+    }
+
     @Binding var isPresented: Bool
     var compactBehavior: CompactBehavior = .sheet
+    var arrangement: Arrangement = .beside
     @ViewBuilder var panel: () -> Panel
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -102,91 +112,118 @@ struct QueuePanel<Panel: View>: ViewModifier {
     // leaves the modified view at full width, so the tab bar accessory stays
     // centred on the whole window and slides under the panel. Taking real
     // width away is what keeps the play bar centred on the content.
+    // Inside one tab (`.inset`, a phone's) the accessory is the `TabView`'s
+    // whichever it is, and an inset is what keeps a screen's navigation
+    // stack whole: on an iPhone Duo open the stack keeps a column at its
+    // trailing edge for its bar, whose buttons it draws in the window's
+    // trailing strip, so a stack narrowed beside the panel left that column
+    // empty, a wide gap before the panel. At full width the column falls in
+    // the strip, and the inset ends the screen's views at the panel.
     // One structure whatever the width — the side panel and the sheet are
     // both always attached and each is empty when the other applies — so a
     // size-class change (an iPad going into multitasking) doesn't rebuild
     // `content`, which is the whole tab view.
     func body(content: Content) -> some View {
-        HStack(spacing: 0) {
-            content
-
-            if isPresented, !isCompact {
-                // Divider and panel transition as one unit. As separate
-                // children of the `HStack` they each got their own transition:
-                // the panel slid in from the trailing edge while the divider,
-                // having none of its own, fell back to a fade and appeared in
-                // place. `geometryGroup` keeps the pair's frames resolving
-                // together rather than each animating independently.
-                HStack(spacing: 0) {
-                    divider
-                    panel()
-                        .frame(width: width)
-                        .modifier(PanelBackground())
-                        .padding(.trailing, 10)
-                        .padding(.vertical, 10)
+        arranged(content)
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.size.width
+            } action: { newWidth in
+                if availableWidth != nil, availableWidth != newWidth {
+                    lastResize = .now
                 }
-                // Following the finger past the minimum width: the pair moves
-                // off the edge, dimming as it goes, so a drag to dismiss reads
-                // as one before it lands.
-                .offset(x: dismissOvershoot)
-                .opacity(1 - min(1, dismissOvershoot / Self.dismissDistance) * 0.5)
-                .geometryGroup()
-                // Clipped so the drag's overshoot slides the pair out from
-                // under its own edge.
-                .clipped()
-                // Sliding and fading as one. The slide goes on past this
-                // view's trailing edge, which is the window's on iPad but on
-                // an iPhone Duo open, where the player's stack holds the panel
-                // (`PlayerView.queuePanelInStack`), the edge of the safe area
-                // its trailing bars run down: the fade has it gone by the time
-                // it gets there. Cut off at that edge instead, it shrank.
-                .transition(.move(edge: .trailing).combined(with: .opacity))
+                availableWidth = newWidth
             }
-        }
-        .onGeometryChange(for: CGFloat.self) { proxy in
-            proxy.size.width
-        } action: { newWidth in
-            if availableWidth != nil, availableWidth != newWidth {
+            .animation(.snappy, value: isPresented)
+            // The person's choice, or the width, changed: the sheet follows.
+            .onChange(of: wantsSheet, initial: true) { _, wants in
                 lastResize = .now
+                sheetShown = wants && isPresented
             }
-            availableWidth = newWidth
-        }
-        .animation(.snappy, value: isPresented)
-        // The person's choice, or the width, changed: the sheet follows.
-        .onChange(of: wantsSheet, initial: true) { _, wants in
-            lastResize = .now
-            sheetShown = wants && isPresented
-        }
-        .onChange(of: isPresented) { _, presented in
-            sheetShown = wantsSheet && presented
-        }
-        // The sheet went down. Theirs, or the window's?
-        .onChange(of: sheetShown) { _, shown in
-            guard !shown, isPresented else { return }
-            if Date.now.timeIntervalSince(lastResize) < Self.resizeGrace {
-                // The resize took it. Put it back once the layout settles,
-                // if this width still wants one; a regular width shows the
-                // side panel from the same flag instead.
-                Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(400))
-                    if isPresented, wantsSheet, !sheetShown {
-                        sheetShown = true
+            .onChange(of: isPresented) { _, presented in
+                sheetShown = wantsSheet && presented
+            }
+            // The sheet went down. Theirs, or the window's?
+            .onChange(of: sheetShown) { _, shown in
+                guard !shown, isPresented else { return }
+                if Date.now.timeIntervalSince(lastResize) < Self.resizeGrace {
+                    // The resize took it. Put it back once the layout settles,
+                    // if this width still wants one; a regular width shows the
+                    // side panel from the same flag instead.
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(400))
+                        if isPresented, wantsSheet, !sheetShown {
+                            sheetShown = true
+                        }
                     }
+                } else {
+                    isPresented = false
                 }
-            } else {
-                isPresented = false
             }
+            .sheet(isPresented: $sheetShown) {
+                panel()
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
+                    // No `presentationBackground`: the system's own sheet
+                    // background is Liquid Glass, and naming a material here
+                    // replaces it with a flat blur.
+                    // The player stays usable under the half-height sheet — the
+                    // queue is something you glance at while the music plays.
+                    .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+            }
+    }
+
+    /// `content` with the side panel, as `arrangement` has it. One or the
+    /// other for the modifier's life, so the content is never rebuilt for it.
+    @ViewBuilder
+    private func arranged(_ content: Content) -> some View {
+        switch arrangement {
+        case .beside:
+            HStack(spacing: 0) {
+                content
+                sidePanel
+            }
+        case .inset:
+            content
+                .safeAreaInset(edge: .trailing, spacing: 0) {
+                    sidePanel
+                }
         }
-        .sheet(isPresented: $sheetShown) {
-            panel()
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-                // No `presentationBackground`: the system's own sheet
-                // background is Liquid Glass, and naming a material here
-                // replaces it with a flat blur.
-                // The player stays usable under the half-height sheet — the
-                // queue is something you glance at while the music plays.
-                .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+    }
+
+    /// The side panel and its divider, while shown at this width.
+    @ViewBuilder
+    private var sidePanel: some View {
+        if isPresented, !isCompact {
+            // Divider and panel transition as one unit. As separate
+            // children of the `HStack` they each got their own transition:
+            // the panel slid in from the trailing edge while the divider,
+            // having none of its own, fell back to a fade and appeared in
+            // place. `geometryGroup` keeps the pair's frames resolving
+            // together rather than each animating independently.
+            HStack(spacing: 0) {
+                divider
+                panel()
+                    .frame(width: width)
+                    .modifier(PanelBackground())
+                    .padding(.trailing, 10)
+                    .padding(.vertical, 10)
+            }
+            // Following the finger past the minimum width: the pair moves
+            // off the edge, dimming as it goes, so a drag to dismiss reads
+            // as one before it lands.
+            .offset(x: dismissOvershoot)
+            .opacity(1 - min(1, dismissOvershoot / Self.dismissDistance) * 0.5)
+            .geometryGroup()
+            // Clipped so the drag's overshoot slides the pair out from
+            // under its own edge.
+            .clipped()
+            // Sliding and fading as one. The slide goes on past this
+            // view's trailing edge, which is the window's on iPad but on
+            // an iPhone Duo open, where the player's stack holds the panel
+            // (`PlayerView.queuePanelInStack`), the edge of the safe area
+            // its trailing bars run down: the fade has it gone by the time
+            // it gets there. Cut off at that edge instead, it shrank.
+            .transition(.move(edge: .trailing).combined(with: .opacity))
         }
     }
 
@@ -265,8 +302,9 @@ extension View {
     func queuePanel<Panel: View>(
         isPresented: Binding<Bool>,
         compact: QueuePanel<Panel>.CompactBehavior = .sheet,
+        arrangement: QueuePanel<Panel>.Arrangement = .beside,
         @ViewBuilder panel: @escaping () -> Panel
     ) -> some View {
-        modifier(QueuePanel(isPresented: isPresented, compactBehavior: compact, panel: panel))
+        modifier(QueuePanel(isPresented: isPresented, compactBehavior: compact, arrangement: arrangement, panel: panel))
     }
 }
