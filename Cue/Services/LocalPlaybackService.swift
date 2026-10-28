@@ -91,6 +91,17 @@ final class LocalPlaybackService {
                 self?.streamItemFailed(item, error: error, alerts: false)
             }
         })
+        // Where the stream player's sound goes when the route moves (a
+        // speaker picked mid-song), by kind of output: whether it reached
+        // AirPlay is the first question when a speaker plays nothing.
+        observers.append(Task { [weak self] in
+            for await note in NotificationCenter.default.notifications(named: AVAudioSession.routeChangeNotification) {
+                guard self?.streamPlayer != nil else { continue }
+                let reason = note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt ?? 0
+                let outputs = AVAudioSession.sharedInstance().currentRoute.outputs.map(\.portType.rawValue).joined(separator: " + ")
+                Self.log.notice("route changed (reason \(reason)): out to \(outputs.isEmpty ? "nothing" : outputs, privacy: .public)")
+            }
+        })
     }
 
     enum LocalPlaybackError: LocalizedError {
@@ -3250,42 +3261,31 @@ final class LocalPlaybackService {
         )
     }
 
-    /// The stream player for a run or a station. It never goes into
-    /// external playback, where an AirPlay receiver is handed the item's URL
-    /// to fetch for itself, which it can't do for a song through the
-    /// playback cache: that's a `cue-stream:` URL only `CachingStreamLoader`
-    /// answers, in this process. Kept on the phone, the player reads and
-    /// decodes as it always does and the audio goes to the speaker over
-    /// AirPlay, a download, the cache and a station alike.
+    /// The stream player for a run or a station, with external playback
+    /// off. On, it hands an AirPlay receiver the item's URL to fetch for
+    /// itself, and a song through the playback cache is a `cue-stream:` URL
+    /// only `CachingStreamLoader`, in this process, can answer: the speaker
+    /// showed as chosen and played nothing. Off, the phone plays every item
+    /// itself and AirPlay carries the sound.
     private static func makeStreamPlayer(items: [AVPlayerItem]) -> AVQueuePlayer {
         let player = AVQueuePlayer(items: items)
         player.allowsExternalPlayback = false
         return player
     }
 
-    /// `.playback` on the long-form route, as Apple asks of a music or book
-    /// player for AirPlay 2: it plays to the speaker chosen for long-form
-    /// audio (in Control Center, on the Lock Screen, in the AirPlay picker),
-    /// the route Music and Podcasts share, with AirPlay 2's buffering and
-    /// more than one speaker at once. On the default policy the stream
-    /// player followed the system's route instead. The mixing fallback in
-    /// `activateAudioSession` keeps the default policy until the stream is
-    /// heard and this is set again. Not on the Mac, whose output is the
-    /// system's.
+    /// `.playback` on the long-form route, which is what makes this AirPlay
+    /// 2: the speakers chosen for Music and Podcasts (in Control Center, on
+    /// the Lock Screen, in the AirPlay picker), several at once, buffered
+    /// ahead. Set at every activation rather than once at launch, since the
+    /// session's other users (the Sonos mirror, the keep-awake silence, song
+    /// previews) put the default policy back. Not on the Mac, whose output
+    /// is the system's.
     private static func setPlaybackCategory(_ session: AVAudioSession) throws {
 #if targetEnvironment(macCatalyst)
         try session.setCategory(.playback, mode: .default)
 #else
         try session.setCategory(.playback, mode: .default, policy: .longFormAudio, options: [])
 #endif
-    }
-
-    /// Where the session's audio goes, by kind (`AirPlay`, `Speaker`,
-    /// `BluetoothA2DPOutput`), for the log: not the outputs' names, which
-    /// can be someone's.
-    private static var outputs: String {
-        let types = AVAudioSession.sharedInstance().currentRoute.outputs.map(\.portType.rawValue)
-        return types.isEmpty ? "no output" : types.joined(separator: " + ")
     }
 
     /// Takes the audio session for a stream player. The player goes on
@@ -3295,7 +3295,6 @@ final class LocalPlaybackService {
         do {
             try Self.setPlaybackCategory(AVAudioSession.sharedInstance())
             try AVAudioSession.sharedInstance().setActive(true)
-            Self.log.notice("audio session for \(what, privacy: .public): out to \(Self.outputs, privacy: .public)")
         } catch {
             let code = (error as NSError).code
             Self.log.error("activating the audio session for \(what, privacy: .public) failed: \(code) \(error.localizedDescription, privacy: .public)")
