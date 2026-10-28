@@ -46,6 +46,7 @@ struct RadioScreen: View {
     }
 
     var body: some View {
+        let _ = ScrollStopLog.note("body radio")
         NavigationStack(path: $router.path) {
             List {
                 if !trimmedQuery.isEmpty {
@@ -62,6 +63,7 @@ struct RadioScreen: View {
             .fontDesign(.rounded)
             .contentMargins(.top, EdgeInsets(), for: .scrollContent)
             .contentMargins(.bottom, 120, for: .scrollContent)
+            .scrollStopLog("radio")
             .navigationTitle("Radio")
             // Inline, as the library tabs have it.
             .toolbarTitleDisplayMode(.inline)

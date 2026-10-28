@@ -43,6 +43,7 @@ struct MusicPlaybackView: View {
     private var sonosService: SonosService { .shared }
 
     var body: some View {
+        let _ = ScrollStopLog.note("body accessory")
         // The buttons sit in cells of their own width, which space them, so
         // the row's own spacing is small.
         HStack(spacing: 4) {
@@ -91,6 +92,20 @@ struct MusicPlaybackView: View {
         }
         .padding(.horizontal, 12)
         .frame(maxWidth: 500, maxHeight: 120)
+        // The system hosts the accessory again as its placement changes
+        // and as the scene comes back: each is noted for `ScrollStopLog`.
+        .onChange(of: placement) { old, new in
+            ScrollStopLog.note("accessory \(Self.name(of: old))→\(Self.name(of: new))")
+        }
+        .onAppear { ScrollStopLog.note("accessory hosted", logNow: true) }
+    }
+
+    private static func name(of placement: TabViewBottomAccessoryPlacement?) -> String {
+        switch placement {
+        case .inline: "inline"
+        case .expanded: "expanded"
+        default: "none"
+        }
     }
 
     /// The iPhone's bar, and an iPad window's at a compact width, is as
@@ -638,6 +653,7 @@ struct CueApp: App {
                 return
             }
             router.selectedTab = newValue
+            ScrollStopLog.note("tab \(newValue)", logNow: true)
             if newValue == .search {
                 SearchActivator.shared.requestFocus()
             }
@@ -647,6 +663,7 @@ struct CueApp: App {
     var body: some Scene {
         WindowGroup {
             @Bindable var router = router
+            let _ = ScrollStopLog.note("body CueApp")
             TabView(selection: tabSelection) {
                 if !showsLibrarySections {
                     // The phone's three on every device, Browse first in
@@ -706,6 +723,7 @@ struct CueApp: App {
                 UIView.setAnimationsEnabled(true)
             }
             .onChange(of: availableTabs) { _, tabs in
+                ScrollStopLog.note("tabs now \(tabs.count)", logNow: true)
                 // A tab that left takes its selection with it. The binding
                 // already shows the fallback in that case; this keeps the
                 // stored value honest so nothing else acts on a tab that's
@@ -1961,6 +1979,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // `-dance.cue.logDefaultsWrites YES`: every UserDefaults write by
         // key, and who made it.
         DefaultsWriteLog.startIfRequested()
+        // A line for each scroll on Radio and Audiobooks, and what caught
+        // one that stopped short.
+        ScrollStopLog.start()
         #endif
         #endif
         // A Files scan gets the same card: progress on the Lock Screen and

@@ -171,7 +171,11 @@ public final class AppleMusicBrowseService {
         let recent = try? await apple.lookupUsersRecentRadioStations(offset: offset)
         let read = (personal.data + (recent?.data ?? [])).compactMap(\.toPlayable)
         if offset == 0, recent != nil {
-            userStations = OrderedSet(read)
+            // Asked each time the Radio tab shows: the same stations again
+            // aren't written, which would redraw every row of the tab.
+            let fresh = OrderedSet(read)
+            guard fresh != userStations else { return }
+            userStations = fresh
             keepStations()
         } else {
             for station in read {
@@ -186,8 +190,11 @@ public final class AppleMusicBrowseService {
 
     public func updateLiveRadioStations() async {
         guard let container = try? await apple.lookupAppleLiveRadioStations() else { return }
-        // Replaced whole: one Apple drops from the lineup goes.
-        liveStations = OrderedSet(container.data.compactMap(\.toPlayable))
+        // Replaced whole: one Apple drops from the lineup goes. Only when
+        // it changed, as with the personal ones.
+        let fresh = OrderedSet(container.data.compactMap(\.toPlayable))
+        guard fresh != liveStations else { return }
+        liveStations = fresh
         keepStations()
     }
 

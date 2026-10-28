@@ -312,6 +312,13 @@ On the phone (build 690 and the Debug builds after it) Radio's list wouldn't scr
 - **`DefaultsWriteLog`** (Debug, `-dance.cue.logDefaultsWrites YES`): counts every UserDefaults write by key, logs the busiest every 2 s and the app frames behind each key's first write, under `dance.cue` `defaults`. It found this after main-thread, overlay, gesture-state and tab-bar theories had been ruled out on the phone.
 - `miniPlayerOnScrollHandler()` (a no-op since its scroll handling was commented out) is gone from its 18 screens.
 
+### Radio and Audiobooks: a flick stopped dead after coming back to the app
+With the write loop gone, a scroll on Radio or Audiobooks still stopped abruptly when Cue came back to the foreground. Not found on the phone yet; two things that redraw these tabs for nothing are fixed, and the Debug build now says what was going on around each scroll.
+
+- **`AppleDownloadsIndex`** sweeps the Music app's downloads every time Cue comes forward and wrote every observed property (`songs`, the id sets, the dates) whether or not anything changed. `@Observable` notifies on every write, so each return redrew `CueApp` (the Downloads tab reads `songs`), its `TabView` and the accessory, and every Apple row's badge. It now writes only what changed. A library read that failed also replaced the index with nothing, taking the Downloads tab out (with nothing else downloaded) and every Apple row's badge until the next sweep; the last read now stands and the next return asks again.
+- **`AppleMusicBrowseService`**: the Radio tab's `.task` asks Apple for its live and personal stations every time the tab shows, and each answer replaced both sets and saved them to `ShelfCache`, so every row of the tab redrew a moment after switching to it. Equal answers are no longer written.
+- **`ScrollStopLog`** (Debug, always on, `dance.cue` `scroll`, so in the phone's own log): one line for each scroll of Radio, Audiobooks and Browse (`scrollStopLog(_:)`), giving the drag, the fling's speed and how far it went against how far UIKit's normal deceleration would take it (`STOPPED EARLY`), a pan whose finger left a moving list with no fling (`DROPPED`), and everything noted since the finger landed: main-thread stalls over 100 ms (a watchdog pings it every 50 ms, logged as they happen), UserDefaults changes, the bodies of `RadioScreen`, `AudiobooksScreen`, `CueApp` and the accessory, the accessory hosted again or changing placement, the list's insets or content height changing, the list made again, a scroll from code, a tab switch, the set of tabs changing, the network coming or going (the `TabView`'s `.id`), and the app's own foreground and background moves.
+
 ---
 
 ## 2026.7

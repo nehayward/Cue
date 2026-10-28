@@ -37,6 +37,9 @@ struct BrowseScreen: View {
         }
         .contentMargins(.top, EdgeInsets(), for: .scrollContent)
         .contentMargins(.bottom, 120, for: .scrollContent)
+        // Beside Radio's and Audiobooks', to tell a stop of theirs from
+        // one every tab has.
+        .scrollStopLog("browse")
         .withAlert(enabled: showAlert)
 #if !targetEnvironment(macCatalyst)
         .safeArea(edge: .bottom) {
