@@ -15,8 +15,8 @@ struct OnDeviceLibrarySections: View {
     /// The provider to show, or nil for all of them.
     var service: MusicService? = nil
 
-    /// The side margins of the lists these show in (`listSideMargins()`),
-    /// which the shelf reaches past.
+    /// The side margins of the lists these show in
+    /// (`contentMargins(.horizontal, 16)`), which the shelf reaches past.
     private static let listMargin: CGFloat = 16
     /// Where the shelf's first cover sits from the screen's edge: in line
     /// with the rows' text.

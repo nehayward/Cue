@@ -155,7 +155,7 @@ struct PlexBrowseScreen: View {
             // the rows but leaves the List's section background running to the
             // scroll view's edge, so the card butted straight up against the
             // sidebar with no gap.
-            .listSideMargins()
+            .contentMargins(.horizontal, 16)
             .fontDesign(.rounded)
             .foregroundStyle(.primary)
             .navigationTitle("Plex Library")

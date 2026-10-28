@@ -101,7 +101,7 @@ struct ProviderTabScreen: View {
             }
         }
         .contentMargins(.top, EdgeInsets(), for: .scrollContent)
-        .listSideMargins()
+        .contentMargins(.horizontal, 16)
         .navigationTitle(service.title)
     }
 
@@ -113,7 +113,7 @@ struct ProviderTabScreen: View {
             List {
                 PlexLibrarySelectionView()
             }
-            .listSideMargins()
+            .contentMargins(.horizontal, 16)
             .navigationTitle(service.title)
         } else {
             ContentUnavailableView {

@@ -37,7 +37,7 @@ struct AppleLibraryBrowseScreen: View {
             .listStyle(.plain)
 #endif
             .contentMargins(.top, EdgeInsets(), for: .scrollContent)
-            .listSideMargins(for: .scrollContent)
+            .contentMargins(.horizontal, 16, for: .scrollContent)
             .fontDesign(.rounded)
             .foregroundStyle(.primary)
             .navigationTitle("Apple Library")

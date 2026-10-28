@@ -100,7 +100,7 @@ struct FilesBrowseScreen: View {
             }
             .musicLeftOffRoom()
             .contentMargins(.top, EdgeInsets(), for: .scrollContent)
-            .listSideMargins()
+            .contentMargins(.horizontal, 16)
             .fontDesign(.rounded)
             .foregroundStyle(.primary)
             .navigationTitle("Files")

@@ -40,7 +40,7 @@ struct HomeScreen: View {
                 moreSection
             }
             .contentMargins(.top, EdgeInsets(), for: .scrollContent)
-            .listSideMargins()
+            .contentMargins(.horizontal, 16)
             .fontDesign(.rounded)
             .navigationTitle("Home")
             .withAppRouter()
