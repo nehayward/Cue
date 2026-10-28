@@ -74,11 +74,13 @@ struct AudioInfoView: View {
                     .transaction { transaction in
                         transaction.animation = nil
                     }
-                    .frame(minHeight: 24)
-                    .contentShape(Rectangle())
+                    // A caption is a small target: a little more either
+                    // side, but none above, where the scrubber is (a 24 pt
+                    // minimum height reached up into it and took the drag).
+                    .padding(.horizontal, 4)
+                    .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
-                .padding(.horizontal, 4)
             } else {
                 Text(qualityString)
                     .padding(.horizontal, 4)
