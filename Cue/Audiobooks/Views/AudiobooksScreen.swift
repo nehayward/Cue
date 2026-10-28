@@ -28,6 +28,7 @@ struct AudiobooksScreen: View {
     @State private var player = AudiobookPlayer.shared
     /// Plex's books, the last read kept from the first frame.
     @State private var plex = PlexBookShelf.shared
+    @State private var plexAuthenticator = PlexAuthenticator.shared
 
     private var showsPlex: Bool { coreFeatures.isEnabled(.plex) && hasPlexBooks }
     private var showsAudiobookshelf: Bool { coreFeatures.isEnabled(.audiobookshelf) && shelf.isAuthenticated }
@@ -41,6 +42,10 @@ struct AudiobooksScreen: View {
         let continuing = continuing(listened, isOffline: isOffline)
         let finished = listened.filter { store.progress(for: $0)?.isFinished == true }
         let downloaded = AudiobookDownloads.downloadedBooks(completeOnly: isOffline)
+        // No server for books yet and none on this device: the tab asks
+        // to sign in to one rather than showing empty shelves.
+        let needsServer = !isOffline && !showsPlex && !showsAudiobookshelf
+            && filesBooks.isEmpty && listened.isEmpty && downloaded.isEmpty
 
         NavigationStack(path: $router.path) {
             // A scroll view, not a list: a list gives each of its rows one
@@ -49,9 +54,11 @@ struct AudiobooksScreen: View {
             // book's menu.
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
-                    AudiobookContinueCard(books: continuing)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
+                    if !needsServer {
+                        AudiobookContinueCard(books: continuing)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                    }
 
                     // On this device or on their way: what plays with no
                     // network.
@@ -88,15 +95,21 @@ struct AudiobooksScreen: View {
                     AudiobookWordsSection()
                 }
             }
+            .overlay {
+                if needsServer {
+                    serverPrompt
+                }
+            }
             // Rounded is set on each part rather than here: the outermost
             // `.fontDesign` wins, and the book's title is New York.
             .contentMargins(.bottom, 120, for: .scrollContent)
             .navigationTitle("Audiobooks")
             // Inline, as the library tabs have it.
             .toolbarTitleDisplayMode(.inline)
-            // Again for another Plex server, or Plex's books turned on
-            // while the tab is open (the Plex sheet over it).
-            .task(id: "\(musicSearchService.plexServerID ?? "")|\(hasPlexBooks)") {
+            // Again for another Plex server, Plex's books turned on or
+            // Audiobookshelf signed in while the tab is open (their sheets
+            // over it).
+            .task(id: "\(musicSearchService.plexServerID ?? "")|\(hasPlexBooks)|\(showsAudiobookshelf)") {
                 await load()
             }
             // A pull scans each server, and reads it once the scan is done:
@@ -104,7 +117,6 @@ struct AudiobooksScreen: View {
             .refreshable {
                 scanServers()
             }
-            .miniPlayerOnScrollHandler()
             .withAppRouter()
         }
         .environment(router)
@@ -143,6 +155,41 @@ struct AudiobooksScreen: View {
     /// Every book listened to, once each, newest first.
     private var listenedBooks: [PlayableContent] {
         AudiobookLibrary.listenedBooks(plex: coreFeatures.isEnabled(.plex), audiobookshelf: showsAudiobookshelf, files: coreFeatures.isEnabled(.files))
+    }
+
+    // MARK: - No server
+
+    /// The tab before any server for books is set up: the way to one.
+    /// Signed in to Plex already, what's missing is which of its libraries
+    /// hold books, which the Plex sheet chooses too.
+    private var serverPrompt: some View {
+        let plexSignedIn = plexAuthenticator.authToken != nil
+        return ContentUnavailableView {
+            Label("No Audiobooks Yet", systemImage: "book")
+        } description: {
+            Text(plexSignedIn
+                ? "Choose which of your Plex libraries hold books, or sign in to Audiobookshelf, to listen to them here."
+                : "Sign in to Plex or Audiobookshelf to listen to your books here.")
+        } actions: {
+            VStack(spacing: 12) {
+                Button {
+                    router.presentedSheet = .plexManagement
+                } label: {
+                    Text(plexSignedIn ? "Choose Plex Books" : "Sign In to Plex")
+                        .frame(maxWidth: 240)
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button {
+                    router.presentedSheet = .audiobookshelfManagement
+                } label: {
+                    Text("Sign In to Audiobookshelf")
+                        .frame(maxWidth: 240)
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .fontDesign(.rounded)
     }
 
     // MARK: - Libraries

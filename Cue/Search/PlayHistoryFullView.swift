@@ -33,7 +33,6 @@ struct PlayHistoryFullView: View {
                 PlayableContentView(item: item)
             }
         }
-        .miniPlayerOnScrollHandler()
         .toolbar {
             ToolbarItem(placement: .destructiveAction) {
                 if !playHistoryService.history.isEmpty {

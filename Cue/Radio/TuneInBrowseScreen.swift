@@ -50,7 +50,6 @@ struct TuneInBrowseScreen: View {
             entries = await tuneInBrowseService.browse(url: url)
             isLoading = false
         }
-        .miniPlayerOnScrollHandler()
     }
 
     @ViewBuilder

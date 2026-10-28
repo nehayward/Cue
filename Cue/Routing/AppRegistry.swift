@@ -121,7 +121,6 @@ extension View {
                                     sheetDestinations.wrappedValue = nil
                                 }
                         }
-                        .miniPlayerOnScrollHandler()
     #if !targetEnvironment(macCatalyst) && !os(visionOS)
                         .safeArea(edge: .bottom) {
                             MiniPlayerView()

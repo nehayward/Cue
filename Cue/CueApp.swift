@@ -351,7 +351,6 @@ struct CueApp: App {
         .onScrollDown
         #endif
     }
-    @AppStorage(AppStorageKeys.hasPlexAudiobooks) private var hasPlexAudiobooks: Bool = false
     /// The sidebar's edits — which of the provider tabs show, and the order
     /// of their sections — kept across launches. This is the whole of tab
     /// customization: the sidebar's own edit mode writes it, and the
@@ -396,22 +395,18 @@ struct CueApp: App {
             && [MediaSearchService.tuneIn, .apple].contains { coreFeatures.isEnabled($0) }
     }
 
-    /// Whether the Audiobooks tab has books to show: an Audiobookshelf
-    /// sign-in, a Plex server that had books when last asked
-    /// (`AudiobookLibrary.checkPlexBooks`), or books in the Files folder.
-    /// Hidden in Settings › Appearance.
-    /// While offline only books downloaded whole can play,
-    /// so it stays while there are any.
+    /// Whether the Audiobooks tab shows: always, unless it's hidden in
+    /// Settings › Appearance. With no server for books yet it asks to sign
+    /// in to Plex or Audiobookshelf (`AudiobooksScreen`), so books are
+    /// there to find before any server is set up. While offline only books
+    /// downloaded whole can play, and nothing can be signed in to, so it
+    /// stays only while there are some.
     private var showsAudiobooksTab: Bool {
         guard showAudiobooksTab else { return false }
+        guard offline.isActive else { return true }
         // The Files folder's books are on this device, offline or not.
-        let hasFilesBooks = coreFeatures.isEnabled(.files) && !FilesLibraryService.shared.books.isEmpty
-        if offline.isActive {
-            return AudiobookDownloads.hasDownloadedBooks || hasFilesBooks
-        }
-        return (coreFeatures.isEnabled(.audiobookshelf) && AudiobookshelfAPI.shared.isConfigured)
-            || (coreFeatures.isEnabled(.plex) && hasPlexAudiobooks)
-            || hasFilesBooks
+        return AudiobookDownloads.hasDownloadedBooks
+            || (coreFeatures.isEnabled(.files) && !FilesLibraryService.shared.books.isEmpty)
     }
 
     /// Whether the Downloads tab shows: always offline, in Browse's place
@@ -817,13 +812,17 @@ struct CueApp: App {
                 quickLaunch(on: phase)
             }
             .onOpenURL(perform: handle)
+            // Whether Plex has books, for the Audiobooks tab: a server that
+            // gained some since last time brings the tab in. Again for a
+            // server signed in or switched to, which otherwise waited for
+            // the next launch.
+            .task(id: musicSearchService.plexServerID) {
+                if coreFeatures.isEnabled(.plex), !offline.isActive {
+                    await AudiobookLibrary.checkPlexBooks()
+                }
+            }
             .onAppear {
                 coreFeatures.restoreDeviceServicesOnce()
-                // Whether Plex has books, for the Audiobooks tab: a server
-                // that gained some since last time brings the tab in.
-                if coreFeatures.isEnabled(.plex), !offline.isActive {
-                    Task { await AudiobookLibrary.checkPlexBooks() }
-                }
                 // Asks whether there are speakers before anything looks for
                 // them. Onboarding writes `hasOnboarded` however it ends,
                 // so this is once per install, and starts monitoring itself
@@ -1959,6 +1958,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         #if os(iOS)
         // Cue's log as a file the Mac can copy off the phone.
         PhoneLogFile.start()
+        // `-dance.cue.logDefaultsWrites YES`: every UserDefaults write by
+        // key, and who made it.
+        DefaultsWriteLog.startIfRequested()
         #endif
         #endif
         // A Files scan gets the same card: progress on the Lock Screen and

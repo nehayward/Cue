@@ -31,7 +31,6 @@ struct GenreListView: View {
                 }
             }
         }
-        .miniPlayerOnScrollHandler()
         .listStyle(.inset)
         .navigationTitle("Genres")
         .navigationBarTitleDisplayMode(.inline)

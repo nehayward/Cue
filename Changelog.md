@@ -303,6 +303,15 @@ Play after a pause goes back a little, further the longer the book rested, and l
 - **Logs**: `smart resume:` under `audiobooks` (the watch's under `Player`): how far back, whether it found a pause and how far that moved it, how long a file read took, and on the iPhone how long Play took to play (`logPlayTime`), since a seek back on a streamed file may fetch those seconds again.
 - Not on a speaker yet. Tests: `SpeechGapsTests` and `AudiobookTimelineTests`, pure Swift.
 
+### Radio and Audiobooks frozen by a UserDefaults write loop
+On the phone (build 690 and the Debug builds after it) Radio's list wouldn't scroll or take taps, and Audiobooks the same; the Simulator never showed it.
+
+- **Cause**: `SearchScreen.validateSelectedServices`, run by `.task(id: settingsEnabledServices)`, called `searchSelection.prune(...)` on the `@AppStorage` value. A mutating call on a property wrapper's value gets and sets it, so the selection was saved every run even when `prune` changed nothing. Any UserDefaults write re-runs every `@AppStorage` view, `SearchScreen` and `CueApp` included, and the task ran again: about 35 writes a second once Search had been opened. Each pass re-ran `RadioScreen` (its own `@AppStorage`) and, through `Screens.radio`, put a new `SelectedGroupService` in the environment, so every station row redrew: ~1,000 row bodies a second, and the list's pan began and was dropped. It now prunes a copy and stores it only when it differs.
+- **`Screens`**: each tab's `SelectedGroupService` is made once (`groupService(_:)`), not in the builder on every `CueApp` pass.
+- **Audiobooks tab**: shows whenever it's switched on (`CueApp.showsAudiobooksTab`; offline still only with books downloaded), so a phone with no book server no longer loses it. With no server for books and none on the device, `AudiobooksScreen.serverPrompt` asks to sign in to Plex ("Choose Plex Books" when signed in without a books library) or Audiobookshelf, through `.plexManagement` and `.audiobookshelfManagement`. `CueApp` checks Plex for books with `.task(id: musicSearchService.plexServerID)` rather than once on appear, and the screen loads again once Audiobookshelf is signed in, so neither needs a relaunch. CarPlay's Audiobooks still needs a server with books.
+- **`DefaultsWriteLog`** (Debug, `-dance.cue.logDefaultsWrites YES`): counts every UserDefaults write by key, logs the busiest every 2 s and the app frames behind each key's first write, under `dance.cue` `defaults`. It found this after main-thread, overlay, gesture-state and tab-bar theories had been ruled out on the phone.
+- `miniPlayerOnScrollHandler()` (a no-op since its scroll handling was commented out) is gone from its 18 screens.
+
 ---
 
 ## 2026.7

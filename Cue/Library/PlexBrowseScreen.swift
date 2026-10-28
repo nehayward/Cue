@@ -151,7 +151,6 @@ struct PlexBrowseScreen: View {
             .musicLeftOffRoom()
             .navigationBarTitleDisplayMode(.inline)
             .contentMargins(.top, EdgeInsets(), for: .scrollContent)
-            .miniPlayerOnScrollHandler()
             // Default placement, not `.scrollContent`: the scoped form insets
             // the rows but leaves the List's section background running to the
             // scroll view's edge, so the card butted straight up against the

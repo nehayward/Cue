@@ -538,11 +538,21 @@ struct SearchScreen: View {
     /// Drops services the user disabled in Settings from the stored
     /// selection, falling back to the first enabled service so the selection
     /// is never empty.
+    ///
+    /// Stored only when something was dropped. A mutating call on the
+    /// `@AppStorage` value saved it every time, and any UserDefaults write
+    /// re-runs every `@AppStorage` view, this one included, which ran this
+    /// again: on an iPhone the selection was written about 35 times a
+    /// second, and Radio's list, redrawn with each write, couldn't scroll.
     private func validateSelectedServices() {
-        searchSelection.prune(
+        var pruned = searchSelection
+        pruned.prune(
             isEnabled: { coreFeatures.isEnabled($0) },
             fallback: settingsEnabledServices.first ?? .apple
         )
+        if pruned != searchSelection {
+            searchSelection = pruned
+        }
     }
 
     private func activateSelectedItem(at index: Int) {
