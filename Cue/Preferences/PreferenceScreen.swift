@@ -31,6 +31,7 @@ struct PreferenceScreen: View {
     @AppStorage(Defaults.AppStorageKeys.carPlayMiniPlayer) private var carPlayMiniPlayer: Bool = false
     @AppStorage(Defaults.AppStorageKeys.nowPlayingSession) private var nowPlayingSession: Bool = false
     @State private var offline = OfflineMode.shared
+    @AppStorage("dance.cue.debug.minimizeTabBar") private var minimizesTabBar: Bool = true
 #endif
     @AppStorage(Defaults.AppStorageKeys.lastSeenWhatsNewVersion) private var lastSeenWhatsNewVersion: String = ""
     @AppStorage(Defaults.AppStorageKeys.latestReleaseVersion) private var latestReleaseVersion: String = ""
@@ -361,6 +362,11 @@ struct PreferenceScreen: View {
                     // swap and Search's, switched while Cue runs.
                     Toggle(isOn: $offline.simulatesOffline) {
                         Label("Simulate No Network", systemImage: "wifi.slash")
+                    }
+                    // Whether the tab bar shrinking as a page scrolls is
+                    // what catches the scroll: switch it and compare.
+                    Toggle(isOn: $minimizesTabBar) {
+                        Label("Shrink Tab Bar on Scroll", systemImage: "dock.arrow.down.rectangle")
                     }
                 } header: {
                     Text("Debug")

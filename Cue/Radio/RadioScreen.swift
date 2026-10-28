@@ -80,7 +80,6 @@ struct RadioScreen: View {
             .refreshable {
                 await load(refreshing: true)
             }
-            .miniPlayerOnScrollHandler()
             .withAppRouter()
         }
         .environment(router)

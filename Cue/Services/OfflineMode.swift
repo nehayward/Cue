@@ -60,7 +60,22 @@ final class OfflineMode {
         }
         monitor.start(queue: DispatchQueue(label: "dance.cue.offline.path", qos: .utility))
         routeToDeviceIfOffline()
+        #if DEBUG
+        listenForSimulatedNetwork()
+        #endif
     }
+
+    #if DEBUG
+    /// Debug: `notifyutil -p dance.cue.debug.offline` (in the Simulator,
+    /// `xcrun simctl spawn booted notifyutil -p …`) flips Simulate No
+    /// Network from outside the app, whatever tab is showing.
+    private func listenForSimulatedNetwork() {
+        let center = CFNotificationCenterGetDarwinNotifyCenter()
+        CFNotificationCenterAddObserver(center, nil, { _, _, _, _, _ in
+            Task { @MainActor in OfflineMode.shared.simulatesOffline.toggle() }
+        }, "dance.cue.debug.offline" as CFString, nil, .deliverImmediately)
+    }
+    #endif
 
     /// Offline, the only place to play is here: the route moves to this
     /// device the moment the network drops, or at launch without one, so

@@ -102,7 +102,6 @@ struct ProviderTabScreen: View {
         }
         .contentMargins(.top, EdgeInsets(), for: .scrollContent)
         .contentMargins(.horizontal, 16)
-        .miniPlayerOnScrollHandler()
         .navigationTitle(service.title)
     }
 

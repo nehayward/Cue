@@ -335,7 +335,22 @@ struct CueApp: App {
     /// Settings › Appearance › Downloads: whether the tab shows while
     /// there's a network. Offline it shows whatever this says.
     @AppStorage(AppStorageKeys.showDownloadsTab) private var showDownloadsTab: Bool = true
-    @AppStorage(AppStorageKeys.hasPlexAudiobooks) private var hasPlexAudiobooks: Bool = false
+    #if DEBUG
+    /// Debug: Settings ▸ Debug ▸ Shrink Tab Bar on Scroll, to feel whether
+    /// the tab bar shrinking (and the mini player's accessory rebuilt as
+    /// its placement changes) is what catches a scroll.
+    @AppStorage("dance.cue.debug.minimizeTabBar") private var minimizesTabBar: Bool = true
+    #endif
+
+    /// The tab bar shrinks as a page scrolls down, the mini player moving
+    /// into it.
+    private var tabBarMinimize: TabBarMinimizeBehavior {
+        #if DEBUG
+        minimizesTabBar ? .onScrollDown : .never
+        #else
+        .onScrollDown
+        #endif
+    }
     /// The sidebar's edits — which of the provider tabs show, and the order
     /// of their sections — kept across launches. This is the whole of tab
     /// customization: the sidebar's own edit mode writes it, and the
@@ -380,22 +395,18 @@ struct CueApp: App {
             && [MediaSearchService.tuneIn, .apple].contains { coreFeatures.isEnabled($0) }
     }
 
-    /// Whether the Audiobooks tab has books to show: an Audiobookshelf
-    /// sign-in, a Plex server that had books when last asked
-    /// (`AudiobookLibrary.checkPlexBooks`), or books in the Files folder.
-    /// Hidden in Settings › Appearance.
-    /// While offline only books downloaded whole can play,
-    /// so it stays while there are any.
+    /// Whether the Audiobooks tab shows: always, unless it's hidden in
+    /// Settings › Appearance. With no server for books yet it asks to sign
+    /// in to Plex or Audiobookshelf (`AudiobooksScreen`), so books are
+    /// there to find before any server is set up. While offline only books
+    /// downloaded whole can play, and nothing can be signed in to, so it
+    /// stays only while there are some.
     private var showsAudiobooksTab: Bool {
         guard showAudiobooksTab else { return false }
+        guard offline.isActive else { return true }
         // The Files folder's books are on this device, offline or not.
-        let hasFilesBooks = coreFeatures.isEnabled(.files) && !FilesLibraryService.shared.books.isEmpty
-        if offline.isActive {
-            return AudiobookDownloads.hasDownloadedBooks || hasFilesBooks
-        }
-        return (coreFeatures.isEnabled(.audiobookshelf) && AudiobookshelfAPI.shared.isConfigured)
-            || (coreFeatures.isEnabled(.plex) && hasPlexAudiobooks)
-            || hasFilesBooks
+        return AudiobookDownloads.hasDownloadedBooks
+            || (coreFeatures.isEnabled(.files) && !FilesLibraryService.shared.books.isEmpty)
     }
 
     /// Whether the Downloads tab shows: always offline, in Browse's place
@@ -435,19 +446,21 @@ struct CueApp: App {
     /// switched on in Services.
     @TabContentBuilder<AppTab>
     private var radioTab: some TabContent<AppTab> {
-        Tab("Radio", systemImage: "radio", value: AppTab.radio) {
-            Screens.radio
+        if showsRadioTab {
+            Tab("Radio", systemImage: "radio", value: AppTab.radio) {
+                Screens.radio
+            }
         }
-        .hidden(!showsRadioTab)
     }
 
     /// Audiobooks, after Radio, while there are books (`showsAudiobooksTab`).
     @TabContentBuilder<AppTab>
     private var audiobooksTab: some TabContent<AppTab> {
-        Tab("Audiobooks", systemImage: "book", value: AppTab.audiobooks) {
-            Screens.audiobooks
+        if showsAudiobooksTab {
+            Tab("Audiobooks", systemImage: "book", value: AppTab.audiobooks) {
+                Screens.audiobooks
+            }
         }
-        .hidden(!showsAudiobooksTab)
     }
 
     /// Downloads, last, while there's music or a book here
@@ -458,17 +471,18 @@ struct CueApp: App {
     /// once).
     @TabContentBuilder<AppTab>
     private var downloadsTab: some TabContent<AppTab> {
-        Tab(value: AppTab.downloads) {
-            Screens.downloads
-        } label: {
-            Label {
-                Text("Downloads")
-            } icon: {
-                downloadsTabIcon
+        if showsDownloadsTab {
+            Tab(value: AppTab.downloads) {
+                Screens.downloads
+            } label: {
+                Label {
+                    Text("Downloads")
+                } icon: {
+                    downloadsTabIcon
+                }
             }
+            .badge(isPhone ? 0 : DownloadManager.shared.musicSummary.remainingDownloads)
         }
-        .badge(isPhone ? 0 : DownloadManager.shared.musicSummary.remainingDownloads)
-        .hidden(!showsDownloadsTab)
     }
 
     /// The download symbol, or while songs or books come down a ring round
@@ -640,15 +654,12 @@ struct CueApp: App {
                     // and set up in Settings › Services. No provider tabs, so
                     // the bar never overflows into More. The house is
                     // Browse's here, since it is the home. Offline it goes,
-                    // and Downloads leads in its place: hidden, not left
-                    // out, as every tab that comes and goes is. A tab taken
-                    // out and put back shifted the others, and the tab bar,
-                    // which matches its items by place, gave Browse the
-                    // Audiobooks icon back from Airplane Mode.
-                    Tab("Browse", image: "home.fill", value: AppTab.browse) {
-                        Screens.browse
+                    // and Downloads leads in its place.
+                    if showsBrowseTab {
+                        Tab("Browse", image: "home.fill", value: AppTab.browse) {
+                            Screens.browse
+                        }
                     }
-                    .hidden(!showsBrowseTab)
                     searchTab
                     radioTab
                     audiobooksTab
@@ -677,6 +688,14 @@ struct CueApp: App {
                     }
                 }
             }
+            // Built afresh when the network comes or goes, which takes Browse
+            // and Radio out or puts them back. The tab bar matches its items
+            // to tabs by place, so a tab put back in front of others came
+            // back with another's icon (Browse with the Audiobooks book after
+            // Airplane Mode). Hiding them with `.hidden(_:)` instead kept the
+            // items but caught every scroll on Radio and Audiobooks, and
+            // left a tab's page showing another's for seconds after a switch.
+            .id(offline.isActive)
             // Customization only with the library sections: it holds the
             // sidebar's edits, and with three fixed tabs there's no Edit.
             .tabViewCustomization(showsLibrarySections ? $tabCustomization : nil)
@@ -699,7 +718,7 @@ struct CueApp: App {
             // wrapped around the whole `TabView` it took its width from the
             // sidebar's, which then had to overlay the content instead of
             // sitting beside it.
-            .tabBarMinimizeBehavior(.onScrollDown)
+            .tabBarMinimizeBehavior(tabBarMinimize)
             .tabViewBottomAccessory {
                 MusicPlaybackView(showPlayer: $router.isPlayerPresented, zoomNamespace: zoomNamespace)
             }
@@ -793,13 +812,17 @@ struct CueApp: App {
                 quickLaunch(on: phase)
             }
             .onOpenURL(perform: handle)
+            // Whether Plex has books, for the Audiobooks tab: a server that
+            // gained some since last time brings the tab in. Again for a
+            // server signed in or switched to, which otherwise waited for
+            // the next launch.
+            .task(id: musicSearchService.plexServerID) {
+                if coreFeatures.isEnabled(.plex), !offline.isActive {
+                    await AudiobookLibrary.checkPlexBooks()
+                }
+            }
             .onAppear {
                 coreFeatures.restoreDeviceServicesOnce()
-                // Whether Plex has books, for the Audiobooks tab: a server
-                // that gained some since last time brings the tab in.
-                if coreFeatures.isEnabled(.plex), !offline.isActive {
-                    Task { await AudiobookLibrary.checkPlexBooks() }
-                }
                 // Asks whether there are speakers before anything looks for
                 // them. Onboarding writes `hasOnboarded` however it ends,
                 // so this is once per install, and starts monitoring itself
@@ -1935,6 +1958,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         #if os(iOS)
         // Cue's log as a file the Mac can copy off the phone.
         PhoneLogFile.start()
+        // `-dance.cue.logDefaultsWrites YES`: every UserDefaults write by
+        // key, and who made it.
+        DefaultsWriteLog.startIfRequested()
         #endif
         #endif
         // A Files scan gets the same card: progress on the Lock Screen and

@@ -71,7 +71,6 @@ struct OnDeviceCollectionScreen: View {
         .onAppear {
             apple.refreshIfNeeded()
         }
-        .miniPlayerOnScrollHandler()
         .navigationTitle(collection.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

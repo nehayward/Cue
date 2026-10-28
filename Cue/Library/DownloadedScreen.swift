@@ -44,7 +44,6 @@ struct DownloadedScreen: View {
         }
         .contentMargins(.top, EdgeInsets(), for: .scrollContent)
         .contentMargins(.horizontal, 16)
-        .miniPlayerOnScrollHandler()
         .navigationTitle(service == nil ? "Downloads" : "Downloaded")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
