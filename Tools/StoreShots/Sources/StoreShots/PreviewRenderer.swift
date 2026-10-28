@@ -60,7 +60,8 @@ enum PreviewRenderer {
             let screenSize = CGSize(width: width, height: (width * aspect).rounded())
             let device = CGSize(width: width * (1 + border), height: width * (aspect + border))
             let canvas = CGSize(width: (device.width * 1.36).rounded(), height: (device.height * 1.14).rounded())
-            phone = Phone3D(model: model, screenSize: screenSize, canvas: canvas, finish: project.theme.finish)
+            let floor = (project.theme.palette.first ?? project.theme.base).cgColor
+            phone = Phone3D(model: model, screenSize: screenSize, canvas: canvas, finish: project.theme.finish, floor: floor)
             layout = Layout(size: size,
                             box: CGRect(x: ((size.width - canvas.width) / 2).rounded(),
                                         y: (bottom - (canvas.height - device.height) / 2).rounded(),
