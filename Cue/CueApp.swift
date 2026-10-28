@@ -15,25 +15,6 @@ import CoreSpotlight
 import WidgetKit
 #endif
 
-/// The tab bar shrinking as a page scrolls down, on every tab but
-/// Audiobooks.
-///
-/// UIKit shrinks or grows the bar from inside the page's own scroll step
-/// (its scroll observers), laying out the bar, the mini player and the tab
-/// there and then: 30 ms or more of one frame in the Simulator. On
-/// Audiobooks, a SwiftUI scroll view barely a screen tall, the iPhone's
-/// flicks from the top stopped dead about 70 pt down, where the bar shrinks,
-/// again and again; the other tabs' lists coast through it. A modifier of
-/// its own so a tab switch re-reads this, not `CueApp`'s body.
-private struct TabBarMinimize: ViewModifier {
-    let router: Router
-    let isEnabled: Bool
-
-    func body(content: Content) -> some View {
-        content.tabBarMinimizeBehavior(isEnabled && router.selectedTab != .audiobooks ? .onScrollDown : .never)
-    }
-}
-
 /// Tab bar accessory mini player for wherever the route points: this device,
 /// or the Sonos group chosen in the route button. Tapping the track opens the
 /// player; the trailing controls act in place.
@@ -583,7 +564,7 @@ struct CueApp: App {
             // wrapped around the whole `TabView` it took its width from the
             // sidebar's, which then had to overlay the content instead of
             // sitting beside it.
-            .modifier(TabBarMinimize(router: router, isEnabled: appState.tabBarMinimizes))
+            .tabBarMinimizeBehavior(appState.tabBarMinimizes ? .onScrollDown : .never)
             .tabViewBottomAccessory {
                 MusicPlaybackView(showPlayer: $router.isPlayerPresented, zoomNamespace: zoomNamespace)
             }

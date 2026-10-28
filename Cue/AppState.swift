@@ -230,7 +230,7 @@ final class AppState {
     }
 
     /// The tab bar shrinks as a page scrolls down, the mini player moving
-    /// into it (on every tab but Audiobooks: `TabBarMinimize`).
+    /// into it.
     var tabBarMinimizes: Bool {
         #if DEBUG
         minimizesTabBar
