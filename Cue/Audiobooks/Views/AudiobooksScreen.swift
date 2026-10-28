@@ -27,6 +27,13 @@ struct AudiobooksScreen: View {
     /// Plex's books, the last read kept from the first frame.
     @State private var plex = PlexBookShelf.shared
     @State private var plexAuthenticator = PlexAuthenticator.shared
+    /// The tallest bottom safe area seen: the tab bar with the mini player
+    /// at full size. The scroll view ignores the bottom safe area and keeps
+    /// this as a fixed margin instead, so the tab bar shrinking as the page
+    /// scrolls (`tabBarMinimizeBehavior`) doesn't move the page's bottom
+    /// edge mid-scroll. On a page barely a screen tall the edge moved 56 pt
+    /// under a coast, which bounced it back: the scroll stopped dead.
+    @State private var fullBottomInset: CGFloat = 0
 
     /// Whether Plex had books when last asked: the shelf's copy, not
     /// `@AppStorage`, which rebuilt the tab with every UserDefaults write.
@@ -101,15 +108,24 @@ struct AudiobooksScreen: View {
 
                     AudiobookWordsSection()
                 }
+                // The whole width, as the lazy stack took: a plain one
+                // hugs its sections, and with none (no server yet) the
+                // scroll view, and the sign-in prompt over it, went to
+                // nothing wide.
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .overlay {
                 if needsServer {
+                    // Centred above the tab bar: the scroll view runs under it.
                     serverPrompt
+                        .padding(.bottom, fullBottomInset)
                 }
             }
             // Rounded is set on each part rather than here: the outermost
             // `.fontDesign` wins, and the book's title is New York.
-            .contentMargins(.bottom, 120, for: .scrollContent)
+            .contentMargins(.bottom, 120 + fullBottomInset, for: .scrollContent)
+            .contentMargins(.bottom, fullBottomInset, for: .scrollIndicators)
+            .ignoresSafeArea(.container, edges: .bottom)
             .navigationTitle("Audiobooks")
             // Inline, as the library tabs have it.
             .toolbarTitleDisplayMode(.inline)
@@ -125,6 +141,9 @@ struct AudiobooksScreen: View {
                 scanServers()
             }
             .withAppRouter()
+        }
+        .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { inset in
+            fullBottomInset = max(fullBottomInset, inset)
         }
         .environment(router)
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)
