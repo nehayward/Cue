@@ -30,7 +30,6 @@ struct WelcomeScreen: View {
     @Environment(CoreFeatures.self) private var coreFeatures
     @Environment(\.dismiss) private var dismiss
     @AppStorage(GroupStorageKeys.hasOnboarded, store: GroupStorageKeys.storage) private var hasOnboarded: Bool = false
-    @AppStorage(AppStorageKeys.selectedSearchServices) private var searchSelection = SelectedSearchServices()
 
     @State private var step: Step = .welcome
     @State private var installedServices: Set<SonosServiceType> = []
@@ -169,7 +168,7 @@ struct WelcomeScreen: View {
                 // Default the active search service to Apple Music if
                 // available, then Plex, then radio — matches what most users
                 // want without forcing them into Preferences.
-                searchSelection = SelectedSearchServices([CoreFeatures.preferredDefaultService(from: installedSet)])
+                SearchSelectionStore.shared.selection = SelectedSearchServices([CoreFeatures.preferredDefaultService(from: installedSet)])
                 goTo(.services)
             }
         }

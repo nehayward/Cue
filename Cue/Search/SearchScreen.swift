@@ -12,7 +12,6 @@ struct SearchScreen: View {
         case search
     }
 
-    @Environment(\.dismiss) private var dismiss
 
     @Environment(SonosService.self) private var sonosService: SonosService
     @Environment(MusicSearchService.self) var musicSearchService
@@ -23,9 +22,24 @@ struct SearchScreen: View {
     @Environment(AppleMusicBrowseService.self) private var appleMusicBrowseService
     @Environment(MiniPlayerManger.self) private var miniPlayerManager
 
-    @AppStorage(AppStorageKeys.selectedSearchServices) private var searchSelection = SelectedSearchServices()
-    @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
-    @AppStorage(AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
+    // No `@AppStorage` and no `dismiss` held here: either made the whole
+    // screen rebuild, hidden or not, on every UserDefaults write, every tab
+    // switch and return to Cue (`CueApp` re-running), and every frame of
+    // the keyboard coming back. Settings are observed (`SearchSelectionStore`)
+    // or read when used, and `dismiss` only in `DismissesSearch`.
+    @State private var selectionStore = SearchSelectionStore.shared
+
+    private var searchSelection: SelectedSearchServices {
+        get { selectionStore.selection }
+        nonmutating set { selectionStore.selection = newValue }
+    }
+
+    /// Asked of MusicKit, which answers at once; the search service's
+    /// status is read too, so a grant made here shows at once.
+    private var isAppleMusicAuthorized: Bool {
+        musicSearchService.appleMusicAuthorizationStatus == .authorized
+            || MusicAuthorization.currentStatus == .authorized
+    }
     var favorites: Bool = false
     var closeInspector: (() -> Void)? = nil
 
@@ -108,7 +122,7 @@ struct SearchScreen: View {
     private var showsApplePermissionsPrompt: Bool {
         searchSelection.primary == .apple
             && selectedSearchServices.count == 1
-            && appleMusicAuthorized != .authorized
+            && !isAppleMusicAuthorized
     }
 
     /// The rows actually on screen. Must apply the SAME filters the results
@@ -154,6 +168,7 @@ struct SearchScreen: View {
         @Bindable var router = router
         @Bindable var musicSearchService = musicSearchService
         @Bindable var sonosService = sonosService
+        let _ = ScrollStopLog.note("body search")
 
         NavigationStack(path: $router.path) {
             ScrollViewReader { proxy in
@@ -341,9 +356,7 @@ struct SearchScreen: View {
             // on an iPhone SE each time a search answered while typing.
             .animation(.snappy, value: filters)
             .animation(.snappy, value: searchCompletionTapped)
-            .addDismiss(override: contentToAdd != nil) {
-                dismiss()
-            }
+            .modifier(DismissesSearch(showsButton: contentToAdd != nil))
             .withAppRouter()
         }
         .withAlert(enabled: showAlert)
@@ -384,9 +397,7 @@ struct SearchScreen: View {
         .environment(router)
         .environment(musicSearchService)
         .environment(alertService)
-        .onChange(of: contentToAdd?.content) {
-            dismiss()
-        }
+        .modifier(DismissesSearch(added: contentToAdd?.content))
         .onChange(of: musicSearchService.query) {
             keyboardSelectedIndex = nil
             if !musicSearchService.query.isEmpty {
@@ -429,14 +440,26 @@ struct SearchScreen: View {
 #endif
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .onAppear {
+            ScrollStopLog.note("search appeared", logNow: true)
             searchFieldIsPresented = true
             lastNonEmptyQuery = ""
             musicSearchService.query = ""
             answerFocusRequest()
         }
         .onDisappear {
+            ScrollStopLog.note("search went", logNow: true)
             if !lastNonEmptyQuery.isEmpty {
                 recentQueries.addOrMoveToFront(lastNonEmptyQuery)
+            }
+        }
+        // Debug: the keyboard going down and up again while typing is the
+        // field losing focus and getting it back; each is logged with what
+        // came just before (`ScrollStopLog`).
+        .onChange(of: focusedField) { old, new in
+            if old == .search, new == nil {
+                ScrollStopLog.reportRecent("search field lost focus")
+            } else if new == .search {
+                ScrollStopLog.note("search field focused", logNow: true)
             }
         }
         .animation(.interactiveSpring, value: focusedField)
@@ -486,7 +509,7 @@ struct SearchScreen: View {
             // The services being searched, at the field's end: what the
             // field searches is part of it.
             if !offline.isActive {
-                MediaServiceMenu(selection: $searchSelection, filters: $filters)
+                MediaServiceMenu(selection: $selectionStore.selection, filters: $filters)
             }
         }
         .toolbarBackground(with: true, in: .capsule)
@@ -529,6 +552,7 @@ struct SearchScreen: View {
         guard request != answeredFocusRequest else { return }
         answeredFocusRequest = request
         guard isTab else { return }
+        ScrollStopLog.note("search focus requested", logNow: true)
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(100))
             focusedField = .search
@@ -596,7 +620,7 @@ struct SearchScreen: View {
             return
         }
         Task { @MainActor in
-            let position = QueuePosition.defaultPosition(for: item.content.type, replaceQueueByDefault: replaceQueueByDefault)
+            let position = QueuePosition.defaultPosition(for: item.content.type, replaceQueueByDefault: UserDefaults.standard.bool(forKey: AppStorageKeys.defaultPlayAction))
             let queueSong: ((GroupRoom, QueuePosition) async throws -> Void) = { group, selectedPosition in
                 QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: selectedPosition, title: selectedPosition.title))
                 Router.main.show(destination: .player(groupID: group.coordinatorID))
@@ -981,4 +1005,29 @@ private struct SearchSuggestionsBar: View {
     SearchScreen()
         .environment(Router.search)
         .forPreview()
+}
+
+/// Search's way out when it's presented to pick something to add: the
+/// close button, and closing once something's picked. `dismiss` is read
+/// here rather than in `SearchScreen`, so a new one (a navigation stack
+/// hands its views one whenever it's drawn) redraws this, not the screen.
+private struct DismissesSearch: ViewModifier {
+    /// The close button, inside the navigation stack.
+    var showsButton: Bool?
+    /// What was picked to add; a change closes Search.
+    var added: PlayableContent?
+
+    @Environment(\.dismiss) private var dismiss
+
+    func body(content: Content) -> some View {
+        if let showsButton {
+            content.addDismiss(override: showsButton) {
+                dismiss()
+            }
+        } else {
+            content.onChange(of: added) {
+                dismiss()
+            }
+        }
+    }
 }

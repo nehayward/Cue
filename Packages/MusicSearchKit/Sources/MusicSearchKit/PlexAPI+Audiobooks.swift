@@ -86,7 +86,13 @@ extension PlexAPI {
     public func audiobookLibraryKeys() async -> Set<String> {
         guard let sections = await musicLibraries() else { return knownAudiobookLibraryKeys }
         let keys = Set(audiobookLibraryChoices(from: sections).filter(\.isBooks).map(\.section.key))
-        knownAudiobookLibraryKeys = keys
+        // Kept only when they changed: this runs with every Plex search,
+        // one for each pause in typing, and in Cue any UserDefaults write
+        // re-runs every view holding an `@AppStorage`, the Search screen
+        // and the whole tab view among them, under the field being typed in.
+        if keys != knownAudiobookLibraryKeys {
+            knownAudiobookLibraryKeys = keys
+        }
         return keys
     }
 
@@ -172,8 +178,12 @@ extension PlexAPI {
         let storeKey = Self.audiobookGenresKey(serverID: serverID, sectionKey: sectionKey)
         var keys = UserDefaults.standard.stringArray(forKey: storeKey)
         if fresh || keys == nil, let genres = await audiobookGenres(sectionKey: sectionKey, base: base) {
-            keys = genres.map(\.key)
-            UserDefaults.standard.set(keys, forKey: storeKey)
+            let read = genres.map(\.key)
+            // Kept only when they changed, as the book libraries are.
+            if read != keys {
+                UserDefaults.standard.set(read, forKey: storeKey)
+            }
+            keys = read
         }
         return (keys ?? []).map { URLQueryItem(name: "genre!", value: $0) }
     }

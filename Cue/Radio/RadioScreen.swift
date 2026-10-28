@@ -1,4 +1,4 @@
-import Defaults
+import MusicKit
 import MusicSearchKit
 import SonosKit
 import SwiftUI
@@ -17,7 +17,6 @@ struct RadioScreen: View {
     @Environment(CoreFeatures.self) private var coreFeatures
     @Environment(\.horizontalSizeClass) private var sizeClass
 
-    @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
 
     /// This tab's own stack, never a shared router: two stacks bound to one
     /// path push each other.
@@ -29,7 +28,17 @@ struct RadioScreen: View {
     /// Apple's stations load on open, so they wait for an authorization the
     /// user has already given rather than prompting for one from this tab.
     /// Search still asks, the way the Search tab does.
-    private var showsApple: Bool { coreFeatures.isEnabled(.apple) && appleMusicAuthorized == .authorized }
+    ///
+    /// Asked of MusicKit, which answers at once, rather than kept in
+    /// `@AppStorage`: the tab rebuilt whole with every UserDefaults write,
+    /// iOS's own as Cue comes back included, and redrew every station.
+    /// The search service's status is read too, so a grant made while the
+    /// tab is open (Search asks) shows the stations.
+    private var showsApple: Bool {
+        guard coreFeatures.isEnabled(.apple) else { return false }
+        return musicSearchService.appleMusicAuthorizationStatus == .authorized
+            || MusicAuthorization.currentStatus == .authorized
+    }
 
     private var trimmedQuery: String {
         query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -46,6 +55,7 @@ struct RadioScreen: View {
     }
 
     var body: some View {
+        let _ = ScrollStopLog.note("body radio")
         NavigationStack(path: $router.path) {
             List {
                 if !trimmedQuery.isEmpty {
@@ -62,6 +72,7 @@ struct RadioScreen: View {
             .fontDesign(.rounded)
             .contentMargins(.top, EdgeInsets(), for: .scrollContent)
             .contentMargins(.bottom, 120, for: .scrollContent)
+            .scrollStopLog("radio")
             .navigationTitle("Radio")
             // Inline, as the library tabs have it.
             .toolbarTitleDisplayMode(.inline)

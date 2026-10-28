@@ -1,3 +1,4 @@
+import Defaults
 import Foundation
 import MusicSearchKit
 import SonosKit
@@ -27,6 +28,11 @@ final class PlexBookShelf {
     private(set) var isFresh = false
     /// The server these are from.
     private var server: String?
+    /// Whether the Plex server has books (`AppStorageKeys.hasPlexAudiobooks`),
+    /// kept here for the Audiobooks tab to observe. Held there in
+    /// `@AppStorage`, the tab rebuilt with every UserDefaults write, shown
+    /// or not. `AudiobookLibrary.checkPlexBooks` sets both.
+    var hasBooks = UserDefaults.standard.bool(forKey: AppStorageKeys.hasPlexAudiobooks)
 
     private init() {
         show(server: MusicSearchService.shared.plexServerID)
