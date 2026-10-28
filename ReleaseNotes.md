@@ -65,6 +65,7 @@
 - Apple Watch: with no connection, your Plex and Subsonic Playlists, Albums and Artists show the ones on your watch instead of an error
 - Fixed Radio and Audiobooks not scrolling or responding to taps
 - Radio and Audiobooks scroll smoothly as you switch to them or come back to Cue, without a jolt
+- Search no longer stutters as you come back to Cue with its keyboard up, and coming back no longer rebuilds tabs you aren't looking at
 - The Audiobooks tab is always there now: before you've set up any books, it offers to sign in to Plex or Audiobookshelf. Hide it under Settings ▸ Appearance
 
 # 2026.7

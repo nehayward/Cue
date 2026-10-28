@@ -89,7 +89,24 @@ enum AppTab: Hashable, Codable {
     /// that happens to open it — the accessory is re-hosted by the system, and
     /// state living there went down with it.
     var isPlayerPresented = false
-    var path: [RouterDestination] = []
+    /// The pushed screens. A write that changes nothing is dropped: an
+    /// observed property reports every write, and the navigation stacks
+    /// write their path back unchanged as a scene returns to the
+    /// foreground, which re-ran each tab's screen right as it was being
+    /// scrolled.
+    var path: [RouterDestination] {
+        get {
+            access(keyPath: \.path)
+            return storedPath
+        }
+        set {
+            guard newValue != storedPath else { return }
+            withMutation(keyPath: \.path) {
+                storedPath = newValue
+            }
+        }
+    }
+    @ObservationIgnored private var storedPath: [RouterDestination] = []
     var presentedSheet: SheetDestination?
     /// Destinations presented as `fullScreenCover` rather than `.sheet`.
     /// Currently used for `.paywall` and `.onboard` — moments where we want
