@@ -261,29 +261,3 @@ extension SonosService {
         }
     }
 }
-
-
-extension View {
-    @ViewBuilder
-    func miniPlayerOnScrollHandler() -> some View {
-        if #available(iOS 18.0, *) {
-            self
-//            self.onScrollGeometryChange(for: CGFloat.self, of: { geo in
-//                return geo.contentOffset.y + geo.contentInsets.top
-//            }, action: { new, old in
-//                let delta = new - old
-//                guard new >= 0 else { return }
-//
-//                withAnimation(.interactiveSpring()) {
-//                    if delta < 0 {  // Scrolling up
-//                        MiniPlayerManger.shared.offset = min(abs(new), 300)  // Show view
-//                    } else if delta > 0 {  // Scrolling down
-//                        MiniPlayerManger.shared.offset = 0    // Hide view
-//                    }
-//                }
-//            })
-        } else {
-            self // fallback behavior for earlier versions
-        }
-    }
-}

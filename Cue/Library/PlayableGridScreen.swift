@@ -87,7 +87,6 @@ struct PlayableGridScreen: View {
             reachedEnd = false
             await action?(0)
         }
-        .miniPlayerOnScrollHandler()
         .overlay {
             if isLoading {
                 ProgressView()

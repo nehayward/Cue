@@ -1,4 +1,3 @@
-import Defaults
 import MusicSearchKit
 import SonosKit
 import SwiftUI
@@ -17,7 +16,6 @@ import SwiftUI
 struct AudiobooksScreen: View {
     @Environment(CoreFeatures.self) private var coreFeatures
     @Environment(MusicSearchService.self) private var musicSearchService
-    @AppStorage(AppStorageKeys.hasPlexAudiobooks) private var hasPlexBooks = false
 
     /// This tab's own stack, never a shared router: two stacks bound to one
     /// path push each other.
@@ -28,19 +26,35 @@ struct AudiobooksScreen: View {
     @State private var player = AudiobookPlayer.shared
     /// Plex's books, the last read kept from the first frame.
     @State private var plex = PlexBookShelf.shared
+    @State private var plexAuthenticator = PlexAuthenticator.shared
+    /// The tallest bottom safe area seen: the tab bar with the mini player
+    /// at full size. The scroll view ignores the bottom safe area and keeps
+    /// this as a fixed margin instead, so the tab bar shrinking as the page
+    /// scrolls (`tabBarMinimizeBehavior`) doesn't move the page's bottom
+    /// edge mid-scroll. On a page barely a screen tall the edge moved 56 pt
+    /// under a coast, which bounced it back: the scroll stopped dead.
+    @State private var fullBottomInset: CGFloat = 0
 
+    /// Whether Plex had books when last asked: the shelf's copy, not
+    /// `@AppStorage`, which rebuilt the tab with every UserDefaults write.
+    private var hasPlexBooks: Bool { plex.hasBooks }
     private var showsPlex: Bool { coreFeatures.isEnabled(.plex) && hasPlexBooks }
     private var showsAudiobookshelf: Bool { coreFeatures.isEnabled(.audiobookshelf) && shelf.isAuthenticated }
     /// The Files folder's books (`FilesIndex`), on this device already.
     private var filesBooks: [PlayableContent] { coreFeatures.isEnabled(.files) ? FilesLibraryService.shared.books : [] }
 
     var body: some View {
+        let _ = ScrollStopLog.note("body audiobooks")
         // Offline, only what's whole on this device plays.
         let isOffline = OfflineMode.shared.isActive
         let listened = isOffline ? listenedBooks.filter(AudiobookDownloads.isDownloaded) : listenedBooks
         let continuing = continuing(listened, isOffline: isOffline)
         let finished = listened.filter { store.progress(for: $0)?.isFinished == true }
         let downloaded = AudiobookDownloads.downloadedBooks(completeOnly: isOffline)
+        // No server for books yet and none on this device: the tab asks
+        // to sign in to one rather than showing empty shelves.
+        let needsServer = !isOffline && !showsPlex && !showsAudiobookshelf
+            && filesBooks.isEmpty && listened.isEmpty && downloaded.isEmpty
 
         NavigationStack(path: $router.path) {
             // A scroll view, not a list: a list gives each of its rows one
@@ -48,10 +62,18 @@ struct AudiobooksScreen: View {
             // Continue Listening card or a shelf brought up the first
             // book's menu.
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    AudiobookContinueCard(books: continuing)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
+                // A plain stack, not a lazy one: the tab is a handful of
+                // sections, each shelf lazy in its own row, and a lazy stack
+                // guessed the height of the sections out of view 100-150 pt
+                // out, then corrected it as they came in. The page's height
+                // changed under the finger at every pass of the top, which
+                // jolted the scroll or stopped it dead.
+                VStack(alignment: .leading, spacing: 0) {
+                    if !needsServer {
+                        AudiobookContinueCard(books: continuing)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                    }
 
                     // On this device or on their way: what plays with no
                     // network.
@@ -87,16 +109,32 @@ struct AudiobooksScreen: View {
 
                     AudiobookWordsSection()
                 }
+                // The whole width, as the lazy stack took: a plain one
+                // hugs its sections, and with none (no server yet) the
+                // scroll view, and the sign-in prompt over it, went to
+                // nothing wide.
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .overlay {
+                if needsServer {
+                    // Centred above the tab bar: the scroll view runs under it.
+                    serverPrompt
+                        .padding(.bottom, fullBottomInset)
+                }
             }
             // Rounded is set on each part rather than here: the outermost
             // `.fontDesign` wins, and the book's title is New York.
-            .contentMargins(.bottom, 120, for: .scrollContent)
+            .contentMargins(.bottom, 120 + fullBottomInset, for: .scrollContent)
+            .contentMargins(.bottom, fullBottomInset, for: .scrollIndicators)
+            .ignoresSafeArea(.container, edges: .bottom)
+            .scrollStopLog("audiobooks")
             .navigationTitle("Audiobooks")
             // Inline, as the library tabs have it.
             .toolbarTitleDisplayMode(.inline)
-            // Again for another Plex server, or Plex's books turned on
-            // while the tab is open (the Plex sheet over it).
-            .task(id: "\(musicSearchService.plexServerID ?? "")|\(hasPlexBooks)") {
+            // Again for another Plex server, Plex's books turned on or
+            // Audiobookshelf signed in while the tab is open (their sheets
+            // over it).
+            .task(id: "\(musicSearchService.plexServerID ?? "")|\(hasPlexBooks)|\(showsAudiobookshelf)") {
                 await load()
             }
             // A pull scans each server, and reads it once the scan is done:
@@ -104,8 +142,10 @@ struct AudiobooksScreen: View {
             .refreshable {
                 scanServers()
             }
-            .miniPlayerOnScrollHandler()
             .withAppRouter()
+        }
+        .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { inset in
+            fullBottomInset = max(fullBottomInset, inset)
         }
         .environment(router)
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)
@@ -143,6 +183,41 @@ struct AudiobooksScreen: View {
     /// Every book listened to, once each, newest first.
     private var listenedBooks: [PlayableContent] {
         AudiobookLibrary.listenedBooks(plex: coreFeatures.isEnabled(.plex), audiobookshelf: showsAudiobookshelf, files: coreFeatures.isEnabled(.files))
+    }
+
+    // MARK: - No server
+
+    /// The tab before any server for books is set up: the way to one.
+    /// Signed in to Plex already, what's missing is which of its libraries
+    /// hold books, which the Plex sheet chooses too.
+    private var serverPrompt: some View {
+        let plexSignedIn = plexAuthenticator.authToken != nil
+        return ContentUnavailableView {
+            Label("No Audiobooks Yet", systemImage: "book")
+        } description: {
+            Text(plexSignedIn
+                ? "Choose which of your Plex libraries hold books, or sign in to Audiobookshelf, to listen to them here."
+                : "Sign in to Plex or Audiobookshelf to listen to your books here.")
+        } actions: {
+            VStack(spacing: 12) {
+                Button {
+                    router.presentedSheet = .plexManagement
+                } label: {
+                    Text(plexSignedIn ? "Choose Plex Books" : "Sign In to Plex")
+                        .frame(maxWidth: 240)
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button {
+                    router.presentedSheet = .audiobookshelfManagement
+                } label: {
+                    Text("Sign In to Audiobookshelf")
+                        .frame(maxWidth: 240)
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .fontDesign(.rounded)
     }
 
     // MARK: - Libraries

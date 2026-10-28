@@ -26,24 +26,22 @@ struct BrowseScreen: View {
     @State private var router = Router.browse
     @State private var isLoaded: Bool = false
     @State private var coreFeatures = CoreFeatures.shared
-    @State private var offline = OfflineMode.shared
 
     /// The window draws them in the iPad's layout (`WindowToasts`).
     private var showAlert: Bool { !usesPadLayout }
     
     var body: some View {
+        // Offline, Browse leaves the tab bar and Downloads takes its place
+        // (`CueApp`): the provider screens have nothing to show with no
+        // network.
         VStack {
-            // Browse is the phone's home, so it is where offline shows what's
-            // on this device; the provider screens below have nothing to
-            // show with no network.
-            if offline.isActive {
-                OfflineBrowseScreen()
-            } else {
-                browseScreen
-            }
+            browseScreen
         }
         .contentMargins(.top, EdgeInsets(), for: .scrollContent)
         .contentMargins(.bottom, 120, for: .scrollContent)
+        // Beside Radio's and Audiobooks', to tell a stop of theirs from
+        // one every tab has.
+        .scrollStopLog("browse")
         .withAlert(enabled: showAlert)
 #if !targetEnvironment(macCatalyst)
         .safeArea(edge: .bottom) {

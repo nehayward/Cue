@@ -10,10 +10,8 @@ struct PlayableContentRowView: View {
     private static let swipeableTypes: Set<ContentType> = [.playlist, .libraryPlaylist, .album, .track, .libraryTrack, .libraryAlbum]
     
     @Environment(Router.self) private var router: Router?
-    @Environment(\.dismiss) private var dismiss
     @Environment(ContentToAdd.self) private var adding: ContentToAdd?
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService?
-    @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
     @State private var averageColor: Color?
     @State private var audioService = AudioPlaybackService.shared
 
@@ -67,11 +65,21 @@ struct PlayableContentRowView: View {
         hideDetails || item.content.service == .unknown || (adding?.add == true && !item.content.type.isArtist)
     }
     
+    // No `@AppStorage` and no `dismiss` held here: every UserDefaults
+    // write re-runs a view holding `@AppStorage`, and a navigation stack
+    // hands its views a new `dismiss` whenever it's drawn, so every row
+    // on a screen redrew on each tab switch and each return to Cue. The
+    // play setting is read when a row is played, and `dismiss` only by
+    // the rows that close their sheet after playing.
     var body: some View {
-        content
+        if dismissOnComplete {
+            DismissReader { content(dismiss: $0) }
+        } else {
+            content(dismiss: nil)
+        }
     }
-    
-    private var content: some View {
+
+    private func content(dismiss: DismissAction?) -> some View {
         Menu {
            PlayableMenuView(item: item)
         } label: {
@@ -163,7 +171,7 @@ struct PlayableContentRowView: View {
                     // out of the way instead of flashing the queue in behind it.
                     // Skip when there's no group yet — play() puts up a group
                     // picker we'd otherwise dismiss along with this sheet.
-                    if dismissOnComplete, selectedGroupService?.group != nil {
+                    if let dismiss, selectedGroupService?.group != nil {
                         dismiss()
                     }
                 }
@@ -201,7 +209,7 @@ struct PlayableContentRowView: View {
         Task { @MainActor in
             let defaultPosition = position ?? QueuePosition.defaultPosition(
                 for: (parent ?? item).content.type,
-                replaceQueueByDefault: replaceQueueByDefault
+                replaceQueueByDefault: UserDefaults.standard.bool(forKey: Defaults.AppStorageKeys.defaultPlayAction)
             )
             let queueSong: ((GroupRoom, QueuePosition) async throws -> Void) = { [item, parent, index, total] group, selectedPosition in
                 if let parent, position == nil {
@@ -245,3 +253,14 @@ struct PlayableContentRowView: View {
 //    .preferredColorScheme(.dark)
 //    
 //}
+
+/// Hands its content the `dismiss` of where it's shown, for the rows that
+/// need it (`PlayableContentRowView.dismissOnComplete`).
+private struct DismissReader<Content: View>: View {
+    @Environment(\.dismiss) private var dismiss
+    @ViewBuilder let content: (DismissAction) -> Content
+
+    var body: some View {
+        content(dismiss)
+    }
+}

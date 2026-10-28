@@ -11,6 +11,7 @@ import VibesDS
 
 struct MediaDetailView: View {
     @Environment(Router.self) private var router
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.usesPadLayout) private var usesPadLayout
     @Environment(PlaylistContainer.self) private var playlistsContainer: PlaylistContainer
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
@@ -77,11 +78,20 @@ struct MediaDetailView: View {
         playableContent.isReorderablePlaylist && serviceEditable
     }
 
+    /// A downloaded album or playlist from the on-device library
+    /// (`OnDeviceLibrary`): its songs are the ones here, read from the
+    /// device, so the page opens with no network and keeps up as downloads
+    /// come and go. It has no server's album or playlist behind it to
+    /// download, open a menu on, edit, or go to the artist of.
+    private var isOnDevice: Bool {
+        OnDeviceLibrary.isContainer(playableContent)
+    }
+
     /// Plex keeps a playlist in its own order and won't sort its items, but
     /// says how many there are, so every page can be loaded and the songs
     /// sorted here.
     private var sortsSongs: Bool {
-        playableContent.content.service == .plex && playableContent.content.type == .playlist
+        playableContent.content.service == .plex && playableContent.content.type == .playlist && !isOnDevice
     }
 
     /// One row of the song list: the song, where it sits in the playlist
@@ -134,6 +144,9 @@ struct MediaDetailView: View {
                                         hideArtwork: content?.content.type == .album,
                                         hideContentType: true,
                                         index: row.number,
+                                        // Only some of a downloaded album may be
+                                        // here: each shows its place on the album.
+                                        number: isOnDevice && playableContent.content.type == .album ? item.metadata?.position : nil,
                                         dismissOnComplete: true,
                                         total: totalSongs ?? tracks.count,
                                         onRemoveFromPlaylist: isEditablePlaylist ? { removeTrack(at: index) } : nil,
@@ -230,12 +243,15 @@ struct MediaDetailView: View {
             PlaylistUndoMenuBridge.shared.editor = editor
             // Resolve edit permission independently so the Edit affordance isn't gated on track
             // loading (instant for Sonos, an ownership lookup for streaming).
-            Task { serviceEditable = await confirmServiceEditable() }
+            Task { serviceEditable = isOnDevice ? false : await confirmServiceEditable() }
             await updateTracks(offset: loadedItemCount)
             restoreSongSort()
             if songSort != .playlistOrder {
                 await applySongSort()
             }
+        }
+        .onChange(of: isOnDevice ? OnDeviceLibrary.changeToken : 0) {
+            loadOnDeviceTracks()
         }
         .onChange(of: tracks) { _, tracks in
             // A song removed (or put back by Undo) while sorted: sort again
@@ -367,16 +383,22 @@ struct MediaDetailView: View {
                 .allowsTightening(true)
                 .lineLimit(1)
             HStack(spacing: 0) {
-                Button {
-                    HapticManager.shared.fireHaptic(.buttonPress)
-                    router.navigate(to: .artistDetail(content: content ?? playableContent, group: selectedGroupService.group))
-                } label: {
+                if isOnDevice {
                     Text(content?.metadata?.artist ?? "")
                         .bold()
                         .lineLimit(1)
-                        .underline()
+                } else {
+                    Button {
+                        HapticManager.shared.fireHaptic(.buttonPress)
+                        router.navigate(to: .artistDetail(content: content ?? playableContent, group: selectedGroupService.group))
+                    } label: {
+                        Text(content?.metadata?.artist ?? "")
+                            .bold()
+                            .lineLimit(1)
+                            .underline()
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
                 
                 let yearText = content?.metadata?.albumYear?.formatted(.dateTime.year())
                 let songsCount = totalSongs ?? (tracks.isEmpty ? nil : tracks.count)
@@ -421,7 +443,7 @@ struct MediaDetailView: View {
                 .glassButton()
                 .foregroundStyle(.primary)
                 
-                if let content {
+                if let content, !isOnDevice {
                     // Keep the whole album or playlist on this device — the
                     // same action as the ellipsis menu's This Device ›
                     // Download, one tap from the header.
@@ -437,6 +459,9 @@ struct MediaDetailView: View {
                     .buttonBorderShape(.circle)
                     .contentShape(.rect)
                     .glassButton()
+                } else if isOnDevice {
+                    // All here: the button says so, with Remove behind it.
+                    OnDeviceDownloadButton(container: playableContent)
                 }
             }
             .bold()
@@ -658,6 +683,11 @@ struct MediaDetailView: View {
             return
         }
 
+        if isOnDevice {
+            loadOnDeviceTracks()
+            return
+        }
+
         var newTracks: [PlayableContent] = []
         // How many raw source items this page consumed. Defaults to the number of playable
         // tracks produced, but services that can drop items mid-page (Spotify) override it
@@ -845,6 +875,21 @@ struct MediaDetailView: View {
         }
     }
     
+    /// The songs of a downloaded album that are on the device, in track
+    /// order.
+    private func loadOnDeviceTracks() {
+        guard isOnDevice else { return }
+        let hadTracks = !tracks.isEmpty
+        tracks = OnDeviceLibrary.tracks(inContainer: playableContent) ?? []
+        loadedItemCount = tracks.count
+        isLoadingMore = false
+        // Its last song removed, from the header's button or a row's menu:
+        // there's no album or playlist here any more to show.
+        if hadTracks, tracks.isEmpty {
+            dismiss()
+        }
+    }
+
     func appendTracksAvoidingDuplicates(newTracks: [PlayableContent], to tracks: inout [PlayableContent]) {
         // Seed counts from the already-loaded tracks in a single pass, then update as we
         // append. Avoids re-scanning the whole (growing) tracks array for every new row,
@@ -852,16 +897,25 @@ struct MediaDetailView: View {
         var idCounts: [String: Int] = tracks.reduce(into: [:]) { counts, track in
             counts[track.id, default: 0] += 1
         }
+        var rowIDs = Set(tracks.map(\.trackID))
 
         for var newTrack in newTracks {
             let originalID = newTrack.id
             let existingCount = idCounts[originalID, default: 0]
 
             if existingCount > 0 {
-                newTrack.metadata?.position = existingCount + 1
+                // A library song's position is its track number, which the
+                // copy's count can land on: step past a row id in use.
+                var position = existingCount + 1
+                newTrack.metadata?.position = position
+                while newTrack.metadata != nil, rowIDs.contains(newTrack.trackID) {
+                    position += 1
+                    newTrack.metadata?.position = position
+                }
             }
 
             idCounts[originalID] = existingCount + 1
+            rowIDs.insert(newTrack.trackID)
             tracks.append(newTrack)
         }
     }

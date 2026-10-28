@@ -1,9 +1,11 @@
 import SwiftUI
 import WatchSync
 
-/// What's on the watch: Fast Download while songs are still to come, the
-/// songs added one at a time, then each album, playlist and artist with
-/// how far it's got and the room it takes, then the books.
+/// What's on the watch: Fast Download while songs are still to come, then
+/// the music (the songs added one at a time, each album, playlist and
+/// artist with how far it's got and the room it takes) and the books,
+/// each under its own heading. A swipe takes one off, as its page's Remove
+/// from Watch does.
 struct DownloadsScreen: View {
     @Environment(WatchDownloadStore.self) private var store
     @Environment(\.zoomNamespace) private var zoom
@@ -13,41 +15,63 @@ struct DownloadsScreen: View {
         let collections = store.musicPicks.filter { $0.kind != .song }
         let songPicks = store.picks.items.filter { $0.kind == .song }
         List {
-            Section {
-                if store.remainingCount > 0 || store.fastPhase != .off {
+            if store.remainingCount > 0 || store.fastPhase != .off {
+                Section {
                     Button {
                         isShowingFastDownload = true
                     } label: {
                         FastDownloadRow()
                     }
                 }
-                if !songPicks.isEmpty {
-                    NavigationLink(value: LibraryRoute.songs) {
-                        SongsRow(count: songPicks.count, bytes: store.bytesUsed(by: store.songs(in: songPicks.map(\.key))))
+            }
+
+            if !songPicks.isEmpty || !collections.isEmpty {
+                Section {
+                    if !songPicks.isEmpty {
+                        NavigationLink(value: LibraryRoute.songs) {
+                            SongsRow(count: songPicks.count, bytes: store.bytesUsed(by: store.songs(in: songPicks.map(\.key))))
+                        }
+                        .zoomSource(LibraryRoute.songs, in: zoom)
                     }
-                    .zoomSource(LibraryRoute.songs, in: zoom)
-                }
-                ForEach(collections, id: \.key) { pick in
-                    NavigationLink(value: LibraryRoute.pick(pick.key)) {
-                        PickRow(pick: pick)
+                    ForEach(collections, id: \.key) { pick in
+                        NavigationLink(value: LibraryRoute.pick(pick.key)) {
+                            PickRow(pick: pick)
+                        }
+                        .zoomSource(LibraryRoute.pick(pick.key), in: zoom)
+                        .swipeActions {
+                            removeButton(pick)
+                        }
                     }
-                    .zoomSource(LibraryRoute.pick(pick.key), in: zoom)
+                } header: {
+                    Text("Music")
                 }
-                ForEach(store.books, id: \.key) { pick in
-                    let route = BookRoute(key: pick.key)
-                    NavigationLink(value: route) {
-                        BookRow(pick: pick, showsSize: true)
+            }
+
+            if !store.books.isEmpty {
+                Section {
+                    ForEach(store.books, id: \.key) { pick in
+                        let route = BookRoute(key: pick.key)
+                        NavigationLink(value: route) {
+                            BookRow(pick: pick, showsSize: true)
+                        }
+                        .zoomSource(route, in: zoom)
+                        .swipeActions {
+                            removeButton(pick)
+                        }
                     }
-                    .zoomSource(route, in: zoom)
+                } header: {
+                    Text("Books")
                 }
-                if store.picks.items.isEmpty {
-                    Text("Nothing here yet. Browse your library, or choose Add to Apple Watch in Cue on your iPhone.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .listRowBackground(Color.clear)
-                }
-            } footer: {
-                if !store.picks.items.isEmpty {
+            }
+
+            if store.picks.items.isEmpty {
+                Text("Nothing here yet. Browse your library, or choose Add to Apple Watch in Cue on your iPhone.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .listRowBackground(Color.clear)
+            } else {
+                Section {
+                } footer: {
                     Text(storageSummary)
                 }
             }
@@ -80,6 +104,16 @@ struct DownloadsScreen: View {
         }
         lines.append("Get Cue Super in Cue on your iPhone.")
         return lines.joined(separator: " ")
+    }
+
+    /// Takes a pick off the watch and the iPhone's list; it stays on its
+    /// server, and a book's place is kept.
+    private func removeButton(_ pick: WatchPick) -> some View {
+        Button(role: .destructive) {
+            store.remove(key: pick.key)
+        } label: {
+            Label("Remove", systemImage: "trash")
+        }
     }
 
     private var storageSummary: String {
@@ -180,8 +214,9 @@ private struct SongsRow: View {
     }
 }
 
-/// An album, playlist or artist on the watch, with how far it's got.
-private struct PickRow: View {
+/// An album, playlist or artist on the watch, with how far it's got: on
+/// Downloads, and in a library list when its server can't be reached.
+struct PickRow: View {
     @Environment(WatchDownloadStore.self) private var store
     let pick: WatchPick
 
@@ -191,11 +226,11 @@ private struct PickRow: View {
                 .frame(width: 36, height: 36)
             VStack(alignment: .leading) {
                 Text(pick.title)
-                    .lineLimit(1)
+                    .lineLimit(2)
                 Text(detail)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                    .lineLimit(2)
                     .monospacedDigit()
             }
         }

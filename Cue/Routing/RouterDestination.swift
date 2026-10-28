@@ -34,12 +34,15 @@ public enum RouterDestination: Hashable, Identifiable {
     case downloads
     /// The same, open on the books downloaded whole.
     case bookDownloads
+    /// One of Storage's pages: what's coming down, or the songs, albums,
+    /// playlists or books kept here.
+    case storagePage(StoragePage)
     /// What's on this device from one provider — or every provider for
-    /// nil — as a small library: Artists, Albums and Songs. A provider's
-    /// Downloaded row opens its own.
+    /// nil, the Downloads tab — as a small library: Artists, Albums and
+    /// Songs. Settings ▸ Storage opens Apple Music's.
     case downloaded(service: MusicService?)
     /// One grouped page of the on-device library: what's here by album or
-    /// by artist, from one provider or — for Offline Mode — all of them.
+    /// by artist, from one provider or — offline — all of them.
     case onDeviceCollection(OnDeviceCollection, service: MusicService? = nil)
     case houseHold
     case spotifyUserPlaylist
@@ -102,6 +105,8 @@ public enum RouterDestination: Hashable, Identifiable {
             return "downloads"
         case .bookDownloads:
             return "bookDownloads"
+        case let .storagePage(page):
+            return "storagePage.\(page.rawValue)"
         case .bookWords:
             return "bookWords"
         case let .downloaded(service):
@@ -173,6 +178,8 @@ public enum RouterDestination: Hashable, Identifiable {
             return true
         case (.bookDownloads, .bookDownloads):
             return true
+        case let (.storagePage(page1), .storagePage(page2)):
+            return page1 == page2
         case (.bookWords, .bookWords):
             return true
         case let (.downloaded(service1), .downloaded(service2)):
@@ -243,6 +250,9 @@ public enum RouterDestination: Hashable, Identifiable {
             hasher.combine("downloads")
         case .bookDownloads:
             hasher.combine("bookDownloads")
+        case let .storagePage(page):
+            hasher.combine("storagePage")
+            hasher.combine(page)
         case .bookWords:
             hasher.combine("bookWords")
         case let .downloaded(service):

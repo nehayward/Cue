@@ -2,10 +2,12 @@ import SonosKit
 import SwiftUI
 
 /// The on-device library as sections for a `List`: Play and Shuffle across
-/// everything here, then Artists, Albums and Songs, the way a provider's
-/// front page reads, each filtered to what's on the device and searchable
-/// without a network. Narrowed to one provider's songs on its Downloaded
-/// page; everything, whatever the provider, for Offline Mode.
+/// everything here, then Artists, Albums, Songs and Playlists, the way a
+/// provider's front page reads, each filtered to what's on the device and
+/// searchable without a network, the books downloaded, and a shelf of the
+/// albums and playlists downloaded last. Everything, whatever the
+/// provider, in the Downloads tab and offline; narrowed to one
+/// provider's songs from Settings ▸ Storage.
 ///
 /// Shows nothing when the library is empty — the screen around it says
 /// what to download.
@@ -13,21 +15,37 @@ struct OnDeviceLibrarySections: View {
     /// The provider to show, or nil for all of them.
     var service: MusicService? = nil
 
+    /// The side margins of the lists these show in
+    /// (`contentMargins(.horizontal, 16)`), which the shelf reaches past.
+    private static let listMargin: CGFloat = 16
+    /// Where the shelf's first cover sits from the screen's edge: in line
+    /// with the rows' text.
+    private static let shelfInset: CGFloat = 32
+
     @State private var downloads = DownloadManager.shared
     @State private var apple = AppleDownloadsIndex.shared
     @State private var files = FilesLibraryService.shared
 
     var body: some View {
         // Read here so a download finishing or an index rebuilding
-        // recounts the rows; the library itself is static.
-        let _ = downloads.completed.count
+        // recounts the rows; the library itself is static. The summary,
+        // not the downloads themselves, which move with every byte.
+        let _ = downloads.musicSummary
         let _ = apple.version
         let _ = files.indexVersion
         let songCount = OnDeviceLibrary.allSongs(in: service).count
+        // Books are the Audiobooks tab's to play; listed only with every
+        // provider's songs.
+        let bookCount = service == nil ? downloads.musicSummary.books : 0
 
         if songCount > 0 {
             playSection
-            librarySection(songCount: songCount)
+        }
+        if songCount > 0 || bookCount > 0 {
+            librarySection(songCount: songCount, bookCount: bookCount)
+        }
+        if songCount > 0 {
+            recentSection
         }
     }
 
@@ -61,26 +79,88 @@ struct OnDeviceLibrarySections: View {
         }
     }
 
-    /// The library over what's here: Artists, Albums and Songs, with a
-    /// count on each, plus where it all came from in the footer.
-    private func librarySection(songCount: Int) -> some View {
-        Section {
-            NavigationLink(value: RouterDestination.onDeviceCollection(.artists, service: service)) {
-                libraryRow("Artists", systemImage: OnDeviceCollection.artists.systemImage, count: OnDeviceLibrary.groups(.artists, sortedBy: .title, descending: false, in: service).count)
+    /// The library over what's here: Artists, Albums, Songs, Playlists
+    /// and Books, with a count on each, plus where it all came from in the
+    /// footer.
+    private func librarySection(songCount: Int, bookCount: Int) -> some View {
+        let playlistCount = OnDeviceLibrary.groups(.playlists, sortedBy: .title, descending: false, in: service).count
+        return Section {
+            if songCount > 0 {
+                NavigationLink(value: RouterDestination.onDeviceCollection(.artists, service: service)) {
+                    libraryRow("Artists", systemImage: OnDeviceCollection.artists.systemImage, count: OnDeviceLibrary.groups(.artists, sortedBy: .title, descending: false, in: service).count)
+                }
+                NavigationLink(value: RouterDestination.onDeviceCollection(.albums, service: service)) {
+                    libraryRow("Albums", systemImage: OnDeviceCollection.albums.systemImage, count: OnDeviceLibrary.groups(.albums, sortedBy: .title, descending: false, in: service).count)
+                }
+                NavigationLink(value: songsDestination) {
+                    libraryRow("Songs", systemImage: "music.note", count: songCount)
+                }
             }
-            NavigationLink(value: RouterDestination.onDeviceCollection(.albums, service: service)) {
-                libraryRow("Albums", systemImage: OnDeviceCollection.albums.systemImage, count: OnDeviceLibrary.groups(.albums, sortedBy: .title, descending: false, in: service).count)
+            if playlistCount > 0 {
+                NavigationLink(value: RouterDestination.onDeviceCollection(.playlists, service: service)) {
+                    libraryRow("Playlists", systemImage: OnDeviceCollection.playlists.systemImage, count: playlistCount)
+                }
             }
-            NavigationLink(value: songsDestination) {
-                libraryRow("Songs", systemImage: "music.note", count: songCount)
+            if bookCount > 0 {
+                // The books downloaded or on their way, where they're
+                // looked after.
+                NavigationLink(value: RouterDestination.bookDownloads) {
+                    libraryRow("Books", systemImage: "book", count: bookCount)
+                }
             }
-        } header: {
-            Text("On This Device")
         } footer: {
-            Text(sourcesLine)
+            // No header: every screen these show on is about what's here.
+            if songCount > 0 {
+                Text(sourcesLine)
+            }
         }
     }
 
+    /// The albums and playlists downloaded last, as covers, each opening
+    /// on its page. The shelf runs to the screen's edges, past the list's
+    /// side margins, as the Audiobooks tab's shelves do: in a row it was
+    /// cut off at the margin, a cover scrolled aside half showing, since a
+    /// list clips its rows to their section's rounded card. So it's the
+    /// section's header, which isn't clipped, with no rows under it.
+    @ViewBuilder
+    private var recentSection: some View {
+        let recent = OnDeviceLibrary.recentlyDownloaded(in: service)
+        if !recent.isEmpty {
+            Section {
+            } header: {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Recently Downloaded")
+                        .padding(.leading, Self.shelfInset - Self.listMargin)
+                    ScrollView(.horizontal) {
+                        LazyHStack(alignment: .top, spacing: 12) {
+                            ForEach(recent) { group in
+                                NavigationLink(value: OnDeviceLibrary.destination(for: group)) {
+                                    RecentDownloadTile(group: group)
+                                }
+                                .buttonStyle(.plain)
+                                // No long-press menu: a list's section header
+                                // never presents one, the press ending as a
+                                // tap. Its page has Remove Download.
+                            }
+                        }
+                        .scrollTargetLayout()
+                    }
+                    // Margins, not padding, so the covers settle in line
+                    // with the rows above rather than at the screen's edge.
+                    .contentMargins(.horizontal, Self.shelfInset, for: .scrollContent)
+                    .scrollIndicators(.hidden)
+                    .scrollTargetBehavior(.viewAligned)
+                    .padding(.horizontal, -Self.listMargin)
+                    .textCase(nil)
+                }
+                .padding(.top, 8)
+                .listRowInsets(EdgeInsets())
+            }
+        }
+    }
+
+    /// A row of the library. The icon in the text's colour, not the accent:
+    /// the counts are what the eye goes to.
     private func libraryRow(_ title: String, systemImage: String, count: Int) -> some View {
         Label {
             HStack {
@@ -92,6 +172,7 @@ struct OnDeviceLibrarySections: View {
             }
         } icon: {
             Image(systemName: systemImage)
+                .foregroundStyle(.primary)
         }
     }
 
@@ -99,8 +180,8 @@ struct OnDeviceLibrarySections: View {
     /// folder — so the counts above have a source.
     private var sourcesLine: String {
         let downloaded = service == nil
-            ? downloads.completedSongs.count
-            : downloads.completedSongs.filter { $0.service == service }.count
+            ? downloads.songsHere.count
+            : downloads.songsHere.filter { $0.service == service }.count
         let appleCount = service == nil || service == .apple ? OnDeviceLibrary.appleSongs.count : 0
         let fileCount = service == nil || service == .files ? OnDeviceLibrary.fileSongs.count : 0
 
@@ -159,6 +240,33 @@ struct OnDeviceLibrarySections: View {
         await PlayDestinationRouter.play(songs, position: .replace) { group, position in
             try await SonosService.shared.queue(contents: songs, group: group, position: position, startIndex: 0)
         }
+    }
+}
+
+/// An album or playlist on the Recently Downloaded shelf: its cover, with
+/// its name and the line under it.
+private struct RecentDownloadTile: View {
+    let group: OnDeviceLibrary.Group
+
+    private static let size: CGFloat = 120
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ContentArtworkView(content: group.container, showMusicSource: false, preferredSize: 300, cornerRadius: 6)
+                .frame(width: Self.size, height: Self.size)
+            // Its own type and colours, not the section header's it sits
+            // in: the colours themselves, since `.primary` and `.secondary`
+            // as styles go by the header's dimmed one.
+            Text(group.title)
+                .font(.footnote)
+                .foregroundStyle(Color.primary)
+                .lineLimit(1)
+            Text(group.subtitle)
+                .font(.caption)
+                .foregroundStyle(Color.secondary)
+                .lineLimit(1)
+        }
+        .frame(width: Self.size)
     }
 }
 

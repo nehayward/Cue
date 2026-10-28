@@ -50,6 +50,9 @@ struct Theme: Decodable {
 struct DeviceSetup: Decodable {
     /// A model from the catalog (`storeshots devices` lists them).
     var model: String
+    /// The app `shoot --launch` relaunches on this device, when it isn't the
+    /// project's (a watch app has a bundle ID of its own).
+    var bundleID: String?
     /// The simulator `shoot` and `record` use, by name.
     var simulator: String?
     /// `simctl --display` for a device with two screens: the iPhone Duo's

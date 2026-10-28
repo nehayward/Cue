@@ -24,12 +24,15 @@ struct PreferenceScreen: View {
     
     @AppStorage("AppIcon") private var selectedAppIcon = "Default"
     
-    @AppStorage(Defaults.AppStorageKeys.colorScheme) private var colorScheme: ColorSchemePreference = .system
+    /// The theme's name on Appearance's row, and Debug's tab bar switch:
+    /// the app's own settings (`AppState`).
+    @State private var appState = AppState.shared
 #if DEBUG
     // Off until it's known whether the car's Now Playing follows without it
     // (`CarPlayInterface.start`).
     @AppStorage(Defaults.AppStorageKeys.carPlayMiniPlayer) private var carPlayMiniPlayer: Bool = false
     @AppStorage(Defaults.AppStorageKeys.nowPlayingSession) private var nowPlayingSession: Bool = false
+    @State private var offline = OfflineMode.shared
 #endif
     @AppStorage(Defaults.AppStorageKeys.lastSeenWhatsNewVersion) private var lastSeenWhatsNewVersion: String = ""
     @AppStorage(Defaults.AppStorageKeys.latestReleaseVersion) private var latestReleaseVersion: String = ""
@@ -47,7 +50,6 @@ struct PreferenceScreen: View {
     
     @State private var isUploading = false
     @State private var uploadSuccess = false
-    @State private var offline = OfflineMode.shared
 
     
 #if DEBUG
@@ -249,11 +251,9 @@ struct PreferenceScreen: View {
                 }
 
                 Section {
-                    offlineModeRow
-
                     NavigationLink(value: RouterDestination.settingsPage(.appearance)) {
                         LabeledContent {
-                            Text(colorScheme.rawValue.capitalized)
+                            Text(appState.colorScheme.rawValue.capitalized)
                         } label: {
                             Label {
                                 Text("Appearance")
@@ -358,6 +358,16 @@ struct PreferenceScreen: View {
 #endif
                     Toggle(isOn: $nowPlayingSession) {
                         Label("Now Playing Session", systemImage: "play.rectangle")
+                    }
+                    // The offline app with the network up: the tab bar's
+                    // swap and Search's, switched while Cue runs.
+                    Toggle(isOn: $offline.simulatesOffline) {
+                        Label("Simulate No Network", systemImage: "wifi.slash")
+                    }
+                    // Whether the tab bar shrinking as a page scrolls is
+                    // what catches the scroll: switch it and compare.
+                    Toggle(isOn: $appState.minimizesTabBar) {
+                        Label("Shrink Tab Bar on Scroll", systemImage: "dock.arrow.down.rectangle")
                     }
                 } header: {
                     Text("Debug")
@@ -514,29 +524,6 @@ struct PreferenceScreen: View {
         if id.contains("annual") || id.contains("yearly") { return "Annual" }
         if id.contains("month") { return "Monthly" }
         return nil
-    }
-
-    /// Offline Mode stays a switch here rather than a page: it's turned on
-    /// and off on the way out of the door.
-    private var offlineModeRow: some View {
-        @Bindable var offline = offline
-        return Toggle(isOn: $offline.isOn) {
-            Label {
-                VStack(alignment: .leading) {
-                    Text("Offline Mode")
-                    Text(offline.hasNetwork
-                         ? "Home shows only what's on this device, and everything plays here"
-                         : "No network — on until the connection is back")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            } icon: {
-                SettingsIcon(symbol: "airplane", colors: [Color(red: 1.0, green: 0.6, blue: 0.3), Color(red: 0.95, green: 0.45, blue: 0.2)])
-            }
-        }
-        // With no network the app is offline whatever the switch says;
-        // flipping it would promise a change that can't happen.
-        .disabled(!offline.hasNetwork)
     }
 
     private func formattedSize(_ bytes: Int) -> String {

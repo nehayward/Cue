@@ -42,7 +42,9 @@ final class PlaybackCache {
     /// Keys being fetched right now.
     private(set) var inFlight: Set<String> = []
 
-    /// How many songs to keep. Zero turns the cache off.
+    /// How many songs to keep, as chosen. Zero turns the cache off. Without
+    /// Cue Super the cache keeps `freeSongLimit` at most whatever this says
+    /// (`effectiveSongLimit`), and the choice is kept for when Super comes.
     var songLimit: Int {
         didSet {
             UserDefaults.standard.set(songLimit, forKey: AppStorageKeys.playbackCacheSongLimit)
@@ -89,6 +91,18 @@ final class PlaybackCache {
     private(set) var isOnExpensivePath = false
 
     var isEnabled: Bool { songLimit > 0 }
+
+    /// The most songs the cache keeps without Cue Super: the free download
+    /// limit's, since cached songs play with no network as downloads do.
+    static let freeSongLimit = 50
+
+    /// How many songs the cache keeps now: `songLimit`, held to
+    /// `freeSongLimit` without Super (`GatedFeature.largePlaybackCache`).
+    /// Read as the cache trims, so a lapsed Super lets the extra go as
+    /// songs next come in.
+    var effectiveSongLimit: Int {
+        FeatureGate.shared.isAvailable(.largePlaybackCache) ? songLimit : min(songLimit, Self.freeSongLimit)
+    }
 
     var totalBytes: Int64 {
         entries.values.reduce(0) { $0 + $1.size }
@@ -237,7 +251,7 @@ final class PlaybackCache {
         let files = FilesLibraryService.shared
         streamedCloudIDs.removeAll { files.isKept(trackID: $0) }
         var evictable = streamedCloudIDs.filter { !cloudWanted.contains($0) }
-        while streamedCloudIDs.count > songLimit, !evictable.isEmpty {
+        while streamedCloudIDs.count > effectiveSongLimit, !evictable.isEmpty {
             let victim = evictable.removeFirst()
             files.evictStreamed(trackIDs: [victim])
             streamedCloudIDs.removeAll { $0 == victim }
@@ -379,11 +393,12 @@ final class PlaybackCache {
     /// Evicts the least recently played beyond the cap, never anything the
     /// queue wants next.
     private func trim() {
-        guard songLimit >= 0 else { return }
+        let limit = effectiveSongLimit
+        guard limit >= 0 else { return }
         var evictable = entries.values
             .filter { !wanted.contains($0.key) }
             .sorted { $0.lastUsed < $1.lastUsed }
-        while entries.count > songLimit, let victim = evictable.first {
+        while entries.count > limit, let victim = evictable.first {
             evictable.removeFirst()
             try? FileManager.default.removeItem(at: Self.fileURL(key: victim.key, fileExtension: victim.fileExtension))
             entries[victim.key] = nil

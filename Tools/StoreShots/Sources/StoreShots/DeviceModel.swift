@@ -12,12 +12,16 @@ struct DeviceModel {
         case foldable
         case tablet
         case watch
+        /// A television: a thin black border and an aluminium edge, no
+        /// buttons, drawn round a landscape screenshot.
+        case tv
     }
 
     let id: String
     /// App Store Connect's name for the slot.
     let slot: String
-    /// The portrait size App Store Connect takes (landscape swaps it).
+    /// The portrait size App Store Connect takes (landscape swaps it): a
+    /// television's is its landscape size turned on its side.
     let canvas: CGSize
     /// The App Preview size, portrait.
     let preview: CGSize?
@@ -52,6 +56,9 @@ struct DeviceModel {
         DeviceModel(id: "watch-46", slot: "Apple Watch Series 10, 11, 12 (46mm)",
                     canvas: CGSize(width: 416, height: 496), preview: nil,
                     kind: .watch, screenRadius: 0.23, bezel: 0.058, rim: 0.048, depth: 0.27, titleScale: 0.08),
+        DeviceModel(id: "apple-tv", slot: "Apple TV",
+                    canvas: CGSize(width: 2160, height: 3840), preview: nil,
+                    kind: .tv, screenRadius: 0.006, bezel: 0.014, rim: 0.005, depth: 0.03, titleScale: 0.058),
         DeviceModel(id: "watch-ultra", slot: "Apple Watch Ultra 3, 4 (49mm)",
                     canvas: CGSize(width: 422, height: 514), preview: nil,
                     kind: .watch, screenRadius: 0.17, bezel: 0.06, rim: 0.09, depth: 0.3, titleScale: 0.08),

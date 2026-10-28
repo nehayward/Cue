@@ -66,10 +66,6 @@ struct SubsonicBrowseScreen: View {
                         Label("Songs", systemImage: "music.note")
                     }
 
-                    NavigationLink(value: RouterDestination.downloaded(service: .subsonic)) {
-                        Label("Downloaded", systemImage: "arrow.down.circle")
-                    }
-
                     NavigationLink(value: RouterDestination.playableGridScreen(
                         title: "Playlists",
                         items: $subsonicBrowseService.userPlaylists,
@@ -114,7 +110,6 @@ struct SubsonicBrowseScreen: View {
             .animation(.default, value: subsonicBrowseService.userPlaylists)
             .animation(hasLoadedOnce ? .default : nil, value: subsonicBrowseService.recentAlbums)
             .contentMargins(.top, EdgeInsets(), for: .scrollContent)
-            .miniPlayerOnScrollHandler()
             // Default placement, as on Plex's: `.scrollContent` insets the
             // rows but leaves the group's background running to the edge.
             .contentMargins(.horizontal, 16)

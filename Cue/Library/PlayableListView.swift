@@ -263,7 +263,6 @@ struct PlayableListView: View {
             animatesNextFill = true
             await reload()
         }
-        .miniPlayerOnScrollHandler()
         .foregroundStyle(.foreground)
         .listStyle(.plain)
         .toolbar {

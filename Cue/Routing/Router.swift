@@ -20,6 +20,10 @@ enum AppTab: Hashable, Codable {
     /// partway through, and every book on Plex and Audiobookshelf. Shown
     /// while either has books.
     case audiobooks
+    /// The music on this device, every provider's, with what's still
+    /// coming down. Shown while there's any downloaded or on its way, its
+    /// icon a ring filling while they come down (a badge off the phone).
+    case downloads
     /// A provider the user added to the tab view, as one tab: its library's
     /// front page (Artists, Albums, … as rows). This is the tab bar's entry
     /// on iPhone, where a section's worth of tabs would overflow the bar.
@@ -32,7 +36,7 @@ enum AppTab: Hashable, Codable {
     /// take its selection with it.
     var provider: MediaSearchService? {
         switch self {
-        case .home, .search, .browse, .radio, .audiobooks: nil
+        case .home, .search, .browse, .radio, .audiobooks, .downloads: nil
         case let .provider(service): service
         case let .providerCollection(service, _): service
         }
@@ -43,6 +47,7 @@ enum AppTab: Hashable, Codable {
     static var main: Router = {
         let router = Router()
         router.selectedTab = lastTab
+        router.savedTab = router.selectedTab
         router.keepsTab = true
         return router
     }()
@@ -55,12 +60,20 @@ enum AppTab: Hashable, Codable {
     /// (`search`, `browse`) navigate within a tab and have no say over which
     /// one is showing. The main router's is kept across launches: the app
     /// opens on the tab it was left on (one that's gone since shows the
-    /// fallback, `CueApp.resolvedTab`).
-    var selectedTab: AppTab = .home {
-        didSet {
-            guard keepsTab, selectedTab != oldValue else { return }
-            UserDefaults.standard.set(try? JSONEncoder().encode(selectedTab), forKey: AppStorageKeys.selectedTab)
-        }
+    /// fallback, `CueApp.resolvedTab`). Kept as Cue leaves the foreground
+    /// (`saveSelectedTab()`), not on every switch: any UserDefaults write
+    /// re-runs every view holding `@AppStorage`, the tab being shown
+    /// among them, just as it appears.
+    var selectedTab: AppTab = .home
+
+    /// The tab last kept, so leaving on the same one writes nothing.
+    @ObservationIgnored private var savedTab: AppTab?
+
+    /// Keeps the selected tab for the next launch.
+    func saveSelectedTab() {
+        guard keepsTab, selectedTab != savedTab else { return }
+        savedTab = selectedTab
+        UserDefaults.standard.set(try? JSONEncoder().encode(selectedTab), forKey: AppStorageKeys.selectedTab)
     }
 
     /// Whether `selectedTab` is kept across launches: the main router's.
@@ -76,7 +89,24 @@ enum AppTab: Hashable, Codable {
     /// that happens to open it — the accessory is re-hosted by the system, and
     /// state living there went down with it.
     var isPlayerPresented = false
-    var path: [RouterDestination] = []
+    /// The pushed screens. A write that changes nothing is dropped: an
+    /// observed property reports every write, and the navigation stacks
+    /// write their path back unchanged as a scene returns to the
+    /// foreground, which re-ran each tab's screen right as it was being
+    /// scrolled.
+    var path: [RouterDestination] {
+        get {
+            access(keyPath: \.path)
+            return storedPath
+        }
+        set {
+            guard newValue != storedPath else { return }
+            withMutation(keyPath: \.path) {
+                storedPath = newValue
+            }
+        }
+    }
+    @ObservationIgnored private var storedPath: [RouterDestination] = []
     var presentedSheet: SheetDestination?
     /// Destinations presented as `fullScreenCover` rather than `.sheet`.
     /// Currently used for `.paywall` and `.onboard` — moments where we want
@@ -105,7 +135,7 @@ enum AppTab: Hashable, Codable {
     func handleReselection(of tab: AppTab) {
         switch tab {
         case .search: SearchActivator.shared.requestFocus()
-        case .home, .browse, .radio, .audiobooks, .provider, .providerCollection: break
+        case .home, .browse, .radio, .audiobooks, .downloads, .provider, .providerCollection: break
         }
     }
 

@@ -112,7 +112,6 @@ struct AudiobookshelfBrowseScreen: View {
             }
             .animation(hasLoadedOnce ? .default : nil, value: browse.continueListening)
             .contentMargins(.top, EdgeInsets(), for: .scrollContent)
-            .miniPlayerOnScrollHandler()
             // Default placement, as on Plex's: `.scrollContent` insets the
             // rows but leaves the group's background running to the edge.
             .contentMargins(.horizontal, 16)

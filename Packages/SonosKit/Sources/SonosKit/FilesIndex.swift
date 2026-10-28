@@ -142,6 +142,7 @@ struct FilesIndex: Sendable {
                     albumID: albumID,
                     albumYear: year.flatMap { date(year: $0) },
                     position: track.trackNumber,
+                    discNumber: track.discNumber,
                     audioCodec: track.fileExtension,
                     isPlayable: track.isDownloaded
                 )

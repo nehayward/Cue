@@ -11,9 +11,23 @@ import SwiftUI
 @MainActor
 enum Screens {
 
+    /// Each tab's own `SelectedGroupService`, made once. Made here in the
+    /// builder, a new one went into the environment every time `CueApp`'s
+    /// body ran — any UserDefaults write runs it, for its `@AppStorage` —
+    /// and every row reading it redrew: on an iPhone, Radio's rows about a
+    /// thousand times a second, which kept its list from scrolling.
+    private static var groupServices: [String: SelectedGroupService] = [:]
+
+    private static func groupService(_ tab: String) -> SelectedGroupService {
+        if let service = groupServices[tab] { return service }
+        let service = SelectedGroupService(group: nil)
+        groupServices[tab] = service
+        return service
+    }
+
     @ViewBuilder
     static var home: some View {
-        let selectedGroupService = SelectedGroupService(group: nil)
+        let selectedGroupService = groupService("home")
 
         HomeScreen()
             .tint(Color("Accent"))
@@ -23,7 +37,7 @@ enum Screens {
     @ViewBuilder
     static var search: some View {
         let searchRouter = Router.search
-        let selectedGroupService = SelectedGroupService(group: nil)
+        let selectedGroupService = groupService("search")
         SearchScreen(favorites: true, isTab: true)
             // The TabView is tinted `.primary` so its sidebar selection reads
             // that way; tab content wants the app's real accent back.
@@ -38,7 +52,7 @@ enum Screens {
     
     @ViewBuilder
     static var browse: some View {
-        let selectedGroupService = SelectedGroupService(group: nil)
+        let selectedGroupService = groupService("browse")
         
         BrowseScreen()
             .tint(Color("Accent"))
@@ -49,7 +63,7 @@ enum Screens {
     /// The Radio tab: stations from every source, and a search over them.
     @ViewBuilder
     static var radio: some View {
-        let selectedGroupService = SelectedGroupService(group: nil)
+        let selectedGroupService = groupService("radio")
 
         RadioScreen()
             .tint(Color("Accent"))
@@ -59,9 +73,19 @@ enum Screens {
     /// The Audiobooks tab: the book listened to last, and every book.
     @ViewBuilder
     static var audiobooks: some View {
-        let selectedGroupService = SelectedGroupService(group: nil)
+        let selectedGroupService = groupService("audiobooks")
 
         AudiobooksScreen()
+            .tint(Color("Accent"))
+            .environment(selectedGroupService)
+    }
+
+    /// The Downloads tab: the music on this device, and what's coming down.
+    @ViewBuilder
+    static var downloads: some View {
+        let selectedGroupService = groupService("downloads")
+
+        DownloadsTabScreen()
             .tint(Color("Accent"))
             .environment(selectedGroupService)
     }
@@ -70,7 +94,7 @@ enum Screens {
     /// collections its sidebar section is showing.
     @ViewBuilder
     static func providerRoot(_ service: MediaSearchService, collections: [ProviderCollection]) -> some View {
-        let selectedGroupService = SelectedGroupService(group: nil)
+        let selectedGroupService = groupService("provider|\(service.rawValue)")
 
         ProviderTabScreen(service: service, collections: collections)
             .tint(Color("Accent"))
@@ -80,7 +104,7 @@ enum Screens {
     /// One collection of a provider — a tab in its sidebar section.
     @ViewBuilder
     static func providerCollection(_ service: MediaSearchService, collections: [ProviderCollection], collection: ProviderCollection) -> some View {
-        let selectedGroupService = SelectedGroupService(group: nil)
+        let selectedGroupService = groupService("provider|\(service.rawValue)|\(collection.rawValue)")
 
         ProviderTabScreen(service: service, collections: collections, collection: collection)
             .tint(Color("Accent"))
@@ -98,11 +122,14 @@ enum Screens {
 /// Hidden at compact widths rather than a sheet: on iPhone the queue is the
 /// player's, and a sheet here would fight the one it presents (they share
 /// the stored flag).
+///
+/// The flag is observed (`AppState.showsQueuePanel`): as `@AppStorage` this
+/// ran on every UserDefaults write, round the `TabView`.
 struct WindowQueuePanel: ViewModifier {
-    @AppStorage(AppStorageKeys.queueInspectorVisible) private var showQueue: Bool = false
+    @State private var appState = AppState.shared
 
     func body(content: Content) -> some View {
-        content.queuePanel(isPresented: $showQueue, compact: .hidden) { QueueNextUpView() }
+        content.queuePanel(isPresented: $appState.showsQueuePanel, compact: .hidden) { QueueNextUpView() }
     }
 }
 

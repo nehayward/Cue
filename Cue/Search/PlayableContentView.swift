@@ -25,6 +25,10 @@ struct PlayableContentView: View {
     var hideDetails: Bool = false
     var hideContentType: Bool = false
     var index: Int? = nil
+    /// The number the row shows in place of `index`, which stays its place
+    /// in `parent` for playing: a downloaded song's own track number, on
+    /// an album page that lists only the songs on the device.
+    var number: Int? = nil
     var dismissOnComplete: Bool = false
     var total: Int = 1
 
@@ -123,7 +127,7 @@ struct PlayableContentView: View {
                     // Positions are ordinals, so no grouping separator: "1005"
                     // not "1,005". Column width follows the digit count of the
                     // longest index in the list so rows stay aligned past 999.
-                    Text(index, format: .number.grouping(.never))
+                    Text(number ?? index, format: .number.grouping(.never))
                         .font(.caption.monospacedDigit())
                         .lineLimit(1)
                         .frame(width: indexColumnWidth(for: index), alignment: .center)

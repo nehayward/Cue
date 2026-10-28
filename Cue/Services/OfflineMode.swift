@@ -4,11 +4,12 @@ import Network
 import Observation
 
 /// Whether the app is working with only what's on this device: no network
-/// at all — airplane mode, a dead spot — or the user's own switch, for
-/// leaving the streaming library alone on a plane before the door closes.
+/// at all — airplane mode, a dead spot. There's no switch for it any more;
+/// it follows the network.
 ///
-/// While it's active the Home tab shows only what's downloaded, and every
-/// Play goes to this device rather than a speaker none can reach.
+/// While it's active Browse leaves the tab bar and Downloads takes its
+/// place beside Search (`CueApp`), and every Play goes to this device
+/// rather than a speaker none can reach.
 ///
 /// Read off `shared` rather than the environment where a surface is hosted
 /// outside what `withEnvironments()` installs; `@Observable` tracks the
@@ -18,27 +19,42 @@ import Observation
 final class OfflineMode {
     static let shared = OfflineMode()
 
-    /// The user's switch, kept across launches.
-    var isOn: Bool {
+    /// Whether any network path is up. `NWPathMonitor` reports the current
+    /// path as soon as it starts, so this is right from the first read.
+    private(set) var hasNetwork = true {
         didSet {
-            UserDefaults.standard.set(isOn, forKey: AppStorageKeys.offlineMode)
+            // Rebuilds the whole `TabView` (`CueApp`'s `.id`).
+            ScrollStopLog.note(hasNetwork ? "network up" : "network down", logNow: true)
             routeToDeviceIfOffline()
         }
     }
 
-    /// Whether any network path is up. `NWPathMonitor` reports the current
-    /// path as soon as it starts, so this is right from the first read.
-    private(set) var hasNetwork = true {
-        didSet { routeToDeviceIfOffline() }
+    /// No network.
+    var isActive: Bool {
+        #if DEBUG
+        if simulatesOffline { return true }
+        #endif
+        return !hasNetwork
     }
 
-    /// Offline for either reason.
-    var isActive: Bool { isOn || !hasNetwork }
+    #if DEBUG
+    /// Debug: reads as offline whatever the network, to see the offline
+    /// app in the Simulator, which shares the Mac's network, and to switch
+    /// it on and off while Cue runs (Settings ▸ Debug ▸ Simulate No
+    /// Network). On at launch with `-dance.cue.simulateOffline YES`.
+    var simulatesOffline = UserDefaults.standard.bool(forKey: "dance.cue.simulateOffline") {
+        didSet {
+            UserDefaults.standard.set(simulatesOffline, forKey: "dance.cue.simulateOffline")
+            routeToDeviceIfOffline()
+        }
+    }
+    #endif
 
     @ObservationIgnored private let monitor = NWPathMonitor()
 
     private init() {
-        isOn = UserDefaults.standard.bool(forKey: AppStorageKeys.offlineMode)
+        // The old switch's setting, gone with the switch.
+        UserDefaults.standard.removeObject(forKey: "dance.cue.offlineMode")
         monitor.pathUpdateHandler = { [weak self] path in
             let satisfied = path.status == .satisfied
             Task { @MainActor in
@@ -48,11 +64,26 @@ final class OfflineMode {
         }
         monitor.start(queue: DispatchQueue(label: "dance.cue.offline.path", qos: .utility))
         routeToDeviceIfOffline()
+        #if DEBUG
+        listenForSimulatedNetwork()
+        #endif
     }
 
+    #if DEBUG
+    /// Debug: `notifyutil -p dance.cue.debug.offline` (in the Simulator,
+    /// `xcrun simctl spawn booted notifyutil -p …`) flips Simulate No
+    /// Network from outside the app, whatever tab is showing.
+    private func listenForSimulatedNetwork() {
+        let center = CFNotificationCenterGetDarwinNotifyCenter()
+        CFNotificationCenterAddObserver(center, nil, { _, _, _, _, _ in
+            Task { @MainActor in OfflineMode.shared.simulatesOffline.toggle() }
+        }, "dance.cue.debug.offline" as CFString, nil, .deliverImmediately)
+    }
+    #endif
+
     /// Offline, the only place to play is here: the route moves to this
-    /// device the moment the mode comes on — at launch, at the switch, or
-    /// when the network drops — so the player, the accessory and the next
+    /// device the moment the network drops, or at launch without one, so
+    /// the player, the accessory and the next
     /// Play all agree. Through `PlaybackRoute`, so a song playing on a
     /// speaker is carried across while the network is still up to fetch
     /// it; with no network there is nothing to carry and the route just
@@ -60,8 +91,7 @@ final class OfflineMode {
     /// picks one again when there is one to pick.
     private func routeToDeviceIfOffline() {
         // The choice, not the route: on cellular the route already reads as
-        // this device while a speaker is still chosen, and it would come
-        // back with Wi‑Fi though Offline Mode is still on.
+        // this device while a speaker is still chosen.
         guard isActive, PlaybackRoute.shared.chosen != .device else { return }
         PlaybackRoute.shared.switchTo(.device)
     }

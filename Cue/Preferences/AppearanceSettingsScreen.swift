@@ -1,21 +1,20 @@
-import Defaults
 import SwiftUI
 
 /// Settings ▸ Appearance: the theme, picked from three swatches (light,
 /// dark, and half of each for System), and which optional tabs show.
 struct AppearanceSettingsScreen: View {
-    @AppStorage(AppStorageKeys.colorScheme) private var colorScheme: ColorSchemePreference = .system
-    @AppStorage(AppStorageKeys.showRadioTab) private var showRadioTab: Bool = true
-    @AppStorage(AppStorageKeys.showAudiobooksTab) private var showAudiobooksTab: Bool = true
+    /// The settings these pick, kept and saved by `AppState`, which the tab
+    /// bar and the windows read.
+    @State private var appState = AppState.shared
 
     var body: some View {
         Form {
             Section {
                 HStack(spacing: 32) {
                     ForEach(ColorSchemePreference.allCases, id: \.self) { option in
-                        ThemeChoice(option: option, isSelected: colorScheme == option) {
+                        ThemeChoice(option: option, isSelected: appState.colorScheme == option) {
                             HapticManager.shared.fireHaptic(.selection)
-                            colorScheme = option
+                            appState.colorScheme = option
                         }
                     }
                 }
@@ -26,7 +25,7 @@ struct AppearanceSettingsScreen: View {
             }
 
             Section {
-                Toggle(isOn: $showRadioTab) {
+                Toggle(isOn: $appState.showRadioTab) {
                     Label {
                         Text("Radio")
                     } icon: {
@@ -34,7 +33,7 @@ struct AppearanceSettingsScreen: View {
                     }
                 }
                 .tint(.accent)
-                Toggle(isOn: $showAudiobooksTab) {
+                Toggle(isOn: $appState.showAudiobooksTab) {
                     Label {
                         Text("Audiobooks")
                     } icon: {
@@ -42,10 +41,18 @@ struct AppearanceSettingsScreen: View {
                     }
                 }
                 .tint(.accent)
+                Toggle(isOn: $appState.showDownloadsTab) {
+                    Label {
+                        Text("Downloads")
+                    } icon: {
+                        SettingsIcon(symbol: "arrow.down", colors: [Color(red: 0.3, green: 0.8, blue: 0.55), Color(red: 0.1, green: 0.6, blue: 0.4)])
+                    }
+                }
+                .tint(.accent)
             } header: {
                 Text("Tabs")
             } footer: {
-                Text("Both hide on their own while you're offline.")
+                Text("While you're offline, Browse and Radio hide, Audiobooks shows only books downloaded whole, and Downloads always shows.")
             }
         }
         .navigationTitle("Appearance")

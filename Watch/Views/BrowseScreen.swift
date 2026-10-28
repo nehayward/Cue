@@ -52,15 +52,35 @@ struct BrowseScreen: View {
                     .frame(maxWidth: .infinity)
                     .listRowBackground(Color.clear)
             } else if let message, items.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(message)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                    Button("Try Again") {
-                        Task { await load(offset: 0) }
+                let here = onWatch
+                if here.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(message)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        Button("Try Again") {
+                            Task { await load(offset: 0) }
+                        }
+                    }
+                    .listRowBackground(Color.clear)
+                } else {
+                    // The server out of reach (no Wi‑Fi, no iPhone): the
+                    // same list of what's on the watch, to play from.
+                    Section {
+                        ForEach(here, id: \.key) { pick in
+                            NavigationLink(value: LibraryRoute.pick(pick.key)) {
+                                PickRow(pick: pick)
+                            }
+                        }
+                        Button("Try Again") {
+                            Task { await load(offset: 0) }
+                        }
+                    } header: {
+                        Text("On This Watch")
+                    } footer: {
+                        Text("Can't reach \(source?.title ?? "the server"). These are on this watch.")
                     }
                 }
-                .listRowBackground(Color.clear)
             }
         }
         .navigationTitle(title)
@@ -106,6 +126,27 @@ struct BrowseScreen: View {
             }
             .zoomSource(BrowseRoute.item(item), in: zoom)
         }
+    }
+
+    /// The server this list is of, for a library section.
+    private var source: WatchSource? {
+        guard case let .section(source, _) = path else { return nil }
+        return source
+    }
+
+    /// What's on the watch of this list's kind and server: shown in its
+    /// place when the server can't be reached, so Playlists still lists the
+    /// playlists here. Songs added one at a time are in Downloads' Songs.
+    private var onWatch: [WatchPick] {
+        guard case let .section(source, section) = path else { return [] }
+        let kind: WatchPick.Kind? = switch section {
+        case .playlists: .playlist
+        case .albums, .recentlyAdded: .album
+        case .artists: .artist
+        case .songs: nil
+        }
+        guard let kind else { return [] }
+        return store.musicPicks.filter { $0.source == source && $0.kind == kind }
     }
 
     private func load(offset: Int) async {
