@@ -435,21 +435,19 @@ struct CueApp: App {
     /// switched on in Services.
     @TabContentBuilder<AppTab>
     private var radioTab: some TabContent<AppTab> {
-        if showsRadioTab {
-            Tab("Radio", systemImage: "radio", value: AppTab.radio) {
-                Screens.radio
-            }
+        Tab("Radio", systemImage: "radio", value: AppTab.radio) {
+            Screens.radio
         }
+        .hidden(!showsRadioTab)
     }
 
     /// Audiobooks, after Radio, while there are books (`showsAudiobooksTab`).
     @TabContentBuilder<AppTab>
     private var audiobooksTab: some TabContent<AppTab> {
-        if showsAudiobooksTab {
-            Tab("Audiobooks", systemImage: "book", value: AppTab.audiobooks) {
-                Screens.audiobooks
-            }
+        Tab("Audiobooks", systemImage: "book", value: AppTab.audiobooks) {
+            Screens.audiobooks
         }
+        .hidden(!showsAudiobooksTab)
     }
 
     /// Downloads, last, while there's music or a book here
@@ -460,18 +458,17 @@ struct CueApp: App {
     /// once).
     @TabContentBuilder<AppTab>
     private var downloadsTab: some TabContent<AppTab> {
-        if showsDownloadsTab {
-            Tab(value: AppTab.downloads) {
-                Screens.downloads
-            } label: {
-                Label {
-                    Text("Downloads")
-                } icon: {
-                    downloadsTabIcon
-                }
+        Tab(value: AppTab.downloads) {
+            Screens.downloads
+        } label: {
+            Label {
+                Text("Downloads")
+            } icon: {
+                downloadsTabIcon
             }
-            .badge(isPhone ? 0 : DownloadManager.shared.musicSummary.remainingDownloads)
         }
+        .badge(isPhone ? 0 : DownloadManager.shared.musicSummary.remainingDownloads)
+        .hidden(!showsDownloadsTab)
     }
 
     /// The download symbol, or while songs or books come down a ring round
@@ -643,12 +640,15 @@ struct CueApp: App {
                     // and set up in Settings › Services. No provider tabs, so
                     // the bar never overflows into More. The house is
                     // Browse's here, since it is the home. Offline it goes,
-                    // and Downloads leads in its place.
-                    if showsBrowseTab {
-                        Tab("Browse", image: "home.fill", value: AppTab.browse) {
-                            Screens.browse
-                        }
+                    // and Downloads leads in its place: hidden, not left
+                    // out, as every tab that comes and goes is. A tab taken
+                    // out and put back shifted the others, and the tab bar,
+                    // which matches its items by place, gave Browse the
+                    // Audiobooks icon back from Airplane Mode.
+                    Tab("Browse", image: "home.fill", value: AppTab.browse) {
+                        Screens.browse
                     }
+                    .hidden(!showsBrowseTab)
                     searchTab
                     radioTab
                     audiobooksTab

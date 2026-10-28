@@ -26,13 +26,24 @@ final class OfflineMode {
     }
 
     /// No network.
-    var isActive: Bool { !hasNetwork }
+    var isActive: Bool {
+        #if DEBUG
+        if simulatesOffline { return true }
+        #endif
+        return !hasNetwork
+    }
 
     #if DEBUG
     /// Debug: reads as offline whatever the network, to see the offline
-    /// app in the Simulator, which shares the Mac's network. On at launch
-    /// with `-dance.cue.simulateOffline YES`.
-    private let simulatesOffline = UserDefaults.standard.bool(forKey: "dance.cue.simulateOffline")
+    /// app in the Simulator, which shares the Mac's network, and to switch
+    /// it on and off while Cue runs (Settings ▸ Debug ▸ Simulate No
+    /// Network). On at launch with `-dance.cue.simulateOffline YES`.
+    var simulatesOffline = UserDefaults.standard.bool(forKey: "dance.cue.simulateOffline") {
+        didSet {
+            UserDefaults.standard.set(simulatesOffline, forKey: "dance.cue.simulateOffline")
+            routeToDeviceIfOffline()
+        }
+    }
     #endif
 
     @ObservationIgnored private let monitor = NWPathMonitor()
@@ -43,11 +54,7 @@ final class OfflineMode {
         monitor.pathUpdateHandler = { [weak self] path in
             let satisfied = path.status == .satisfied
             Task { @MainActor in
-                guard let self else { return }
-                #if DEBUG
-                let satisfied = satisfied && !self.simulatesOffline
-                #endif
-                guard self.hasNetwork != satisfied else { return }
+                guard let self, self.hasNetwork != satisfied else { return }
                 self.hasNetwork = satisfied
             }
         }
