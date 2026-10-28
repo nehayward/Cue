@@ -112,7 +112,7 @@ struct SubsonicBrowseScreen: View {
             .contentMargins(.top, EdgeInsets(), for: .scrollContent)
             // Default placement, as on Plex's: `.scrollContent` insets the
             // rows but leaves the group's background running to the edge.
-            .contentMargins(.horizontal, 16)
+            .listSideMargins()
             .fontDesign(.rounded)
             .foregroundStyle(.primary)
             .navigationTitle("Subsonic")
