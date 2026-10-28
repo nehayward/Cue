@@ -12,10 +12,10 @@ import UIKit
 /// `@AppStorage` runs again on every UserDefaults write, of any key, iOS's
 /// own as Cue comes back included, and `CueApp` running again handed the
 /// tab bar its tabs again each time (`SameTabsFilter`), and redrew the mini
-/// player and every tab's queue panel with it. The settings are read again
-/// as UserDefaults changes and set only when they differ, so a write of
-/// another key changes nothing here. The settings screens still write
-/// their keys with `@AppStorage`; this takes the change up from there.
+/// player and every tab's queue panel with it. This is the one place the
+/// settings are read and written: the settings screens bind to it, and
+/// each is saved to UserDefaults when it changes, so nothing here runs on
+/// another key's write.
 @MainActor
 @Observable
 final class AppState {
@@ -23,18 +23,29 @@ final class AppState {
 
     // MARK: - Settings
 
-    /// Settings ▸ Appearance ▸ Show Radio Tab.
-    private(set) var showRadioTab: Bool
-    /// Settings ▸ Appearance ▸ Show Audiobooks Tab.
-    private(set) var showAudiobooksTab: Bool
+    /// Settings ▸ Appearance ▸ Radio.
+    var showRadioTab: Bool {
+        didSet { save(showRadioTab, from: oldValue, as: AppStorageKeys.showRadioTab) }
+    }
+    /// Settings ▸ Appearance ▸ Audiobooks.
+    var showAudiobooksTab: Bool {
+        didSet { save(showAudiobooksTab, from: oldValue, as: AppStorageKeys.showAudiobooksTab) }
+    }
     /// Settings ▸ Appearance ▸ Downloads: whether the tab shows while there's
     /// a network. Offline it shows whatever this says.
-    private(set) var showDownloadsTab: Bool
-    /// Settings ▸ Appearance ▸ Appearance, applied to the windows.
-    private(set) var colorScheme: ColorSchemePreference
+    var showDownloadsTab: Bool {
+        didSet { save(showDownloadsTab, from: oldValue, as: AppStorageKeys.showDownloadsTab) }
+    }
+    /// Settings ▸ Appearance ▸ Theme, applied to the windows.
+    var colorScheme: ColorSchemePreference {
+        didSet { save(colorScheme.rawValue, from: oldValue.rawValue, as: AppStorageKeys.colorScheme) }
+    }
     #if DEBUG
     /// Settings ▸ Debug ▸ Shrink Tab Bar on Scroll.
-    private(set) var minimizesTabBar: Bool
+    var minimizesTabBar: Bool {
+        didSet { save(minimizesTabBar, from: oldValue, as: Self.minimizesTabBarKey) }
+    }
+    private static let minimizesTabBarKey = "dance.cue.debug.minimizeTabBar"
     #endif
 
     /// The queue panel beside the content, on iPad and the Mac
@@ -42,10 +53,7 @@ final class AppState {
     /// player's, the mini player's button, and the Mac's toolbar item and
     /// View menu command all show and flip this one flag.
     var showsQueuePanel: Bool {
-        didSet {
-            guard showsQueuePanel != oldValue else { return }
-            UserDefaults.standard.set(showsQueuePanel, forKey: AppStorageKeys.queueInspectorVisible)
-        }
+        didSet { save(showsQueuePanel, from: oldValue, as: AppStorageKeys.queueInspectorVisible) }
     }
 
     /// The sidebar's edits: which provider tabs show, and the order of their
@@ -65,34 +73,18 @@ final class AppState {
         showDownloadsTab = Self.bool(AppStorageKeys.showDownloadsTab, default: true)
         colorScheme = Self.colorSchemeSetting()
         #if DEBUG
-        minimizesTabBar = Self.bool("dance.cue.debug.minimizeTabBar", default: true)
+        minimizesTabBar = Self.bool(Self.minimizesTabBarKey, default: true)
         #endif
         showsQueuePanel = defaults.bool(forKey: AppStorageKeys.queueInspectorVisible)
         tabCustomization = defaults.data(forKey: AppStorageKeys.tabViewCustomization)
             .flatMap { try? JSONDecoder().decode(TabViewCustomization.self, from: $0) } ?? TabViewCustomization()
-        NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { _ in
-            MainActor.assumeIsolated { AppState.shared.readSettings() }
-        }
     }
 
-    /// The settings again from UserDefaults, each set only when it changed.
-    private func readSettings() {
-        update(\.showRadioTab, to: Self.bool(AppStorageKeys.showRadioTab, default: true))
-        update(\.showAudiobooksTab, to: Self.bool(AppStorageKeys.showAudiobooksTab, default: true))
-        update(\.showDownloadsTab, to: Self.bool(AppStorageKeys.showDownloadsTab, default: true))
-        update(\.colorScheme, to: Self.colorSchemeSetting())
-        #if DEBUG
-        update(\.minimizesTabBar, to: Self.bool("dance.cue.debug.minimizeTabBar", default: true))
-        #endif
-        update(\.showsQueuePanel, to: UserDefaults.standard.bool(forKey: AppStorageKeys.queueInspectorVisible))
-    }
-
-    /// An observed property set only when the value differs: setting one
-    /// tells its readers it changed, equal or not.
-    private func update<Value: Equatable>(_ property: ReferenceWritableKeyPath<AppState, Value>, to value: Value) {
-        if self[keyPath: property] != value {
-            self[keyPath: property] = value
-        }
+    /// A setting written to UserDefaults when it changed: a write of any key
+    /// runs every view still holding `@AppStorage` again.
+    private func save<Value: Equatable>(_ value: Value, from oldValue: Value, as key: String) {
+        guard value != oldValue else { return }
+        UserDefaults.standard.set(value, forKey: key)
     }
 
     private static func bool(_ key: String, default value: Bool) -> Bool {
