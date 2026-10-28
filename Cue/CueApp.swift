@@ -335,6 +335,22 @@ struct CueApp: App {
     /// Settings › Appearance › Downloads: whether the tab shows while
     /// there's a network. Offline it shows whatever this says.
     @AppStorage(AppStorageKeys.showDownloadsTab) private var showDownloadsTab: Bool = true
+    #if DEBUG
+    /// Debug: Settings ▸ Debug ▸ Shrink Tab Bar on Scroll, to feel whether
+    /// the tab bar shrinking (and the mini player's accessory rebuilt as
+    /// its placement changes) is what catches a scroll.
+    @AppStorage("dance.cue.debug.minimizeTabBar") private var minimizesTabBar: Bool = true
+    #endif
+
+    /// The tab bar shrinks as a page scrolls down, the mini player moving
+    /// into it.
+    private var tabBarMinimize: TabBarMinimizeBehavior {
+        #if DEBUG
+        minimizesTabBar ? .onScrollDown : .never
+        #else
+        .onScrollDown
+        #endif
+    }
     @AppStorage(AppStorageKeys.hasPlexAudiobooks) private var hasPlexAudiobooks: Bool = false
     /// The sidebar's edits — which of the provider tabs show, and the order
     /// of their sections — kept across launches. This is the whole of tab
@@ -435,19 +451,21 @@ struct CueApp: App {
     /// switched on in Services.
     @TabContentBuilder<AppTab>
     private var radioTab: some TabContent<AppTab> {
-        Tab("Radio", systemImage: "radio", value: AppTab.radio) {
-            Screens.radio
+        if showsRadioTab {
+            Tab("Radio", systemImage: "radio", value: AppTab.radio) {
+                Screens.radio
+            }
         }
-        .hidden(!showsRadioTab)
     }
 
     /// Audiobooks, after Radio, while there are books (`showsAudiobooksTab`).
     @TabContentBuilder<AppTab>
     private var audiobooksTab: some TabContent<AppTab> {
-        Tab("Audiobooks", systemImage: "book", value: AppTab.audiobooks) {
-            Screens.audiobooks
+        if showsAudiobooksTab {
+            Tab("Audiobooks", systemImage: "book", value: AppTab.audiobooks) {
+                Screens.audiobooks
+            }
         }
-        .hidden(!showsAudiobooksTab)
     }
 
     /// Downloads, last, while there's music or a book here
@@ -458,17 +476,18 @@ struct CueApp: App {
     /// once).
     @TabContentBuilder<AppTab>
     private var downloadsTab: some TabContent<AppTab> {
-        Tab(value: AppTab.downloads) {
-            Screens.downloads
-        } label: {
-            Label {
-                Text("Downloads")
-            } icon: {
-                downloadsTabIcon
+        if showsDownloadsTab {
+            Tab(value: AppTab.downloads) {
+                Screens.downloads
+            } label: {
+                Label {
+                    Text("Downloads")
+                } icon: {
+                    downloadsTabIcon
+                }
             }
+            .badge(isPhone ? 0 : DownloadManager.shared.musicSummary.remainingDownloads)
         }
-        .badge(isPhone ? 0 : DownloadManager.shared.musicSummary.remainingDownloads)
-        .hidden(!showsDownloadsTab)
     }
 
     /// The download symbol, or while songs or books come down a ring round
@@ -640,15 +659,12 @@ struct CueApp: App {
                     // and set up in Settings › Services. No provider tabs, so
                     // the bar never overflows into More. The house is
                     // Browse's here, since it is the home. Offline it goes,
-                    // and Downloads leads in its place: hidden, not left
-                    // out, as every tab that comes and goes is. A tab taken
-                    // out and put back shifted the others, and the tab bar,
-                    // which matches its items by place, gave Browse the
-                    // Audiobooks icon back from Airplane Mode.
-                    Tab("Browse", image: "home.fill", value: AppTab.browse) {
-                        Screens.browse
+                    // and Downloads leads in its place.
+                    if showsBrowseTab {
+                        Tab("Browse", image: "home.fill", value: AppTab.browse) {
+                            Screens.browse
+                        }
                     }
-                    .hidden(!showsBrowseTab)
                     searchTab
                     radioTab
                     audiobooksTab
@@ -677,6 +693,14 @@ struct CueApp: App {
                     }
                 }
             }
+            // Built afresh when the network comes or goes, which takes Browse
+            // and Radio out or puts them back. The tab bar matches its items
+            // to tabs by place, so a tab put back in front of others came
+            // back with another's icon (Browse with the Audiobooks book after
+            // Airplane Mode). Hiding them with `.hidden(_:)` instead kept the
+            // items but caught every scroll on Radio and Audiobooks, and
+            // left a tab's page showing another's for seconds after a switch.
+            .id(offline.isActive)
             // Customization only with the library sections: it holds the
             // sidebar's edits, and with three fixed tabs there's no Edit.
             .tabViewCustomization(showsLibrarySections ? $tabCustomization : nil)
@@ -699,7 +723,7 @@ struct CueApp: App {
             // wrapped around the whole `TabView` it took its width from the
             // sidebar's, which then had to overlay the content instead of
             // sitting beside it.
-            .tabBarMinimizeBehavior(.onScrollDown)
+            .tabBarMinimizeBehavior(tabBarMinimize)
             .tabViewBottomAccessory {
                 MusicPlaybackView(showPlayer: $router.isPlayerPresented, zoomNamespace: zoomNamespace)
             }
