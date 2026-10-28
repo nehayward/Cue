@@ -91,17 +91,6 @@ final class LocalPlaybackService {
                 self?.streamItemFailed(item, error: error, alerts: false)
             }
         })
-        // Where the stream player's sound goes when the route moves (a
-        // speaker picked mid-song), by kind of output: whether it reached
-        // AirPlay is the first question when a speaker plays nothing.
-        observers.append(Task { [weak self] in
-            for await note in NotificationCenter.default.notifications(named: AVAudioSession.routeChangeNotification) {
-                guard self?.streamPlayer != nil else { continue }
-                let reason = note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt ?? 0
-                let outputs = AVAudioSession.sharedInstance().currentRoute.outputs.map(\.portType.rawValue).joined(separator: " + ")
-                Self.log.notice("route changed (reason \(reason)): out to \(outputs.isEmpty ? "nothing" : outputs, privacy: .public)")
-            }
-        })
     }
 
     enum LocalPlaybackError: LocalizedError {
@@ -515,6 +504,10 @@ final class LocalPlaybackService {
     @ObservationIgnored private var streamPlayer: AVQueuePlayer? {
         didSet {
             guard streamPlayer !== oldValue else { return }
+            // Never handed to an AirPlay receiver to fetch for itself: a
+            // cached song's `cue-stream:` URL only answers inside Cue. The
+            // phone plays every item, and AirPlay carries the sound.
+            streamPlayer?.allowsExternalPlayback = false
             streamPlayerWatches = streamPlayer.map { player in
                 [
                     player.observe(\.timeControlStatus) { [weak self] _, _ in
@@ -3180,7 +3173,7 @@ final class LocalPlaybackService {
             let source = Self.bookFileSource((rows[0].item.asset as? AVURLAsset)?.url)
             Self.log.notice("book file \(first.title, privacy: .public) from \(source, privacy: .public), \(Int(resume ?? 0)) s in; \(rows.count - 1) more armed after it")
         }
-        let player = Self.makeStreamPlayer(items: rows.map(\.item))
+        let player = AVQueuePlayer(items: rows.map(\.item))
         streamPlayer = player
         nowPlayingCard.attach(player)
         player.volume = streamVolume
@@ -3238,7 +3231,7 @@ final class LocalPlaybackService {
         streamRun = [:]
         stationItem = ObjectIdentifier(playerItem)
         watch(playerItem)
-        let player = Self.makeStreamPlayer(items: [playerItem])
+        let player = AVQueuePlayer(items: [playerItem])
         streamPlayer = player
         nowPlayingCard.attach(player)
         // A station plays at normal speed, whatever the book behind it.
@@ -3261,25 +3254,11 @@ final class LocalPlaybackService {
         )
     }
 
-    /// The stream player for a run or a station, with external playback
-    /// off. On, it hands an AirPlay receiver the item's URL to fetch for
-    /// itself, and a song through the playback cache is a `cue-stream:` URL
-    /// only `CachingStreamLoader`, in this process, can answer: the speaker
-    /// showed as chosen and played nothing. Off, the phone plays every item
-    /// itself and AirPlay carries the sound.
-    private static func makeStreamPlayer(items: [AVPlayerItem]) -> AVQueuePlayer {
-        let player = AVQueuePlayer(items: items)
-        player.allowsExternalPlayback = false
-        return player
-    }
-
-    /// `.playback` on the long-form route, which is what makes this AirPlay
-    /// 2: the speakers chosen for Music and Podcasts (in Control Center, on
-    /// the Lock Screen, in the AirPlay picker), several at once, buffered
-    /// ahead. Set at every activation rather than once at launch, since the
-    /// session's other users (the Sonos mirror, the keep-awake silence, song
-    /// previews) put the default policy back. Not on the Mac, whose output
-    /// is the system's.
+    /// `.playback` on the long-form route, AirPlay 2's: the speakers chosen
+    /// for Music and Podcasts, several at once. Set as each run or station
+    /// starts, since the session's other users (the Sonos mirror, the
+    /// keep-awake silence, song previews) set the default policy. Not on
+    /// the Mac, whose output is the system's.
     private static func setPlaybackCategory(_ session: AVAudioSession) throws {
 #if targetEnvironment(macCatalyst)
         try session.setCategory(.playback, mode: .default)
