@@ -96,8 +96,11 @@ final class AppleDownloadsIndex {
             let snapshot = await Self.sweep()
             await MainActor.run {
                 let index = AppleDownloadsIndex.shared
-                index.apply(snapshot)
                 index.isRefreshing = false
+                // A read that failed isn't an empty library: what was read
+                // last stands, and the next appearance asks again.
+                guard let snapshot else { return }
+                index.apply(snapshot)
                 index.lastRefresh = Date()
             }
         }
@@ -105,33 +108,39 @@ final class AppleDownloadsIndex {
 
     // MARK: - Sweep
 
+    /// Writes only what changed. This runs every time Cue comes back to
+    /// the foreground, and `@Observable` notifies on every write, equal or
+    /// not: `CueApp` (the Downloads tab reads `songs`) and every Apple row's
+    /// badge redrew on each return, while the list under the finger was
+    /// being scrolled.
     private func apply(_ snapshot: AppleDownloadsSnapshot) {
         let changed = snapshot.libraryIDs != libraryIDs || snapshot.catalogIDs != catalogIDs
-        songs = snapshot.songs
-        libraryIDs = snapshot.libraryIDs
-        catalogIDs = snapshot.catalogIDs
-        isrcs = snapshot.isrcs
-        addedDates = snapshot.addedDates
+        if snapshot.songs != songs { songs = snapshot.songs }
+        if snapshot.libraryIDs != libraryIDs { libraryIDs = snapshot.libraryIDs }
+        if snapshot.catalogIDs != catalogIDs { catalogIDs = snapshot.catalogIDs }
+        if snapshot.isrcs != isrcs { isrcs = snapshot.isrcs }
+        if snapshot.addedDates != addedDates { addedDates = snapshot.addedDates }
         if changed { version &+= 1 }
     }
 
-    nonisolated private static func sweep() async -> AppleDownloadsSnapshot {
+    /// The library's downloaded songs, or nil when the library couldn't be
+    /// read.
+    nonisolated private static func sweep() async -> AppleDownloadsSnapshot? {
         var snapshot = AppleDownloadsSnapshot()
 
         var request = MusicLibraryRequest<Song>()
         request.includeOnlyDownloadedContent = true
-        if let items = try? await request.response().items {
-            var songs: [PlayableContent] = []
-            songs.reserveCapacity(items.count)
-            for song in items {
-                let track = song.toPlayableLibraryTrack
-                songs.append(track)
-                snapshot.libraryIDs.insert(track.content.id)
-                if let isrc = song.isrc, !isrc.isEmpty { snapshot.isrcs.insert(isrc) }
-                if let added = song.libraryAddedDate { snapshot.addedDates[track.content.id] = added }
-            }
-            snapshot.songs = songs.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+        guard let items = try? await request.response().items else { return nil }
+        var songs: [PlayableContent] = []
+        songs.reserveCapacity(items.count)
+        for song in items {
+            let track = song.toPlayableLibraryTrack
+            songs.append(track)
+            snapshot.libraryIDs.insert(track.content.id)
+            if let isrc = song.isrc, !isrc.isEmpty { snapshot.isrcs.insert(isrc) }
+            if let added = song.libraryAddedDate { snapshot.addedDates[track.content.id] = added }
         }
+        snapshot.songs = songs.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
 
 #if os(iOS)
         // The media library is the one place a downloaded song's catalog id

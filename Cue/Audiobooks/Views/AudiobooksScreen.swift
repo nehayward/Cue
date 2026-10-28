@@ -44,6 +44,7 @@ struct AudiobooksScreen: View {
     private var filesBooks: [PlayableContent] { coreFeatures.isEnabled(.files) ? FilesLibraryService.shared.books : [] }
 
     var body: some View {
+        let _ = ScrollStopLog.note("body audiobooks")
         // Offline, only what's whole on this device plays.
         let isOffline = OfflineMode.shared.isActive
         let listened = isOffline ? listenedBooks.filter(AudiobookDownloads.isDownloaded) : listenedBooks
@@ -126,6 +127,7 @@ struct AudiobooksScreen: View {
             .contentMargins(.bottom, 120 + fullBottomInset, for: .scrollContent)
             .contentMargins(.bottom, fullBottomInset, for: .scrollIndicators)
             .ignoresSafeArea(.container, edges: .bottom)
+            .scrollStopLog("audiobooks")
             .navigationTitle("Audiobooks")
             // Inline, as the library tabs have it.
             .toolbarTitleDisplayMode(.inline)

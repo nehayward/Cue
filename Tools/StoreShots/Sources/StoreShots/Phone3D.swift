@@ -19,7 +19,9 @@ final class Phone3D {
     private let pivot = SCNNode()
     private let screen = SCNMaterial()
 
-    init(model: DeviceModel, screenSize: CGSize, canvas: CGSize, finish: String?) {
+    /// `floor` is the colour the studio's floor glows with, the theme's
+    /// light, so the metal's lower edges pick it up.
+    init(model: DeviceModel, screenSize: CGSize, canvas: CGSize, finish: String?, floor: CGColor) {
         self.canvas = canvas
         let aspect = screenSize.height / screenSize.width
         let border = model.bezel + model.rim
@@ -29,7 +31,7 @@ final class Phone3D {
 
         let scene = SCNScene()
         scene.background.contents = NSColor.clear
-        scene.lightingEnvironment.contents = Self.studio()
+        scene.lightingEnvironment.contents = Self.studio(floor: floor)
         scene.lightingEnvironment.intensity = 2.2
         scene.rootNode.addChildNode(pivot)
         // A key light above and to the left, for a highlight along the
@@ -179,8 +181,8 @@ final class Phone3D {
     }
 
     /// A dark studio, as an equirectangular map: tall strip lights all round,
-    /// a broad soft box overhead, and Cue's green rising from the floor.
-    private static func studio() -> CGImage {
+    /// a broad soft box overhead, and `floor`'s colour rising from the floor.
+    private static func studio(floor color: CGColor) -> CGImage {
         let width = 2048, height = 1024
         let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
                                 space: CGColorSpace(name: CGColorSpace.sRGB)!,
@@ -190,7 +192,7 @@ final class Phone3D {
         let space = CGColorSpace(name: CGColorSpace.sRGB)!
         // Core Graphics' origin is the bottom left: y here is up from the floor.
         let floor = CGGradient(colorsSpace: space, colors: [
-            CGColor(srgbRed: 0.02, green: 0.59, blue: 0.41, alpha: 0.55), CGColor(srgbRed: 0.02, green: 0.59, blue: 0.41, alpha: 0),
+            color.copy(alpha: 0.55)!, color.copy(alpha: 0)!,
         ] as CFArray, locations: [0, 1])!
         context.drawLinearGradient(floor, start: CGPoint(x: 0, y: 0), end: CGPoint(x: 0, y: CGFloat(height) * 0.42), options: [])
         func soft(_ x: CGFloat, _ y: CGFloat, _ radius: CGFloat, _ brightness: CGFloat, stretch: CGFloat = 1) {

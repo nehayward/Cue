@@ -22,7 +22,11 @@ final class OfflineMode {
     /// Whether any network path is up. `NWPathMonitor` reports the current
     /// path as soon as it starts, so this is right from the first read.
     private(set) var hasNetwork = true {
-        didSet { routeToDeviceIfOffline() }
+        didSet {
+            // Rebuilds the whole `TabView` (`CueApp`'s `.id`).
+            ScrollStopLog.note(hasNetwork ? "network up" : "network down", logNow: true)
+            routeToDeviceIfOffline()
+        }
     }
 
     /// No network.
