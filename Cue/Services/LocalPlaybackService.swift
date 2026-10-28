@@ -504,6 +504,10 @@ final class LocalPlaybackService {
     @ObservationIgnored private var streamPlayer: AVQueuePlayer? {
         didSet {
             guard streamPlayer !== oldValue else { return }
+            // Never handed to an AirPlay receiver to fetch for itself: a
+            // cached song's `cue-stream:` URL only answers inside Cue. The
+            // phone plays every item, and AirPlay carries the sound.
+            streamPlayer?.allowsExternalPlayback = false
             streamPlayerWatches = streamPlayer.map { player in
                 [
                     player.observe(\.timeControlStatus) { [weak self] _, _ in
@@ -3250,12 +3254,25 @@ final class LocalPlaybackService {
         )
     }
 
+    /// `.playback` on the long-form route, AirPlay 2's: the speakers chosen
+    /// for Music and Podcasts, several at once. Set as each run or station
+    /// starts, since the session's other users (the Sonos mirror, the
+    /// keep-awake silence, song previews) set the default policy. Not on
+    /// the Mac, whose output is the system's.
+    private static func setPlaybackCategory(_ session: AVAudioSession) throws {
+#if targetEnvironment(macCatalyst)
+        try session.setCategory(.playback, mode: .default)
+#else
+        try session.setCategory(.playback, mode: .default, policy: .longFormAudio, options: [])
+#endif
+    }
+
     /// Takes the audio session for a stream player. The player goes on
     /// regardless and plays nothing when this fails, so the log line is
     /// what says why it's silent.
     private func activateAudioSession(for what: String) {
         do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+            try Self.setPlaybackCategory(AVAudioSession.sharedInstance())
             try AVAudioSession.sharedInstance().setActive(true)
         } catch {
             let code = (error as NSError).code
@@ -3698,7 +3715,7 @@ final class LocalPlaybackService {
                 // Screen's card and controls.
                 let session = AVAudioSession.sharedInstance()
                 if session.categoryOptions.contains(.mixWithOthers) {
-                    let unmixed = (try? session.setCategory(.playback, mode: .default)) != nil
+                    let unmixed = (try? Self.setPlaybackCategory(session)) != nil
                     Self.log.notice("the stream's audio session \(unmixed ? "no longer mixes" : "still mixes", privacy: .public)")
                 }
             }
