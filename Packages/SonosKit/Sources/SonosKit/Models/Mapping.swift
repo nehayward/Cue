@@ -100,6 +100,7 @@ extension Song {
                 album: albumTitle,
                 isrc: isrc,
                 position: trackNumber,
+                discNumber: discNumber,
                 isPlayable: playParameters != nil,
                 isExplicit: contentRating == .explicit
             )
@@ -692,6 +693,8 @@ extension PlexTrack {
                 album: album,
                 albumID: parentRatingKey,
                 albumYear: nil,
+                position: index,
+                discNumber: parentIndex,
                 audioCodec: audioCodec,
                 librarySectionID: librarySectionID.map(String.init),
                 userRating: userRating
@@ -828,6 +831,8 @@ extension PlexMetadata {
         var album: String?
         var albumID: String?
         var audioCodec: String?
+        var trackNumber: Int?
+        var discNumber: Int?
         // A track's `parentYear` is its album's year; an album carries its
         // own as `year`.
         var releaseYear = parentYear
@@ -839,6 +844,10 @@ extension PlexMetadata {
             album = parentTitle
             albumID = parentRatingKey
             audioCodec = media?.first?.audioCodec
+            // Its place on the album, which a download keeps for the
+            // on-device library to put the album in order.
+            trackNumber = index
+            discNumber = parentIndex
         case "album":
             artist = parentTitle
             artistID = parentRatingKey
@@ -877,6 +886,8 @@ extension PlexMetadata {
                 artistID: artistID,
                 album: album,
                 albumID: albumID,
+                position: trackNumber,
+                discNumber: discNumber,
                 audioCodec: audioCodec,
                 userRating: userRating,
                 playlistItemID: playlistItemID.map(String.init)
@@ -1215,6 +1226,8 @@ extension SubsonicSong {
                 artistID: artistId,
                 album: album,
                 albumID: albumId,
+                position: track,
+                discNumber: discNumber,
                 audioCodec: suffix,
                 // 0 rather than nil: "not starred" is an answer, and nil
                 // sends FavoriteMenuButton to the network for every row.

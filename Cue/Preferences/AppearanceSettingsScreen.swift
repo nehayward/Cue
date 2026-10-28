@@ -7,6 +7,7 @@ struct AppearanceSettingsScreen: View {
     @AppStorage(AppStorageKeys.colorScheme) private var colorScheme: ColorSchemePreference = .system
     @AppStorage(AppStorageKeys.showRadioTab) private var showRadioTab: Bool = true
     @AppStorage(AppStorageKeys.showAudiobooksTab) private var showAudiobooksTab: Bool = true
+    @AppStorage(AppStorageKeys.showDownloadsTab) private var showDownloadsTab: Bool = true
 
     var body: some View {
         Form {
@@ -42,10 +43,18 @@ struct AppearanceSettingsScreen: View {
                     }
                 }
                 .tint(.accent)
+                Toggle(isOn: $showDownloadsTab) {
+                    Label {
+                        Text("Downloads")
+                    } icon: {
+                        SettingsIcon(symbol: "arrow.down", colors: [Color(red: 0.3, green: 0.8, blue: 0.55), Color(red: 0.1, green: 0.6, blue: 0.4)])
+                    }
+                }
+                .tint(.accent)
             } header: {
                 Text("Tabs")
             } footer: {
-                Text("Both hide on their own while you're offline.")
+                Text("While you're offline, Browse and Radio hide, Audiobooks shows only books downloaded whole, and Downloads always shows.")
             }
         }
         .navigationTitle("Appearance")

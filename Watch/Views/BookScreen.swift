@@ -286,15 +286,33 @@ struct BookRow: View {
             ArtworkView(url: pick.artworkURL, symbol: "book.closed")
                 .frame(width: 36, height: 36)
             VStack(alignment: .leading) {
+                // Two lines: a book's title is long, and one line cut most
+                // of it off at the watch's width.
                 Text(pick.title)
-                    .lineLimit(1)
+                    .lineLimit(2)
                 Text(detail)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .monospacedDigit()
+                // The room it takes on a line of its own, not after the
+                // time left, where it was cut off.
+                if let size {
+                    Text(size)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .monospacedDigit()
+                }
             }
         }
+    }
+
+    /// The room the book takes, on Downloads, once it's all here.
+    private var size: String? {
+        guard showsSize, let songs = store.songsByPick[pick.key],
+              songs.allSatisfy({ store.isDownloaded($0.key) }) else { return nil }
+        return ByteCountFormatter.string(fromByteCount: store.bytesUsed(by: songs), countStyle: .file)
     }
 
     private var detail: String {
@@ -309,8 +327,6 @@ struct BookRow: View {
             return songs.count == 1 ? "Downloading" : "\(here) of \(songs.count) files downloaded"
         }
         let duration = songs.reduce(0.0) { $0 + ($1.duration ?? 0) }
-        let status = WatchBookFormat.status(books.progress(for: pick.key), duration: duration)
-        guard showsSize else { return status }
-        return "\(status) • \(ByteCountFormatter.string(fromByteCount: store.bytesUsed(by: songs), countStyle: .file))"
+        return WatchBookFormat.status(books.progress(for: pick.key), duration: duration)
     }
 }

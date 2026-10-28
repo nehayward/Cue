@@ -66,10 +66,6 @@ struct SubsonicBrowseScreen: View {
                         Label("Songs", systemImage: "music.note")
                     }
 
-                    NavigationLink(value: RouterDestination.downloaded(service: .subsonic)) {
-                        Label("Downloaded", systemImage: "arrow.down.circle")
-                    }
-
                     NavigationLink(value: RouterDestination.playableGridScreen(
                         title: "Playlists",
                         items: $subsonicBrowseService.userPlaylists,

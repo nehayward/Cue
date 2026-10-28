@@ -28,7 +28,11 @@ struct CachesSection: View {
                         Text(formattedSize(cacheSize))
                     }
                 } label: {
-                    Label("Clear Image Cache", systemImage: "photo.stack")
+                    Label {
+                        Text("Clear Image Cache")
+                    } icon: {
+                        StorageTile.images.icon
+                    }
                 }
             }
             .tint(.primary)
@@ -42,7 +46,11 @@ struct CachesSection: View {
                     LabeledContent {
                         Text(formattedSize(libraryCacheSize))
                     } label: {
-                        Label("Clear Library Cache", systemImage: "externaldrive.badge.xmark")
+                        Label {
+                            Text("Clear Library Cache")
+                        } icon: {
+                            StorageTile.library.icon
+                        }
                     }
                 }
                 .tint(.primary)

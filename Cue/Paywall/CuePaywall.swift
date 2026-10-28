@@ -35,7 +35,7 @@ struct CuePaywall: View {
     /// follows; iPad / Mac / TV / Vision collapse into the single-license
     /// footer. Only what Cue has today: no Scenes or Shortcuts yet.
     private let comparisonRows: [ComparisonRow] = [
-        .init(label: "Unlimited downloads", description: "Plex & Subsonic songs", inFree: false, features: [.unlimitedDownloads, .downloads]),
+        .init(label: "Unlimited downloads", description: "Plex & Subsonic songs", inFree: false, features: [.unlimitedDownloads, .downloads, .largePlaybackCache]),
         .init(label: "Every Sonos room", description: "Free plays on one room", inFree: false, features: [.allRooms]),
         .init(label: "Book downloads", description: "Plex & Audiobookshelf", inFree: false, features: [.bookDownloads]),
         .init(label: "Read along", description: "A book's words as it's read", inFree: false, features: [.bookTranscript])

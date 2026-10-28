@@ -324,7 +324,7 @@ enum CarPlayLibrary {
     // MARK: - Downloads
 
     /// Everything on this device — Cue's downloads, the Music app's and the
-    /// Files folder's — the way Offline Mode reads it. It all plays with no
+    /// Files folder's — the way it reads offline. It all plays with no
     /// network, which in a car is the point.
     static var hasDownloads: Bool {
         !OnDeviceLibrary.isEmpty

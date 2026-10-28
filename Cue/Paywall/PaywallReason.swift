@@ -72,6 +72,8 @@ struct PaywallReasonCard: View {
             return held >= limit ? "All \(limit) free downloads used" : "\(held) of \(limit) free downloads used"
         case .bookDownloads:
             return "Books download with Cue Super"
+        case .largePlaybackCache:
+            return "Keep up to \(PlaybackCache.freeSongLimit) recent songs free"
         case .bookTranscript:
             return "Read along with Cue Super"
         case .allRooms:
@@ -88,6 +90,8 @@ struct PaywallReasonCard: View {
             return "Cue Super keeps every song you download, on this iPhone and your Apple Watch, with no limit."
         case .bookDownloads:
             return "Keep Plex and Audiobookshelf books on this iPhone and your Apple Watch, to listen with no connection."
+        case .largePlaybackCache:
+            return "Cue Super keeps up to 500 of the songs you've played, so more of them play through a tunnel or a dead spot."
         case .bookTranscript:
             return "See every word of a book as it's read, transcribed privately on this device. Tap a word to look it up."
         case .allRooms:
@@ -104,6 +108,7 @@ struct PaywallReasonCard: View {
     private var symbol: String {
         switch reason.feature {
         case .unlimitedDownloads, .downloads: "arrow.down.circle.fill"
+        case .largePlaybackCache: "clock.arrow.circlepath"
         case .bookDownloads: "books.vertical.fill"
         case .bookTranscript: "text.quote"
         case .allRooms: "hifispeaker.2.fill"

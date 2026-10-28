@@ -417,6 +417,39 @@ final class WatchDownloadStore {
         picksDidChange(tellPhone: true)
     }
 
+    /// Takes the music off the watch, on both devices; the books stay.
+    func removeAllMusic() {
+        remove(keys: musicPicks.map(\.key))
+    }
+
+    /// Takes the books off the watch, on both devices; the music stays.
+    /// Each book's place is kept.
+    func removeAllBooks() {
+        remove(keys: books.map(\.key))
+    }
+
+    private func remove(keys: [String]) {
+        guard !keys.isEmpty else { return }
+        for key in keys {
+            picks.remove(key: key)
+        }
+        picksDidChange(tellPhone: true)
+    }
+
+    /// Puts every song and book file that failed back in line, from
+    /// Storage.
+    func retryAllFailed() {
+        if retryFailed(Array(items.keys)) {
+            pump()
+            scheduleSave()
+        }
+    }
+
+    /// The room the books' files take; the rest of `bytesUsed` is music.
+    var bookBytesUsed: Int64 {
+        bytesUsed(by: songs(in: books.map(\.key)))
+    }
+
     /// The iPhone's picks, merged with these. True when it was missing
     /// something of the watch's, and should hear back.
     func apply(_ theirs: WatchPicks) -> Bool {

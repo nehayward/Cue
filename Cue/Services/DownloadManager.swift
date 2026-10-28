@@ -149,9 +149,10 @@ final class DownloadManager {
         let artwork: URL?
         let createdAt: Date
         var trackKeys: [String]
-        /// Songs taken out of it since it came down whole, kept so it can
-        /// offer them again and take one back when it's downloaded again.
-        /// Nil when nothing was, and on manifests from before trimming.
+        /// Songs taken out of it since it came down whole, or that the free
+        /// limit kept from coming down, kept so it can offer them again and
+        /// take one back when it's downloaded again. Nil when nothing was,
+        /// and on manifests from before trimming.
         var removedKeys: [String]?
 
         var id: String { key }
@@ -259,6 +260,7 @@ final class DownloadManager {
         reconcileWithDisk()
         trimContainers()
         reattachSessionTasks()
+        refreshMusicSummary()
         pathMonitor.pathUpdateHandler = { [weak self] path in
             let network: Connectivity = path.status != .satisfied
                 ? .none
@@ -295,6 +297,115 @@ final class DownloadManager {
 
     var completedBytes: Int64 {
         completed.reduce(0) { $0 + ($1.fileSize ?? 0) }
+    }
+
+    // MARK: - Music here
+
+    /// The songs and books here and coming down at a glance, for what
+    /// shows only that: the Downloads tab, its icon and the on-device
+    /// library's lists. `items` changes several times a second while songs
+    /// come down; this changes only when one is queued, lands, stops or
+    /// goes.
+    struct MusicSummary: Equatable {
+        /// Songs on the device.
+        var downloaded = 0
+        /// Songs queued, coming down, or waiting for a network they may use.
+        var remaining = 0
+        /// Books downloaded or on their way.
+        var books = 0
+        /// Books with a file queued, coming down, or waiting for a network.
+        var booksRemaining = 0
+        /// Every song in the run coming down now, landed or not: a run
+        /// starts when a song is queued with none coming down and ends
+        /// when the last lands. Zero between runs.
+        var runTotal = 0
+        /// Bumped whenever the songs on the device change, so a list over
+        /// them reads them again even when their count doesn't.
+        var revision = 0
+
+        var hasDownloads: Bool { downloaded + remaining + books > 0 }
+        /// Songs and books still to come, a book counting once: while
+        /// there are any, the tab's icon is the ring, and off the phone
+        /// this is its badge.
+        var remainingDownloads: Int { remaining + booksRemaining }
+        /// How many of the run have landed (or stopped, or gone).
+        var runSettled: Int { runTotal - remaining }
+    }
+
+    private(set) var musicSummary = MusicSummary()
+
+    /// The finished songs as of `musicSummary`, newest first: what the
+    /// on-device library reads, so a list over them isn't tied to every
+    /// byte of progress. Read `musicSummary` alongside to be redrawn when
+    /// it changes.
+    @ObservationIgnored private(set) var songsHere: [Item] = []
+
+    /// How far the run coming down has got, in `runProgressSteps`: the
+    /// Downloads tab's ring. It moves at most that many times a run, so the
+    /// tab bar that reads it isn't redrawn with every byte.
+    private(set) var runProgressStep = 0
+    static let runProgressSteps = 20
+
+    /// How far the songs and books coming down have got, 0 to 1: the songs
+    /// of the run landed and the part of each still coming that has, and
+    /// each book coming down by the share of its files here, a book
+    /// weighing as one song. Reads every byte of progress.
+    func runFraction(for summary: MusicSummary) -> Double {
+        let songsPartial = items.values.reduce(0.0) { sum, item in
+            guard item.isBookFile != true, item.state == .downloading else { return sum }
+            return sum + item.progress
+        }
+        var books = 0
+        var booksDone = 0.0
+        for book in containers.values where book.type == .audiobook {
+            let files = book.trackKeys.compactMap { items[$0] }
+            guard !files.isEmpty, files.contains(where: \.isActive) else { continue }
+            books += 1
+            let here = files.reduce(0.0) { sum, file in
+                sum + (file.state == .completed ? 1 : file.state == .downloading ? file.progress : 0)
+            }
+            booksDone += here / Double(files.count)
+        }
+        let total = summary.runTotal + books
+        guard total > 0 else { return 0 }
+        return min(1, (Double(summary.runSettled) + songsPartial + booksDone) / Double(total))
+    }
+
+    private func refreshRunProgressStep() {
+        let step = musicSummary.remainingDownloads > 0
+            ? Int((runFraction(for: musicSummary) * Double(Self.runProgressSteps)).rounded(.down))
+            : 0
+        if step != runProgressStep {
+            runProgressStep = step
+        }
+    }
+
+    private func refreshMusicSummary() {
+        let songs = completedSongs
+        let remaining = items.values.filter { $0.isBookFile != true && $0.isActive }.count
+        var summary = musicSummary
+        if songs.map(\.key) != songsHere.map(\.key) {
+            summary.revision &+= 1
+        }
+        songsHere = songs
+        summary.downloaded = songs.count
+        // More queued grows the run by as many; songs landing leave its
+        // total as it was.
+        if remaining == 0 {
+            summary.runTotal = 0
+        } else {
+            summary.runTotal = max(musicSummary.runTotal, musicSummary.runSettled + remaining)
+        }
+        summary.remaining = remaining
+        let books = containers.values.filter { $0.type == .audiobook }
+        summary.books = books.count
+        summary.booksRemaining = books.filter { book in
+            book.trackKeys.contains { items[$0]?.isActive == true }
+        }.count
+        if summary != musicSummary {
+            musicSummary = summary
+        }
+        refreshRunProgressStep()
     }
 
     var hasActiveDownloads: Bool {
@@ -616,6 +727,10 @@ final class DownloadManager {
         var updated = items
         var added: Set<String> = []
         var freeSlots = isBook ? nil : remainingFreeSlots
+        // The songs the free limit kept from coming down: the container is
+        // kept without them, as missing (`removedKeys`), so it lists and
+        // plays what's here and offers the rest again.
+        var heldBackKeys: [String] = []
         for track in downloadable {
             let key = Self.key(for: track)
             if var existing = updated[key] {
@@ -632,6 +747,7 @@ final class DownloadManager {
                 if let free = freeSlots {
                     guard free > 0 else {
                         result.heldBack += 1
+                        heldBackKeys.append(key)
                         continue
                     }
                     freeSlots = free - 1
@@ -646,7 +762,13 @@ final class DownloadManager {
         items = updated
         rejoinContainers(keys: added)
         admit()
-        if result.heldBack == 0 {
+        // Kept whenever any of it is here or coming, the songs the free
+        // limit held back as missing: a playlist cut short by the limit
+        // went unrecorded, its songs loose, and the Downloads tab didn't
+        // list it.
+        let held = Set(heldBackKeys)
+        let kept = downloadable.map { Self.key(for: $0) }.filter { !held.contains($0) }
+        if !kept.isEmpty {
             let key = containerKey
             containers[key] = Container(
                 key: key,
@@ -657,7 +779,8 @@ final class DownloadManager {
                 subtitle: container.metadata?.artist ?? container.subtitle,
                 artwork: container.thumbnail ?? container.artwork,
                 createdAt: containers[key]?.createdAt ?? .now,
-                trackKeys: downloadable.map { Self.key(for: $0) }
+                trackKeys: kept,
+                removedKeys: heldBackKeys.isEmpty ? nil : heldBackKeys
             )
         }
         scheduleSave()
@@ -1107,6 +1230,16 @@ final class DownloadManager {
         scheduleSave()
     }
 
+    /// Every book downloaded whole, off this device, each as Remove does
+    /// one: songs, and books still coming down, stay. Removing the songs
+    /// leaves the books (`completedSongs` has none of their files), so each
+    /// is an action of its own.
+    func removeAllBooks() {
+        for book in completedContainers where book.type == .audiobook {
+            removeContainer(key: book.key)
+        }
+    }
+
     func pauseAll() {
         pause(keys: active.filter(\.isActive).map(\.key))
     }
@@ -1516,6 +1649,7 @@ final class DownloadManager {
         entry.bytesReceived = received
         entry.bytesExpected = expected
         items[key] = entry
+        refreshRunProgressStep()
     }
 
     /// A file landed at `file`. Taken from whichever task brought it — it's
@@ -1921,6 +2055,7 @@ final class DownloadManager {
                 guard let self else { return }
                 self.presenceRefreshPending = false
                 self.refreshContainerPresence()
+                self.refreshMusicSummary()
             }
         }
         saveTask?.cancel()

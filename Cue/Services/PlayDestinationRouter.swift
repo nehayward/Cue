@@ -64,7 +64,7 @@ enum PlayDestinationRouter {
         let destination = SonosService.shared.isAvailable ? (PlayDestination.remembered ?? .device) : .device
         log.notice("play \(String(describing: first.content.service), privacy: .public)/\(String(describing: first.content.type), privacy: .public) id=\(first.content.id, privacy: .public) count=\(contents.count) position=\(position.linkValue, privacy: .public) destination=\(String(describing: destination), privacy: .public)")
 
-        // No network, or Offline Mode: there is no speaker to reach, so
+        // No network: there is no speaker to reach, so
         // this device it is — whatever the route says. The picker would
         // only offer speakers that can't answer. The remembered group is
         // left alone for when the network is back.

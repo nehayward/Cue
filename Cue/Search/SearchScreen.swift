@@ -39,6 +39,7 @@ struct SearchScreen: View {
     /// Offline, the field searches what's on this device instead of the
     /// services (`OfflineSearchView`); the services menu and filters go.
     @State private var offline = OfflineMode.shared
+    @State private var offlineSearch = OfflineSearch()
     @State private var searchCompletionTapped: Bool = false
     @State private var suggestion: String? = nil
     @State private var searchFieldIsPresented: Bool = true
@@ -158,7 +159,7 @@ struct SearchScreen: View {
             ScrollViewReader { proxy in
                 List(selection: .constant(selectedItemID)) {
                     if offline.isActive {
-                        OfflineSearchView(query: musicSearchService.query)
+                        OfflineSearchView(query: musicSearchService.query, search: offlineSearch)
                     } else {
                         SearchFilterRow(
                             primary: searchSelection.primary,
@@ -228,6 +229,14 @@ struct SearchScreen: View {
                         }
                         return
                     }
+                }
+                // Offline, the on-device library searched as the query
+                // settles and as the songs here change.
+                .task(id: offline.isActive
+                      ? OfflineSearch.Key(query: musicSearchService.query.trimmingCharacters(in: .whitespacesAndNewlines), changeToken: OnDeviceLibrary.changeToken)
+                      : nil) {
+                    guard offline.isActive else { return }
+                    await offlineSearch.run(musicSearchService.query)
                 }
                 .ignoresSafeArea(.keyboard)
                 .contentMargins(.bottom, 120, for: .scrollContent)
@@ -466,7 +475,8 @@ struct SearchScreen: View {
         return HStack {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
-            TextField("Search", text: $musicSearchService.query)
+            // Offline it searches only what's here, and says so.
+            TextField(offline.isActive ? "Search Downloads" : "Search", text: $musicSearchService.query)
                 .textFieldStyle(.plain)
                 .focused($focusedField, equals: .search)
                 .onSubmit {

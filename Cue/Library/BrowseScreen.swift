@@ -25,20 +25,15 @@ struct BrowseScreen: View {
     @State private var router = Router.browse
     @State private var isLoaded: Bool = false
     @State private var coreFeatures = CoreFeatures.shared
-    @State private var offline = OfflineMode.shared
 
     private var showAlert: Bool { UIDevice.current.userInterfaceIdiom == .phone }
     
     var body: some View {
+        // Offline, Browse leaves the tab bar and Downloads takes its place
+        // (`CueApp`): the provider screens have nothing to show with no
+        // network.
         VStack {
-            // Browse is the phone's home, so it is where offline shows what's
-            // on this device; the provider screens below have nothing to
-            // show with no network.
-            if offline.isActive {
-                OfflineBrowseScreen()
-            } else {
-                browseScreen
-            }
+            browseScreen
         }
         .contentMargins(.top, EdgeInsets(), for: .scrollContent)
         .contentMargins(.bottom, 120, for: .scrollContent)

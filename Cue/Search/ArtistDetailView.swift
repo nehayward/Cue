@@ -16,6 +16,8 @@ struct ArtistDetailView: View {
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
     @Environment(AlertService.self) private var alertService
     @Environment(RemoteFeatureFlags.self) private var remoteFlags
+    @Environment(\.dismiss) private var dismiss
+    @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
     
     let playableContent: PlayableContent
     @State private var tracks: [PlayableContent] = []
@@ -83,14 +85,22 @@ struct ArtistDetailView: View {
         }
     }
     
+    /// An artist of the on-device library (`OnDeviceLibrary`): their songs
+    /// and albums here, read from the device, so the page opens with no
+    /// network and keeps up as downloads come and go. No server is asked,
+    /// so no radio, latest release or album kinds.
+    private var isOnDevice: Bool {
+        OnDeviceLibrary.isContainer(playableContent)
+    }
+
     private var supportsRadio: Bool {
-        guard let artistContent else { return false }
+        guard let artistContent, !isOnDevice else { return false }
         return artistContent.content.service.supportsRadio
             && artistContent.content.type != .libraryArtist
     }
 
     private var supportsAlbumCategories: Bool {
-        guard let artistContent else { return false }
+        guard let artistContent, !isOnDevice else { return false }
         return [.apple, .plex].contains(artistContent.content.service)
     }
     
@@ -136,6 +146,9 @@ struct ArtistDetailView: View {
         .contentMargins(.bottom, 120, for: .scrollContent)
         .contentMargins(.top, EdgeInsets(), for: .scrollContent)
         .task { await loadArtistData() }
+        .onChange(of: isOnDevice ? OnDeviceLibrary.changeToken : 0) {
+            loadOnDevice()
+        }
     }
     
     // MARK: - Artwork Section
@@ -220,7 +233,47 @@ struct ArtistDetailView: View {
         .listRowInsets(EdgeInsets())
     }
     
+    @ViewBuilder
     private var radioButtonOverlay: some View {
+        if isOnDevice {
+            onDeviceButtons
+        } else {
+            serverButtons
+        }
+    }
+
+    /// Play and Shuffle across the artist's songs here, and the filled
+    /// download button with Remove behind it, as a downloaded album's page
+    /// has.
+    private var onDeviceButtons: some View {
+        HStack(spacing: 12) {
+            Button {
+                playOnDevice(shuffle: false)
+            } label: {
+                Text("\(Image(systemName: "play.fill")) Play")
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .glassButton()
+            .foregroundStyle(.primary)
+            Button {
+                playOnDevice(shuffle: true)
+            } label: {
+                Text("\(Image(systemName: "shuffle")) Shuffle")
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .glassButton()
+            .foregroundStyle(.primary)
+            OnDeviceDownloadButton(container: playableContent)
+        }
+        .bold()
+        .fontDesign(.rounded)
+        // Dark glass in Light Mode too, as on an album's page.
+        .environment(\.colorScheme, .dark)
+    }
+
+    private var serverButtons: some View {
         HStack(spacing: 8) {
             if supportsRadio {
                 Button {
@@ -371,7 +424,7 @@ struct ArtistDetailView: View {
     private var popularTracksSection: some View {
         Section {
             CollapsibleHeader(
-                title: "Popular",
+                title: isOnDevice ? "Songs" : "Popular",
                 isExpanded: $isTopSongsExpanded
             )
 
@@ -567,7 +620,53 @@ struct ArtistDetailView: View {
     
     // MARK: - Data Loading
     
+    /// Plays the artist's songs here as one container, as an on-device
+    /// album's page plays its own.
+    private func playOnDevice(shuffle: Bool) {
+        HapticManager.shared.fireHaptic(.buttonPress)
+        let container = playableContent
+        let total = tracks.count
+        Task { @MainActor in
+            let position = QueuePosition.defaultPosition(for: container.content.type, replaceQueueByDefault: replaceQueueByDefault)
+            let playMode: PlayMode = shuffle ? [.normal, .shuffle] : .normal
+            let queue: (GroupRoom, QueuePosition) async throws -> Void = { group, selectedPosition in
+                await SonosService.shared.setPlayMode(group.ip, mode: playMode)
+                group.playMode = playMode
+                QueueManager.shared.addToQueue(
+                    item: QueueItem(playableContent: container, group: group, position: selectedPosition, total: total, showBanner: false)
+                )
+                Router.main.show(destination: .player(groupID: group.coordinatorID))
+            }
+            guard let group = selectedGroupService.group else {
+                await PlayDestinationRouter.play(container, position: position, shuffle: shuffle, queue: queue)
+                return
+            }
+            try? await queue(group, position)
+        }
+    }
+
+    /// The artist's songs and albums here, from the device. Goes back once
+    /// they're all gone.
+    private func loadOnDevice() {
+        guard isOnDevice else { return }
+        let hadTracks = !tracks.isEmpty
+        artistContent = playableContent
+        artworkURL = playableContent.artwork ?? playableContent.thumbnail
+        tracks = OnDeviceLibrary.tracks(inContainer: playableContent) ?? []
+        albums = OnDeviceLibrary.albums(ofArtist: playableContent).map(\.container)
+        allAlbums = albums
+        isLoadingTracks = false
+        isLoading = false
+        if hadTracks, tracks.isEmpty {
+            dismiss()
+        }
+    }
+
     private func loadArtistData() async {
+        if isOnDevice {
+            loadOnDevice()
+            return
+        }
         isLoading = true
 
         // If already an artist type, set immediately (no spinner needed)

@@ -11,8 +11,8 @@ import UIKit
 #endif
 
 /// The Apple Music songs the Music app holds a downloaded copy of, so Cue
-/// can list them under Downloaded, fold them into the on-device library
-/// for Offline Mode, and badge them in lists.
+/// can list them in the Downloads tab, fold them into the on-device
+/// library for offline, and badge them in lists.
 ///
 /// Third-party apps can't download Apple Music tracks themselves (the files
 /// are DRM'd and the API to initiate a download doesn't exist), but the

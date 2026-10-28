@@ -66,6 +66,16 @@ enum Screens {
             .environment(selectedGroupService)
     }
 
+    /// The Downloads tab: the music on this device, and what's coming down.
+    @ViewBuilder
+    static var downloads: some View {
+        let selectedGroupService = SelectedGroupService(group: nil)
+
+        DownloadsTabScreen()
+            .tint(Color("Accent"))
+            .environment(selectedGroupService)
+    }
+
     /// A provider's own tab — its library's front page, listing the
     /// collections its sidebar section is showing.
     @ViewBuilder

@@ -43,14 +43,21 @@ struct MusicPlaybackView: View {
     private var sonosService: SonosService { .shared }
 
     var body: some View {
-        HStack(spacing: 12) {
+        // The buttons sit in cells of their own width, which space them, so
+        // the row's own spacing is small.
+        HStack(spacing: 4) {
             nowPlayingContent
 
-            // Always present, playing or not: the route is set ahead of Play,
-            // which is the whole point of it no longer asking.
-            PlaybackRouteButton()
-                .buttonStyle(.plain)
-                .font(.title3)
+            // Present playing or not: the route is set ahead of Play, which
+            // is the whole point of it no longer asking. Not in the bar
+            // folded into the tab bar, which has room for Play and Pause
+            // alone; it's back as the bar opens out.
+            if placement != .inline {
+                PlaybackRouteButton()
+                    .buttonStyle(.plain)
+                    .font(.title3)
+                    .frame(width: Self.buttonSide)
+            }
 
             // The queue panel's show/hide on iPad, where there is no sidebar
             // header to hold it. Only at a regular width: a compact window
@@ -72,7 +79,8 @@ struct MusicPlaybackView: View {
                         // easy to read.
                         .padding(5)
                         .background(Color("Accent").opacity(showQueue ? 0.25 : 0), in: .circle)
-                        .contentShape(.circle)
+                        .frame(width: Self.buttonSide, height: Self.buttonSide)
+                        .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
                 .animation(.snappy, value: showQueue)
@@ -82,31 +90,27 @@ struct MusicPlaybackView: View {
 #endif
         }
         .padding(.horizontal, 12)
-        // Lifts the row a little so the line below has room of its own
-        // rather than crowding the subtitle.
-        .padding(.bottom, showsBottomProgressLine ? 6 : 0)
         .frame(maxWidth: 500, maxHeight: 120)
-        // On iPhone the line runs the whole width of the accessory, along
-        // its bottom edge; the wider iPad and Mac bars keep it under the
-        // track text. Inset by the row's own 12pt, so it starts under the
-        // artwork's edge and ends under the last button's.
-        .overlay(alignment: .bottom) {
-            if showsBottomProgressLine {
-                progressLine
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 4)
-                    .allowsHitTesting(false)
-            }
-        }
     }
 
-    private var progressSpansFullWidth: Bool {
-        UIDevice.current.userInterfaceIdiom == .phone
+    /// The iPhone's bar, and an iPad window's at a compact width, is as
+    /// tall as the system makes it, room for one row as Apple Music's has:
+    /// the cover, the title and artist, and the buttons, centred. How far
+    /// the song has got goes round Play and Pause, as on the watch, rather
+    /// than in a line of its own, which pushed the row up against the top.
+    /// The wider iPad and Mac bars keep the line under the track text.
+    private var isCompact: Bool {
+        UIDevice.current.userInterfaceIdiom == .phone || horizontalSizeClass == .compact
     }
 
-    private var showsBottomProgressLine: Bool {
-        progressSpansFullWidth && placement != .inline
+    /// The cover's side: smaller in the compact bar, with its room around it.
+    private var artworkSide: CGFloat {
+        isCompact ? 32 : 40
     }
+
+    /// Each button's cell, all of it taking the tap: wider than the glyphs,
+    /// so they stand apart and a tap between two still lands.
+    static let buttonSide: CGFloat = 40
 
     /// The progress line for what's on screen, in seconds whichever it is.
     @ViewBuilder
@@ -167,11 +171,11 @@ struct MusicPlaybackView: View {
                 // on screen meanwhile.
                 if group != nil, route.isSwitching, !route.isHolding {
                     ProgressView()
-                        .frame(width: 40, height: 40)
+                        .frame(width: artworkSide, height: artworkSide)
                 } else if let item {
                     ContentArtworkView(content: item, showMusicSource: false)
-                        .frame(width: 40, height: 40)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .frame(width: artworkSide, height: artworkSide)
+                        .clipShape(RoundedRectangle(cornerRadius: isCompact ? 6 : 8))
                 } else {
                     Image(systemName: idleSymbol(for: group))
                         .foregroundStyle(.secondary)
@@ -199,7 +203,7 @@ struct MusicPlaybackView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
-                        if !progressSpansFullWidth {
+                        if !isCompact {
                             progressLine
                         }
                     }
@@ -219,9 +223,7 @@ struct MusicPlaybackView: View {
                 HapticManager.shared.fireHaptic(.buttonPress)
                 Task { await controller.togglePlayback() }
             } label: {
-                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                    .contentTransition(GroupMediaControlsView.animatesPlayPause ? .symbolEffect(.replace) : .identity)
-                    .sustainedPulse(isActive: GroupMediaControlsView.animatesPlayPause && controller.isLoading)
+                MiniPlayerPlayPauseLabel(controller: controller, isRinged: isCompact, showsProgress: item != nil)
             }
             .buttonStyle(.plain)
             .font(.title3)
@@ -246,6 +248,8 @@ struct MusicPlaybackView: View {
                     }
                 } label: {
                     Image(systemName: isBook ? "goforward.\(Int(AudiobookPlayer.skipForwardInterval))" : "forward.fill")
+                        .frame(width: Self.buttonSide, height: Self.buttonSide)
+                        .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
                 .font(.title3)
@@ -328,6 +332,9 @@ struct CueApp: App {
     /// Settings › Appearance › Show Radio Tab.
     @AppStorage(AppStorageKeys.showRadioTab) private var showRadioTab: Bool = true
     @AppStorage(AppStorageKeys.showAudiobooksTab) private var showAudiobooksTab: Bool = true
+    /// Settings › Appearance › Downloads: whether the tab shows while
+    /// there's a network. Offline it shows whatever this says.
+    @AppStorage(AppStorageKeys.showDownloadsTab) private var showDownloadsTab: Bool = true
     @AppStorage(AppStorageKeys.hasPlexAudiobooks) private var hasPlexAudiobooks: Bool = false
     /// The sidebar's edits — which of the provider tabs show, and the order
     /// of their sections — kept across launches. This is the whole of tab
@@ -365,7 +372,7 @@ struct CueApp: App {
     /// this device as well as on a speaker, which is the tab's rule — Sonos
     /// Radio and Sonos favorites are speaker-only and stay on Browse and
     /// Search. The user can hide it in Settings › Appearance, and it goes
-    /// on its own while Offline Mode is active: every station streams, so
+    /// on its own while offline: every station streams, so
     /// there is nothing there to play.
     private var showsRadioTab: Bool {
         showRadioTab
@@ -377,7 +384,7 @@ struct CueApp: App {
     /// sign-in, a Plex server that had books when last asked
     /// (`AudiobookLibrary.checkPlexBooks`), or books in the Files folder.
     /// Hidden in Settings › Appearance.
-    /// While Offline Mode is active only books downloaded whole can play,
+    /// While offline only books downloaded whole can play,
     /// so it stays while there are any.
     private var showsAudiobooksTab: Bool {
         guard showAudiobooksTab else { return false }
@@ -389,6 +396,26 @@ struct CueApp: App {
         return (coreFeatures.isEnabled(.audiobookshelf) && AudiobookshelfAPI.shared.isConfigured)
             || (coreFeatures.isEnabled(.plex) && hasPlexAudiobooks)
             || hasFilesBooks
+    }
+
+    /// Whether the Downloads tab shows: always offline, in Browse's place
+    /// (what's here is all there is to play); otherwise while it's switched
+    /// on in Settings › Appearance and has something to show, songs or
+    /// books Cue downloaded or is downloading, or Apple Music songs the
+    /// Music app keeps downloaded. Read through the download manager's
+    /// summary, which moves as songs land rather than with every byte of
+    /// progress, so the tab bar isn't redrawn while they come down.
+    private var showsDownloadsTab: Bool {
+        if offline.isActive { return true }
+        return showDownloadsTab
+            && (DownloadManager.shared.musicSummary.hasDownloads
+                || (coreFeatures.isEnabled(.apple) && !AppleDownloadsIndex.shared.songs.isEmpty))
+    }
+
+    /// Whether Browse shows: not offline, where its providers have nothing
+    /// to show and Downloads takes its place.
+    private var showsBrowseTab: Bool {
+        !offline.isActive
     }
 
     /// Search. The search role only on the phone, where it draws the tab as
@@ -423,6 +450,40 @@ struct CueApp: App {
                 Screens.audiobooks
             }
         }
+    }
+
+    /// Downloads, last, while there's music or a book here
+    /// (`showsDownloadsTab`). While songs or books come down its icon is a
+    /// ring filling with the run, which on the phone says as much as a
+    /// badge would. The iPad's and the Mac's top bar draws titles only, so
+    /// there the songs and books still to come are a badge (a book counting
+    /// once).
+    @TabContentBuilder<AppTab>
+    private var downloadsTab: some TabContent<AppTab> {
+        if showsDownloadsTab {
+            Tab(value: AppTab.downloads) {
+                Screens.downloads
+            } label: {
+                Label {
+                    Text("Downloads")
+                } icon: {
+                    downloadsTabIcon
+                }
+            }
+            .badge(isPhone ? 0 : DownloadManager.shared.musicSummary.remainingDownloads)
+        }
+    }
+
+    /// The download symbol, or while songs or books come down a ring round
+    /// the arrow filling with the run (`runProgressStep`, which moves in
+    /// steps, so the tab bar isn't redrawn with every byte). A bare
+    /// `Image`: the tab bar takes the image out of the label.
+    private var downloadsTabIcon: Image {
+        let manager = DownloadManager.shared
+        guard manager.musicSummary.remainingDownloads > 0 else {
+            return Image(systemName: "arrow.down.circle")
+        }
+        return Image(uiImage: DownloadRingIcon.image(step: manager.runProgressStep))
     }
 
     /// The Providers section, on iPad and Mac: one tab per switched-on
@@ -503,9 +564,11 @@ struct CueApp: App {
     private var showsLibrarySections: Bool { false }
 
     /// The tab the selection falls back to: Home where the sidebar has
-    /// one, Browse on the tab bar, which has none.
+    /// one, Browse on the tab bar, which has none, and Downloads offline,
+    /// in Browse's place.
     private var fallbackTab: AppTab {
-        showsLibrarySections ? .home : .browse
+        if offline.isActive, !showsLibrarySections { return .downloads }
+        return showsLibrarySections ? .home : .browse
     }
 
     /// Every tab the view builds right now. The selection is checked
@@ -516,12 +579,18 @@ struct CueApp: App {
     /// view controller matches the UITabBarItem"), and it asserts during
     /// layout, before any `onChange` gets a chance to move the selection.
     private var availableTabs: Set<AppTab> {
-        var tabs: Set<AppTab> = [.search, .browse]
+        var tabs: Set<AppTab> = [.search]
+        if showsBrowseTab || showsLibrarySections {
+            tabs.insert(.browse)
+        }
         if showsRadioTab {
             tabs.insert(.radio)
         }
         if showsAudiobooksTab {
             tabs.insert(.audiobooks)
+        }
+        if showsDownloadsTab {
+            tabs.insert(.downloads)
         }
         if showsLibrarySections {
             tabs.insert(.home)
@@ -573,13 +642,17 @@ struct CueApp: App {
                     // Home's place: providers are browsed from Browse's menu
                     // and set up in Settings › Services. No provider tabs, so
                     // the bar never overflows into More. The house is
-                    // Browse's here, since it is the home.
-                    Tab("Browse", image: "home.fill", value: AppTab.browse) {
-                        Screens.browse
+                    // Browse's here, since it is the home. Offline it goes,
+                    // and Downloads leads in its place.
+                    if showsBrowseTab {
+                        Tab("Browse", image: "home.fill", value: AppTab.browse) {
+                            Screens.browse
+                        }
                     }
                     searchTab
                     radioTab
                     audiobooksTab
+                    downloadsTab
                 } else {
                     Tab("Home", image: "home.fill", value: AppTab.home) {
                         Screens.home
@@ -590,6 +663,7 @@ struct CueApp: App {
                     }
                     radioTab
                     audiobooksTab
+                    downloadsTab
 
                     // The providers twice over, both driven by the switched-on
                     // set: once as tabs in one section, which is how the
@@ -1524,6 +1598,49 @@ private struct AdaptiveTabViewStyle: ViewModifier {
     }
 }
 
+/// The Downloads tab's icon while songs or books come down: a ring that
+/// fills with the run, round the download arrow. A template image, tinted
+/// by the tab bar like a symbol, since the tab bar takes only a plain image
+/// from a tab's label; one drawn a step and kept.
+@MainActor
+private enum DownloadRingIcon {
+    private static var images: [Int: UIImage] = [:]
+
+    static func image(step: Int) -> UIImage {
+        if let image = images[step] { return image }
+        let side: CGFloat = 25
+        let lineWidth: CGFloat = 2
+        let fraction = CGFloat(step) / CGFloat(DownloadManager.runProgressSteps)
+        let drawn = UIGraphicsImageRenderer(size: CGSize(width: side, height: side)).image { _ in
+            let ring = CGRect(x: 0, y: 0, width: side, height: side).insetBy(dx: lineWidth / 2 + 0.5, dy: lineWidth / 2 + 0.5)
+            let track = UIBezierPath(ovalIn: ring)
+            track.lineWidth = lineWidth
+            UIColor.black.withAlphaComponent(0.3).setStroke()
+            track.stroke()
+            if fraction > 0 {
+                let arc = UIBezierPath(
+                    arcCenter: CGPoint(x: side / 2, y: side / 2),
+                    radius: ring.width / 2,
+                    startAngle: -.pi / 2,
+                    endAngle: -.pi / 2 + 2 * .pi * fraction,
+                    clockwise: true
+                )
+                arc.lineWidth = lineWidth
+                arc.lineCapStyle = .round
+                UIColor.black.setStroke()
+                arc.stroke()
+            }
+            if let arrow = UIImage(systemName: "arrow.down", withConfiguration: UIImage.SymbolConfiguration(pointSize: 11, weight: .bold))?
+                .withTintColor(.black, renderingMode: .alwaysOriginal) {
+                let size = arrow.size
+                arrow.draw(in: CGRect(x: (side - size.width) / 2, y: (side - size.height) / 2, width: size.width, height: size.height))
+            }
+        }
+        let image = drawn.withRenderingMode(.alwaysTemplate)
+        images[step] = image
+        return image
+    }
+}
 
 /// The thin elapsed-time line under the mini player's track text. Units are
 /// the caller's (seconds on the device, milliseconds from a speaker) — only
@@ -1580,6 +1697,95 @@ private struct MiniPlayerProgressLine: View {
         .frame(height: 3)
         .padding(.top, 2)
         .opacity(hasDuration ? 1 : 0)
+        .accessibilityHidden(true)
+    }
+}
+
+/// The mini player's Play or Pause, in a cell that takes the tap all
+/// over. In the compact bar it sits in the ring of how far the song has
+/// got (`MiniPlayerProgressRing`); the wider iPad and Mac bars have the
+/// glyph alone, with the line under the track text.
+fileprivate struct MiniPlayerPlayPauseLabel: View {
+    let controller: any PlaybackController
+    let isRinged: Bool
+    /// Whether there's a song to show the progress of.
+    let showsProgress: Bool
+
+    var body: some View {
+        let glyph = Image(systemName: controller.isPlaying ? "pause.fill" : "play.fill")
+            .contentTransition(GroupMediaControlsView.animatesPlayPause ? .symbolEffect(.replace) : .identity)
+            .sustainedPulse(isActive: GroupMediaControlsView.animatesPlayPause && controller.isLoading)
+        Group {
+            if isRinged {
+                glyph
+                    .font(.body.weight(.semibold))
+                    .frame(width: 32, height: 32)
+                    .background {
+                        if showsProgress {
+                            MiniPlayerProgressRing(
+                                duration: controller.duration,
+                                isRunning: controller.isClockRunning,
+                                position: { controller.position() }
+                            )
+                        }
+                    }
+            } else {
+                glyph
+            }
+        }
+        .frame(width: MusicPlaybackView.buttonSide, height: MusicPlaybackView.buttonSide)
+        .contentShape(.rect)
+    }
+}
+
+/// How far the song has got as a ring round the compact mini player's Play
+/// and Pause, as the watch's Now Playing draws it: the same clock as
+/// `MiniPlayerProgressLine`, redrawn once per pixel of the ring's length.
+/// Hidden for a live stream, which has no length to go round.
+private struct MiniPlayerProgressRing: View {
+    let duration: TimeInterval
+    /// Whether the position is moving on its own right now.
+    let isRunning: Bool
+    /// Where playback is now, in seconds, read on every redraw.
+    let position: () -> TimeInterval
+
+    private let lineWidth: CGFloat = 2
+
+    @Environment(\.displayScale) private var displayScale
+    @State private var diameter: CGFloat = 0
+
+    private var hasDuration: Bool {
+        duration.isFinite && duration > 0
+    }
+
+    private func fraction(of position: TimeInterval) -> CGFloat {
+        guard hasDuration, position.isFinite else { return 0 }
+        return CGFloat(min(max(position / duration, 0), 1))
+    }
+
+    var body: some View {
+        PlaybackTimeline(
+            isRunning: isRunning && hasDuration,
+            minimumInterval: ProgressRedraw.interval(
+                forDuration: duration * 1000,
+                length: diameter * .pi,
+                scale: displayScale
+            ),
+            position: position
+        ) { position in
+            ZStack {
+                Circle()
+                    .stroke(.secondary.opacity(0.3), lineWidth: lineWidth)
+                Circle()
+                    .trim(from: 0, to: fraction(of: position))
+                    .stroke(.primary, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+            }
+            .padding(lineWidth / 2)
+        }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { diameter = $0 }
+        .opacity(hasDuration ? 1 : 0)
+        .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
 }
