@@ -30,14 +30,19 @@ public final class PlexAPI {
         authenticator.authToken != nil
     }
 
+    // Stored only when they change: a request finding no music library
+    // sets `librarySelectionID` again each time, and every UserDefaults
+    // write re-runs Cue's `@AppStorage` views.
     public var serverID: String? {
         didSet {
+            guard serverID != oldValue else { return }
             UserDefaults.standard.set(serverID, forKey: "com.cue.plexServer")
         }
     }
     
     public var librarySelectionID: String? {
         didSet {
+            guard librarySelectionID != oldValue else { return }
             UserDefaults.standard.set(librarySelectionID, forKey: "com.cue.plexServer.library")
         }
     }

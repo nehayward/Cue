@@ -154,6 +154,7 @@ struct SearchScreen: View {
         @Bindable var router = router
         @Bindable var musicSearchService = musicSearchService
         @Bindable var sonosService = sonosService
+        let _ = ScrollStopLog.note("body search")
 
         NavigationStack(path: $router.path) {
             ScrollViewReader { proxy in
@@ -429,14 +430,26 @@ struct SearchScreen: View {
 #endif
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .onAppear {
+            ScrollStopLog.note("search appeared", logNow: true)
             searchFieldIsPresented = true
             lastNonEmptyQuery = ""
             musicSearchService.query = ""
             answerFocusRequest()
         }
         .onDisappear {
+            ScrollStopLog.note("search went", logNow: true)
             if !lastNonEmptyQuery.isEmpty {
                 recentQueries.addOrMoveToFront(lastNonEmptyQuery)
+            }
+        }
+        // Debug: the keyboard going down and up again while typing is the
+        // field losing focus and getting it back; each is logged with what
+        // came just before (`ScrollStopLog`).
+        .onChange(of: focusedField) { old, new in
+            if old == .search, new == nil {
+                ScrollStopLog.reportRecent("search field lost focus")
+            } else if new == .search {
+                ScrollStopLog.note("search field focused", logNow: true)
             }
         }
         .animation(.interactiveSpring, value: focusedField)
@@ -529,6 +542,7 @@ struct SearchScreen: View {
         guard request != answeredFocusRequest else { return }
         answeredFocusRequest = request
         guard isTab else { return }
+        ScrollStopLog.note("search focus requested", logNow: true)
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(100))
             focusedField = .search

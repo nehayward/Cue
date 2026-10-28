@@ -28,6 +28,10 @@ import UIKit
 /// the network coming or going (`TabView`'s `.id`), and the app's own
 /// foreground and background moves. A finger lifted while the list still
 /// moved, with no fling after, is a pan that was dropped: "DROPPED".
+///
+/// The Search field losing its focus is logged the same way ("search field
+/// lost focus; before it: …"), for the keyboard going down and up again
+/// while someone types.
 @MainActor
 enum ScrollStopLog {
     private static let log = Logger(subsystem: "dance.cue", category: "scroll")
@@ -105,6 +109,12 @@ enum ScrollStopLog {
 
     static func report(_ line: String) {
         log.notice("\(line, privacy: .public)")
+    }
+
+    /// Logs `what` with everything noted in the last `window` seconds: the
+    /// Search field losing its focus, say, and what came just before.
+    static func reportRecent(_ what: String) {
+        report("\(what); before it: \(summary(since: now - window))")
     }
 
     /// Pings the main thread every 50 ms from a thread of its own and
@@ -298,6 +308,9 @@ extension View {
 enum ScrollStopLog {
     @inline(__always)
     static func note(_ what: @autoclosure () -> String, logNow: Bool = false) {}
+
+    @inline(__always)
+    static func reportRecent(_ what: @autoclosure () -> String) {}
 }
 
 extension View {

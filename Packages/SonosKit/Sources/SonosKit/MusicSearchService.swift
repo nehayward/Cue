@@ -361,7 +361,10 @@ public final class MusicSearchService {
         }
 
         if let suggestionResults = await searchSuggestionTask.value {
-            if !providers.contains(.tuneIn) && !providers.contains(.sonosRadio) && !providers.contains(.pandora) {
+            // The same suggestions again aren't written: they're the
+            // keyboard's bar over the field, redrawn with each write.
+            if !providers.contains(.tuneIn) && !providers.contains(.sonosRadio) && !providers.contains(.pandora),
+               suggestions != suggestionResults.0 {
                 suggestions = suggestionResults.0
             }
         }
