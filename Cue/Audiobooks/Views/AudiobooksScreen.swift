@@ -54,7 +54,13 @@ struct AudiobooksScreen: View {
             // Continue Listening card or a shelf brought up the first
             // book's menu.
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 0) {
+                // A plain stack, not a lazy one: the tab is a handful of
+                // sections, each shelf lazy in its own row, and a lazy stack
+                // guessed the height of the sections out of view 100-150 pt
+                // out, then corrected it as they came in. The page's height
+                // changed under the finger at every pass of the top, which
+                // jolted the scroll or stopped it dead.
+                VStack(alignment: .leading, spacing: 0) {
                     if !needsServer {
                         AudiobookContinueCard(books: continuing)
                             .padding(.horizontal, 16)

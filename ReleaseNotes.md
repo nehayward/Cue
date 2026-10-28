@@ -66,6 +66,7 @@
 - Fixed Radio and Audiobooks not scrolling or responding to taps
 - Radio and Audiobooks scroll smoothly as you switch to them or come back to Cue, without a jolt
 - Search no longer stutters as you come back to Cue with its keyboard up, and coming back no longer rebuilds tabs you aren't looking at
+- Fixed Audiobooks' scrolling stopping short or jumping near the top of the tab
 - The Audiobooks tab is always there now: before you've set up any books, it offers to sign in to Plex or Audiobookshelf. Hide it under Settings ▸ Appearance
 
 # 2026.7
