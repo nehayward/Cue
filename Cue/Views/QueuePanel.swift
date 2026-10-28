@@ -105,44 +105,38 @@ struct QueuePanel<Panel: View>: ViewModifier {
         HStack(spacing: 0) {
             content
 
-            // The panel's slot, there whatever the width and clipped to its
-            // own bounds as they grow and shrink, so the pair slides in from
-            // and out past the slot's trailing edge and is cut off there.
-            // The clip on the pair moves with its transition: on its own it
-            // let the pair slide on past that edge, which iPad's window hid
-            // but an iPhone Duo open, where the player's stack holds the
-            // panel (`PlayerView.queuePanelInStack`), showed under its
-            // trailing navigation bar and status bar.
-            HStack(spacing: 0) {
-                if isPresented, !isCompact {
-                    // Divider and panel transition as one unit. As separate
-                    // children of the `HStack` they each got their own
-                    // transition: the panel slid in from the trailing edge
-                    // while the divider, having none of its own, fell back to
-                    // a fade and appeared in place. `geometryGroup` keeps the
-                    // pair's frames resolving together rather than each
-                    // animating independently.
-                    HStack(spacing: 0) {
-                        divider
-                        panel()
-                            .frame(width: width)
-                            .modifier(PanelBackground())
-                            .padding(.trailing, 10)
-                            .padding(.vertical, 10)
-                    }
-                    // Following the finger past the minimum width: the pair
-                    // moves off the edge, dimming as it goes, so a drag to
-                    // dismiss reads as one before it lands.
-                    .offset(x: dismissOvershoot)
-                    .opacity(1 - min(1, dismissOvershoot / Self.dismissDistance) * 0.5)
-                    .geometryGroup()
-                    // Clipped so the drag's overshoot slides the pair out
-                    // from under its own edge.
-                    .clipped()
-                    .transition(.move(edge: .trailing))
+            if isPresented, !isCompact {
+                // Divider and panel transition as one unit. As separate
+                // children of the `HStack` they each got their own transition:
+                // the panel slid in from the trailing edge while the divider,
+                // having none of its own, fell back to a fade and appeared in
+                // place. `geometryGroup` keeps the pair's frames resolving
+                // together rather than each animating independently.
+                HStack(spacing: 0) {
+                    divider
+                    panel()
+                        .frame(width: width)
+                        .modifier(PanelBackground())
+                        .padding(.trailing, 10)
+                        .padding(.vertical, 10)
                 }
+                // Following the finger past the minimum width: the pair moves
+                // off the edge, dimming as it goes, so a drag to dismiss reads
+                // as one before it lands.
+                .offset(x: dismissOvershoot)
+                .opacity(1 - min(1, dismissOvershoot / Self.dismissDistance) * 0.5)
+                .geometryGroup()
+                // Clipped so the drag's overshoot slides the pair out from
+                // under its own edge.
+                .clipped()
+                // Sliding and fading as one. The slide goes on past this
+                // view's trailing edge, which is the window's on iPad but on
+                // an iPhone Duo open, where the player's stack holds the panel
+                // (`PlayerView.queuePanelInStack`), the edge of the safe area
+                // its trailing bars run down: the fade has it gone by the time
+                // it gets there. Cut off at that edge instead, it shrank.
+                .transition(.move(edge: .trailing).combined(with: .opacity))
             }
-            .clipped()
         }
         .onGeometryChange(for: CGFloat.self) { proxy in
             proxy.size.width
