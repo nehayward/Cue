@@ -145,7 +145,12 @@ public struct VibeSlider: View {
                 .shadow(color: .black.opacity(0.1), radius: 1.5, y: 1)
                 .shadow(color: .white.opacity(0.1), radius: 0.5, y: 0.5)
                 .overlay(alignment: .leading) {
-                    ZStack(alignment: .leading) {
+                    // Laid out as its share of the track, not from `width`,
+                    // which is measured after layout: as the track grows or
+                    // shrinks in an animation (a panel opening beside the
+                    // player), the fill moves with it rather than jumping to
+                    // its new width once the measure comes in.
+                    LeadingFraction(fraction: math.fraction(of: value)) {
                         Capsule()
                             .overlay {
                                 if isDragging {
@@ -163,13 +168,13 @@ public struct VibeSlider: View {
                                 }
                             }
 #endif
-                            .frame(width: calculateProgressWidth(), height: baseHeight)
-                            .animation(fillAnimation, value: value)
-                            // Until the first value lands, also drop animations
-                            // inherited from outside: a list animating rows in
-                            // otherwise grows the fill from width 0.
-                            .transaction { if !animatesValue { $0.animation = nil } }
+                            .frame(height: baseHeight)
                     }
+                    .animation(fillAnimation, value: value)
+                    // Until the first value lands, also drop animations
+                    // inherited from outside: a list animating rows in
+                    // otherwise grows the fill from width 0.
+                    .transaction { if !animatesValue { $0.animation = nil } }
                 }
                 .clipShape(.capsule) // Best attempt at fixing a bug https://twitter.com/ChristianSelig/status/1757139789457829902
 #if !os(watchOS) && !os(macOS)
@@ -178,15 +183,19 @@ public struct VibeSlider: View {
             // Not built at all when hidden: the scrub bar's value ticks with
             // playback, and an invisible label still costs layout every tick.
             if showValue {
-                valueLabel
-                    .frame(minWidth: 28, minHeight: baseHeight)
-                    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { labelWidth = $0 }
-                    .background(isDragging ? capsuleColor : Color.clear)
-                    .clipShape(.capsule)
-                    .offset(x: offsetForValue, y: isDragging ? -24 : 0)
-                    .animation(.interactiveSpring, value: isDragging)
-                    .animation(fillAnimation, value: value)
-                    .transaction { if !animatesValue { $0.animation = nil } }
+                // Placed along the track by layout, as the fill is, so it
+                // keeps to the fill's end as the track's width animates.
+                ValueLabelPlacement(fraction: math.fraction(of: value), inset: 28) {
+                    valueLabel
+                        .frame(minWidth: 28, minHeight: baseHeight)
+                        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { labelWidth = $0 }
+                        .background(isDragging ? capsuleColor : Color.clear)
+                        .clipShape(.capsule)
+                }
+                .offset(y: isDragging ? -24 : 0)
+                .animation(.interactiveSpring, value: isDragging)
+                .animation(fillAnimation, value: value)
+                .transaction { if !animatesValue { $0.animation = nil } }
             }
         }
         .padding(.vertical, baseHeight/2)
@@ -365,8 +374,46 @@ public struct VibeSlider: View {
         math.fillWidth(for: value, trackWidth: width)
     }
     
+    /// Where the label starts along the track: `ValueLabelPlacement`'s
+    /// rule, from the measured width, for the share of it over the fill.
     private var offsetForValue: Double {
         min(max(0, calculateProgressWidth() - 28), max(0, width - 28))
+    }
+}
+
+/// The fill: its one subview as wide as `fraction` of the bounds, at the
+/// leading edge, its full height.
+private struct LeadingFraction: Layout {
+    var fraction: Double
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        proposal.replacingUnspecifiedDimensions()
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let width = fraction.isFinite ? bounds.width * min(max(fraction, 0), 1) : 0
+        for subview in subviews {
+            subview.place(at: bounds.origin, anchor: .topLeading, proposal: ProposedViewSize(width: width, height: bounds.height))
+        }
+    }
+}
+
+/// The value label along the track: its leading edge `inset` points short
+/// of the fill's end, kept within the track.
+private struct ValueLabelPlacement: Layout {
+    var fraction: Double
+    var inset: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let label = subviews.first?.sizeThatFits(.unspecified) ?? .zero
+        return CGSize(width: proposal.width ?? label.width, height: label.height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard let label = subviews.first else { return }
+        let fill = fraction.isFinite ? bounds.width * min(max(fraction, 0), 1) : 0
+        let x = min(max(0, fill - inset), max(0, bounds.width - inset))
+        label.place(at: CGPoint(x: bounds.minX + x, y: bounds.midY), anchor: .leading, proposal: .unspecified)
     }
 }
 
