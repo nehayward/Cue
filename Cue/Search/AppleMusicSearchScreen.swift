@@ -29,6 +29,8 @@ struct AppleMusicSearchScreen: View {
             case .notDetermined, .denied:
                 AppleMusicPermissionsView()
                     .addDismiss(action: dismiss.callAsFunction)
+                    // A prompt, not a result: no line under it.
+                    .listRowSeparator(.hidden)
             }
         }
         .onAppear {

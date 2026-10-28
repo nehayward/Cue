@@ -64,7 +64,11 @@
 - Apple Watch: Settings shows how much room your songs and books take and how much is free, with Retry Failed and separate Remove All Songs and Remove All Books. Downloads lists music and books apart, a swipe removes one, and long titles no longer get cut off
 - Apple Watch: with no connection, your Plex and Subsonic Playlists, Albums and Artists show the ones on your watch instead of an error
 - Fixed Radio and Audiobooks not scrolling or responding to taps
+- Radio and Audiobooks scroll smoothly as you switch to them or come back to Cue, without a jolt
+- Search no longer stutters as you come back to Cue with its keyboard up, and coming back no longer rebuilds tabs you aren't looking at
+- Fixed Audiobooks' scrolling stopping short or jumping near the top of the tab
 - The Audiobooks tab is always there now: before you've set up any books, it offers to sign in to Plex or Audiobookshelf. Hide it under Settings ▸ Appearance
+- Fixed the keyboard going down by itself while you type in Search, and scrolls stopping dead, most often with an accessibility feature turned on
 
 # 2026.7
 

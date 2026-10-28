@@ -24,14 +24,15 @@ struct PreferenceScreen: View {
     
     @AppStorage("AppIcon") private var selectedAppIcon = "Default"
     
-    @AppStorage(Defaults.AppStorageKeys.colorScheme) private var colorScheme: ColorSchemePreference = .system
+    /// The theme's name on Appearance's row, and Debug's tab bar switch:
+    /// the app's own settings (`AppState`).
+    @State private var appState = AppState.shared
 #if DEBUG
     // Off until it's known whether the car's Now Playing follows without it
     // (`CarPlayInterface.start`).
     @AppStorage(Defaults.AppStorageKeys.carPlayMiniPlayer) private var carPlayMiniPlayer: Bool = false
     @AppStorage(Defaults.AppStorageKeys.nowPlayingSession) private var nowPlayingSession: Bool = false
     @State private var offline = OfflineMode.shared
-    @AppStorage("dance.cue.debug.minimizeTabBar") private var minimizesTabBar: Bool = true
 #endif
     @AppStorage(Defaults.AppStorageKeys.lastSeenWhatsNewVersion) private var lastSeenWhatsNewVersion: String = ""
     @AppStorage(Defaults.AppStorageKeys.latestReleaseVersion) private var latestReleaseVersion: String = ""
@@ -252,7 +253,7 @@ struct PreferenceScreen: View {
                 Section {
                     NavigationLink(value: RouterDestination.settingsPage(.appearance)) {
                         LabeledContent {
-                            Text(colorScheme.rawValue.capitalized)
+                            Text(appState.colorScheme.rawValue.capitalized)
                         } label: {
                             Label {
                                 Text("Appearance")
@@ -365,7 +366,7 @@ struct PreferenceScreen: View {
                     }
                     // Whether the tab bar shrinking as a page scrolls is
                     // what catches the scroll: switch it and compare.
-                    Toggle(isOn: $minimizesTabBar) {
+                    Toggle(isOn: $appState.minimizesTabBar) {
                         Label("Shrink Tab Bar on Scroll", systemImage: "dock.arrow.down.rectangle")
                     }
                 } header: {

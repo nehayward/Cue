@@ -122,11 +122,14 @@ enum Screens {
 /// Hidden at compact widths rather than a sheet: on iPhone the queue is the
 /// player's, and a sheet here would fight the one it presents (they share
 /// the stored flag).
+///
+/// The flag is observed (`AppState.showsQueuePanel`): as `@AppStorage` this
+/// ran on every UserDefaults write, round the `TabView`.
 struct WindowQueuePanel: ViewModifier {
-    @AppStorage(AppStorageKeys.queueInspectorVisible) private var showQueue: Bool = false
+    @State private var appState = AppState.shared
 
     func body(content: Content) -> some View {
-        content.queuePanel(isPresented: $showQueue, compact: .hidden) { QueueNextUpView() }
+        content.queuePanel(isPresented: $appState.showsQueuePanel, compact: .hidden) { QueueNextUpView() }
     }
 }
 

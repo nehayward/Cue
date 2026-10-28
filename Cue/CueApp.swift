@@ -26,8 +26,9 @@ import WidgetKit
 struct MusicPlaybackView: View {
     @Environment(\.tabViewBottomAccessoryPlacement) var placement
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    /// The same key each tab's queue panel reads.
-    @AppStorage(AppStorageKeys.queueInspectorVisible) private var showQueue: Bool = false
+    /// The queue panel's flag (`AppState.showsQueuePanel`), observed rather
+    /// than `@AppStorage`, which ran this again on every UserDefaults write.
+    @State private var appState = AppState.shared
     /// Owned by `CueApp`, not by this view. The tab bar accessory is hosted
     /// outside the tab content and gets re-created when its placement changes
     /// or the scene comes back to the foreground — `@State` here reset to
@@ -43,6 +44,7 @@ struct MusicPlaybackView: View {
     private var sonosService: SonosService { .shared }
 
     var body: some View {
+        let _ = ScrollStopLog.note("body accessory")
         // The buttons sit in cells of their own width, which space them, so
         // the row's own spacing is small.
         HStack(spacing: 4) {
@@ -67,7 +69,7 @@ struct MusicPlaybackView: View {
             if UIDevice.current.userInterfaceIdiom == .pad, horizontalSizeClass == .regular {
                 Button {
                     withAnimation(.snappy) {
-                        showQueue.toggle()
+                        appState.showsQueuePanel.toggle()
                     }
                 } label: {
                     // The player's queue gauge: how far through the queue
@@ -78,19 +80,33 @@ struct MusicPlaybackView: View {
                         // than the gauge itself in accent, so its number stays
                         // easy to read.
                         .padding(5)
-                        .background(Color("Accent").opacity(showQueue ? 0.25 : 0), in: .circle)
+                        .background(Color("Accent").opacity(appState.showsQueuePanel ? 0.25 : 0), in: .circle)
                         .frame(width: Self.buttonSide, height: Self.buttonSide)
                         .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
-                .animation(.snappy, value: showQueue)
-                .accessibilityLabel(showQueue ? "Hide Queue" : "Show Queue")
-                .accessibilityAddTraits(showQueue ? .isSelected : [])
+                .animation(.snappy, value: appState.showsQueuePanel)
+                .accessibilityLabel(appState.showsQueuePanel ? "Hide Queue" : "Show Queue")
+                .accessibilityAddTraits(appState.showsQueuePanel ? .isSelected : [])
             }
 #endif
         }
         .padding(.horizontal, 12)
         .frame(maxWidth: 500, maxHeight: 120)
+        // The system hosts the accessory again as its placement changes
+        // and as the scene comes back: each is noted for `ScrollStopLog`.
+        .onChange(of: placement) { old, new in
+            ScrollStopLog.note("accessory \(Self.name(of: old))→\(Self.name(of: new))")
+        }
+        .onAppear { ScrollStopLog.note("accessory hosted", logNow: true) }
+    }
+
+    private static func name(of placement: TabViewBottomAccessoryPlacement?) -> String {
+        switch placement {
+        case .inline: "inline"
+        case .expanded: "expanded"
+        default: "none"
+        }
     }
 
     /// The iPhone's bar, and an iPad window's at a compact width, is as
@@ -279,10 +295,11 @@ struct CueApp: App {
     private var playHistoryService = PlayHistoryService.shared
     private var miniPlayerManager = MiniPlayerManger.shared
 
-    @CloudStorage(CloudKeys.hasSubscription) private var activeSubscription: Bool = false
-    @CloudStorage(CloudKeys.scenes) var scenes: [SonosScene] = []
-    
-    @AppStorage(GroupStorageKeys.hasOnboarded, store: GroupStorageKeys.storage) private var hasOnboarded: Bool = false
+    /// The settings and tabs the scene draws (`AppState`), observed rather
+    /// than held in `@AppStorage`, which ran this body again on every
+    /// UserDefaults write.
+    @State private var appState = AppState.shared
+
     /// Onboarding, shown once on first launch. Presented from the `TabView`
     /// with its own flag, like the player: the shared router's full-screen
     /// cover is only attached inside some tabs.
@@ -292,17 +309,12 @@ struct CueApp: App {
     /// explaining the Local Network prompt, so the launch and scene-phase
     /// paths keep out of the way until then.
     private var isOnboarding: Bool {
-        !hasOnboarded || OnboardingDebug.forceShow
+        !(GroupStorageKeys.storage?.bool(forKey: GroupStorageKeys.hasOnboarded) ?? false) || OnboardingDebug.forceShow
     }
-    @AppStorage("CueMiniEnabled") private var isMenuBarAppEnabled: Bool = true
-    @AppStorage(AppStorageKeys.colorScheme) private var colorScheme: ColorSchemePreference = .system
-    @AppStorage(AppStorageKeys.speedLaunchNowPlaying) private var speedLaunchNowPlaying: Bool = false
     /// True at launch and while Cue is in the background, so Quick Launch
     /// opens the player once per return rather than after every Control
     /// Center pull or notification, which pass through `.inactive`.
     @State private var quickLaunchPending = true
-    @AppStorage(AppStorageKeys.showArtworkOnly) private var showArtworkOnly: Bool = false
-    @AppStorage(AppStorageKeys.savedGroupID) private var savedGroupID: String?
 
     @State private var previousCount: Int = 0
     
@@ -329,106 +341,6 @@ struct CueApp: App {
 
     @State private var coreFeatures = CoreFeatures.shared
     @State private var offline = OfflineMode.shared
-    /// Settings › Appearance › Show Radio Tab.
-    @AppStorage(AppStorageKeys.showRadioTab) private var showRadioTab: Bool = true
-    @AppStorage(AppStorageKeys.showAudiobooksTab) private var showAudiobooksTab: Bool = true
-    /// Settings › Appearance › Downloads: whether the tab shows while
-    /// there's a network. Offline it shows whatever this says.
-    @AppStorage(AppStorageKeys.showDownloadsTab) private var showDownloadsTab: Bool = true
-    #if DEBUG
-    /// Debug: Settings ▸ Debug ▸ Shrink Tab Bar on Scroll, to feel whether
-    /// the tab bar shrinking (and the mini player's accessory rebuilt as
-    /// its placement changes) is what catches a scroll.
-    @AppStorage("dance.cue.debug.minimizeTabBar") private var minimizesTabBar: Bool = true
-    #endif
-
-    /// The tab bar shrinks as a page scrolls down, the mini player moving
-    /// into it.
-    private var tabBarMinimize: TabBarMinimizeBehavior {
-        #if DEBUG
-        minimizesTabBar ? .onScrollDown : .never
-        #else
-        .onScrollDown
-        #endif
-    }
-    /// The sidebar's edits — which of the provider tabs show, and the order
-    /// of their sections — kept across launches. This is the whole of tab
-    /// customization: the sidebar's own edit mode writes it, and the
-    /// provider front pages read it back (`shownCollections(of:)`).
-    @AppStorage(AppStorageKeys.tabViewCustomization) private var tabCustomization = TabViewCustomization()
-
-    /// The providers with a section in the sidebar: every one that browses
-    /// by collection and is switched on in Services, in the order the app
-    /// lists services. Nothing is added or removed by hand any more — a
-    /// provider comes with being switched on, and which of its tabs show is
-    /// the sidebar's edit mode's to decide.
-    private var tabProviders: [MediaSearchService] {
-        MediaSearchService.supported.filter { $0.canBeTab && coreFeatures.isEnabled($0) }
-    }
-
-    /// The collections a provider's own tab lists on its front page: the
-    /// ones its sidebar section is showing. Read from the customization —
-    /// a tab the user hid there is left off, one they showed is added — with
-    /// `defaultTabCollections` standing in where they haven't decided.
-    private func shownCollections(of service: MediaSearchService) -> [ProviderCollection] {
-        let defaults = service.defaultTabCollections
-        return service.tabCollections.filter { collection in
-            switch tabCustomization[tab: service.tabCustomizationID(for: collection)].sidebarVisibility {
-            case .visible: true
-            case .hidden: false
-            case .automatic: defaults.contains(collection)
-            @unknown default: defaults.contains(collection)
-            }
-        }
-    }
-
-    /// Whether the Radio tab has a source to draw on: TuneIn or Apple Music
-    /// switched on in Services. Those are the two whose stations play on
-    /// this device as well as on a speaker, which is the tab's rule — Sonos
-    /// Radio and Sonos favorites are speaker-only and stay on Browse and
-    /// Search. The user can hide it in Settings › Appearance, and it goes
-    /// on its own while offline: every station streams, so
-    /// there is nothing there to play.
-    private var showsRadioTab: Bool {
-        showRadioTab
-            && !offline.isActive
-            && [MediaSearchService.tuneIn, .apple].contains { coreFeatures.isEnabled($0) }
-    }
-
-    /// Whether the Audiobooks tab shows: always, unless it's hidden in
-    /// Settings › Appearance. With no server for books yet it asks to sign
-    /// in to Plex or Audiobookshelf (`AudiobooksScreen`), so books are
-    /// there to find before any server is set up. While offline only books
-    /// downloaded whole can play, and nothing can be signed in to, so it
-    /// stays only while there are some.
-    private var showsAudiobooksTab: Bool {
-        guard showAudiobooksTab else { return false }
-        guard offline.isActive else { return true }
-        // The Files folder's books are on this device, offline or not.
-        return AudiobookDownloads.hasDownloadedBooks
-            || (coreFeatures.isEnabled(.files) && !FilesLibraryService.shared.books.isEmpty)
-    }
-
-    /// Whether the Downloads tab shows: always offline, in Browse's place
-    /// (what's here is all there is to play); otherwise while it's switched
-    /// on in Settings › Appearance and has something to show, songs or
-    /// books Cue downloaded or is downloading, or Apple Music songs the
-    /// Music app keeps downloaded. Read through the download manager's
-    /// summary, which moves as songs land rather than with every byte of
-    /// progress, so the tab bar isn't redrawn while they come down.
-    private var showsDownloadsTab: Bool {
-        if offline.isActive { return true }
-        return showDownloadsTab
-            && (DownloadManager.shared.musicSummary.hasDownloads
-                || (coreFeatures.isEnabled(.apple) && !AppleDownloadsIndex.shared.songs.isEmpty))
-    }
-
-    /// Whether Browse shows: not offline, where its providers have nothing
-    /// to show and Downloads takes its place.
-    private var showsBrowseTab: Bool {
-        !offline.isActive
-    }
-
     /// Search. The search role only on the phone, where it draws the tab as
     /// the bar's separate search bubble. Elsewhere the role exists to hoist
     /// a `.searchable` out of the tab, and `SearchScreen` draws its own
@@ -446,7 +358,7 @@ struct CueApp: App {
     /// switched on in Services.
     @TabContentBuilder<AppTab>
     private var radioTab: some TabContent<AppTab> {
-        if showsRadioTab {
+        if appState.showsRadioTab {
             Tab("Radio", systemImage: "radio", value: AppTab.radio) {
                 Screens.radio
             }
@@ -456,7 +368,7 @@ struct CueApp: App {
     /// Audiobooks, after Radio, while there are books (`showsAudiobooksTab`).
     @TabContentBuilder<AppTab>
     private var audiobooksTab: some TabContent<AppTab> {
-        if showsAudiobooksTab {
+        if appState.showsAudiobooksTab {
             Tab("Audiobooks", systemImage: "book", value: AppTab.audiobooks) {
                 Screens.audiobooks
             }
@@ -471,30 +383,18 @@ struct CueApp: App {
     /// once).
     @TabContentBuilder<AppTab>
     private var downloadsTab: some TabContent<AppTab> {
-        if showsDownloadsTab {
+        if appState.showsDownloadsTab {
             Tab(value: AppTab.downloads) {
                 Screens.downloads
             } label: {
                 Label {
                     Text("Downloads")
                 } icon: {
-                    downloadsTabIcon
+                    appState.downloadsTabIcon
                 }
             }
-            .badge(isPhone ? 0 : DownloadManager.shared.musicSummary.remainingDownloads)
+            .badge(appState.downloadsTabBadge)
         }
-    }
-
-    /// The download symbol, or while songs or books come down a ring round
-    /// the arrow filling with the run (`runProgressStep`, which moves in
-    /// steps, so the tab bar isn't redrawn with every byte). A bare
-    /// `Image`: the tab bar takes the image out of the label.
-    private var downloadsTabIcon: Image {
-        let manager = DownloadManager.shared
-        guard manager.musicSummary.remainingDownloads > 0 else {
-            return Image(systemName: "arrow.down.circle")
-        }
-        return Image(uiImage: DownloadRingIcon.image(step: manager.runProgressStep))
     }
 
     /// The Providers section, on iPad and Mac: one tab per switched-on
@@ -505,9 +405,9 @@ struct CueApp: App {
     @TabContentBuilder<AppTab>
     private var providersSection: some TabContent<AppTab> {
         TabSection {
-            ForEach(tabProviders, id: \.self) { service in
+            ForEach(appState.tabProviders, id: \.self) { service in
                 Tab(value: AppTab.provider(service)) {
-                    Screens.providerRoot(service, collections: shownCollections(of: service))
+                    Screens.providerRoot(service, collections: appState.shownCollections(of: service))
                 } label: {
                     providerTabLabel(service)
                 }
@@ -531,7 +431,7 @@ struct CueApp: App {
     /// it above or below the other providers' sections.
     @TabContentBuilder<AppTab>
     private func collectionSection(for service: MediaSearchService) -> some TabContent<AppTab> {
-        let collections = shownCollections(of: service)
+        let collections = appState.shownCollections(of: service)
         let defaults = service.defaultTabCollections
 
         TabSection {
@@ -564,63 +464,6 @@ struct CueApp: App {
         UIDevice.current.userInterfaceIdiom == .phone
     }
 
-    /// Home, the provider sections and the sidebar's Edit — off everywhere
-    /// for now. Every device has the phone's three tabs, Browse, Search and
-    /// Radio, with providers reached from Browse's menu; the Mac shows them
-    /// in its sidebar (`AdaptiveTabViewStyle`), iPhone and iPad in the tab
-    /// bar. The adaptable sidebar's rebuild on an iPad resize (a
-    /// size-class change folds the sidebar's tabs into a tab bar) was also
-    /// crashing UIKit with a nil tab bar item. Kept as a switch for when
-    /// the sections come back.
-    private var showsLibrarySections: Bool { false }
-
-    /// The tab the selection falls back to: Home where the sidebar has
-    /// one, Browse on the tab bar, which has none, and Downloads offline,
-    /// in Browse's place.
-    private var fallbackTab: AppTab {
-        if offline.isActive, !showsLibrarySections { return .downloads }
-        return showsLibrarySections ? .home : .browse
-    }
-
-    /// Every tab the view builds right now. The selection is checked
-    /// against this before the `TabView` sees it: a selection naming a tab
-    /// that isn't there — a provider switched off in Services, a collection
-    /// tab hidden in the sidebar's Edit while it was showing, Home's "Open"
-    /// on a provider that's out — is what UIKit's tab bar asserts on ("No
-    /// view controller matches the UITabBarItem"), and it asserts during
-    /// layout, before any `onChange` gets a chance to move the selection.
-    private var availableTabs: Set<AppTab> {
-        var tabs: Set<AppTab> = [.search]
-        if showsBrowseTab || showsLibrarySections {
-            tabs.insert(.browse)
-        }
-        if showsRadioTab {
-            tabs.insert(.radio)
-        }
-        if showsAudiobooksTab {
-            tabs.insert(.audiobooks)
-        }
-        if showsDownloadsTab {
-            tabs.insert(.downloads)
-        }
-        if showsLibrarySections {
-            tabs.insert(.home)
-            for service in tabProviders {
-                tabs.insert(.provider(service))
-                for collection in shownCollections(of: service) {
-                    tabs.insert(.providerCollection(service, collection))
-                }
-            }
-        }
-        return tabs
-    }
-
-    /// The router's selection, or the fallback when it names a tab that
-    /// isn't built.
-    private func resolvedTab(_ tab: AppTab) -> AppTab {
-        availableTabs.contains(tab) ? tab : fallbackTab
-    }
-
     /// The `TabView`'s selection: the router's, clamped to a tab that exists,
     /// with a tap on the already-selected tab reported as a reselection.
     /// SwiftUI has no reselection callback and reports the tap as a set to
@@ -631,13 +474,14 @@ struct CueApp: App {
     /// a switch made here, from the tab bar, not a launch onto Search.
     private var tabSelection: Binding<AppTab> {
         Binding {
-            resolvedTab(router.selectedTab)
+            appState.resolvedTab(router.selectedTab)
         } set: { newValue in
-            guard newValue != resolvedTab(router.selectedTab) else {
+            guard newValue != appState.resolvedTab(router.selectedTab) else {
                 router.handleReselection(of: newValue)
                 return
             }
             router.selectedTab = newValue
+            ScrollStopLog.note("tab \(newValue)", logNow: true)
             if newValue == .search {
                 SearchActivator.shared.requestFocus()
             }
@@ -647,15 +491,16 @@ struct CueApp: App {
     var body: some Scene {
         WindowGroup {
             @Bindable var router = router
+            let _ = ScrollStopLog.note("body CueApp")
             TabView(selection: tabSelection) {
-                if !showsLibrarySections {
+                if !appState.showsLibrarySections {
                     // The phone's three on every device, Browse first in
                     // Home's place: providers are browsed from Browse's menu
                     // and set up in Settings › Services. No provider tabs, so
                     // the bar never overflows into More. The house is
                     // Browse's here, since it is the home. Offline it goes,
                     // and Downloads leads in its place.
-                    if showsBrowseTab {
+                    if appState.showsBrowseTab {
                         Tab("Browse", image: "home.fill", value: AppTab.browse) {
                             Screens.browse
                         }
@@ -683,7 +528,7 @@ struct CueApp: App {
                     // Services drops out of both; its sidebar edits stay in
                     // the customization for when it comes back.
                     providersSection
-                    ForEach(tabProviders, id: \.self) { service in
+                    ForEach(appState.tabProviders, id: \.self) { service in
                         collectionSection(for: service)
                     }
                 }
@@ -698,27 +543,28 @@ struct CueApp: App {
             .id(offline.isActive)
             // Customization only with the library sections: it holds the
             // sidebar's edits, and with three fixed tabs there's no Edit.
-            .tabViewCustomization(showsLibrarySections ? $tabCustomization : nil)
+            .tabViewCustomization(appState.showsLibrarySections ? $appState.tabCustomization : nil)
             // UIKit's animations back on once the tab bar has drawn on the
             // tab the app opened on (held off at launch, `AppDelegate`).
             .task {
                 try? await Task.sleep(for: .milliseconds(300))
                 UIView.setAnimationsEnabled(true)
             }
-            .onChange(of: availableTabs) { _, tabs in
+            .onChange(of: appState.availableTabs) { _, tabs in
+                ScrollStopLog.note("tabs now \(tabs.count)", logNow: true)
                 // A tab that left takes its selection with it. The binding
                 // already shows the fallback in that case; this keeps the
                 // stored value honest so nothing else acts on a tab that's
                 // gone.
                 if !tabs.contains(router.selectedTab) {
-                    router.selectedTab = fallbackTab
+                    router.selectedTab = appState.fallbackTab
                 }
             }
             // The queue panel is inside each tab (`Screens`), not out here:
             // wrapped around the whole `TabView` it took its width from the
             // sidebar's, which then had to overlay the content instead of
             // sitting beside it.
-            .tabBarMinimizeBehavior(tabBarMinimize)
+            .tabBarMinimizeBehavior(appState.tabBarMinimizes ? .onScrollDown : .never)
             .tabViewBottomAccessory {
                 MusicPlaybackView(showPlayer: $router.isPlayerPresented, zoomNamespace: zoomNamespace)
             }
@@ -802,7 +648,7 @@ struct CueApp: App {
             .modifier(AdaptiveTabViewStyle())
             // Settings ▸ Appearance. Applied to the windows, so everything
             // presented from them follows it too.
-            .onChange(of: colorScheme, initial: true) { _, preference in
+            .onChange(of: appState.colorScheme, initial: true) { _, preference in
                 preference.apply()
             }
             // Quick Launch's own hook. `handleScenePhase`, which used to run
@@ -810,6 +656,11 @@ struct CueApp: App {
             // block), so the setting did nothing.
             .onChange(of: scenePhase, initial: true) { _, phase in
                 quickLaunch(on: phase)
+                // The tab to open on next time, kept as Cue leaves rather
+                // than on each switch (`Router.saveSelectedTab`).
+                if phase != .active {
+                    router.saveSelectedTab()
+                }
             }
             .onOpenURL(perform: handle)
             // Whether Plex has books, for the Audiobooks tab: a server that
@@ -1347,7 +1198,7 @@ struct CueApp: App {
         case .active:
             guard quickLaunchPending else { return }
             quickLaunchPending = false
-            guard speedLaunchNowPlaying, !isOnboarding else { return }
+            guard UserDefaults.standard.bool(forKey: AppStorageKeys.speedLaunchNowPlaying), !isOnboarding else { return }
             openNowPlaying()
         default:
             break
@@ -1498,6 +1349,9 @@ struct CueApp: App {
 //            }
 
             if components.host?.lowercased() == "scene", let name = components.queryItems?.first(where: { $0.name == "name" })?.value, !name.isEmpty {
+                // Read here rather than held by `CueApp`, which iCloud's
+                // changes would run again.
+                @CloudStorage(CloudKeys.scenes) var scenes: [SonosScene] = []
                 guard let scene = scenes.first(where: { $0.name == name }) else { return }
                 Task {
                     if let content = scene.playableContent {
@@ -1618,50 +1472,6 @@ private struct AdaptiveTabViewStyle: ViewModifier {
             content
         }
 #endif
-    }
-}
-
-/// The Downloads tab's icon while songs or books come down: a ring that
-/// fills with the run, round the download arrow. A template image, tinted
-/// by the tab bar like a symbol, since the tab bar takes only a plain image
-/// from a tab's label; one drawn a step and kept.
-@MainActor
-private enum DownloadRingIcon {
-    private static var images: [Int: UIImage] = [:]
-
-    static func image(step: Int) -> UIImage {
-        if let image = images[step] { return image }
-        let side: CGFloat = 25
-        let lineWidth: CGFloat = 2
-        let fraction = CGFloat(step) / CGFloat(DownloadManager.runProgressSteps)
-        let drawn = UIGraphicsImageRenderer(size: CGSize(width: side, height: side)).image { _ in
-            let ring = CGRect(x: 0, y: 0, width: side, height: side).insetBy(dx: lineWidth / 2 + 0.5, dy: lineWidth / 2 + 0.5)
-            let track = UIBezierPath(ovalIn: ring)
-            track.lineWidth = lineWidth
-            UIColor.black.withAlphaComponent(0.3).setStroke()
-            track.stroke()
-            if fraction > 0 {
-                let arc = UIBezierPath(
-                    arcCenter: CGPoint(x: side / 2, y: side / 2),
-                    radius: ring.width / 2,
-                    startAngle: -.pi / 2,
-                    endAngle: -.pi / 2 + 2 * .pi * fraction,
-                    clockwise: true
-                )
-                arc.lineWidth = lineWidth
-                arc.lineCapStyle = .round
-                UIColor.black.setStroke()
-                arc.stroke()
-            }
-            if let arrow = UIImage(systemName: "arrow.down", withConfiguration: UIImage.SymbolConfiguration(pointSize: 11, weight: .bold))?
-                .withTintColor(.black, renderingMode: .alwaysOriginal) {
-                let size = arrow.size
-                arrow.draw(in: CGRect(x: (side - size.width) / 2, y: (side - size.height) / 2, width: size.width, height: size.height))
-            }
-        }
-        let image = drawn.withRenderingMode(.alwaysTemplate)
-        images[step] = image
-        return image
     }
 }
 
@@ -1908,6 +1718,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         UserDefaults.standard.set(true, forKey: "NSDisabledDictationMenuItem")
         UserDefaults.standard.set(true, forKey: "NSDisabledCharacterPaletteMenuItem")
         #endif
+        // Before the tab view is built: SwiftUI's tabs handed over again
+        // unchanged took Search's keyboard and stopped scrolls.
+        SameTabsFilter.install()
         // Sonos is opt-in here. This runs before any view body or `.task` can
         // call `monitor()`, which is what would put up the Local Network
         // prompt on a device that has never seen a speaker.
@@ -1961,6 +1774,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // `-dance.cue.logDefaultsWrites YES`: every UserDefaults write by
         // key, and who made it.
         DefaultsWriteLog.startIfRequested()
+        // A line for each scroll on Radio and Audiobooks, and what caught
+        // one that stopped short.
+        ScrollStopLog.start()
         #endif
         #endif
         // A Files scan gets the same card: progress on the Lock Screen and
@@ -2059,7 +1875,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             // View › Show/Hide Queue, ⌥⌘0 as Xcode toggles its inspector.
             // The toolbar item does the same; this is the keyboard's way in.
             let toggleQueueCommand = UIKeyCommand(
-                title: QueuePanelVisibility.isShown ? "Hide Queue" : "Show Queue",
+                title: AppState.shared.showsQueuePanel ? "Hide Queue" : "Show Queue",
                 image: UIImage(systemName: "sidebar.trailing"),
                 action: #selector(toggleQueue),
                 input: "0",
@@ -2210,7 +2026,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     @objc func toggleQueue() {
-        QueuePanelVisibility.toggle()
+        AppState.shared.showsQueuePanel.toggle()
         // The command's title names what it will do next.
         UIMenuSystem.main.setNeedsRebuild()
     }
@@ -2323,23 +2139,8 @@ final class ToolbarDelegate: NSObject {
 
     @objc func toggleQueue(_ sender: Any) {
         Task { @MainActor in
-            QueuePanelVisibility.toggle()
+            AppState.shared.showsQueuePanel.toggle()
         }
-    }
-}
-
-/// The queue panel's stored show/hide flag, for the places outside SwiftUI
-/// that flip it: the Mac's toolbar item and its View menu command. The
-/// `@AppStorage` readers (`PlayerView`, each tab's panel) pick the change
-/// up from `UserDefaults` like any other.
-@MainActor
-enum QueuePanelVisibility {
-    static var isShown: Bool {
-        UserDefaults.standard.bool(forKey: AppStorageKeys.queueInspectorVisible)
-    }
-
-    static func toggle() {
-        UserDefaults.standard.set(!isShown, forKey: AppStorageKeys.queueInspectorVisible)
     }
 }
 
