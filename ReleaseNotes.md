@@ -68,6 +68,7 @@
 - Search no longer stutters as you come back to Cue with its keyboard up, and coming back no longer rebuilds tabs you aren't looking at
 - Fixed Audiobooks' scrolling stopping short or jumping near the top of the tab
 - The Audiobooks tab is always there now: before you've set up any books, it offers to sign in to Plex or Audiobookshelf. Hide it under Settings ▸ Appearance
+- Fixed the keyboard going down by itself while you type in Search, and scrolls stopping dead, most often with an accessibility feature turned on
 
 # 2026.7
 
