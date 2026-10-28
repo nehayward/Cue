@@ -64,6 +64,7 @@
 - Apple Watch: Settings shows how much room your songs and books take and how much is free, with Retry Failed and separate Remove All Songs and Remove All Books. Downloads lists music and books apart, a swipe removes one, and long titles no longer get cut off
 - Apple Watch: with no connection, your Plex and Subsonic Playlists, Albums and Artists show the ones on your watch instead of an error
 - Fixed Radio and Audiobooks not scrolling or responding to taps
+- Radio and Audiobooks scroll smoothly as you switch to them or come back to Cue, without a jolt
 - The Audiobooks tab is always there now: before you've set up any books, it offers to sign in to Plex or Audiobookshelf. Hide it under Settings ▸ Appearance
 
 # 2026.7

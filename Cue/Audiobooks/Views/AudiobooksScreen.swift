@@ -1,4 +1,3 @@
-import Defaults
 import MusicSearchKit
 import SonosKit
 import SwiftUI
@@ -17,7 +16,6 @@ import SwiftUI
 struct AudiobooksScreen: View {
     @Environment(CoreFeatures.self) private var coreFeatures
     @Environment(MusicSearchService.self) private var musicSearchService
-    @AppStorage(AppStorageKeys.hasPlexAudiobooks) private var hasPlexBooks = false
 
     /// This tab's own stack, never a shared router: two stacks bound to one
     /// path push each other.
@@ -30,6 +28,9 @@ struct AudiobooksScreen: View {
     @State private var plex = PlexBookShelf.shared
     @State private var plexAuthenticator = PlexAuthenticator.shared
 
+    /// Whether Plex had books when last asked: the shelf's copy, not
+    /// `@AppStorage`, which rebuilt the tab with every UserDefaults write.
+    private var hasPlexBooks: Bool { plex.hasBooks }
     private var showsPlex: Bool { coreFeatures.isEnabled(.plex) && hasPlexBooks }
     private var showsAudiobookshelf: Bool { coreFeatures.isEnabled(.audiobookshelf) && shelf.isAuthenticated }
     /// The Files folder's books (`FilesIndex`), on this device already.

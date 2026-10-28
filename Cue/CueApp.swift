@@ -810,6 +810,11 @@ struct CueApp: App {
             // block), so the setting did nothing.
             .onChange(of: scenePhase, initial: true) { _, phase in
                 quickLaunch(on: phase)
+                // The tab to open on next time, kept as Cue leaves rather
+                // than on each switch (`Router.saveSelectedTab`).
+                if phase != .active {
+                    router.saveSelectedTab()
+                }
             }
             .onOpenURL(perform: handle)
             // Whether Plex has books, for the Audiobooks tab: a server that

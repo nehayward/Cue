@@ -47,6 +47,7 @@ enum AppTab: Hashable, Codable {
     static var main: Router = {
         let router = Router()
         router.selectedTab = lastTab
+        router.savedTab = router.selectedTab
         router.keepsTab = true
         return router
     }()
@@ -59,12 +60,20 @@ enum AppTab: Hashable, Codable {
     /// (`search`, `browse`) navigate within a tab and have no say over which
     /// one is showing. The main router's is kept across launches: the app
     /// opens on the tab it was left on (one that's gone since shows the
-    /// fallback, `CueApp.resolvedTab`).
-    var selectedTab: AppTab = .home {
-        didSet {
-            guard keepsTab, selectedTab != oldValue else { return }
-            UserDefaults.standard.set(try? JSONEncoder().encode(selectedTab), forKey: AppStorageKeys.selectedTab)
-        }
+    /// fallback, `CueApp.resolvedTab`). Kept as Cue leaves the foreground
+    /// (`saveSelectedTab()`), not on every switch: any UserDefaults write
+    /// re-runs every view holding `@AppStorage`, the tab being shown
+    /// among them, just as it appears.
+    var selectedTab: AppTab = .home
+
+    /// The tab last kept, so leaving on the same one writes nothing.
+    @ObservationIgnored private var savedTab: AppTab?
+
+    /// Keeps the selected tab for the next launch.
+    func saveSelectedTab() {
+        guard keepsTab, selectedTab != savedTab else { return }
+        savedTab = selectedTab
+        UserDefaults.standard.set(try? JSONEncoder().encode(selectedTab), forKey: AppStorageKeys.selectedTab)
     }
 
     /// Whether `selectedTab` is kept across launches: the main router's.

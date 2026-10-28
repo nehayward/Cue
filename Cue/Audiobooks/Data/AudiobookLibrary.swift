@@ -231,6 +231,7 @@ enum AudiobookLibrary {
         // on a write, and this runs each time the tab shows.
         guard has || afterChange, UserDefaults.standard.bool(forKey: AppStorageKeys.hasPlexAudiobooks) != has else { return }
         UserDefaults.standard.set(has, forKey: AppStorageKeys.hasPlexAudiobooks)
+        PlexBookShelf.shared.hasBooks = has
     }
 
     /// Every book listened to, once each, newest first: this device's
