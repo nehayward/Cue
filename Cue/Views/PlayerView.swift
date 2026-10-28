@@ -135,11 +135,23 @@ struct PlayerView: View {
         }
     }
 
+    /// Whether the queue panel goes inside the navigation stack, between
+    /// the player and the bar: on a phone. An iPhone Duo open draws the bar
+    /// down the trailing edge beside the status bar, and with the panel
+    /// around the stack, as on iPad, the bar ran down the player column's
+    /// edge, mid-screen, with the panel past it; inside, the panel opens
+    /// between the player and the bar, which stays at the edge. iPad's and
+    /// the Mac's bar runs along the top of the player column, beside the
+    /// panel. The idiom never changes while the app runs, so neither place
+    /// ever swaps its view.
+    private static let queuePanelInStack = UIDevice.current.userInterfaceIdiom == .phone
+
     var body: some View {
-        // The stack sits inside the queue panel, so its bar spans the player
-        // column only, and the backdrop is drawn behind both from outside.
-        // An earlier stack here lost the zoom out of the mini player; if it
-        // goes again, that's where to look.
+        // On iPad and the Mac the stack sits inside the queue panel, so its
+        // bar spans the player column only; on a phone the panel is inside
+        // the stack (`queuePanelInStack`). The backdrop is drawn behind both
+        // from outside. An earlier stack here lost the zoom out of the mini
+        // player; if it goes again, that's where to look.
         NavigationStack {
             VStack(alignment: .center) {
                 // TV mode is the one screen of its own: a soundbar on TV
@@ -176,6 +188,7 @@ struct PlayerView: View {
             // home indicator's height too high.
             .safeAreaPadding(.bottom, isPhoneLayout ? 0 : nil)
             .ignoresSafeArea(.keyboard)
+            .playerQueuePanel(if: Self.queuePanelInStack, isPresented: $appState.showsQueuePanel)
             .toolbar { toolbarContent }
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)
@@ -191,9 +204,7 @@ struct PlayerView: View {
         // it shows and hides in place, and the artwork reflows around it —
         // and a half-height sheet on a phone, where a side panel would only
         // squeeze both halves. `QueueNextUpView` follows the route too.
-        .queuePanel(isPresented: $appState.showsQueuePanel) {
-            QueueNextUpView()
-        }
+        .playerQueuePanel(if: !Self.queuePanelInStack, isPresented: $appState.showsQueuePanel)
         .background { backdrop }
         // The speaker's socket, sleep timer and play mode, and a drop on the
         // screen, follow the route: a switch to a speaker opens its socket
@@ -1862,6 +1873,22 @@ private struct PlayerBackdrop: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .allowsHitTesting(false)
         .ignoresSafeArea()
+    }
+}
+
+private extension View {
+    /// The player's queue panel, here only when `applies`: inside the
+    /// navigation stack or around it (`PlayerView.queuePanelInStack`), one
+    /// place or the other for as long as the app runs.
+    @ViewBuilder
+    func playerQueuePanel(if applies: Bool, isPresented: Binding<Bool>) -> some View {
+        if applies {
+            queuePanel(isPresented: isPresented) {
+                QueueNextUpView()
+            }
+        } else {
+            self
+        }
     }
 }
 
