@@ -214,9 +214,10 @@ struct QueuePanel<Panel: View>: ViewModifier {
             .offset(x: dismissOvershoot)
             .opacity(1 - min(1, dismissOvershoot / Self.dismissDistance) * 0.5)
             .geometryGroup()
-            // Clipped so the drag's overshoot slides the pair out from
-            // under its own edge.
-            .clipped()
+            // Not clipped: the drag's overshoot slides the pair on past its
+            // trailing edge, off the window on iPad, and on an iPhone Duo
+            // open into the safe area its trailing bars run down. Clipped
+            // to its own frame, it was cut off at that edge as it went.
             // Sliding and fading as one. The slide goes on past this
             // view's trailing edge, which is the window's on iPad but on
             // an iPhone Duo open, where the player's stack holds the panel
