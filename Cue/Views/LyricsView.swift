@@ -818,8 +818,15 @@ struct LyricsButton: View {
         }
     }
 
+    /// A book's transcript wears the symbol radio's Live Transcription
+    /// does: words heard, not lyrics.
+    private var symbol: String {
+        let base = isBook ? "captions.bubble" : "quote.bubble"
+        return isShown ? base + ".fill" : base
+    }
+
     var body: some View {
-        Button(isBook ? "Transcript" : "Lyrics", systemImage: isShown ? "quote.bubble.fill" : "quote.bubble") {
+        Button(isBook ? "Transcript" : "Lyrics", systemImage: symbol) {
             HapticManager.shared.fireHaptic(.selection)
             isShown.toggle()
         }
@@ -831,7 +838,7 @@ struct LyricsButton: View {
         .contentTransition(.symbolEffect(.replace))
 #endif
         .disabled(!isAvailable && !isShown)
-        .help("Lyrics")
+        .help(isBook ? "Transcript" : "Lyrics")
         .keyboardShortcut("l", modifiers: [.command, .shift])
     }
 }
