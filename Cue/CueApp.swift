@@ -1231,11 +1231,50 @@ struct CueApp: App {
         router.isPlayerPresented = true
     }
 
+    /// A book from the book shelf widget: its page over whatever's on
+    /// screen, or with `play`, the player, the book playing in it (left
+    /// playing if it already was). A book the widget knows and Cue no
+    /// longer does opens the Audiobooks tab.
+    @MainActor
+    private func openBook(id: String, play: Bool) {
+        guard let book = BookShelfWidgetPublisher.shared.book(withID: id) else {
+            router.selectedTab = .audiobooks
+            return
+        }
+        guard play else {
+            MediaDetailPresenter.present(book)
+            return
+        }
+        openNowPlaying()
+        let player = AudiobookPlayer.shared
+        let presented = PlaybackRoute.shared.presented
+        guard !(player.isLoaded(book) && presented.isPlaying) else { return }
+        Task {
+            if player.isLoaded(book) {
+                await presented.togglePlayback()
+            } else {
+                await player.play(book)
+            }
+        }
+    }
+
     @MainActor
     private func handle(_ url: URL) {
         Task {
             guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return }
-            
+
+            // The book shelf widget's: a book's page, or the book played
+            // and the player opened. Before the speakers are looked for,
+            // which a book doesn't wait on.
+            if let link = BookShelfWidgetState.book(in: url) {
+                openBook(id: link.id, play: link.play)
+                return
+            }
+            if components.host?.lowercased() == "audiobooks" {
+                router.selectedTab = .audiobooks
+                return
+            }
+
             // `updateGroups` returns at once while Sonos is switched off.
             if sonosService.groups.isEmpty {
                 try? await sonosService.updateGroups()
@@ -1769,6 +1808,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         WatchSyncService.shared.activate()
         // Lyrics for downloads that don't have them yet, slowly.
         DownloadLyrics.shared.start()
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+        // The book shelf widget's copy of the Audiobooks tab. Early, so a
+        // widget's Play that launched Cue in the background finds its book.
+        BookShelfWidgetPublisher.shared.start()
+        #endif
         // The Audiobooks tab's shelves as last read, their covers decoded a
         // moment after launch, so the tab opens with them drawn.
         if UserDefaults.standard.bool(forKey: AppStorageKeys.hasPlexAudiobooks) || AudiobookshelfAPI.shared.isConfigured {

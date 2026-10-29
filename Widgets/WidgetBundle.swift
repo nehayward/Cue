@@ -1,83 +1,16 @@
 import WidgetKit
 import SwiftUI
 
+/// Cue's widgets on the iPhone and iPad: the book shelf.
+///
+/// The Sonos remote, scene, Now Playing and control widgets and the Live
+/// Activity in this folder aren't built into the extension (see the target's
+/// membership exceptions): they only work with a speaker, and Cue offers
+/// nothing that needs one. Their intents are still built into the app for
+/// Shortcuts.
 @main
-struct SonosWidgetBundle: WidgetBundle {
+struct CueWidgetBundle: WidgetBundle {
     var body: some Widget {
-        // NOTE: workaround WidgetBundleBuilder bug
-        if #available(iOS 18.0, *) {
-            return body_iOS18
-        } else {
-            return body_iOS17
-        }
-    }
-}
-
-@WidgetBundleBuilder
-private var body_iOS17: some Widget {
-    RemoteWidget()
-    #if canImport(ActivityKit) && !targetEnvironment(macCatalyst)
-    LiveActivityNowPlayingWidget()
-    #endif
-//    SceneWidget()
-}
-
-@available(iOS 18.0, *)
-@WidgetBundleBuilder
-private var body_iOS18: some Widget {
-    RemoteWidget()
-    #if canImport(ActivityKit) && !targetEnvironment(macCatalyst)
-    LiveActivityNowPlayingWidget()
-    #endif
-    RemoteControlWidget()
-    PlaybackControlWidget()
-    SceneControlWidget()
-    StartLiveActivityControlWidget()
-    EndAllLiveActivityControlWidget()
-//    SceneWidget()
-}
-
-
-// MARK: iOS 18 Remove if iOS 18
-extension WidgetConfiguration {
-    func promptsForUserConfigurationIfiOS18() -> some WidgetConfiguration {
-        if #available(iOSApplicationExtension 18.0, *) {
-            return promptsForUserConfiguration()
-        } else {
-            return self
-        }
-    }
-}
-
-@available(iOS, deprecated: 18.0, message: "use WidgetAccentedRenderingMode instead")
-enum BackdeployedWidgetAccentedRenderingMode {
-    case accented
-    case accentedDesaturated
-    case desaturated
-    case fullColor
-    
-    @available(iOS 18.0, *)
-    func toRenderingMode() -> WidgetAccentedRenderingMode {
-        switch self {
-        case .accented: .accented
-        case .accentedDesaturated: .accentedDesaturated
-        case .desaturated: .desaturated
-        case .fullColor: .fullColor
-        }
-    }
-}
-
-extension Image {
-    @available(iOS, deprecated: 18.0, message: "use widgetAccentedRenderingMode instead")
-    @ViewBuilder
-    func backdeployedWidgetAccentedRenderingMode(
-        _ mode: BackdeployedWidgetAccentedRenderingMode
-    ) -> some View {
-        if #available(iOS 18.0, *) {
-            self.widgetAccentedRenderingMode(mode.toRenderingMode())
-        }
-        else {
-            self
-        }
+        BookShelfWidget()
     }
 }
