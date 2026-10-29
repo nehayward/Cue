@@ -3018,8 +3018,31 @@ public final class SonosService {
         }
 
         if position == .now, queueActive, playable.content.type != .playlist, let count, count > 0 {
-            await next(ip: group.ip)
+            await skipToInserted(on: group)
         }
+    }
+
+    /// Steps onto the songs a Play Now just put in after the one playing.
+    ///
+    /// `next` works the step out against the queue's length, and the
+    /// model's is from before the insert until the poll reads it again: on
+    /// the queue's last song Next went nowhere, the song playing went on and
+    /// the album only joined the queue (under Repeat All it went round to
+    /// the top instead). So there the length is read first; a read that
+    /// fails leaves it unknown (0), which the step isn't held to. The
+    /// socket's next song is from before the insert too, and would show as
+    /// the song being skipped to.
+    @MainActor
+    private func skipToInserted(on group: GroupRoom) async {
+        let room = group.coordinatorRoom
+        if room.queueTotal > 0, room.track.position >= room.queueTotal {
+            let total = await api.getQueueCount(IP: group.ip) ?? 0
+            if room.queueTotal != total {
+                room.queueTotal = total
+            }
+        }
+        liveNextItems.removeValue(forKey: group.coordinatorID)
+        await next(ip: group.ip)
     }
         
     public func getQueueTotal(group: GroupRoom) async throws -> Int? {
@@ -3079,7 +3102,7 @@ public final class SonosService {
                 let count = await api.getQueueCount(IP: group.ip) ?? 0
                 try await queue(contents: contents, group: group, position: .next)
                 if count > 0 {
-                    await next(ip: group.ip)
+                    await skipToInserted(on: group)
                 }
             default:
                 try await queue(contents: contents, group: group, position: position)
@@ -3178,7 +3201,7 @@ public final class SonosService {
 
         await progress?(1, contents.count)
         // Activate transport
-        await next(ip: group.ip)
+        await skipToInserted(on: group)
         await play(ip: group.ip)
 
         try? await Task.sleep(for: .milliseconds(150))
@@ -3252,7 +3275,7 @@ public final class SonosService {
 
             // Start playback as soon as the first item is queued
             if position == .now && index == 0 {
-                await next(ip: group.ip)
+                await skipToInserted(on: group)
                 await play(ip: group.ip)
             }
 
