@@ -56,7 +56,16 @@ struct MusicPlaybackView: View {
         // The buttons sit in cells of their own width, which space them, so
         // the row's own spacing is small.
         HStack(spacing: 4) {
-            nowPlayingContent
+#if targetEnvironment(macCatalyst)
+            // The Mac's bar, after Music's: the transport at the leading
+            // end, Previous too, then the song, then Play On and the queue.
+            transportButtons(includesPrevious: true)
+            trackButton
+                .padding(.horizontal, 8)
+#else
+            trackButton
+            transportButtons(includesPrevious: false)
+#endif
 
             // Present playing or not: the route is set ahead of Play, which
             // is the whole point of it no longer asking. Not in the bar
@@ -125,10 +134,11 @@ struct MusicPlaybackView: View {
     }
 
     /// iPad's bar, and an iPhone Duo open's, has the room for a longer
-    /// title before it scrolls.
+    /// title before it scrolls. The Mac's is wider again, as Music's is,
+    /// with the transport in it as well.
     private var maxWidth: CGFloat {
 #if targetEnvironment(macCatalyst)
-        500
+        760
 #else
         usesPadLayout && UIDevice.current.userInterfaceIdiom != .vision ? 720 : 500
 #endif
@@ -188,22 +198,22 @@ struct MusicPlaybackView: View {
 
     // MARK: - Now playing
 
-    /// The track and its transport. The display item, not the queue row: a
-    /// station reads as the song on air here just as it does in the player.
-    /// `GroupRoom` is `@Observable`, so a speaker's pushed track and playing
-    /// state redraw this in place.
+    /// A book reads as what's left of its chapter, and skips 15 and 30 s
+    /// where a song goes to the previous and the next: a book's file is a
+    /// chapter or more. Not while a hand-off holds the row.
+    private var isBook: Bool {
+        AudiobookPlayer.shared.isPlayingBook(on: route.presented) && !route.isHolding
+    }
+
+    /// The track: the cover, the title and the line under it, opening the
+    /// player. The display item, not the queue row: a station reads as the
+    /// song on air here just as it does in the player. `GroupRoom` is
+    /// `@Observable`, so a speaker's pushed track redraws this in place.
     @ViewBuilder
-    private var nowPlayingContent: some View {
+    private var trackButton: some View {
         let controller = route.presented
         let group = controller.group
         let item = controller.nowPlayingDisplay
-        // While a hand-off holds the row on its source, the source is on its
-        // way out: the buttons rest and Play reads as it did
-        // (`HeldPlaybackController`).
-        let isPlaying = controller.isPlaying
-        // A book reads as what's left of its chapter, and skips 30 s where a
-        // song goes to the next: a book's file is a chapter or more.
-        let isBook = AudiobookPlayer.shared.isPlayingBook(on: controller) && !route.isHolding
 
         Button {
             showPlayer.toggle()
@@ -259,8 +269,43 @@ struct MusicPlaybackView: View {
         }
         .buttonStyle(.plain)
         .zoomSource(.miniPlayer, in: zoomNamespace)
+    }
+
+    /// Play and Pause and Next, with Previous ahead of them on the Mac. While
+    /// a hand-off holds the row on its source, the source is on its way out:
+    /// the buttons rest and Play reads as it did (`HeldPlaybackController`).
+    @ViewBuilder
+    private func transportButtons(includesPrevious: Bool) -> some View {
+        let controller = route.presented
+        let item = controller.nowPlayingDisplay
+        let isPlaying = controller.isPlaying
 
         if item != nil || controller.isPlaying {
+            if includesPrevious, placement != .inline, controller.showsPrevious || isBook {
+                Button {
+                    HapticManager.shared.fireHaptic(.buttonPress)
+                    if isBook {
+                        Task { await AudiobookPlayer.shared.skip(by: -AudiobookPlayer.skipBackInterval) }
+                        return
+                    }
+                    Task {
+                        await controller.previous()
+                        // As Next: this brings the speaker's new song in.
+                        if let group = controller.group {
+                            try? await sonosService.updateGroups(from: [group])
+                        }
+                    }
+                } label: {
+                    Image(systemName: isBook ? "gobackward.\(Int(AudiobookPlayer.skipBackInterval))" : "backward.fill")
+                        .frame(width: Self.buttonSide, height: Self.buttonSide)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .font(.title3)
+                .accessibilityLabel(isBook ? "Back \(Int(AudiobookPlayer.skipBackInterval)) Seconds" : "Previous")
+                .disabled(!isBook && !controller.canGoBack)
+            }
+
             Button {
                 HapticManager.shared.fireHaptic(.buttonPress)
                 Task { await controller.togglePlayback() }
