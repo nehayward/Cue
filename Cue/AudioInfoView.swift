@@ -74,6 +74,12 @@ struct AudioInfoView: View {
                     .transaction { transaction in
                         transaction.animation = nil
                     }
+                    // The badge moves as one, in its row's animation: with
+                    // every animation stripped inside, its parts each went
+                    // straight to their new place while the times either
+                    // side slid there (the player's column narrowing beside
+                    // the queue panel left it standing over the transport).
+                    .geometryGroup()
                     // A caption is a small target: a little more either
                     // side, but none above, where the scrubber is (a 24 pt
                     // minimum height reached up into it and took the drag).

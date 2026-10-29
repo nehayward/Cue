@@ -47,6 +47,10 @@ struct QueueIconView: View {
         .animation(.spring, value: position)
         .fontDesign(.rounded)
         .frame(width: iconSize, height: iconSize)
+        // The ring and the number in it move as one: on their own, the
+        // number drifted off the ring while its row slid (the player's
+        // column resizing beside the queue panel).
+        .geometryGroup()
         .accessibilityLabel("Up Next")
     }
 }

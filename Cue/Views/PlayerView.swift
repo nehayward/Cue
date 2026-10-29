@@ -1710,6 +1710,9 @@ struct AudiobookChapterIconView: View {
                         .offset(y: -2)
                 }
             }
+            // As the queue gauge: the number stays in the bookmark while
+            // its row slides.
+            .geometryGroup()
     }
 }
 
