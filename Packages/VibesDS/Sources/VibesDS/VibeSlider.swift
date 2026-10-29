@@ -16,9 +16,9 @@ public struct VibeSlider: View {
     @State private var labelWidth: CGFloat = 28
     /// False until `value` has changed once. The first change is the slider
     /// catching up to the real level (a speaker's volume arriving after the
-    /// row appears), so it jumps there instead of sweeping up from 0. Until
-    /// then the fill and label take no animation at all, inherited ones
-    /// included.
+    /// row appears), so it jumps there instead of sweeping up from 0. Only
+    /// the value's own change goes unanimated: an animation the fill and
+    /// label inherit (the track resizing) still moves them with the track.
     @State private var animatesValue = false
     
     @GestureState private var isDragGestureActive: Bool = false
@@ -170,11 +170,15 @@ public struct VibeSlider: View {
 #endif
                             .frame(height: baseHeight)
                     }
+                    // Not also stripped of inherited animations until the
+                    // first value lands, as it was when its width came from
+                    // the measured `width`, which began at 0: a list animating
+                    // rows in grew it from nothing. Laid out, it has its width
+                    // from the start, and stripped it stood still while the
+                    // track it sits in animated (the volume beside the queue
+                    // panel, whose level hadn't changed since the player
+                    // opened, so its fill and label sat apart from the track).
                     .animation(fillAnimation, value: value)
-                    // Until the first value lands, also drop animations
-                    // inherited from outside: a list animating rows in
-                    // otherwise grows the fill from width 0.
-                    .transaction { if !animatesValue { $0.animation = nil } }
                 }
                 .clipShape(.capsule) // Best attempt at fixing a bug https://twitter.com/ChristianSelig/status/1757139789457829902
 #if !os(watchOS) && !os(macOS)
@@ -195,7 +199,6 @@ public struct VibeSlider: View {
                 .offset(y: isDragging ? -24 : 0)
                 .animation(.interactiveSpring, value: isDragging)
                 .animation(fillAnimation, value: value)
-                .transaction { if !animatesValue { $0.animation = nil } }
             }
         }
         .padding(.vertical, baseHeight/2)
