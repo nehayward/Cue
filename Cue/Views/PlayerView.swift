@@ -25,8 +25,7 @@ import VibesDS
 /// the audio-quality badge, the transport, the volume row with its
 /// steppers, and the bottom row: lyrics at the leading edge, the route
 /// picker in the middle and the queue at the trailing edge. On the Mac
-/// lyrics and the route picker are in the navigation bar instead, and the
-/// queue in the window toolbar.
+/// they're in the navigation bar instead.
 struct PlayerView: View {
     @AppStorage(AppStorageKeys.showArtworkOnly) private var showArtworkOnly: Bool = false
     /// The same key the main window's panel uses, so showing the queue here
@@ -690,7 +689,7 @@ struct PlayerView: View {
         // A capsule of their own, ahead of the like button and the menu.
         if horizontalSizeClass != .compact {
             ToolbarItemGroup(placement: .topBarTrailing) {
-                PlayerToolbarButtons(group: group)
+                PlayerToolbarButtons(group: group, showQueue: $appState.showsQueuePanel)
             }
             if #available(iOS 26.0, *) {
                 ToolbarSpacer(.fixed, placement: .topBarTrailing)
@@ -1480,8 +1479,8 @@ private struct HiddenSystemVolumeView: UIViewRepresentable {
 /// window's tabs are a dismiss away on every size, and the cover's sheets
 /// only doubled them. The like button and the menu live in the navigation
 /// bar on every size, so this row is only ever about where to go next. A
-/// regular-width Mac window has no row: its buttons are in the navigation
-/// bar too (`PlayerToolbarButtons`), and its queue in the window toolbar.
+/// regular-width Mac window has no row: its buttons, the queue's too, are
+/// in the navigation bar (`PlayerToolbarButtons`).
 private struct PlayerBottomToolbarView: View {
     @Environment(Router.self) private var router: Router
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -1659,16 +1658,18 @@ private struct PlayerBottomToolbarView: View {
 
 #if targetEnvironment(macCatalyst)
 /// The Mac's player buttons, in the navigation bar beside the like button
-/// and the menu, as Music keeps Lyrics and AirPlay in its toolbar: Play On,
-/// lyrics (a book's transcript), the room volume for a group of more than
-/// one and Identify Song. They were a glass row under the volume, which
-/// took height from the cover and the transcript. Each its own bar item:
-/// no stack round them.
+/// and the menu, as Music keeps Lyrics, Up Next and AirPlay in its toolbar:
+/// Play On, lyrics (a book's transcript), the room volume for a group of
+/// more than one, Identify Song and the queue panel's show and hide. They
+/// were a glass row under the volume, which took height from the cover and
+/// the transcript, and the queue's was in a window toolbar of its own. Each
+/// its own bar item: no stack round them.
 private struct PlayerToolbarButtons: View {
     @Environment(Router.self) private var router: Router
 
     /// The group on screen, or `nil` for this device.
     let group: GroupRoom?
+    @Binding var showQueue: Bool
 
     var body: some View {
         @Bindable var router = router
@@ -1697,6 +1698,27 @@ private struct PlayerToolbarButtons: View {
             IdentifySongButton(group: group)
                 .tint(.primary)
         }
+
+        // The queue gauge, or for a book the bookmark with its chapter's
+        // number, whose chapters take the panel (`QueueNextUpView`).
+        let isBook = AudiobookPlayer.shared.isPlayingBook(on: PlaybackRoute.shared.presented)
+        Button {
+            withAnimation {
+                showQueue.toggle()
+            }
+        } label: {
+            Group {
+                if isBook {
+                    AudiobookChapterIconView()
+                } else {
+                    PresentedQueueIconView()
+                }
+            }
+            .foregroundStyle(showQueue ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.primary))
+        }
+        .accessibilityLabel(isBook ? (showQueue ? "Hide Chapters" : "Show Chapters") : (showQueue ? "Hide Queue" : "Show Queue"))
+        .accessibilityAddTraits(showQueue ? .isSelected : [])
+        .help(showQueue ? "Hide Queue (⌥⌘0)" : "Show Queue (⌥⌘0)")
     }
 }
 #endif

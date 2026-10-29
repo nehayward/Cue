@@ -69,11 +69,9 @@ struct MusicPlaybackView: View {
                     .frame(width: Self.buttonSide)
             }
 
-            // The queue panel's show/hide on iPad and an iPhone Duo open,
-            // where there is no sidebar header to hold it. Only at a regular
-            // width: a compact window has no side panel to show. The Mac has
-            // it in the window toolbar and the View menu.
-#if !targetEnvironment(macCatalyst)
+            // The queue panel's show/hide on iPad, the Mac and an iPhone Duo
+            // open. Only at a regular width: a compact window has no side
+            // panel to show. The Mac's is in the View menu too.
             if usesPadLayout, UIDevice.current.userInterfaceIdiom != .vision, horizontalSizeClass == .regular {
                 // A book's chapters take the panel (`QueueNextUpView`).
                 let isBook = AudiobookPlayer.shared.isPlayingBook(on: route.presented)
@@ -105,8 +103,8 @@ struct MusicPlaybackView: View {
                 .animation(.snappy, value: appState.showsQueuePanel)
                 .accessibilityLabel(isBook ? (appState.showsQueuePanel ? "Hide Chapters" : "Show Chapters") : (appState.showsQueuePanel ? "Hide Queue" : "Show Queue"))
                 .accessibilityAddTraits(appState.showsQueuePanel ? .isSelected : [])
+                .help(appState.showsQueuePanel ? "Hide Queue (⌥⌘0)" : "Show Queue (⌥⌘0)")
             }
-#endif
         }
         .padding(.horizontal, 12)
         .frame(maxWidth: maxWidth, maxHeight: 120)
@@ -1920,7 +1918,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             builder.remove(menu: .document)
 
             // View › Show/Hide Queue, ⌥⌘0 as Xcode toggles its inspector.
-            // The toolbar item does the same; this is the keyboard's way in.
+            // The mini player's and the player's queue buttons do the same;
+            // this is the keyboard's way in.
             let toggleQueueCommand = UIKeyCommand(
                 title: AppState.shared.showsQueuePanel ? "Hide Queue" : "Show Queue",
                 image: UIImage(systemName: "sidebar.trailing"),
@@ -2106,7 +2105,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 }
 
 class CueSceneDelegate: NSObject, UIWindowSceneDelegate {
-    var toolbarDelegate = ToolbarDelegate()
     #if targetEnvironment(macCatalyst)
     private var windowSizeObserver: WindowSizeObserver?
     #endif
@@ -2115,16 +2113,13 @@ class CueSceneDelegate: NSObject, UIWindowSceneDelegate {
         
 #if targetEnvironment(macCatalyst)
         if let titlebar = windowScene.titlebar {
-            // A unified toolbar across the top of the window, the way Xcode
-            // and Music have one, holding the queue toggle in its trailing
-            // corner. No title: the sidebar header names the app.
-            let toolbar = NSToolbar(identifier: "com.cue.main")
-            toolbar.delegate = toolbarDelegate
-            toolbar.displayMode = .iconOnly
-            toolbar.allowsUserCustomization = false
+            // No title and no toolbar, so the window's content runs up under
+            // the traffic lights: the sidebar header names the app, and the
+            // queue's show and hide are the mini player's and the player's
+            // own (and View ▸ Show Queue). A toolbar of the queue toggle
+            // alone gave the window a header row that held nothing else.
             titlebar.titleVisibility = .hidden
-            titlebar.toolbarStyle = .unified
-            titlebar.toolbar = toolbar
+            titlebar.toolbar = nil
         }
         
         // Floor only. The old 2000x1500 ceiling stopped the window growing
@@ -2164,115 +2159,3 @@ class CueSceneDelegate: NSObject, UIWindowSceneDelegate {
         }
     }
 }
-
-final class ToolbarDelegate: NSObject {
-    @objc func prefs(_ sender:Any) {
-        Task { @MainActor in
-            Router.main.presentedSheet = .settings()
-        }
-    }
-
-    @objc func search(_ sender:Any) {
-        Task { @MainActor in
-            Router.main.inspectorSheet = .search()
-        }
-    }
-    
-    @objc func sorting(_ sender:Any) {
-        Task { @MainActor in
-            print("HERE")
-        }
-    }
-
-    @objc func toggleQueue(_ sender: Any) {
-        Task { @MainActor in
-            AppState.shared.showsQueuePanel.toggle()
-        }
-    }
-}
-
-#if targetEnvironment(macCatalyst)
-extension NSToolbarItem.Identifier {
-    static let preferences = NSToolbarItem.Identifier("com.cue.preferences")
-    static let sorting = NSToolbarItem.Identifier("com.cue.sorting")
-    static let toggleQueue = NSToolbarItem.Identifier("com.cue.toggleQueue")
-//    static let newFolder = NSToolbarItem.Identifier("com.highcaffeinecontent.catalystexample.newfolder")
-//    static let search = NSToolbarItem.Identifier("com.cue.search")
-}
-
-
-extension ToolbarDelegate: NSToolbarDelegate {
-
-    func toolbarIdentifiers() -> [NSToolbarItem.Identifier] {
-        // Just the queue toggle, pushed to the trailing edge — Xcode's
-        // inspector button. No sidebar toggle or tracking separator: the
-        // SwiftUI tab sidebar isn't a split-view column AppKit can drive.
-        return [.flexibleSpace, .toggleQueue]
-    }
-
-    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        return toolbarIdentifiers()
-    }
-
-    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        return toolbarIdentifiers()
-    }
-
-    func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
-        if itemIdentifier == .toggleQueue {
-            let barItem = UIBarButtonItem(image: UIImage(systemName: "sidebar.trailing"), style: .plain, target: self, action: #selector(toggleQueue(_:)))
-            let item = NSToolbarItem(itemIdentifier: itemIdentifier, barButtonItem: barItem)
-            item.label = NSLocalizedString("Queue", comment: "")
-            item.accessibilityLabel = NSLocalizedString("Show or Hide Queue", comment: "")
-            item.toolTip = NSLocalizedString("Show or Hide Queue (⌥⌘0)", comment: "")
-            return item
-        }
-        if itemIdentifier == .preferences {
-            let barItem = UIBarButtonItem(image: UIImage(systemName: "switch.2"), style: .plain, target: self, action: #selector(prefs(_:)))
-            let item = NSToolbarItem(itemIdentifier: itemIdentifier, barButtonItem: barItem)
-            item.accessibilityLabel = NSLocalizedString("Settings", comment: "")
-            item.toolTip = NSLocalizedString("Settings", comment: "")
-            return item
-        }
-//        else if itemIdentifier == .search {
-//            let barItem = UIBarButtonItem(image: UIImage(systemName: "sparkle.magnifyingglass"), style: .plain, target: self, action: #selector(search))
-//            let item = NSToolbarItem(itemIdentifier: itemIdentifier, barButtonItem: barItem)
-//            item.accessibilityLabel = NSLocalizedString("Search", comment: "")
-//            item.toolTip = NSLocalizedString("Search", comment: "")
-//            return item
-//        }
-//        else if itemIdentifier == .newFolder {
-//            let barItem = UIBarButtonItem(image: UIImage(systemName: "plus"), style: .plain, target: self, action: nil)
-//            let item = NSToolbarItem(itemIdentifier: itemIdentifier, barButtonItem: barItem)
-//            item.accessibilityLabel = NSLocalizedString("TOOLBAR_NEW_FOLDER_BUTTON", comment: "")
-//            item.toolTip = NSLocalizedString("TOOLBAR_NEW_FOLDER_BUTTON", comment: "")
-//
-//            return item
-//        }
-//        else if itemIdentifier == .search {
-//
-//            if let searchItem = CATAppDelegate.appKitController?.searchToolbarItem(sceneIdentifier:scene?.session.persistentIdentifier ?? UUID().uuidString, itemIdentifier: itemIdentifier, target: self, selector: #selector(search(_:))) {
-//                return searchItem
-//            }
-////            else {
-//                return NSToolbarItem(itemIdentifier: itemIdentifier)
-////            }
-//        }
-//        else {
-//            return NSToolbarItem(itemIdentifier: itemIdentifier)
-//        }
-        
-        if itemIdentifier == .sorting {
-            let barItem = UIBarButtonItem(image: UIImage(systemName: "switch.2"), style: .plain, target: self, action: #selector(prefs(_:)))
-            let item = NSToolbarItem(itemIdentifier: itemIdentifier, barButtonItem: barItem)
-            item.accessibilityLabel = NSLocalizedString("Settings", comment: "")
-            item.toolTip = NSLocalizedString("Settings", comment: "")
-            return item
-        }
-        return NSToolbarItem(itemIdentifier: itemIdentifier)
-    }
-
-}
-#endif
-
-
