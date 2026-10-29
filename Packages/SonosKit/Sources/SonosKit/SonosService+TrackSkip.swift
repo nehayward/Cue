@@ -166,16 +166,25 @@ extension SonosService {
     /// song, and a stale track number aims a jump at the song already playing.
     /// One read fixes both: the round trip `previous` always paid before. In
     /// the foreground the poll keeps them current, so presses there don't wait.
+    ///
+    /// The queue's length is read beside it, since nothing polls that here
+    /// either: a queue grown while Cue was away (another controller, a
+    /// hand-off's tail filling in) made next on what had been its last song
+    /// go nowhere, or round to the top under Repeat All.
     @MainActor
     func refreshPositionForSkip(_ group: GroupRoom) async {
-        guard !isRunning, !isLandingSkip(on: group),
-              let track = await getTrack(ip: group.coordinatorRoom.ip), !track.isEmpty,
+        guard !isRunning, !isLandingSkip(on: group) else { return }
+        async let total = getQueueTotal(group: group)
+        guard let track = await getTrack(ip: group.coordinatorRoom.ip), !track.isEmpty,
               // A press that landed during the read already zeroed the
               // position on purpose.
               !isLandingSkip(on: group) else { return }
         group.coordinatorRoom.updatePlaybackPosition(track.playbackPosition)
         if group.coordinatorRoom.track.position != track.position {
             group.coordinatorRoom.track.position = track.position
+        }
+        if let total = try? await total, total > 0, group.coordinatorRoom.queueTotal != total {
+            group.coordinatorRoom.queueTotal = total
         }
     }
 
