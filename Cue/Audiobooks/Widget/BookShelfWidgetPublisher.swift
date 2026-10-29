@@ -2,6 +2,7 @@ import Defaults
 import Foundation
 import MusicSearchKit
 import Nuke
+import Observation
 import OSLog
 import SonosKit
 import UIKit
@@ -355,10 +356,13 @@ final class BookShelfWidgetPublisher {
             books = Self.loadBooks()
         }
         if let book = books?[id] { return book }
-        let candidates = [AudiobookPlayer.shared.current?.book].compactMap { $0 }
-            + Array(PlayHistoryService.shared.history).filter { $0.content.type == .audiobook }
-            + AudiobookshelfBrowseService.shared.continueListening
-            + AudiobookDownloads.downloadedBooks()
+        var candidates: [PlayableContent] = []
+        if let loaded = AudiobookPlayer.shared.current?.book {
+            candidates.append(loaded)
+        }
+        candidates += PlayHistoryService.shared.history.filter { $0.content.type == .audiobook }
+        candidates += AudiobookshelfBrowseService.shared.continueListening
+        candidates += AudiobookDownloads.downloadedBooks()
         return candidates.first { AudiobookProgressStore.key(for: $0) == id }
     }
 
