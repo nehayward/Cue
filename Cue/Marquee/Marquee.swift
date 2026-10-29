@@ -3,11 +3,12 @@ import SwiftUI
 /// One line of text that scrolls when it doesn't fit: it rests at the start
 /// for `pauseDuration`, scrolls one full length, and repeats.
 ///
-/// The scroll moves two copies of the text with `offset`. It used a Metal
+/// The scroll moves two copies of the text along the line, placed there by
+/// `MarqueeLine` rather than drawn through a shader. It used a Metal
 /// distortion shader (`marquee.metal`) instead, which makes SwiftUI render the
 /// text into a texture and run the shader every frame: on the Mac each scroll
 /// allocated a fixed ~95 MB of GPU memory for ~2 s (8 of 8 song changes to a
-/// long title, 0 of 8 with the offset).
+/// long title, 0 of 8 with the copies moved instead).
 ///
 /// A title that fits rests where the caller's `multilineTextAlignment` puts
 /// it (centred in the player, leading in the mini player); one that doesn't
@@ -89,30 +90,27 @@ private struct MarqueeScroller: View {
             .frame(maxWidth: .infinity)
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { lineWidth = $0 }
             .overlay {
-                MarqueeLine(restingPlace: restingPlace, spacing: spacing) {
-                    // The timeline only while the text scrolls; resting, the
-                    // copies are plain views. A timeline paused in their
-                    // place kept the frame it last drew: a scroll called off
-                    // part-way, the line having grown to fit the text (the
-                    // queue panel closing), stayed where it stopped, both
-                    // copies showing and off the line's middle.
-                    if let startTime {
-                        // 60 a second at most: on a 120 Hz screen every
-                        // other frame re-ran this for half a point of
-                        // movement. Paused off screen.
-                        TimelineView(.animation(minimumInterval: 1.0 / 60, paused: scenePhase != .active)) { context in
-                            let scrolled = offset(since: startTime, at: context.date)
-                            copies(scrolling: true)
-                                .offset(x: -scrolled)
-                                // A preference rather than `@State` written
-                                // every frame: `onPreferenceChange` only fires
-                                // when the phase flips.
-                                .preference(key: MarqueePausedKey.self, value: scrolled == 0)
-                        }
-                    } else {
-                        copies(scrolling: false)
-                            .preference(key: MarqueePausedKey.self, value: true)
+                // The timeline only while the text scrolls; resting, the line
+                // is a plain view. A timeline paused in its place kept the
+                // frame it last drew: a scroll called off part-way, the line
+                // having grown to fit the text (the queue panel closing),
+                // stayed where it stopped, both copies showing and off the
+                // line's middle.
+                if let startTime {
+                    // 60 a second at most: on a 120 Hz screen every other
+                    // frame re-ran this for half a point of movement. Paused
+                    // off screen.
+                    TimelineView(.animation(minimumInterval: 1.0 / 60, paused: scenePhase != .active)) { context in
+                        let scrolled = offset(since: startTime, at: context.date)
+                        line(scrolled: scrolled)
+                            // A preference rather than `@State` written every
+                            // frame: `onPreferenceChange` only fires when the
+                            // phase flips.
+                            .preference(key: MarqueePausedKey.self, value: scrolled == 0)
                     }
+                } else {
+                    line(scrolled: 0)
+                        .preference(key: MarqueePausedKey.self, value: true)
                 }
             }
             .clipped()
@@ -155,17 +153,15 @@ private struct MarqueeScroller: View {
             }
     }
 
-    /// The text twice, side by side; the second shows only while it scrolls:
-    /// resting, a text that fits would show its copy beside it.
-    private func copies(scrolling: Bool) -> some View {
-        HStack(spacing: spacing) {
+    /// The text twice, laid out by `MarqueeLine`.
+    private func line(scrolled: CGFloat) -> some View {
+        MarqueeLine(restingPlace: restingPlace, spacing: spacing, scrolled: scrolled) {
             Text(text)
                 .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { textWidth = $0 }
             Text(text)
-                .opacity(scrolling ? 1 : 0)
+                .accessibilityHidden(true)
         }
         .lineLimit(1)
-        .fixedSize()
     }
 
     private struct CycleKey: Equatable {
@@ -190,25 +186,30 @@ private struct MarqueeScroller: View {
     }
 }
 
-/// The marquee's one line, its two copies side by side: at the leading edge
-/// while the text is longer than the line, else where `restingPlace` puts
-/// the first copy (0 leading, 0.5 centred, 1 trailing). A layout rather than
-/// an alignment chosen from measured state, so a change of the line's width
+/// The marquee's one line: the text and its copy. Longer than the line, the
+/// text starts at the leading edge, `scrolled` points along, with the copy
+/// after it; one that fits rests where `restingPlace` puts it (0 leading,
+/// 0.5 centred, 1 trailing), whatever `scrolled` says, its copy out past the
+/// line's end where the clip hides it. The layout decides from the widths
+/// it's laying out, not from measured state, so nothing a frame late can
+/// draw a text that fits off its place, and a change of the line's width
 /// moves the text in the same animation as the views round it.
 private struct MarqueeLine: Layout {
     var restingPlace: CGFloat
     var spacing: CGFloat
+    var scrolled: CGFloat
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         proposal.replacingUnspecifiedDimensions()
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        guard let line = subviews.first else { return }
-        let size = line.sizeThatFits(.unspecified)
-        // The two copies and the space between them: one copy's width.
-        let textWidth = max(0, (size.width - spacing) / 2)
-        let x = textWidth <= bounds.width ? (bounds.width - textWidth) * restingPlace : 0
-        line.place(at: CGPoint(x: bounds.minX + x, y: bounds.midY), anchor: .leading, proposal: .unspecified)
+        guard subviews.count == 2 else { return }
+        let textWidth = subviews[0].sizeThatFits(.unspecified).width
+        let fits = textWidth <= bounds.width
+        let x = fits ? (bounds.width - textWidth) * restingPlace : -scrolled
+        let copyX = fits ? bounds.width + spacing : x + textWidth + spacing
+        subviews[0].place(at: CGPoint(x: bounds.minX + x, y: bounds.midY), anchor: .leading, proposal: .unspecified)
+        subviews[1].place(at: CGPoint(x: bounds.minX + copyX, y: bounds.midY), anchor: .leading, proposal: .unspecified)
     }
 }
