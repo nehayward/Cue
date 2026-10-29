@@ -1762,6 +1762,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // before a download batch submits it.
         ContinuedDownloadTask.shared.register()
         #if DEBUG
+        // Signed in again to Subsonic and Audiobookshelf where a reinstall
+        // or a spent refresh token lost the login. Before the watch is sent
+        // the sign-ins.
+        DebugAccounts.start()
         DownloadAudit.runIfAsked()
         #endif
         // Early, so a status the watch sent while Cue was closed, and the

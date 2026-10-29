@@ -195,6 +195,9 @@ struct AudiobookshelfManagementView: View {
         isConnecting = false
         result = check.result
         guard check.result == .success, let address = check.address else { return }
+#if DEBUG
+        DebugAccounts.keep(.audiobookshelf, address: address, username: username, password: password)
+#endif
         signedIn(at: address)
     }
 
@@ -215,6 +218,11 @@ struct AudiobookshelfManagementView: View {
         isConnecting = false
         result = check.result
         guard check.result == .success, let address = check.address else { return }
+#if DEBUG
+        // Single sign-on has no password to sign in with again, and one
+        // kept from before is another login's.
+        DebugAccounts.forget(.audiobookshelf)
+#endif
         username = shelf.username
         signedIn(at: address)
     }
@@ -243,6 +251,9 @@ struct AudiobookshelfManagementView: View {
     private func signOut() async {
         isConnecting = true
         await shelf.signOut()
+#if DEBUG
+        DebugAccounts.forget(.audiobookshelf)
+#endif
         isConnecting = false
         serverAddress = ""
         username = ""

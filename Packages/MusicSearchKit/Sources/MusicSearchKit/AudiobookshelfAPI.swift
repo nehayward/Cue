@@ -903,6 +903,11 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
         return Date(timeIntervalSince1970: exp)
     }
 
+    /// Asked to sign in again when the server turns the refresh token away,
+    /// before the login is given up; true when a new login is held. Debug
+    /// builds keep the password for it (`DebugAccounts`, in the app).
+    @ObservationIgnored public var signInAgain: (@MainActor () async -> Bool)?
+
     /// One renewal at a time: the refresh token is rotated by each, so two
     /// at once would have the second turned away.
     private let renewal = OSAllocatedUnfairLock<Task<Bool, Never>?>(initialState: nil)
@@ -942,6 +947,7 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
             // spent. The login is over, and saying so is better than every
             // request quietly failing while it still looks signed in.
             if status == 401 || status == 403 {
+                if let signInAgain, await signInAgain() { return true }
                 await expireLogin()
             }
             return false

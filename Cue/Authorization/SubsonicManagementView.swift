@@ -178,6 +178,9 @@ struct SubsonicManagementView: View {
         subsonic.serverAddress = address
         subsonic.username = username
         subsonic.password = password
+#if DEBUG
+        DebugAccounts.keep(.subsonic, address: address, username: username, password: password)
+#endif
         // Anything cached from a previous server belongs to that server.
         MusicSearchService.shared.clearSubsonicSongCache()
         // A working server means the service is authorized — surface it in
@@ -194,6 +197,9 @@ struct SubsonicManagementView: View {
         subsonic.serverAddress = ""
         subsonic.username = ""
         subsonic.password = ""
+#if DEBUG
+        DebugAccounts.forget(.subsonic)
+#endif
         MusicSearchService.shared.clearSubsonicSongCache()
         // Mirror the connect path, which enables the service — otherwise the
         // Settings toggle stays visually on for a service that can't play.

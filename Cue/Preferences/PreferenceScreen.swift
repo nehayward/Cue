@@ -54,6 +54,14 @@ struct PreferenceScreen: View {
     
 #if DEBUG
     @State private var servers: [MediaServer] = []
+
+    /// What `DebugAccounts` signs in with again by itself.
+    private var keptSignIns: String {
+        let services = DebugAccounts.keptServices.map(\.title)
+        return services.isEmpty ? "None" : services.formatted(.list(type: .and))
+    }
+
+    private static let keptSignInsNote = "Kept Sign-Ins: a Subsonic or Audiobookshelf password signed in with in a Debug build is kept in the keychain, which outlives deleting the app, and Cue signs in with it again when the login is lost (a reinstall, or Audiobookshelf turning its refresh token away). Signing out forgets it. Single sign-on can't be kept."
 #endif
     
     var body: some View {
@@ -369,13 +377,18 @@ struct PreferenceScreen: View {
                     Toggle(isOn: $appState.minimizesTabBar) {
                         Label("Shrink Tab Bar on Scroll", systemImage: "dock.arrow.down.rectangle")
                     }
+                    LabeledContent {
+                        Text(keptSignIns)
+                    } label: {
+                        Label("Kept Sign-Ins", systemImage: "person.badge.key")
+                    }
                 } header: {
                     Text("Debug")
                 } footer: {
 #if os(iOS) && !targetEnvironment(macCatalyst)
-                    Text("Off (the default in Debug builds for now) hides the MiniPlayer in CarPlay, to see whether the car's Now Playing then follows Cue's own player after Apple Music. Takes effect the next time the car connects.\n\nNow Playing Session puts the Lock Screen and car card for Plex, Subsonic and radio through a session of the player making the sound. Takes effect from the next song started.")
+                    Text("Off (the default in Debug builds for now) hides the MiniPlayer in CarPlay, to see whether the car's Now Playing then follows Cue's own player after Apple Music. Takes effect the next time the car connects.\n\nNow Playing Session puts the Lock Screen and car card for Plex, Subsonic and radio through a session of the player making the sound. Takes effect from the next song started.\n\n\(Self.keptSignInsNote)")
 #else
-                    Text("Now Playing Session puts the Now Playing card for Plex, Subsonic and radio through a session of the player making the sound. Takes effect from the next song started.")
+                    Text("Now Playing Session puts the Now Playing card for Plex, Subsonic and radio through a session of the player making the sound. Takes effect from the next song started.\n\n\(Self.keptSignInsNote)")
 #endif
                 }
 #endif
