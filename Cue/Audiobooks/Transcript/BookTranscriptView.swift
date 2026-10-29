@@ -98,11 +98,11 @@ struct BookTranscriptView: View {
         case .unsupported where transcript.lines.isEmpty:
             ContentUnavailableView(
                 "Transcripts Aren't Available Here",
-                systemImage: "text.quote",
+                systemImage: "captions.bubble",
                 description: Text("Books are transcribed on the device, which needs iOS 26 or later on a recent iPhone, iPad or Mac.")
             )
         case .unavailable(let reason):
-            ContentUnavailableView("No Transcript", systemImage: "text.quote", description: Text(reason))
+            ContentUnavailableView("No Transcript", systemImage: "captions.bubble", description: Text(reason))
         case .failed(let reason) where transcript.lines.isEmpty:
             ContentUnavailableView("Transcript Unavailable", systemImage: "exclamationmark.triangle", description: Text(reason))
         case .waitingForPlay where transcript.lines.isEmpty:
@@ -1039,7 +1039,7 @@ private struct BookTranscriptUpsell: View {
 
     var body: some View {
         VStack(spacing: 14) {
-            Image(systemName: "text.quote")
+            Image(systemName: "captions.bubble.fill")
                 .font(.system(size: 40, weight: .semibold))
                 .foregroundStyle(Color.accent)
             Text(afterPreview ? "Keep Reading Along" : "Read Along")
