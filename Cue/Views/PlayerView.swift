@@ -24,7 +24,9 @@ import VibesDS
 /// the title and the artist (each opening its detail), the scrubber with
 /// the audio-quality badge, the transport, the volume row with its
 /// steppers, and the bottom row: lyrics at the leading edge, the route
-/// picker in the middle and the queue at the trailing edge.
+/// picker in the middle and the queue at the trailing edge. On the Mac
+/// lyrics and the route picker are in the navigation bar instead, and the
+/// queue in the window toolbar.
 struct PlayerView: View {
     @AppStorage(AppStorageKeys.showArtworkOnly) private var showArtworkOnly: Bool = false
     /// The same key the main window's panel uses, so showing the queue here
@@ -37,6 +39,12 @@ struct PlayerView: View {
     /// The iPad's layout: the iPad, the Mac, and an iPhone Duo open, which
     /// reports the phone idiom (`PadLayout`).
     @Environment(\.usesPadLayout) private var usesPadLayout
+#if targetEnvironment(macCatalyst)
+    /// A regular-width Mac window puts the player's buttons in the
+    /// navigation bar (`PlayerToolbarButtons`); a compact one keeps the row
+    /// under the volume.
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+#endif
 
     /// The cover's own router. The main window's sheets hang off the tab
     /// content underneath this cover, so anything routed there would come
@@ -644,7 +652,8 @@ struct PlayerView: View {
 
     /// No title (only a close chevron leading on the Mac), and trailing
     /// the sleep timer, the like button and the menu — up here on every size, so the bar below
-    /// is only ever about where to go.
+    /// is only ever about where to go. The Mac's bar has that row's buttons
+    /// too, ahead of them (`PlayerToolbarButtons`), and no row below.
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
 #if targetEnvironment(macCatalyst)
@@ -676,6 +685,18 @@ struct PlayerView: View {
             ToolbarItem(placement: .topBarTrailing) { chip }
 #endif
         }
+
+#if targetEnvironment(macCatalyst)
+        // A capsule of their own, ahead of the like button and the menu.
+        if horizontalSizeClass != .compact {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                PlayerToolbarButtons(group: group)
+            }
+            if #available(iOS 26.0, *) {
+                ToolbarSpacer(.fixed, placement: .topBarTrailing)
+            }
+        }
+#endif
 
         ToolbarItemGroup(placement: .topBarTrailing) {
             if canTranscribe {
@@ -1453,16 +1474,14 @@ private struct HiddenSystemVolumeView: UIViewRepresentable {
 
 // MARK: - Bottom toolbar
 
-/// The row under the volume. On a phone and iPad it has no glass: the route
-/// picker in the middle — on a speaker its menu is the regroup menu too —
-/// and the queue on the trailing edge, and lyrics on the leading edge. The
-/// Mac's wide row adds the room volume for a group of more than one and
-/// Identify Song (iPad's is in the navigation bar). No search
-/// or browse: the window's tabs are a dismiss away on every size, and the
-/// cover's sheets only doubled them. The wide row has no queue: the Mac's
-/// is in the window toolbar. The
-/// like button and the menu live in the navigation bar on every size, so this row
-/// is only ever about where to go next.
+/// The row under the volume, with no glass: the route picker in the middle
+/// — on a speaker its menu is the regroup menu too — and the queue on the
+/// trailing edge, and lyrics on the leading edge. No search or browse: the
+/// window's tabs are a dismiss away on every size, and the cover's sheets
+/// only doubled them. The like button and the menu live in the navigation
+/// bar on every size, so this row is only ever about where to go next. A
+/// regular-width Mac window has no row: its buttons are in the navigation
+/// bar too (`PlayerToolbarButtons`), and its queue in the window toolbar.
 private struct PlayerBottomToolbarView: View {
     @Environment(Router.self) private var router: Router
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -1490,7 +1509,7 @@ private struct PlayerBottomToolbarView: View {
         return (group ?? route.group)?.nameWithCount ?? AudioOutputName.shared.name
     }
 
-    /// The flat row everywhere but a regular-width Mac window.
+    /// The row everywhere but a regular-width Mac window.
     private var isFlatRow: Bool {
 #if targetEnvironment(macCatalyst)
         horizontalSizeClass == .compact
@@ -1508,8 +1527,6 @@ private struct PlayerBottomToolbarView: View {
     }
 
     var body: some View {
-        @Bindable var router = router
-
         if isFlatRow {
             // No glass: lyrics leading, the route picker centred and the
             // queue trailing.
@@ -1551,44 +1568,6 @@ private struct PlayerBottomToolbarView: View {
             .padding(.bottom, usesPadLayout ? 14 : 0)
             .padding(.horizontal, 28)
             .frame(maxWidth: 500)
-        } else {
-            // No queue button: the Mac's is in the window toolbar.
-            HStack {
-                PlaybackRouteButton()
-                    .buttonBorderShape(.roundedRectangle)
-                    .glassButton()
-                    .help("Play On")
-
-                LyricsButton()
-                    .buttonBorderShape(.roundedRectangle)
-                    .glassButton()
-
-                if let group, group.rooms.count > 1 {
-                    roomVolumeButton(group)
-                        .buttonBorderShape(.roundedRectangle)
-                        .glassButton()
-                        .withPopoverDestinations(popoverDestination: $router.volumePopover)
-                        .help("Speaker Control")
-                }
-
-                if IdentifySongButton.isAvailable(for: group) {
-                    IdentifySongButton(group: group)
-                        .buttonBorderShape(.roundedRectangle)
-                        .glassButton()
-                }
-            }
-        }
-    }
-
-    private func roomVolumeButton(_ group: GroupRoom) -> some View {
-        Button {
-            router.volumePopover = .volumeControlsScreen(groupID: group.coordinatorID)
-        } label: {
-            Label("Room Volume", systemImage: "speaker.wave.2.fill")
-                .symbolRenderingMode(.hierarchical)
-                .frame(width: 24, height: 24)
-                .labelStyle(.iconOnly)
-                .fontDesign(.rounded)
         }
     }
 
@@ -1677,6 +1656,50 @@ private struct PlayerBottomToolbarView: View {
         }
     }
 }
+
+#if targetEnvironment(macCatalyst)
+/// The Mac's player buttons, in the navigation bar beside the like button
+/// and the menu, as Music keeps Lyrics and AirPlay in its toolbar: Play On,
+/// lyrics (a book's transcript), the room volume for a group of more than
+/// one and Identify Song. They were a glass row under the volume, which
+/// took height from the cover and the transcript. Each its own bar item:
+/// no stack round them.
+private struct PlayerToolbarButtons: View {
+    @Environment(Router.self) private var router: Router
+
+    /// The group on screen, or `nil` for this device.
+    let group: GroupRoom?
+
+    var body: some View {
+        @Bindable var router = router
+
+        PlaybackRouteButton()
+            .help("Play On")
+            .tint(.primary)
+
+        LyricsButton()
+            .tint(.primary)
+
+        if let group, group.rooms.count > 1 {
+            Button {
+                router.volumePopover = .volumeControlsScreen(groupID: group.coordinatorID)
+            } label: {
+                Label("Room Volume", systemImage: "speaker.wave.2.fill")
+                    .symbolRenderingMode(.hierarchical)
+                    .labelStyle(.iconOnly)
+            }
+            .tint(.primary)
+            .withPopoverDestinations(popoverDestination: $router.volumePopover)
+            .help("Speaker Control")
+        }
+
+        if IdentifySongButton.isAvailable(for: group) {
+            IdentifySongButton(group: group)
+                .tint(.primary)
+        }
+    }
+}
+#endif
 
 /// The queue gauge for what's on screen: this device's queue, or the
 /// speaker's while it plays from its queue. Also the mini player's queue
