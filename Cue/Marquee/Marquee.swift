@@ -90,26 +90,28 @@ private struct MarqueeScroller: View {
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { lineWidth = $0 }
             .overlay {
                 MarqueeLine(restingPlace: restingPlace, spacing: spacing) {
-                    // 60 a second at most: on a 120 Hz screen every other
-                    // frame re-ran this for half a point of movement. Paused
-                    // while the text rests (`startTime` is nil then), not just
-                    // off screen.
-                    TimelineView(.animation(minimumInterval: 1.0 / 60, paused: scenePhase != .active || startTime == nil)) { context in
-                        HStack(spacing: spacing) {
-                            Text(text)
-                                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { textWidth = $0 }
-                            // Only while it scrolls: resting, a text that
-                            // fits would show its copy beside it.
-                            Text(text)
-                                .opacity(startTime == nil ? 0 : 1)
+                    // The timeline only while the text scrolls; resting, the
+                    // copies are plain views. A timeline paused in their
+                    // place kept the frame it last drew: a scroll called off
+                    // part-way, the line having grown to fit the text (the
+                    // queue panel closing), stayed where it stopped, both
+                    // copies showing and off the line's middle.
+                    if let startTime {
+                        // 60 a second at most: on a 120 Hz screen every
+                        // other frame re-ran this for half a point of
+                        // movement. Paused off screen.
+                        TimelineView(.animation(minimumInterval: 1.0 / 60, paused: scenePhase != .active)) { context in
+                            let scrolled = offset(since: startTime, at: context.date)
+                            copies(scrolling: true)
+                                .offset(x: -scrolled)
+                                // A preference rather than `@State` written
+                                // every frame: `onPreferenceChange` only fires
+                                // when the phase flips.
+                                .preference(key: MarqueePausedKey.self, value: scrolled == 0)
                         }
-                        .lineLimit(1)
-                        .fixedSize()
-                        .offset(x: -offset(at: context.date))
-                        // A preference rather than `@State` written every
-                        // frame: `onPreferenceChange` only fires when the
-                        // phase flips.
-                        .preference(key: MarqueePausedKey.self, value: offset(at: context.date) == 0)
+                    } else {
+                        copies(scrolling: false)
+                            .preference(key: MarqueePausedKey.self, value: true)
                     }
                 }
             }
@@ -120,7 +122,7 @@ private struct MarqueeScroller: View {
                                          .init(color: .black, location: 0.95),
                                          .init(color: fits ? .black : .clear, location: 1.0)], startPoint: .leading, endPoint: .trailing))
             // Caught mid-scroll by a line that's grown to fit it (the queue
-            // panel closing), it eases back to rest rather than jumping.
+            // panel closing), it fades back to rest rather than jumping.
             .onChange(of: fits) { _, fits in
                 guard fits, startTime != nil else { return }
                 withAnimation(.snappy) {
@@ -136,7 +138,7 @@ private struct MarqueeScroller: View {
             // wherever the last drawn frame left it to wherever the cycle has
             // since wandered to, which reads as a glitch on every unlock.
             //
-            // Each cycle rests at the start with the timeline paused, then
+            // Each cycle rests at the start with no timeline, then
             // scrolls one full length — after which the second copy sits
             // exactly where the first began, so going back to rest is seamless.
             .task(id: CycleKey(text: text, isActive: scenePhase == .active, fits: fits)) {
@@ -153,6 +155,19 @@ private struct MarqueeScroller: View {
             }
     }
 
+    /// The text twice, side by side; the second shows only while it scrolls:
+    /// resting, a text that fits would show its copy beside it.
+    private func copies(scrolling: Bool) -> some View {
+        HStack(spacing: spacing) {
+            Text(text)
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { textWidth = $0 }
+            Text(text)
+                .opacity(scrolling ? 1 : 0)
+        }
+        .lineLimit(1)
+        .fixedSize()
+    }
+
     private struct CycleKey: Equatable {
         let text: String
         let isActive: Bool
@@ -166,9 +181,10 @@ private struct MarqueeScroller: View {
         Double((textWidth + spacing) / pointsPerSecond)
     }
 
-    /// How far the text has scrolled at `date`, or 0 while it rests at the start.
-    private func offset(at date: Date) -> CGFloat {
-        guard let startTime, textWidth > 0 else { return 0 }
+    /// How far the text has scrolled at `date` in a scroll begun at
+    /// `startTime`, or 0 once it has gone the full length.
+    private func offset(since startTime: Date, at date: Date) -> CGFloat {
+        guard textWidth > 0 else { return 0 }
         let elapsed = date.timeIntervalSince(startTime)
         return elapsed < scrollDuration ? CGFloat(elapsed) * pointsPerSecond : 0
     }
