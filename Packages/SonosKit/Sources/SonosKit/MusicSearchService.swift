@@ -1207,9 +1207,9 @@ public final class MusicSearchService {
     }
     
     /// An artist's releases by kind, as Apple Music's artist page shelves
-    /// them, every batch of each: albums (`fullAlbums`: no compilations,
-    /// live albums, singles or EPs), compilations, live albums, and singles
-    /// and EPs. Nil when the catalog doesn't answer.
+    /// them: albums (`fullAlbums`: no compilations, live albums, singles or
+    /// EPs), compilations, live albums, and singles and EPs. Nil when the
+    /// catalog doesn't answer.
     public func artistAlbumKinds(id: String) async -> (albums: [PlayableContent], compilations: [PlayableContent], live: [PlayableContent], singles: [PlayableContent])? {
         guard await requestMusicAuthorization() else { return nil }
         var request = MusicCatalogResourceRequest<Artist>(matching: \.id, equalTo: MusicItemID(id))
