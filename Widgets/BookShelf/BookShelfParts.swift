@@ -715,16 +715,19 @@ struct BookTap<Label: View>: View {
                     PlayButton(id: book.id) {
                         Self.target
                     }
+                    .buttonStyle(PressDim(shape: Self.shape))
                     .accessibilityLabel("Play \(book.title)")
                 case .play:
                     Link(destination: style.link(to: book.id, play: true)) {
                         Self.target
                     }
+                    .buttonStyle(PressDim(shape: Self.shape))
                     .accessibilityLabel("Play \(book.title)")
                 case .open:
                     Link(destination: style.link(to: book.id, play: false)) {
                         Self.target
                     }
+                    .buttonStyle(PressDim(shape: Self.shape))
                     .accessibilityLabel(book.title)
                 case .openApp:
                     EmptyView()
@@ -737,6 +740,23 @@ struct BookTap<Label: View>: View {
         Rectangle()
             .fill(.clear)
             .contentShape(.rect)
+    }
+
+    /// The press's dimming: a cover's rounding, near enough for each look.
+    private static var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 4) }
+}
+
+/// A clear tap target that dims what's under it while it's pressed. The
+/// target is clear because a cover can't be a widget button's own label
+/// (`BookTap`), and the system's own pressed look fades the label, which
+/// left a tap on a cover with nothing to show for it until the widget's
+/// next write.
+struct PressDim<S: Shape>: ButtonStyle {
+    let shape: S
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(shape.fill(.black.opacity(configuration.isPressed ? 0.3 : 0)))
     }
 }
 
@@ -755,12 +775,10 @@ struct PlayButton<Label: View>: View {
             Button(intent: PlayBookIntent(bookID: id)) {
                 label
             }
-            .buttonStyle(.plain)
         case .albums:
             Button(intent: PlayAlbumIntent(albumID: id)) {
                 label
             }
-            .buttonStyle(.plain)
         }
     }
 }
@@ -848,11 +866,13 @@ private struct PlayPauseTarget<Target: Shape>: ViewModifier {
                     PlayButton(id: book.id) {
                         target
                     }
+                    .buttonStyle(PressDim(shape: shape))
                     .accessibilityLabel(label)
                 } else {
                     Link(destination: style.link(to: book.id, play: true)) {
                         target
                     }
+                    .buttonStyle(PressDim(shape: shape))
                     .accessibilityLabel(label)
                 }
             }

@@ -494,6 +494,7 @@ final class AlbumShelfWidgetPublisher {
     /// first, so an album a speaker plays reads as loaded after a launch in
     /// the background (before, Pause restarted it from its first song).
     func play(albumID: String) async {
+        let began = ContinuousClock.now
         guard let album = await findAlbum(withID: albumID) else {
             Self.log.error("album shelf widget: no album \(albumID, privacy: .public) to play")
             #if DEBUG && os(iOS)
@@ -504,6 +505,7 @@ final class AlbumShelfWidgetPublisher {
         await PlayDestinationRouter.loadSpeakersIfNeeded()
         let presented = PlaybackRoute.shared.presented
         let expected: Bool
+        let speaker = SpeakerSend()
         if isLoaded(album, on: presented) {
             Self.log.notice("album shelf widget: play/pause \(album.title, privacy: .public)")
             expected = !presented.isPlaying
@@ -512,27 +514,51 @@ final class AlbumShelfWidgetPublisher {
             Self.log.notice("album shelf widget: play \(album.title, privacy: .public)")
             expected = true
             await PlayDestinationRouter.play(album, position: .replace) { group, position in
-                QueueManager.shared.addToQueue(item: QueueItem(playableContent: album, group: group, position: position))
+                speaker.isSent = true
+                var item = QueueItem(playableContent: album, group: group, position: position)
+                item.done = { speaker.landed = .now }
+                QueueManager.shared.addToQueue(item: item)
             }
         }
         // The player says it's playing a moment after it's told to, and, from
         // another album, that this one is loaded: written at once, the
         // widget's Pause went back to Play, and a second tap paused what had
-        // just started.
-        for _ in 0..<12 where !isSettled(on: album, playing: expected) {
-            try? await Task.sleep(for: .milliseconds(250))
+        // just started. Written as soon as it says so. A speaker is given
+        // the album after this returns (a Plex album looked up and queued a
+        // song at a time), so the wait runs while it's being given it, then
+        // 3 s at most.
+        while !isSettled(on: album, playing: expected) {
+            let now = ContinuousClock.now
+            if speaker.isSent, speaker.landed == nil {
+                if now - began > .seconds(15) { break }
+            } else if now - (speaker.landed ?? began) > .seconds(3) {
+                break
+            }
+            try? await Task.sleep(for: .milliseconds(150))
         }
-        logPlayer(expected: expected, at: "settled")
+        let landed = speaker.landed.map { ", the speaker had it at \(Self.milliseconds($0 - began)) ms" } ?? ""
+        logPlayer(expected: expected, at: "\(Self.milliseconds(ContinuousClock.now - began)) ms after the tap\(landed)")
         publishNow()
         #if DEBUG && os(iOS)
         // Woken in the background, Cue may be suspended before its log is
         // written: these lines are what says whether the album sounded.
         Task {
             try? await Task.sleep(for: .seconds(3))
-            logPlayer(expected: expected, at: "6 s")
+            logPlayer(expected: expected, at: "3 s after that")
             PhoneLogFile.writeNow()
         }
         #endif
+    }
+
+    /// Whether, and when, a speaker was given a widget's album.
+    @MainActor
+    private final class SpeakerSend {
+        var isSent = false
+        var landed: ContinuousClock.Instant?
+    }
+
+    private static func milliseconds(_ duration: Duration) -> Int {
+        Int(duration.components.seconds * 1000 + duration.components.attoseconds / 1_000_000_000_000_000)
     }
 
     /// Whether the player says what a widget's Play asked: `album` playing,
@@ -553,7 +579,7 @@ final class AlbumShelfWidgetPublisher {
         case .background: "background"
         @unknown default: "unknown"
         }
-        Self.log.notice("album shelf widget: \(time, privacy: .public) after the tap, playing \(presented.isPlaying) (wanted \(expected)), Apple Music player \(String(describing: ApplicationMusicPlayer.shared.state.playbackStatus), privacy: .public), Cue \(appState, privacy: .public)")
+        Self.log.notice("album shelf widget: \(time, privacy: .public), playing \(presented.isPlaying) (wanted \(expected)), Apple Music player \(String(describing: ApplicationMusicPlayer.shared.state.playbackStatus), privacy: .public), Cue \(appState, privacy: .public)")
     }
 
     /// The widget's `cue://album` link: the album's page, in place of any
