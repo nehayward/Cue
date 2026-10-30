@@ -7,7 +7,8 @@ import WidgetKit
 /// small widget, a shelf of them on a medium, the book on the go on display
 /// above more shelves on a large and on iOS 27's page-tall iPhone widget,
 /// and a wide bookcase on an iPad's extra large. Each looks like a walnut
-/// bookshelf or a record shelf, the records slid out of their sleeves.
+/// bookshelf or flat glass, the covers on a frost of the first one's
+/// colours.
 ///
 /// Cue keeps the shelves it shows in the App Group
 /// (`BookShelfWidgetState`, written by `BookShelfWidgetPublisher`) and
@@ -42,19 +43,21 @@ struct BookShelfWidget: Widget {
     }
 }
 
+/// What a shelf widget draws, books or albums: the items in order, how
+/// they look and what a tap does, and what the shelf is called.
 struct BookShelfEntry: TimelineEntry {
     let date: Date
-    let configuration: BookShelfConfigurationIntent
     let state: BookShelfWidgetState
+    let books: [BookShelfWidgetState.Book]
+    let style: ShelfStyle
+    let heading: ShelfHeading
+    /// One item on its own (One Book), laid out as one on every size.
+    var isOne = false
     /// Cue hasn't written its shelves yet (not opened since it was
     /// installed or updated).
     var isUnwritten = false
 
-    var books: [BookShelfWidgetState.Book] {
-        state.books(on: configuration.shelf.shelf)
-    }
-
-    /// Up the Smart Stack while a book on the shelf plays.
+    /// Up the Smart Stack while an item on the shelf plays.
     var relevance: TimelineEntryRelevance? {
         books.contains { state.isPlaying($0) } ? TimelineEntryRelevance(score: 80) : nil
     }
@@ -62,7 +65,7 @@ struct BookShelfEntry: TimelineEntry {
 
 struct BookShelfProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> BookShelfEntry {
-        BookShelfEntry(date: .now, configuration: BookShelfConfigurationIntent(), state: .sample)
+        Self.entry(for: BookShelfConfigurationIntent(), state: .sample, books: BookShelfWidgetState.sample.books(on: .continueListening))
     }
 
     func snapshot(for configuration: BookShelfConfigurationIntent, in context: Context) async -> BookShelfEntry {
@@ -77,10 +80,58 @@ struct BookShelfProvider: AppIntentTimelineProvider {
     private func entry(for configuration: BookShelfConfigurationIntent, in context: Context) -> BookShelfEntry {
         let state = BookShelfWidgetState.load()
         // The gallery shows made-up books until there are some on the shelf.
-        if context.isPreview, state?.books(on: configuration.shelf.shelf).isEmpty != false {
-            return BookShelfEntry(date: .now, configuration: configuration, state: .sample)
+        if context.isPreview, configuration.shelf != .book, state?.books(on: configuration.shelf.shelf).isEmpty != false {
+            return Self.entry(for: configuration, state: .sample, books: BookShelfWidgetState.sample.books(on: configuration.shelf.shelf))
         }
-        return BookShelfEntry(date: .now, configuration: configuration, state: state ?? .empty, isUnwritten: state == nil)
+        guard configuration.shelf == .book else {
+            return Self.entry(for: configuration, state: state ?? .empty, books: state?.books(on: configuration.shelf.shelf) ?? [], isUnwritten: state == nil)
+        }
+        guard let book = configuration.book else {
+            return Self.entry(for: configuration, state: state ?? .empty, books: [], isUnwritten: state == nil)
+        }
+        if !context.isPreview {
+            // For Cue to write its place and cover next time it writes.
+            BookShelfWidgetState.noteChosen([book.id])
+        }
+        return Self.entry(for: configuration, state: state ?? .empty, books: [Self.chosen(book, in: state)])
+    }
+
+    private static func entry(for configuration: BookShelfConfigurationIntent, state: BookShelfWidgetState, books: [BookShelfWidgetState.Book], isUnwritten: Bool = false) -> BookShelfEntry {
+        let option = configuration.shelf
+        let action: ShelfAction = switch configuration.action {
+        case .playBook: .play
+        case .openBook: .open
+        case .openApp: .openApp
+        }
+        let style = ShelfStyle(
+            kind: .books,
+            look: configuration.look == .glass ? .glass : .bookshelf,
+            action: action,
+            playsInBackground: configuration.playsInBackground,
+            showsProgress: configuration.showsProgress
+        )
+        let heading = ShelfHeading(
+            title: option.title,
+            symbol: option.symbol,
+            emptyTitle: option == .book ? "Choose a Book" : nil,
+            emptyMessage: option.emptyMessage,
+            unwrittenTitle: "Your Audiobooks",
+            unwrittenMessage: "Open Cue to put your books on this shelf.",
+            appLink: BookShelfWidgetState.audiobooksLink
+        )
+        return BookShelfEntry(date: .now, state: state, books: books, style: style, heading: heading, isOne: option == .book, isUnwritten: isUnwritten)
+    }
+
+    /// `book` as Cue wrote it on any shelf (the Chosen shelf has its place
+    /// and cover once Cue has heard of it), else as it was picked.
+    private static func chosen(_ book: WidgetBook, in state: BookShelfWidgetState?) -> BookShelfWidgetState.Book {
+        let shelves = [BookShelfWidgetState.Shelf.chosen] + BookShelfWidgetState.Shelf.allCases.filter { $0 != .chosen }
+        for shelf in shelves {
+            if let written = state?.books(on: shelf).first(where: { $0.id == book.id }) {
+                return written
+            }
+        }
+        return BookShelfWidgetState.Book(id: book.id, title: book.title, author: book.author, fraction: nil, remaining: nil, duration: 0, isFinished: false, isDownloaded: false, cover: nil)
     }
 }
 

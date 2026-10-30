@@ -20,6 +20,7 @@ struct AudiobooksScreen: View {
     /// This tab's own stack, never a shared router: two stacks bound to one
     /// path push each other.
     @State private var router = Router()
+    @State private var link = AudiobookTabLink.shared
     @State private var store = AudiobookProgressStore.shared
     @State private var removals = ContinueListeningRemovals.shared
     @State private var shelf = AudiobookshelfBrowseService.shared
@@ -150,6 +151,13 @@ struct AudiobooksScreen: View {
         .environment(router)
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)
         .withFullScreenCoverDestinations(destinations: $router.presentedFullScreenCover)
+        // A book a link asked for (the book shelf widget's Open Book), on
+        // this tab's own stack. Initial too: the tab may only now be made.
+        .onChange(of: link.request?.id, initial: true) {
+            guard let book = link.request?.book else { return }
+            link.request = nil
+            router.path = [.audiobookDetail(content: book)]
+        }
     }
 
     private static let recentCount = 10

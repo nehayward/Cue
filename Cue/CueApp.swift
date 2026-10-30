@@ -8,6 +8,7 @@ import SonosKit
 import SubscriptionKit
 import MusicKit
 import MusicSearchKit
+import OSLog
 import StoreKit
 import SwiftUI
 import CoreSpotlight
@@ -1231,35 +1232,14 @@ struct CueApp: App {
         router.isPlayerPresented = true
     }
 
-    /// A book from the book shelf widget: its page over whatever's on
-    /// screen, or with `play`, the player, the book playing in it (left
-    /// playing if it already was). A book the widget knows and Cue no
-    /// longer does opens the Audiobooks tab.
-    @MainActor
-    private func openBook(id: String, play: Bool) {
-        guard let book = BookShelfWidgetPublisher.shared.book(withID: id) else {
-            router.selectedTab = .audiobooks
-            return
-        }
-        guard play else {
-            MediaDetailPresenter.present(book)
-            return
-        }
-        openNowPlaying()
-        let player = AudiobookPlayer.shared
-        let presented = PlaybackRoute.shared.presented
-        guard !(player.isLoaded(book) && presented.isPlaying) else { return }
-        Task {
-            if player.isLoaded(book) {
-                await presented.togglePlayback()
-            } else {
-                await player.play(book)
-            }
-        }
-    }
-
     @MainActor
     private func handle(_ url: URL) {
+        // The widget's book, album or shelf is what was asked for: Quick Launch's
+        // player, which opens as Cue comes back, doesn't open over it.
+        if BookShelfWidgetState.book(in: url) != nil || BookShelfWidgetState.Albums.album(in: url) != nil || ["audiobooks", "album"].contains(url.host?.lowercased() ?? "") {
+            quickLaunchPending = false
+            BookShelfWidgetPublisher.log.info("shelf widget: link \(url.absoluteString, privacy: .public)")
+        }
         Task {
             guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return }
 
@@ -1267,11 +1247,20 @@ struct CueApp: App {
             // and the player opened. Before the speakers are looked for,
             // which a book doesn't wait on.
             if let link = BookShelfWidgetState.book(in: url) {
-                openBook(id: link.id, play: link.play)
+                await BookShelfWidgetPublisher.shared.open(bookID: link.id, plays: link.play)
+                return
+            }
+            if let link = BookShelfWidgetState.Albums.album(in: url) {
+                await AlbumShelfWidgetPublisher.shared.open(albumID: link.id, plays: link.play)
                 return
             }
             if components.host?.lowercased() == "audiobooks" {
-                router.selectedTab = .audiobooks
+                AudiobookTabLink.showTab()
+                return
+            }
+            // The Albums widget's own link (Open App, a tap off its albums):
+            // Cue, as it was.
+            if components.host?.lowercased() == "album" {
                 return
             }
 
@@ -1812,6 +1801,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // The book shelf widget's copy of the Audiobooks tab. Early, so a
         // widget's Play that launched Cue in the background finds its book.
         BookShelfWidgetPublisher.shared.start()
+        // The album shelf widget's albums, the same way.
+        AlbumShelfWidgetPublisher.shared.start()
+        // The discography widget's Plex artists, as Cue comes to the front.
+        DiscographyWidgetPublisher.shared.start()
         #endif
         // The Audiobooks tab's shelves as last read, their covers decoded a
         // moment after launch, so the tab opens with them drawn.

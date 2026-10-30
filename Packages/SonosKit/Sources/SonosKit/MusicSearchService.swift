@@ -1206,6 +1206,39 @@ public final class MusicSearchService {
         return nil
     }
     
+    /// An artist's releases by kind, as Apple Music's artist page shelves
+    /// them, every batch of each: albums (`fullAlbums`: no compilations,
+    /// live albums, singles or EPs), compilations, live albums, and singles
+    /// and EPs. Nil when the catalog doesn't answer.
+    public func artistAlbumKinds(id: String) async -> (albums: [PlayableContent], compilations: [PlayableContent], live: [PlayableContent], singles: [PlayableContent])? {
+        guard await requestMusicAuthorization() else { return nil }
+        var request = MusicCatalogResourceRequest<Artist>(matching: \.id, equalTo: MusicItemID(id))
+        request.properties = [.fullAlbums, .compilationAlbums, .liveAlbums, .singles]
+        guard let artist = try? await request.response().items.first else { return nil }
+        // Albums whole, as few artists have more than a few batches of them;
+        // the rest a few batches at most, as Elvis has hundreds of
+        // compilations, which kept the page waiting.
+        async let albums = Self.albums(in: artist.fullAlbums, batches: 10)
+        async let compilations = Self.albums(in: artist.compilationAlbums, batches: 3)
+        async let live = Self.albums(in: artist.liveAlbums, batches: 3)
+        async let singles = Self.albums(in: artist.singles, batches: 3)
+        return await (albums.map(\.toPlayable), compilations.map(\.toPlayable), live.map(\.toPlayable), singles.map(\.toPlayable))
+    }
+
+    /// A relationship's albums, its later batches fetched too, `batches` at
+    /// most.
+    private static func albums(in collection: MusicItemCollection<Album>?, batches: Int) async -> [Album] {
+        guard var batch = collection else { return [] }
+        var albums = Array(batch)
+        var fetched = 1
+        while fetched < batches, batch.hasNextBatch, !Task.isCancelled, let next = try? await batch.nextBatch() {
+            albums += next
+            batch = next
+            fetched += 1
+        }
+        return albums
+    }
+
     public func allAlbums(id: String) async throws -> [PlayableContent] {
         guard await requestMusicAuthorization() else { return [] }
         

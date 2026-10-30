@@ -99,6 +99,7 @@ enum PlayDestinationRouter {
                 log.notice("device-only content played on the device")
                 return
             }
+            await loadSpeakersIfNeeded()
             guard let group = SonosService.shared.groups.first(where: { $0.coordinatorID == id }) else {
                 log.error("remembered group \(id, privacy: .public) is gone")
                 askForSpeaker(contents, position: position, queue: queue)
@@ -156,6 +157,40 @@ enum PlayDestinationRouter {
             return
         }
         await play(station, position: .now, from: seed) { group, _ in try await onGroup(group) }
+    }
+
+    /// Looks for the speakers first when none are loaded yet and a group is
+    /// remembered, a few seconds at most. A Play from outside Cue (a
+    /// widget's) can launch it in the background before its first look for
+    /// them, and the group read as gone: the Play asked which speaker, with
+    /// no screen to ask on, or a book played on this device instead. Not
+    /// once the speakers are in: a remembered group missing from them then
+    /// is gone (unplugged, regrouped), and every Play waited out the 5 s.
+    static func loadSpeakersIfNeeded() async {
+        let sonos = SonosService.shared
+        guard sonos.isAvailable, sonos.groups.isEmpty, let id = PlayDestination.remembered?.groupID else { return }
+        log.notice("remembered group \(id, privacy: .public) not loaded yet: looking for the speakers first")
+        // Left to finish whatever happens: a group that comes late still
+        // serves the next Play.
+        Task { try? await sonos.updateGroups() }
+        for _ in 0..<20 {
+            // The household's groups come in together, from one speaker's
+            // view of them: in, the remembered group is there or gone.
+            if !sonos.groups.isEmpty {
+                let found = sonos.groups.contains { $0.coordinatorID == id }
+                log.notice("speakers loaded: remembered group \(id, privacy: .public) \(found ? "found" : "gone", privacy: .public)")
+                return
+            }
+            // Launched on cellular or in a car: Sonos reads available until
+            // the network's first path is read, a moment in. No speaker to
+            // wait for then.
+            guard sonos.isAvailable else {
+                log.notice("no speakers from here after all: not waiting for \(id, privacy: .public)")
+                return
+            }
+            try? await Task.sleep(for: .milliseconds(250))
+        }
+        log.error("remembered group \(id, privacy: .public) not found within 5 s")
     }
 
     /// The remembered group, for the Sonos-only actions — song and artist

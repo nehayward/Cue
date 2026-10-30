@@ -24,13 +24,18 @@ struct ArtistDetailView: View {
     @State private var albums: [PlayableContent] = []
     @State private var liveAlbums: [PlayableContent] = []
     @State private var singles: [PlayableContent] = []
+    @State private var compilations: [PlayableContent] = []
     @State private var allAlbums: [PlayableContent] = []
     @State private var latestRelease: PlayableContent?
     
     @State private var artworkURL: URL?
     @State private var isLoading: Bool = false
+    /// The page's artist read whole (`loadArtistData`).
+    @State private var hasLoaded = false
     @State private var isLoadingTracks: Bool = true
     @State private var albumType: AlbumCategory = .albums
+    /// Each kind's chip in the chip row, for the pill (`chosenPill`).
+    @State private var kindFrames: [AlbumCategory: CGRect] = [:]
     @State private var artworkLoaded: Bool = false
     @State private var artistContent: PlayableContent?
     @State private var showTitle: Bool = false
@@ -44,45 +49,57 @@ struct ArtistDetailView: View {
     
     // MARK: - Computed Properties
     
+    /// The kinds of release, as Apple Music's artist page shelves them.
+    /// Albums are each album once (`AlbumEditions`), as the discography
+    /// widget's Albums lists them.
     private enum AlbumCategory: Int, CaseIterable {
         case albums = 0
-        case live = 1
-        case singles = 2
-        case all = 3
-        
+        case singles = 1
+        case live = 2
+        case compilations = 3
+        case all = 4
+
         var title: String {
             switch self {
-            case .albums: "Album"
+            case .albums: "Albums"
+            case .singles: "Singles & EPs"
             case .live: "Live"
-            case .singles: "Singles"
+            case .compilations: "Compilations"
             case .all: "All"
             }
         }
-        
+
         static func firstAvailable(
             albums: [PlayableContent],
             live: [PlayableContent],
             singles: [PlayableContent],
+            compilations: [PlayableContent] = [],
             all: [PlayableContent]
         ) -> AlbumCategory {
             let availability: [(AlbumCategory, Bool)] = [
                 (.albums, !albums.isEmpty),
-                (.live, !live.isEmpty),
                 (.singles, !singles.isEmpty),
+                (.live, !live.isEmpty),
+                (.compilations, !compilations.isEmpty),
                 (.all, !all.isEmpty)
             ]
-            
+
             return availability.first(where: { $0.1 })?.0 ?? .all
         }
     }
-    
-    private var currentAlbums: [PlayableContent] {
-        switch albumType {
+
+    private func releases(of category: AlbumCategory) -> [PlayableContent] {
+        switch category {
         case .albums: albums
-        case .live: liveAlbums
         case .singles: singles
+        case .live: liveAlbums
+        case .compilations: compilations
         case .all: allAlbums
         }
+    }
+
+    private var currentAlbums: [PlayableContent] {
+        releases(of: albumType)
     }
     
     /// An artist of the on-device library (`OnDeviceLibrary`): their songs
@@ -99,9 +116,12 @@ struct ArtistDetailView: View {
             && artistContent.content.type != .libraryArtist
     }
 
+    /// Whether the albums come in kinds (chips over them): from the page's
+    /// own content until the artist is in, so the chips are there from the
+    /// first draw rather than a title first.
     private var supportsAlbumCategories: Bool {
-        guard let artistContent, !isOnDevice else { return false }
-        return [.apple, .plex].contains(artistContent.content.service)
+        guard !isOnDevice else { return false }
+        return [.apple, .plex].contains((artistContent ?? playableContent).content.service)
     }
     
     // MARK: - Body
@@ -459,17 +479,24 @@ struct ArtistDetailView: View {
     
     @ViewBuilder
     private var albumsSection: some View {
-        if !allAlbums.isEmpty || isLoading || !albums.isEmpty {
+        if isLoading || AlbumCategory.allCases.contains(where: { !releases(of: $0).isEmpty }) {
             Section {
-                CollapsibleHeader(
-                    title: "Albums",
-                    isExpanded: $isAlbumsExpanded
-                )
+                // The kinds' chips head the section, in the title's place,
+                // with its chevron, where there are kinds to choose; else the
+                // title.
+                if supportsAlbumCategories {
+                    // No background of its own, as the rows under it.
+                    albumCategoryPicker
+                        .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 4, trailing: 0))
+                        .listRowBackground(Color.white.opacity(0.001))
+                        .listRowSeparator(.hidden)
+                } else {
+                    CollapsibleHeader(
+                        title: "Albums",
+                        isExpanded: $isAlbumsExpanded
+                    )
+                }
                 if isAlbumsExpanded {
-                    if supportsAlbumCategories && !allAlbums.isEmpty {
-                        albumCategoryPicker
-                            .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-                    }
                     ForEach(currentAlbums) { album in
                         PlayableContentView(item: album, hideContentType: true)
                             .listRowBackground(Color.white.opacity(0.001))
@@ -487,13 +514,127 @@ struct ArtistDetailView: View {
         }
     }
     
+    /// The kinds the artist has releases of, as chips in a row that scrolls
+    /// sideways: five don't fit a segmented control at an iPhone's width.
+    /// A change animates as the system's segmented control does: one pill
+    /// slides to the chosen chip, its words in the background's colour
+    /// showing only through the pill, so nothing flips colour at once; the
+    /// rows below fade over, the list easing to its new length rather than
+    /// jumping, and the chosen chip is scrolled into view.
     private var albumCategoryPicker: some View {
-        Picker("Album", selection: $albumType) {
-            ForEach(AlbumCategory.allCases, id: \.self) { category in
-                Text(category.title).tag(category)
+        let kinds = shownKinds
+        return HStack(spacing: 0) {
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal) {
+                    kindChips(kinds) { category in
+                        withAnimation(.snappy(duration: 0.32)) {
+                            albumType = category
+                            if !isAlbumsExpanded {
+                                isAlbumsExpanded = true
+                            }
+                            proxy.scrollTo(category, anchor: .center)
+                        }
+                    }
+                    .coordinateSpace(.named(Self.kindRow))
+                    .overlay(alignment: .topLeading) {
+                        chosenPill
+                            .foregroundStyle(.primary)
+                            .allowsHitTesting(false)
+                    }
+                    .overlay(alignment: .topLeading) {
+                        kindTitles(kinds)
+                            .foregroundStyle(.background)
+                            .mask(alignment: .topLeading) { chosenPill }
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
+                    }
+                    .padding(.vertical, 4)
+                }
+                // From the screen's edge, the row's inset a margin inside
+                // it, so the first chip stands whole where the titles start
+                // and chips scroll out under a fade, not cut at the inset.
+                .contentMargins(.horizontal, 16, for: .scrollContent)
+                .scrollIndicators(.hidden)
+                .mask {
+                    HStack(spacing: 0) {
+                        LinearGradient(colors: [.clear, .black], startPoint: .leading, endPoint: .trailing)
+                            .frame(width: 16)
+                        Color.black
+                        LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
+                            .frame(width: 20)
+                    }
+                }
+            }
+            // Folds the albums away, as the section's title did, its glyph
+            // where the Popular title's is.
+            Button {
+                isAlbumsExpanded.toggle()
+            } label: {
+                Image(systemName: "chevron.right")
+                    .font(.caption.bold())
+                    .foregroundStyle(.secondary)
+                    .rotationEffect(.degrees(isAlbumsExpanded ? 90 : 0))
+                    .animation(.smooth(duration: 0.3), value: isAlbumsExpanded)
+                    .frame(width: 32, height: 32, alignment: .trailing)
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .padding(.trailing, 16)
+            .accessibilityLabel(isAlbumsExpanded ? "Hide Albums" : "Show Albums")
+        }
+    }
+
+    /// The chips' own space, which the pill is placed in.
+    private static let kindRow = "album kinds"
+
+    /// The pill under the chosen chip, where the chip measured itself in
+    /// the row: it moves only as the kind changes, and rides with the row
+    /// as the list moves it (a pill matched by `matchedGeometryEffect`
+    /// stretched as the Popular section above folded).
+    @ViewBuilder
+    private var chosenPill: some View {
+        if shownKinds.contains(albumType), let frame = kindFrames[albumType] {
+            Capsule()
+                .frame(width: frame.width, height: frame.height)
+                .offset(x: frame.minX, y: frame.minY)
+        }
+    }
+
+    /// The chips to tap, each measuring where it is for the pill.
+    private func kindChips(_ kinds: [AlbumCategory], choose: @escaping (AlbumCategory) -> Void) -> some View {
+        HStack(spacing: 8) {
+            ForEach(kinds, id: \.self) { category in
+                Button {
+                    choose(category)
+                } label: {
+                    kindTitle(category)
+                        .foregroundStyle(.primary)
+                        .background(.fill.tertiary, in: .capsule)
+                }
+                .buttonStyle(.plain)
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.kindRow)) } action: { frame in
+                    if kindFrames[category] != frame {
+                        kindFrames[category] = frame
+                    }
+                }
+                .id(category)
+                .accessibilityAddTraits(category == albumType ? .isSelected : [])
             }
         }
-        .pickerStyle(.segmented)
+    }
+
+    /// The same titles laid out as the chips, for the pill's words.
+    private func kindTitles(_ kinds: [AlbumCategory]) -> some View {
+        HStack(spacing: 8) {
+            ForEach(kinds, id: \.self, content: kindTitle)
+        }
+    }
+
+    private func kindTitle(_ category: AlbumCategory) -> some View {
+        Text(category.title)
+            .font(.subheadline.weight(.semibold))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 7)
     }
     
     // MARK: - Toolbar
@@ -667,6 +808,10 @@ struct ArtistDetailView: View {
             loadOnDevice()
             return
         }
+        // Once: the task runs again as the page comes back from an album
+        // pushed over it, which read every kind again and put the chips
+        // back on the first.
+        guard !hasLoaded else { return }
         isLoading = true
 
         // If already an artist type, set immediately (no spinner needed)
@@ -742,7 +887,9 @@ struct ArtistDetailView: View {
         }
         isLoading = false
         isLoadingTracks = false
-        
+        // Left partway (a pushed page cancels the task), it reads again.
+        hasLoaded = !Task.isCancelled
+
         if let artistContent {
             RecentSearchesStorage.shared.addOrMoveToFront(byID: artistContent)
         }
@@ -761,12 +908,14 @@ struct ArtistDetailView: View {
         guard let topTracks = artist.topSongs, let artistAlbums = artist.albums else { return false }
         
         tracks = topTracks.map(\.toPlayable)
-        albums = sortAlbumsByYear(artistAlbums.map(\.toPlayable).filter { !($0.metadata?.isSingle ?? false) })
         artworkURL = artist.artwork?.url(width: 500, height: 500)
-        
+
         // The artist itself is in hand from here: whatever else fails, the
         // page shows it.
         artistContent = artist.toPlayable
+        if await !loadAppleAlbumKinds(artistID: id) {
+            albums = sortAlbumsByYear(artistAlbums.map(\.toPlayable).filter { !($0.metadata?.isSingle ?? false) })
+        }
 
         guard let allArtist: Artist = try? await MusicSearchService.shared.artistCatalog(
             id: id
@@ -775,7 +924,9 @@ struct ArtistDetailView: View {
         latestRelease = allArtist.latestRelease?.toPlayable
         
         if let live = allArtist.liveAlbums {
-            liveAlbums = sortAlbumsByYear(live.map(\.toPlayable))
+            if liveAlbums.isEmpty {
+                liveAlbums = sortAlbumsByYear(live.map(\.toPlayable))
+            }
         }
         
         artworkURL = artist.artwork?.url(width: 500, height: 500)
@@ -784,11 +935,60 @@ struct ArtistDetailView: View {
         if let all: [PlayableContent] = try? await MusicSearchService.shared.allAlbums(
             id: id
         ) {
-            allAlbums = all
+            allAlbums = Self.merged(allAlbums, all)
         }
         return true
     }
     
+    /// The artist's albums, singles and EPs, live albums and compilations,
+    /// as Apple Music's artist page shelves them, the albums each once
+    /// (`eachAlbumOnce`). False when the catalog didn't answer, for the
+    /// caller's albums to stand.
+    private func loadAppleAlbumKinds(artistID: String) async -> Bool {
+        guard let kinds = await MusicSearchService.shared.artistAlbumKinds(id: artistID),
+              !kinds.albums.isEmpty || !kinds.singles.isEmpty else { return false }
+        albums = Self.eachAlbumOnce(kinds.albums)
+        singles = sortAlbumsByYear(kinds.singles)
+        liveAlbums = sortAlbumsByYear(kinds.live)
+        compilations = sortAlbumsByYear(kinds.compilations)
+        allAlbums = Self.merged(allAlbums, sortAlbumsByYear(kinds.albums + kinds.singles + kinds.live + kinds.compilations))
+        chooseKindIfEmpty()
+        return true
+    }
+
+    /// The kind first available, only when the one chosen has nothing: a
+    /// kind chosen stays chosen as later answers come in, or as the page
+    /// loads again on coming back to it.
+    private func chooseKindIfEmpty() {
+        guard releases(of: albumType).isEmpty else { return }
+        albumType = .firstAvailable(albums: albums, live: liveAlbums, singles: singles, compilations: compilations, all: allAlbums)
+    }
+
+    /// The kinds with releases, the chips shown; the chosen one with them
+    /// only while none have any (loading).
+    private var shownKinds: [AlbumCategory] {
+        let kinds = AlbumCategory.allCases.filter { !releases(of: $0).isEmpty }
+        return kinds.isEmpty ? [albumType] : kinds
+    }
+
+    /// `all` with `more` that it lacks, newest first, each once.
+    private static func merged(_ all: [PlayableContent], _ more: [PlayableContent]) -> [PlayableContent] {
+        var seen = Set(all.map(\.id))
+        let added = all + more.filter { seen.insert($0.id).inserted }
+        return added.sorted { ($0.metadata?.albumYear ?? .distantPast) > ($1.metadata?.albumYear ?? .distantPast) }
+    }
+
+    /// Each album once, by its plain title, newest first: the discography
+    /// widget's rules (`AlbumEditions`), so the page's Albums and the
+    /// widget's list the same albums.
+    private static func eachAlbumOnce(_ albums: [PlayableContent]) -> [PlayableContent] {
+        AlbumEditions.albums(albums, title: \.title, released: { $0.metadata?.albumYear })
+            .map { album in
+                let item = album.item
+                return PlayableContent(title: album.title, subtitle: item.subtitle, thumbnail: item.thumbnail, artwork: item.artwork, content: item.content, previewURL: item.previewURL, metadata: item.metadata)
+            }
+    }
+
     private func loadAppleLibraryArtist() async {
         // The Apple Music artist, when the catalog has one: top songs, every
         // album, the latest release — not just the few albums in the
@@ -852,17 +1052,21 @@ struct ArtistDetailView: View {
         guard let topTracks = artist.topSongs, let artistAlbums = artist.albums else { return }
         
         tracks = topTracks.map(\.toPlayable)
-        albums = sortAlbumsByYear(artistAlbums.map(\.toPlayable).filter { !($0.metadata?.isSingle ?? false) })
+        if await !loadAppleAlbumKinds(artistID: artistID) {
+            albums = sortAlbumsByYear(artistAlbums.map(\.toPlayable).filter { !($0.metadata?.isSingle ?? false) })
+        }
         
         if let live = allArtist.liveAlbums {
-            liveAlbums = sortAlbumsByYear(live.map(\.toPlayable))
+            if liveAlbums.isEmpty {
+                liveAlbums = sortAlbumsByYear(live.map(\.toPlayable))
+            }
         }
         
         artworkURL = artist.artwork?.url(width: 500, height: 500)
         artistContent = artist.toPlayable
         
         if let all: [PlayableContent] = try? await MusicSearchService.shared.allAlbums(id: artistID) {
-            allAlbums = all
+            allAlbums = Self.merged(allAlbums, all)
         }
     }
     
@@ -883,7 +1087,9 @@ struct ArtistDetailView: View {
         guard let topTracks = artist.topSongs, let artistAlbums = artist.albums else { return }
         
         tracks = topTracks.map(\.toPlayable)
-        albums = artistAlbums.map(\.toPlayable)
+        if await !loadAppleAlbumKinds(artistID: artistID) {
+            albums = artistAlbums.map(\.toPlayable)
+        }
         artworkURL = artist.artwork?.url(width: 500, height: 500)
         artistContent = artist.toPlayable
     }
@@ -903,17 +1109,21 @@ struct ArtistDetailView: View {
         guard let topTracks = artist.topSongs, let artistAlbums = artist.albums else { return }
         
         tracks = topTracks.map(\.toPlayable)
-        albums = sortAlbumsByYear(artistAlbums.map(\.toPlayable).filter { !($0.metadata?.isSingle ?? false) })
-        
-        if let live = artist.liveAlbums {
-            liveAlbums = sortAlbumsByYear(live.map(\.toPlayable))
+        if await !loadAppleAlbumKinds(artistID: artistID) {
+            albums = sortAlbumsByYear(artistAlbums.map(\.toPlayable).filter { !($0.metadata?.isSingle ?? false) })
         }
-        
+
+        if let live = artist.liveAlbums {
+            if liveAlbums.isEmpty {
+                liveAlbums = sortAlbumsByYear(live.map(\.toPlayable))
+            }
+        }
+
         artworkURL = artist.artwork?.url(width: 500, height: 500)
         artistContent = artist.toPlayable
-        
+
         if let all: [PlayableContent] = try? await MusicSearchService.shared.allAlbums(id: artistID) {
-            allAlbums = all
+            allAlbums = Self.merged(allAlbums, all)
         }
     }
     
@@ -1185,17 +1395,19 @@ struct ArtistDetailView: View {
 
         let (albumsResult, (liveResult, singlesResult, othersResult)) = await (albumsTask, allTask)
 
-        albums = albumsResult
+        albums = Self.eachAlbumOnce(albumsResult)
         allAlbums = albumsResult + liveResult + singlesResult + othersResult
         liveAlbums = liveResult
         singles = singlesResult
+        // Plex's soundtracks, compilations and demos.
+        compilations = othersResult
 
         if remoteFlags.isEnabled(.lastFM) {
             let plexTracks = await MusicSearchService.shared.lookupPlexTracks(id: playableContent.content.id)
             tracks = await PopularTracksService.shared.matchLastFM(artistName: playableContent.title, songs: plexTracks)
         }
 
-        albumType = .firstAvailable(albums: albums, live: liveAlbums, singles: singles, all: allAlbums)
+        chooseKindIfEmpty()
         artistContent = playableContent
     }
 
@@ -1209,17 +1421,19 @@ struct ArtistDetailView: View {
             albumsTask, allTask, artistTask
         )
 
-        albums = albumsResult
+        albums = Self.eachAlbumOnce(albumsResult)
         allAlbums = albumsResult + liveResult + singlesResult + othersResult
         liveAlbums = liveResult
         singles = singlesResult
+        // Plex's soundtracks, compilations and demos.
+        compilations = othersResult
 
         if remoteFlags.isEnabled(.lastFM) {
             let plexTracks = await MusicSearchService.shared.lookupPlexTracks(id: id)
             tracks = await PopularTracksService.shared.matchLastFM(artistName: artistName, songs: plexTracks)
         }
 
-        albumType = .firstAvailable(albums: albums, live: liveAlbums, singles: singles, all: allAlbums)
+        chooseKindIfEmpty()
 
         if let artistResult {
             artistContent = artistResult

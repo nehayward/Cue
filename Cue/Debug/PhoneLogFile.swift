@@ -38,6 +38,7 @@ enum PhoneLogFile {
             .replacingOccurrences(of: ":", with: "-")
         let file = directory.appending(path: "Cue \(name).log")
         let writer = Writer(file: file, since: launched)
+        current = writer
         queue.async {
             try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             prune(directory)
@@ -70,12 +71,22 @@ enum PhoneLogFile {
 
     /// A write for a player error is on its way.
     @MainActor private static var errorWritePending = false
+    @MainActor private static var current: Writer?
+
+    /// Writes what's been logged `after` seconds from now, with time asked
+    /// of iOS: for work Cue does woken in the background (a widget's Play),
+    /// which nothing keeps running long enough for the timer's write.
+    @MainActor
+    static func writeNow(after delay: TimeInterval = 0) {
+        guard let current else { return }
+        writeHoldingTheApp(current, after: delay)
+    }
 
     /// Writes with time asked of iOS to finish, `after` seconds from now,
     /// then `done` on the main thread.
     @MainActor
     private static func writeHoldingTheApp(_ writer: Writer, after delay: TimeInterval = 0, done: @escaping @MainActor () -> Void = {}) {
-        let task = BackgroundTask(name: "Cue log")
+        let task = BackgroundTime(name: "Cue log")
         queue.asyncAfter(deadline: .now() + delay) {
             writer.append()
             DispatchQueue.main.async {
@@ -84,25 +95,6 @@ enum PhoneLogFile {
                     done()
                 }
             }
-        }
-    }
-
-    /// Time asked of iOS, given back once: when the work is done, or when
-    /// iOS runs out of patience first, whichever comes first.
-    @MainActor
-    private final class BackgroundTask {
-        private var id = UIBackgroundTaskIdentifier.invalid
-
-        init(name: String) {
-            id = UIApplication.shared.beginBackgroundTask(withName: name) { [weak self] in
-                MainActor.assumeIsolated { self?.end() }
-            }
-        }
-
-        func end() {
-            guard id != .invalid else { return }
-            UIApplication.shared.endBackgroundTask(id)
-            id = .invalid
         }
     }
 

@@ -1,7 +1,8 @@
 import WidgetKit
 import SwiftUI
 
-/// Cue's widgets on the iPhone and iPad: the book shelf.
+/// Cue's widgets on the iPhone and iPad: the book shelf, Albums and
+/// Discography.
 ///
 /// The Sonos remote, scene, Now Playing and control widgets and the Live
 /// Activity in this folder aren't built into the extension (see the target's
@@ -12,5 +13,7 @@ import SwiftUI
 struct CueWidgetBundle: WidgetBundle {
     var body: some Widget {
         BookShelfWidget()
+        AlbumShelfWidget()
+        DiscographyWidget()
     }
 }
