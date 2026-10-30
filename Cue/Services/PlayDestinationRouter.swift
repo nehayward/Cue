@@ -53,6 +53,11 @@ enum PlayDestinationRouter {
         queue: @escaping (GroupRoom, QueuePosition) async throws -> Void
     ) async {
         guard let first = contents.first else { return }
+        // A Play that takes over ends a switch still carrying the last queue
+        // across, which would otherwise go on filling the queue under it.
+        if [.now, .replace].contains(position) {
+            await PlaybackRoute.shared.endHandOff()
+        }
         // A book plays from where it was left, as its files, never into the
         // queue's positions.
         if first.content.type == .audiobook {
@@ -143,6 +148,7 @@ enum PlayDestinationRouter {
                 FeatureGate.shared.presentPaywall(PaywallReason(feature: .allRooms))
                 return
             }
+            await PlaybackRoute.shared.endHandOff()
             do {
                 try await onGroup(group)
             } catch {
