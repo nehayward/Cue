@@ -91,10 +91,6 @@ public extension View {
     /// `onChanged` gets the points moved sideways since `onBegan`, so a value
     /// set from it should be relative to where the drag began, not to where
     /// the finger is: a tap never jumps it.
-    ///
-    /// Before iOS 18 a `Button` inside still fires as the finger lifts at
-    /// the end of a drag, just before or just after `onEnded`: ignore its
-    /// action for a press that a drag began in.
     @ViewBuilder
     func sidewaysPan(
         isEnabled: Bool = true,
@@ -114,12 +110,6 @@ public extension View {
 /// then either takes the drag (mostly sideways) or lets it go for good.
 /// It can't make the list wait for it, so the dead zone is what keeps a
 /// vertical drag the list's.
-///
-/// It runs alongside the view's own gestures, not under them: a `Button`
-/// inside (Clic's Play On rows) took the touch first, so the drag never
-/// began and lifting the finger pressed the button, dropping a grouped room
-/// on iOS 17. Nor can it cancel the button's touch as `SidewaysPan` does,
-/// so the button's action has to ignore a press a drag began in.
 private struct SidewaysDrag: ViewModifier {
     let isEnabled: Bool
     let onBegan: () -> Void
@@ -140,7 +130,7 @@ private struct SidewaysDrag: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .simultaneousGesture(drag, including: isEnabled ? .all : .subviews)
+            .gesture(drag, including: isEnabled ? .all : .subviews)
             .onChange(of: isDragging) { _, dragging in
                 guard !dragging else { return }
                 // A drag the system took away (the list claiming it, the
