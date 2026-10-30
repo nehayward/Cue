@@ -804,8 +804,14 @@ struct PlayPauseCapsule: View {
     private func content(_ left: (full: String, short: String?)?) -> some View {
         let text = renderingMode == .fullColor ? style.look.palette.text : Color.primary
         return HStack(spacing: 6) {
-            Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                .contentTransition(.symbolEffect(.replace))
+            // The wider glyph's room either way, so the words beside it
+            // don't shift as one glyph becomes the other.
+            ZStack {
+                Image(systemName: "play.fill").hidden()
+                Image(systemName: "pause.fill").hidden()
+                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                    .contentTransition(.symbolEffect(.replace))
+            }
             if let left {
                 ViewThatFits(in: .horizontal) {
                     Text(left.full)
@@ -816,8 +822,13 @@ struct PlayPauseCapsule: View {
                 .contentTransition(.numericText())
                 .monospacedDigit()
             } else {
-                Text(isPlaying ? "Pause" : "Play")
-                    .contentTransition(.interpolate)
+                // As wide as Pause either way: the capsule grew and shrank
+                // as the word morphed from one to the other.
+                ZStack {
+                    Text("Pause").hidden()
+                    Text(isPlaying ? "Pause" : "Play")
+                        .contentTransition(.opacity)
+                }
             }
         }
         .font(.system(isRoomy ? .callout : .subheadline, design: .rounded, weight: .semibold))
@@ -862,17 +873,20 @@ private struct PlayPauseTarget<Target: Shape>: ViewModifier {
     func body(content: Content) -> some View {
         content
             .overlay {
+                // Plain: the glyph already dims from a tap until the next
+                // write (`invalidatableContent`), and a pressed darkening
+                // before it made two steps of it.
                 if style.playsInBackground {
                     PlayButton(id: book.id) {
                         target
                     }
-                    .buttonStyle(PressDim(shape: shape))
+                    .buttonStyle(.plain)
                     .accessibilityLabel(label)
                 } else {
                     Link(destination: style.link(to: book.id, play: true)) {
                         target
                     }
-                    .buttonStyle(PressDim(shape: shape))
+                    .buttonStyle(.plain)
                     .accessibilityLabel(label)
                 }
             }
