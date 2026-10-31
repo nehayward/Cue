@@ -2,7 +2,6 @@ import Defaults
 import Foundation
 import MusicKit
 import MusicSearchKit
-import Nuke
 import Observation
 import OSLog
 import SonosKit
@@ -31,28 +30,18 @@ final class AlbumShelfWidgetPublisher {
 
     /// Albums kept on each shelf: as many as an extra large widget shows.
     private static let shelfLimit = 12
-    /// The cover sizes written, the book shelf's: a shelf's first album,
-    /// which the small widget and the large one's lead show bigger, and the
-    /// rest.
-    private static let leadCoverPoints = BookShelfWidgetPublisher.leadCoverPoints
-    private static let coverPoints = BookShelfWidgetPublisher.coverPoints
-    private static let coverRetryInterval: TimeInterval = 10 * 60
 
     private var published: BookShelfWidgetState?
-    private var pending: Task<Void, Never>?
     private var isStarted = false
-    private var backgroundObserver: (any NSObjectProtocol)?
+    private lazy var schedule = WidgetWriteSchedule { _ in
+        AlbumShelfWidgetPublisher.shared.publish()
+    }
+    private lazy var covers = WidgetCovers(folder: .albums) {
+        AlbumShelfWidgetPublisher.shared.schedule.after(.seconds(1))
+    }
     /// The albums on the shelves last made, by key, for the widget's Play
     /// and links.
     private var albums: [String: PlayableContent] = [:]
-    /// The covers in the widget's folder, by file name.
-    private lazy var writtenCovers: Set<String> = {
-        let files = BookShelfWidgetState.directory(.albums).flatMap { try? FileManager.default.contentsOfDirectory(atPath: $0.path) } ?? []
-        return Set(files.filter { $0.hasSuffix(".jpg") })
-    }()
-    private var coversUnderWay: Set<String> = []
-    private var coverFailures: [String: Date] = [:]
-    private var activeObserver: (any NSObjectProtocol)?
 
     /// Every album in the libraries, for the catalog, read every
     /// `libraryInterval` and kept in Caches.
@@ -101,20 +90,19 @@ final class AlbumShelfWidgetPublisher {
         // read again, it lost the storefront, and Edit Widget's Apple Music
         // search found nothing meanwhile.
         storefront = BookShelfWidgetState.Catalog.load(.albums)?.storefront
-        observe()
-        schedule(after: .seconds(4))
-        backgroundObserver = NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { _ in
-            MainActor.assumeIsolated {
-                AlbumShelfWidgetPublisher.shared.publishNow()
-            }
+        // The player by song and playing state, not its clock.
+        schedule.follow({
+            _ = PlayHistoryService.shared.history
+            _ = DownloadManager.shared.musicSummary
+            let presented = PlaybackRoute.shared.presented
+            _ = presented.isPlaying
+            _ = presented.nowPlayingDisplay?.id
+            // Where Play goes, shown beside it.
+            _ = PlaybackRoute.shared.group?.nameWithCount
+        }) {
+            AlbumShelfWidgetPublisher.shared.schedule.after(.seconds(2))
         }
-        // A widget set to albums in Edit Widget since: nothing tells Cue,
-        // so it looks as it comes back (`chosenBookIDs(in:)`).
-        activeObserver = NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in
-            MainActor.assumeIsolated {
-                AlbumShelfWidgetPublisher.shared.schedule(after: .seconds(1))
-            }
-        }
+        schedule.start(firstAfter: .seconds(4))
     }
 
     /// Reads every album in the libraries for the catalog, at most every
@@ -167,53 +155,25 @@ final class AlbumShelfWidgetPublisher {
             libraryAlbums = albums
             ShelfCache.save(albums, named: Self.libraryCacheName)
             Self.log.info("album shelf widget: \(albums.count) library albums for the catalog")
-            schedule(after: .seconds(1))
+            schedule.after(.seconds(1))
         }
     }
 
     func publishNow() {
-        pending?.cancel()
-        pending = nil
-        publish()
-    }
-
-    // MARK: - Following
-
-    /// Re-arms after every change, as `BookShelfWidgetPublisher` does. The
-    /// player is followed by song and playing state, not its clock.
-    private func observe() {
-        withObservationTracking {
-            _ = PlayHistoryService.shared.history
-            _ = DownloadManager.shared.musicSummary
-            let presented = PlaybackRoute.shared.presented
-            _ = presented.isPlaying
-            _ = presented.nowPlayingDisplay?.id
-            // Where Play goes, shown beside it.
-            _ = PlaybackRoute.shared.group?.nameWithCount
-        } onChange: {
-            Task { @MainActor in
-                let publisher = AlbumShelfWidgetPublisher.shared
-                publisher.schedule(after: .seconds(2))
-                publisher.observe()
-            }
-        }
-    }
-
-    private func schedule(after delay: Duration) {
-        pending?.cancel()
-        pending = Task {
-            try? await Task.sleep(for: delay)
-            guard !Task.isCancelled else { return }
-            pending = nil
-            publish()
-        }
+        schedule.now()
     }
 
     // MARK: - Writing
 
     private func publish() {
         let state = makeState()
-        writeCoversMissing(in: state)
+        // At the size `entry(for:)` names: a chosen album's is the lead's,
+        // as any can lead a My Shelf.
+        covers.writeMissing(BookShelfWidgetState.Albums.Shelf.allCases.flatMap { shelf in
+            state.albums(on: shelf).enumerated().compactMap { index, entry in
+                albums[entry.id].flatMap { WidgetCovers.source(for: $0, key: entry.id, isLead: index == 0 || shelf == .chosen) }
+            }
+        })
         writeCatalog()
         readLibraryIfDue()
         guard state != published else { return }
@@ -232,7 +192,7 @@ final class AlbumShelfWidgetPublisher {
         }
         published = state
         WidgetCenter.shared.reloadTimelines(ofKind: BookShelfWidgetState.Albums.widgetKind)
-        removeUnusedCovers(keeping: state)
+        covers.removeAll(except: Set(BookShelfWidgetState.Albums.Shelf.allCases.flatMap { state.albums(on: $0).compactMap(\.cover) }))
         let counts = BookShelfWidgetState.Albums.Shelf.allCases.map { "\($0.rawValue) \(state.albums(on: $0).count)" }.joined(separator: ", ")
         // Notice, not info: info isn't kept, and a write from Cue woken in
         // the background was missing from the phone's log.
@@ -354,7 +314,7 @@ final class AlbumShelfWidgetPublisher {
             fetchingAlbums.subtract(wanted)
             guard found > 0 else { return }
             ShelfCache.save(fetchedAlbums, named: Self.fetchedCacheName)
-            schedule(after: .seconds(1))
+            schedule.after(.seconds(1))
         }
     }
 
@@ -402,57 +362,8 @@ final class AlbumShelfWidgetPublisher {
 
     private func entry(for album: PlayableContent, key: String, isLead: Bool) -> BookShelfWidgetState.Book {
         // The cover at this size, else one written before until it is.
-        let cover = coverSource(for: album, key: key, isLead: isLead).flatMap { source in
-            writtenCovers.contains(source.name) ? source.name : writtenCovers.first { $0.hasPrefix(BookShelfWidgetState.coverPrefix(for: key)) }
-        }
+        let cover = covers.file(for: WidgetCovers.source(for: album, key: key, isLead: isLead), key: key)
         return BookShelfWidgetState.Book(id: key, title: album.title, author: album.subtitle, fraction: nil, remaining: nil, duration: 0, isFinished: false, isDownloaded: false, cover: cover)
-    }
-
-    // MARK: - Covers
-
-    private func coverSource(for album: PlayableContent, key: String, isLead: Bool) -> (name: String, request: ImageRequest)? {
-        guard let url = album.artwork ?? album.thumbnail else { return nil }
-        let points = isLead ? Self.leadCoverPoints : Self.coverPoints
-        let request = ContentArtworkView.artworkRequest(for: album, url: url, preferredSize: points)
-        let pixels = Int(ContentArtworkView.maxPixelSize(for: points))
-        return (BookShelfWidgetState.coverName(for: key, source: url.absoluteString, pixels: pixels), request)
-    }
-
-    /// Fetches and writes the covers the shelves have no file for at their
-    /// size yet, and writes the shelves again once one lands.
-    private func writeCoversMissing(in state: BookShelfWidgetState) {
-        for shelf in BookShelfWidgetState.Albums.Shelf.allCases {
-            for (index, entry) in state.albums(on: shelf).enumerated() {
-                // At the size `entry(for:)` names: a chosen album's is the
-                // lead's, as any can lead a My Shelf.
-                guard let album = albums[entry.id], let source = coverSource(for: album, key: entry.id, isLead: index == 0 || shelf == .chosen),
-                      !writtenCovers.contains(source.name), !coversUnderWay.contains(source.name),
-                      Date.now.timeIntervalSince(coverFailures[source.name] ?? .distantPast) > Self.coverRetryInterval,
-                      let url = BookShelfWidgetState.coverURL(named: source.name, in: .albums) else { continue }
-                coversUnderWay.insert(source.name)
-                Task {
-                    let written = await BookShelfWidgetPublisher.writeImage(source.request, to: url, quality: 0.85)
-                    coversUnderWay.remove(source.name)
-                    guard written else {
-                        coverFailures[source.name] = .now
-                        return
-                    }
-                    coverFailures[source.name] = nil
-                    writtenCovers.insert(source.name)
-                    schedule(after: .seconds(1))
-                }
-            }
-        }
-    }
-
-    /// Takes away the covers no shelf names any more.
-    private func removeUnusedCovers(keeping state: BookShelfWidgetState) {
-        guard let directory = BookShelfWidgetState.directory(.albums) else { return }
-        let named = Set(BookShelfWidgetState.Albums.Shelf.allCases.flatMap { state.albums(on: $0).compactMap(\.cover) })
-        for name in writtenCovers where !named.contains(name) {
-            try? FileManager.default.removeItem(at: directory.appendingPathComponent(name))
-            writtenCovers.remove(name)
-        }
     }
 
     // MARK: - The widget's taps

@@ -49,7 +49,7 @@ final class WidgetCatalogThumbnails {
                     continue
                 }
                 let request = ContentArtworkView.artworkRequest(for: drawn, url: source, preferredSize: Self.points)
-                if await BookShelfWidgetPublisher.writeImage(request, to: url, quality: 0.7) {
+                if await WidgetCovers.writeImage(request, to: url, quality: 0.7) {
                     writtenNow += 1
                 } else {
                     failures.insert(key)

@@ -1,7 +1,6 @@
 import Defaults
 import Foundation
 import MusicSearchKit
-import Nuke
 import Observation
 import OSLog
 import SonosKit
@@ -35,38 +34,21 @@ final class BookShelfWidgetPublisher {
 
     /// Books kept on each shelf: as many as an extra large widget shows.
     static let shelfLimit = 12
-    /// The cover sizes written, as `ContentArtworkView` asks for them (a
-    /// third of the pixels): a shelf's first book, which the small widget,
-    /// the large one's lead and One Book show bigger (up to ~260 pt on the
-    /// page-tall iPhone widget), and the rest (up to 120 pt on an iPad's
-    /// extra large). Kept to about 9 MB decoded for a full shelf, inside a
-    /// widget extension's memory.
-    static let leadCoverPoints: Double = 260
-    static let coverPoints: Double = 120
     /// How often a playing book's place alone reaches the widget: each
     /// reload in the background counts against WidgetKit's daily budget.
     private static let progressInterval: TimeInterval = 5 * 60
 
     private var published: BookShelfWidgetState?
     private var lastPublished: Date = .distantPast
-    private var pending: Task<Void, Never>?
     private var isStarted = false
-    /// The covers in the widget's folder, by file name.
-    private lazy var writtenCovers: Set<String> = {
-        let files = BookShelfWidgetState.directory.flatMap { try? FileManager.default.contentsOfDirectory(atPath: $0.path) } ?? []
-        return Set(files.filter { $0.hasSuffix(".jpg") })
-    }()
-    /// The covers being fetched and written, by file name.
-    private var coversUnderWay: Set<String> = []
-    /// When each cover that didn't load was last tried: a playing book
-    /// writes the shelves every few seconds, and an unreachable server
-    /// shouldn't be asked every time.
-    private var coverFailures: [String: Date] = [:]
-    private static let coverRetryInterval: TimeInterval = 10 * 60
+    private lazy var schedule = WidgetWriteSchedule { now in
+        BookShelfWidgetPublisher.shared.publish(force: now)
+    }
+    private lazy var covers = WidgetCovers(folder: .books) {
+        BookShelfWidgetPublisher.shared.schedule.after(.seconds(1))
+    }
     /// Every book on a shelf, by key.
     private var books: [String: PlayableContent]?
-    private var backgroundObserver: (any NSObjectProtocol)?
-    private var activeObserver: (any NSObjectProtocol)?
 
     /// Every Audiobookshelf book, for the catalog (`Plex` keeps its own
     /// whole, `PlexBookShelf.all`), read now and then and kept in Caches.
@@ -96,24 +78,25 @@ final class BookShelfWidgetPublisher {
         guard !isStarted else { return }
         isStarted = true
         audiobookshelfRead = ShelfCache.load(Date.self, named: Self.audiobookshelfReadName) ?? .distantPast
-        observe()
-        // Once: each chain re-arms itself, and one started on every
-        // re-arming of `observe()` piled up for good.
-        observePlaces()
-        schedule(after: .seconds(3))
-        backgroundObserver = NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { _ in
-            MainActor.assumeIsolated {
-                BookShelfWidgetPublisher.shared.publishNow()
+        // Once each: each chain re-arms itself, and one started on every
+        // re-arming piled up for good.
+        schedule.follow({ BookShelfWidgetPublisher.shared.trackedState() }) {
+            BookShelfWidgetPublisher.shared.schedule.after(.seconds(2))
+        }
+        // Places apart: a book playing keeps its place every couple of
+        // seconds, and building the shelves that often, to write a place at
+        // most every `progressInterval`, kept the main actor busy for
+        // nothing. A place that moved is looked at within `placeDelay`,
+        // unless something sooner is waiting.
+        schedule.follow({ _ = AudiobookProgressStore.shared.readings }) {
+            let schedule = BookShelfWidgetPublisher.shared.schedule
+            if !schedule.isWaiting {
+                schedule.after(Self.placeDelay)
             }
         }
-        // A widget set to a book in Edit Widget since: nothing tells Cue,
-        // so it looks as it comes back (`chosenBookIDs`).
-        activeObserver = NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in
-            MainActor.assumeIsolated {
-                let publisher = BookShelfWidgetPublisher.shared
-                publisher.schedule(after: .seconds(1))
-                publisher.readAudiobookshelfBooksIfDue()
-            }
+        // As Cue comes back, Audiobookshelf's books for the catalog when due.
+        schedule.start(firstAfter: .seconds(3)) {
+            BookShelfWidgetPublisher.shared.readAudiobookshelfBooksIfDue()
         }
         readAudiobookshelfBooksIfDue()
     }
@@ -148,7 +131,7 @@ final class BookShelfWidgetPublisher {
             audiobookshelfBooks = books
             ShelfCache.save(books, named: Self.audiobookshelfCacheName)
             Self.log.info("book shelf widget: \(books.count) Audiobookshelf books for the catalog")
-            schedule(after: .seconds(1))
+            schedule.after(.seconds(1))
         }
         audiobookshelfReading = reading
         await reading.value
@@ -157,44 +140,10 @@ final class BookShelfWidgetPublisher {
 
     /// Writes the shelves now, place and all.
     func publishNow() {
-        pending?.cancel()
-        pending = nil
-        publish(force: true)
+        schedule.now()
     }
 
     // MARK: - Following
-
-    /// Re-arms after every change, the same shape as CarPlay's `observe()`.
-    private func observe() {
-        withObservationTracking {
-            trackedState()
-        } onChange: {
-            Task { @MainActor in
-                let publisher = BookShelfWidgetPublisher.shared
-                publisher.schedule(after: .seconds(2))
-                publisher.observe()
-            }
-        }
-    }
-
-    /// Places apart: a book playing keeps its place every couple of seconds,
-    /// and building the shelves that often, to write a place at most every
-    /// `progressInterval`, kept the main actor busy for nothing. A place
-    /// that moved is looked at within `placeDelay`, unless something sooner
-    /// is waiting.
-    private func observePlaces() {
-        withObservationTracking {
-            _ = AudiobookProgressStore.shared.readings
-        } onChange: {
-            Task { @MainActor in
-                let publisher = BookShelfWidgetPublisher.shared
-                if publisher.pending == nil {
-                    publisher.schedule(after: Self.placeDelay)
-                }
-                publisher.observePlaces()
-            }
-        }
-    }
 
     private static let placeDelay: Duration = .seconds(30)
 
@@ -222,21 +171,16 @@ final class BookShelfWidgetPublisher {
         _ = CoreFeatures.shared.features
     }
 
-    private func schedule(after delay: Duration) {
-        pending?.cancel()
-        pending = Task {
-            try? await Task.sleep(for: delay)
-            guard !Task.isCancelled else { return }
-            pending = nil
-            publish(force: false)
-        }
-    }
-
     // MARK: - Writing
 
     private func publish(force: Bool) {
         let (state, contents) = makeState()
-        writeCoversMissing(from: contents, in: state)
+        // At the size `entry(for:)` names: a chosen book's is the lead's.
+        covers.writeMissing(BookShelfWidgetState.Shelf.allCases.flatMap { shelf in
+            state.books(on: shelf).enumerated().compactMap { index, book in
+                contents[book.id].flatMap { coverSource(for: $0, key: book.id, isLead: index == 0 || shelf == .chosen) }
+            }
+        })
         remember(contents)
         writeCatalog(shelfBooks: contents, force: force)
         readAudiobookshelfBooksIfDue()
@@ -244,7 +188,7 @@ final class BookShelfWidgetPublisher {
         // Only the place moved: told now and then, unless Cue is leaving.
         let elapsed = Date.now.timeIntervalSince(lastPublished)
         if !force, let published, published.withoutPlaces == state.withoutPlaces, elapsed < Self.progressInterval {
-            schedule(after: .seconds(Self.progressInterval - elapsed))
+            schedule.after(.seconds(Self.progressInterval - elapsed))
             return
         }
         do {
@@ -256,7 +200,7 @@ final class BookShelfWidgetPublisher {
         published = state
         lastPublished = .now
         WidgetCenter.shared.reloadTimelines(ofKind: BookShelfWidgetState.widgetKind)
-        removeUnusedCovers(keeping: state)
+        covers.removeAll(except: Set(BookShelfWidgetState.Shelf.allCases.flatMap { state.books(on: $0).compactMap(\.cover) }))
         let counts = BookShelfWidgetState.Shelf.allCases.map { "\($0.rawValue) \(state.books(on: $0).count)" }.joined(separator: ", ")
         Self.log.notice("book shelf widget: written (\(counts, privacy: .public)), playing \(state.isPlaying)")
     }
@@ -386,11 +330,8 @@ final class BookShelfWidgetPublisher {
 
     private func entry(for book: PlayableContent, key: String, isLead: Bool) -> BookShelfWidgetState.Book {
         let progress = AudiobookProgressStore.shared.progress(for: book)
-        // The cover at this size, else one written before (another size, a
-        // cover since replaced) until it is.
-        let cover = coverSource(for: book, isLead: isLead).flatMap { source in
-            writtenCovers.contains(source.name) ? source.name : writtenCovers.first { $0.hasPrefix(BookShelfWidgetState.coverPrefix(for: key)) }
-        }
+        // The cover at this size, else one written before until it is.
+        let cover = covers.file(for: coverSource(for: book, key: key, isLead: isLead), key: key)
         return BookShelfWidgetState.Book(
             id: key,
             title: book.title,
@@ -406,70 +347,10 @@ final class BookShelfWidgetPublisher {
 
     // MARK: - Covers
 
-    /// The request for `book`'s cover at the widget's size, and the file
-    /// it's written to. Nil for a book with no cover.
-    private func coverSource(for book: PlayableContent, isLead: Bool) -> (name: String, request: ImageRequest)? {
-        // A book shows its Audible edition's cover, as on the phone.
-        let drawn = ContentArtworkView.drawnContent(for: book)
-        guard let url = drawn.artwork ?? drawn.thumbnail else { return nil }
-        let points = isLead ? Self.leadCoverPoints : Self.coverPoints
-        let request = ContentArtworkView.artworkRequest(for: drawn, url: url, preferredSize: points)
-        let pixels = Int(ContentArtworkView.maxPixelSize(for: points))
-        let name = BookShelfWidgetState.coverName(for: AudiobookProgressStore.key(for: book), source: url.absoluteString, pixels: pixels)
-        return (name, request)
-    }
-
-    /// Fetches and writes the covers the shelves have no file for at their
-    /// size yet, and writes the shelves again once one lands.
-    private func writeCoversMissing(from contents: [String: PlayableContent], in state: BookShelfWidgetState) {
-        for shelf in BookShelfWidgetState.Shelf.allCases {
-            for (index, book) in state.books(on: shelf).enumerated() {
-                guard let content = contents[book.id], let source = coverSource(for: content, isLead: index == 0 || shelf == .chosen),
-                      !writtenCovers.contains(source.name), !coversUnderWay.contains(source.name),
-                      Date.now.timeIntervalSince(coverFailures[source.name] ?? .distantPast) > Self.coverRetryInterval else { continue }
-                coversUnderWay.insert(source.name)
-                Task {
-                    let written = await Self.writeCover(source.request, named: source.name)
-                    coversUnderWay.remove(source.name)
-                    guard written else {
-                        coverFailures[source.name] = .now
-                        return
-                    }
-                    coverFailures[source.name] = nil
-                    writtenCovers.insert(source.name)
-                    schedule(after: .seconds(1))
-                }
-            }
-        }
-    }
-
-    /// Fetches `request` (the phone's own cache first) and writes it as a
-    /// JPEG. False when it didn't load or wasn't written.
-    private static func writeCover(_ request: ImageRequest, named name: String) async -> Bool {
-        guard let url = BookShelfWidgetState.coverURL(named: name) else { return false }
-        return await writeImage(request, to: url, quality: 0.85)
-    }
-
-    /// Fetches `request` (the phone's own cache first) and writes it to
-    /// `url` as a JPEG. False when it didn't load or wasn't written.
-    static func writeImage(_ request: ImageRequest, to url: URL, quality: CGFloat) async -> Bool {
-        guard let image = try? await ImagePipeline.shared.image(for: request) else { return false }
-        return await Task.detached(priority: .utility) {
-            guard let data = image.jpegData(compressionQuality: quality) else { return false }
-            try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            return (try? data.write(to: url, options: .atomic)) != nil
-        }.value
-    }
-
-    /// Takes away the covers no shelf names any more. One on its way isn't
-    /// named yet, and isn't in `writtenCovers` until it's written.
-    private func removeUnusedCovers(keeping state: BookShelfWidgetState) {
-        guard let directory = BookShelfWidgetState.directory else { return }
-        let named = Set(BookShelfWidgetState.Shelf.allCases.flatMap { state.books(on: $0).compactMap(\.cover) })
-        for name in writtenCovers where !named.contains(name) {
-            try? FileManager.default.removeItem(at: directory.appendingPathComponent(name))
-            writtenCovers.remove(name)
-        }
+    /// `book`'s cover at the widget's size: its Audible edition's, as on
+    /// the phone. Nil for a book with no cover.
+    private func coverSource(for book: PlayableContent, key: String, isLead: Bool) -> WidgetCovers.Source? {
+        WidgetCovers.source(for: ContentArtworkView.drawnContent(for: book), key: key, isLead: isLead)
     }
 
     // MARK: - The widget's books

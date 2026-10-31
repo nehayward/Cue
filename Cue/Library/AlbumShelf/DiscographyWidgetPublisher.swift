@@ -191,7 +191,7 @@ final class DiscographyWidgetPublisher {
         guard let file = DiscographyArtist.imageURL(named: name) else { return nil }
         if FileManager.default.fileExists(atPath: file.path) { return name }
         let request = ContentArtworkView.artworkRequest(for: content, url: url, preferredSize: 100)
-        return await BookShelfWidgetPublisher.writeImage(request, to: file, quality: 0.85) ? name : nil
+        return await WidgetCovers.writeImage(request, to: file, quality: 0.85) ? name : nil
     }
 
     /// Every artist on the Plex server, by name, for Edit Widget, once a
