@@ -49,10 +49,7 @@ public enum AlbumEditions {
         for item in oldestFirst {
             let full = title(item)
             let lowered = full.lowercased()
-            if byTitle {
-                let words = Set(lowered.split { !$0.isLetter && !$0.isNumber }.map(String.init))
-                guard !lowered.hasSuffix(" ep"), !lowered.hasSuffix(" - ep"), !lowered.contains("dj mix"), words.isDisjoint(with: notAlbum) else { continue }
-            }
+            if byTitle, !isAlbum(titled: full) { continue }
             let plain = plainTitle(full)
             let key = plain.lowercased()
             let isEdition = lowered != key
@@ -74,6 +71,15 @@ public enum AlbumEditions {
             kept.append(Album(item: item, title: plain, released: isEdition ? earliest : date.map { min($0, firstOut[key] ?? $0) }))
         }
         return kept.sorted { ($0.released ?? .distantPast) > ($1.released ?? .distantPast) }
+    }
+
+    /// Whether a title reads as an album, for when the titles decide: not
+    /// an EP, a live recording, a DJ mix ("Club Future Nostalgia (DJ Mix)",
+    /// which a service can file as an album) or remixes.
+    public static func isAlbum(titled title: String) -> Bool {
+        let lowered = title.lowercased()
+        let words = Set(lowered.split { !$0.isLetter && !$0.isNumber }.map(String.init))
+        return !lowered.hasSuffix(" ep") && !lowered.hasSuffix(" - ep") && !lowered.contains("dj mix") && words.isDisjoint(with: notAlbum)
     }
 
     /// Words in a title that make it something other than an album, for
