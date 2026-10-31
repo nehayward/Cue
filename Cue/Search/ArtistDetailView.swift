@@ -34,8 +34,6 @@ struct ArtistDetailView: View {
     @State private var hasLoaded = false
     @State private var isLoadingTracks: Bool = true
     @State private var albumType: AlbumCategory = .albums
-    /// Each kind's chip in the chip row, for the pill (`chosenPill`).
-    @State private var kindFrames: [AlbumCategory: CGRect] = [:]
     @State private var artworkLoaded: Bool = false
     @State private var artistContent: PlayableContent?
     @State private var showTitle: Bool = false
@@ -486,7 +484,7 @@ struct ArtistDetailView: View {
                 // title.
                 if supportsAlbumCategories {
                     // No background of its own, as the rows under it.
-                    albumCategoryPicker
+                    AlbumKindPicker(kinds: shownKinds, selection: $albumType, isExpanded: $isAlbumsExpanded)
                         .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 4, trailing: 0))
                         .listRowBackground(Color.white.opacity(0.001))
                         .listRowSeparator(.hidden)
@@ -512,129 +510,6 @@ struct ArtistDetailView: View {
                 }
             }
         }
-    }
-    
-    /// The kinds the artist has releases of, as chips in a row that scrolls
-    /// sideways: five don't fit a segmented control at an iPhone's width.
-    /// A change animates as the system's segmented control does: one pill
-    /// slides to the chosen chip, its words in the background's colour
-    /// showing only through the pill, so nothing flips colour at once; the
-    /// rows below fade over, the list easing to its new length rather than
-    /// jumping, and the chosen chip is scrolled into view.
-    private var albumCategoryPicker: some View {
-        let kinds = shownKinds
-        return HStack(spacing: 0) {
-            ScrollViewReader { proxy in
-                ScrollView(.horizontal) {
-                    kindChips(kinds) { category in
-                        withAnimation(.snappy(duration: 0.32)) {
-                            albumType = category
-                            if !isAlbumsExpanded {
-                                isAlbumsExpanded = true
-                            }
-                            proxy.scrollTo(category, anchor: .center)
-                        }
-                    }
-                    .coordinateSpace(.named(Self.kindRow))
-                    .overlay(alignment: .topLeading) {
-                        chosenPill
-                            .foregroundStyle(.primary)
-                            .allowsHitTesting(false)
-                    }
-                    .overlay(alignment: .topLeading) {
-                        kindTitles(kinds)
-                            .foregroundStyle(.background)
-                            .mask(alignment: .topLeading) { chosenPill }
-                            .allowsHitTesting(false)
-                            .accessibilityHidden(true)
-                    }
-                    .padding(.vertical, 4)
-                }
-                // From the screen's edge, the row's inset a margin inside
-                // it, so the first chip stands whole where the titles start
-                // and chips scroll out under a fade, not cut at the inset.
-                .contentMargins(.horizontal, 16, for: .scrollContent)
-                .scrollIndicators(.hidden)
-                .mask {
-                    HStack(spacing: 0) {
-                        LinearGradient(colors: [.clear, .black], startPoint: .leading, endPoint: .trailing)
-                            .frame(width: 16)
-                        Color.black
-                        LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
-                            .frame(width: 20)
-                    }
-                }
-            }
-            // Folds the albums away, as the section's title did, its glyph
-            // where the Popular title's is.
-            Button {
-                isAlbumsExpanded.toggle()
-            } label: {
-                Image(systemName: "chevron.right")
-                    .font(.caption.bold())
-                    .foregroundStyle(.secondary)
-                    .rotationEffect(.degrees(isAlbumsExpanded ? 90 : 0))
-                    .animation(.smooth(duration: 0.3), value: isAlbumsExpanded)
-                    .frame(width: 32, height: 32, alignment: .trailing)
-                    .contentShape(.rect)
-            }
-            .buttonStyle(.plain)
-            .padding(.trailing, 16)
-            .accessibilityLabel(isAlbumsExpanded ? "Hide Albums" : "Show Albums")
-        }
-    }
-
-    /// The chips' own space, which the pill is placed in.
-    private static let kindRow = "album kinds"
-
-    /// The pill under the chosen chip, where the chip measured itself in
-    /// the row: it moves only as the kind changes, and rides with the row
-    /// as the list moves it (a pill matched by `matchedGeometryEffect`
-    /// stretched as the Popular section above folded).
-    @ViewBuilder
-    private var chosenPill: some View {
-        if shownKinds.contains(albumType), let frame = kindFrames[albumType] {
-            Capsule()
-                .frame(width: frame.width, height: frame.height)
-                .offset(x: frame.minX, y: frame.minY)
-        }
-    }
-
-    /// The chips to tap, each measuring where it is for the pill.
-    private func kindChips(_ kinds: [AlbumCategory], choose: @escaping (AlbumCategory) -> Void) -> some View {
-        HStack(spacing: 8) {
-            ForEach(kinds, id: \.self) { category in
-                Button {
-                    choose(category)
-                } label: {
-                    kindTitle(category)
-                        .foregroundStyle(.primary)
-                        .background(.fill.tertiary, in: .capsule)
-                }
-                .buttonStyle(.plain)
-                .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.kindRow)) } action: { frame in
-                    if kindFrames[category] != frame {
-                        kindFrames[category] = frame
-                    }
-                }
-                .id(category)
-                .accessibilityAddTraits(category == albumType ? .isSelected : [])
-            }
-        }
-    }
-
-    /// The same titles laid out as the chips, for the pill's words.
-    private func kindTitles(_ kinds: [AlbumCategory]) -> some View {
-        HStack(spacing: 8) {
-            ForEach(kinds, id: \.self, content: kindTitle)
-        }
-    }
-
-    private func kindTitle(_ category: AlbumCategory) -> some View {
-        Text(category.title)
-            .font(.subheadline.weight(.semibold))
-            .padding(.horizontal, 14)
-            .padding(.vertical, 7)
     }
     
     // MARK: - Toolbar
@@ -1543,6 +1418,144 @@ struct ArtistDetailView: View {
             let year1 = album1.metadata?.albumYear ?? .now
             let year2 = album2.metadata?.albumYear ?? .now
             return year1 > year2
+        }
+    }
+}
+
+extension ArtistDetailView {
+    /// The kinds the artist has releases of, as chips in a row that scrolls
+    /// sideways: five don't fit a segmented control at an iPhone's width.
+    /// A change animates as the system's segmented control does: one pill
+    /// slides to the chosen chip, its words in the background's colour
+    /// showing only through the pill, so nothing flips colour at once; the
+    /// rows below fade over, the list easing to its new length rather than
+    /// jumping, and the chosen chip is scrolled into view.
+    ///
+    /// A view of its own, so the chips measuring themselves for the pill
+    /// redraw the row, not the whole page.
+    private struct AlbumKindPicker: View {
+        let kinds: [AlbumCategory]
+        @Binding var selection: AlbumCategory
+        @Binding var isExpanded: Bool
+
+        /// Each chip where it is in the row, for the pill.
+        @State private var frames: [AlbumCategory: CGRect] = [:]
+
+        /// The chips' own space, which the pill is placed in.
+        private static let row = "album kinds"
+
+        var body: some View {
+            HStack(spacing: 0) {
+                ScrollViewReader { proxy in
+                    ScrollView(.horizontal) {
+                        chips { category in
+                            withAnimation(.snappy(duration: 0.32)) {
+                                selection = category
+                                if !isExpanded {
+                                    isExpanded = true
+                                }
+                                proxy.scrollTo(category, anchor: .center)
+                            }
+                        }
+                        .coordinateSpace(.named(Self.row))
+                        .overlay(alignment: .topLeading) {
+                            pill
+                                .foregroundStyle(.primary)
+                                .allowsHitTesting(false)
+                        }
+                        .overlay(alignment: .topLeading) {
+                            titles
+                                .foregroundStyle(.background)
+                                .mask(alignment: .topLeading) { pill }
+                                .allowsHitTesting(false)
+                                .accessibilityHidden(true)
+                        }
+                        .padding(.vertical, 4)
+                    }
+                    // From the screen's edge, the row's inset a margin inside
+                    // it, so the first chip stands whole where the titles
+                    // start and chips scroll out under a fade, not cut at the
+                    // inset.
+                    .contentMargins(.horizontal, 16, for: .scrollContent)
+                    .scrollIndicators(.hidden)
+                    .mask {
+                        HStack(spacing: 0) {
+                            LinearGradient(colors: [.clear, .black], startPoint: .leading, endPoint: .trailing)
+                                .frame(width: 16)
+                            Color.black
+                            LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
+                                .frame(width: 20)
+                        }
+                    }
+                }
+                // Folds the albums away, as the section's title did, its
+                // glyph where the Popular title's is.
+                Button {
+                    isExpanded.toggle()
+                } label: {
+                    Image(systemName: "chevron.right")
+                        .font(.caption.bold())
+                        .foregroundStyle(.secondary)
+                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                        .animation(.smooth(duration: 0.3), value: isExpanded)
+                        .frame(width: 32, height: 32, alignment: .trailing)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .padding(.trailing, 16)
+                .accessibilityLabel(isExpanded ? "Hide Albums" : "Show Albums")
+            }
+        }
+
+        /// The pill under the chosen chip, where the chip measured itself in
+        /// the row: it moves only as the kind changes, and rides with the
+        /// row as the list moves it (a pill matched by
+        /// `matchedGeometryEffect` stretched as the Popular section above
+        /// folded).
+        @ViewBuilder
+        private var pill: some View {
+            if kinds.contains(selection), let frame = frames[selection] {
+                Capsule()
+                    .frame(width: frame.width, height: frame.height)
+                    .offset(x: frame.minX, y: frame.minY)
+            }
+        }
+
+        /// The chips to tap, each measuring where it is for the pill.
+        private func chips(choose: @escaping (AlbumCategory) -> Void) -> some View {
+            HStack(spacing: 8) {
+                ForEach(kinds, id: \.self) { category in
+                    Button {
+                        choose(category)
+                    } label: {
+                        title(category)
+                            .foregroundStyle(.primary)
+                            .background(.fill.tertiary, in: .capsule)
+                    }
+                    .buttonStyle(.plain)
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.row)) } action: { frame in
+                        if frames[category] != frame {
+                            frames[category] = frame
+                        }
+                    }
+                    .id(category)
+                    .accessibilityAddTraits(category == selection ? .isSelected : [])
+                }
+            }
+        }
+
+        /// The same titles laid out as the chips, for the pill's words.
+        private var titles: some View {
+            HStack(spacing: 8) {
+                ForEach(kinds, id: \.self, content: title)
+            }
+        }
+
+        private func title(_ category: AlbumCategory) -> some View {
+            Text(category.title)
+                .font(.subheadline.weight(.semibold))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
         }
     }
 }
