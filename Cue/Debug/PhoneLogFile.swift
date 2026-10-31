@@ -86,15 +86,17 @@ enum PhoneLogFile {
     /// then `done` on the main thread.
     @MainActor
     private static func writeHoldingTheApp(_ writer: Writer, after delay: TimeInterval = 0, done: @escaping @MainActor () -> Void = {}) {
-        let task = BackgroundTime(name: "Cue log")
-        queue.asyncAfter(deadline: .now() + delay) {
-            writer.append()
-            DispatchQueue.main.async {
-                MainActor.assumeIsolated {
-                    task.end()
-                    done()
+        Task {
+            await withBackgroundTime(named: "Cue log") {
+                try? await Task.sleep(for: .seconds(delay))
+                await withCheckedContinuation { written in
+                    queue.async {
+                        writer.append()
+                        written.resume()
+                    }
                 }
             }
+            done()
         }
     }
 

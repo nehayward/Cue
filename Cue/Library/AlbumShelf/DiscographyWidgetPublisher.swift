@@ -58,11 +58,14 @@ final class DiscographyWidgetPublisher {
         try? await Task.sleep(for: delay)
         guard !isRefreshing, !OfflineMode.shared.isActive else { return }
         isRefreshing = true
-        let time = BackgroundTime(name: "Discography widget")
-        defer {
-            isRefreshing = false
-            time.end()
+        defer { isRefreshing = false }
+        await withBackgroundTime(named: "Discography widget") {
+            await writeDue()
         }
+    }
+
+    /// The album lists, Plex artists and Plex's artist list that are due.
+    private func writeDue() async {
         let chosen = BookShelfWidgetState.chosenBookIDs(in: .discography)
         DiscographyArtist.removeUnused(keeping: chosen, olderThan: Self.unusedFor)
         var wrote = await writeAlbumLists(for: chosen.filter { $0.hasPrefix(Self.applePrefix) }.sorted())

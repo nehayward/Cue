@@ -1255,7 +1255,7 @@ struct CueApp: App {
                 return
             }
             if components.host?.lowercased() == "audiobooks" {
-                AudiobookTabLink.showTab()
+                Router.showAudiobooks()
                 return
             }
             // The Albums widget's own link (Open App, a tap off its albums):

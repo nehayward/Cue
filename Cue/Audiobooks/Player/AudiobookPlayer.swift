@@ -508,30 +508,23 @@ final class AudiobookPlayer {
         retry = Task { [weak self] in
             // With nothing playing, Cue in the background is suspended
             // before the retry comes round: the time is asked for.
-            var background = UIBackgroundTaskIdentifier.invalid
-            background = UIApplication.shared.beginBackgroundTask(withName: "Book file retry") {
-                UIApplication.shared.endBackgroundTask(background)
-                background = .invalid
-            }
-            defer {
-                if background != .invalid {
-                    UIApplication.shared.endBackgroundTask(background)
+            await withBackgroundTime(named: "Book file retry") {
+                try? await Task.sleep(for: delay)
+                // The network may have changed under the file (home Wi‑Fi to
+                // cellular): Plex's connection is raced again first, and the
+                // file goes on the one that wins (`trackStreamURL`).
+                if book.content.service == .plex {
+                    await PlexAPI.shared.refreshConnection()
                 }
+                // Not over something played meanwhile: the queue still
+                // parked on the book's file, and the route still this
+                // device's.
+                guard !Task.isCancelled, let self, let current = self.current, current.book.isSameBook(as: book),
+                      PlaybackRoute.shared.group == nil,
+                      self.contains(LocalPlaybackService.shared.nowPlaying) else { return }
+                self.retry = nil
+                await self.start(current, at: time, on: .device)
             }
-            try? await Task.sleep(for: delay)
-            // The network may have changed under the file (home Wi‑Fi to
-            // cellular): Plex's connection is raced again first, and the
-            // file goes on the one that wins (`trackStreamURL`).
-            if book.content.service == .plex {
-                await PlexAPI.shared.refreshConnection()
-            }
-            // Not over something played meanwhile: the queue still parked
-            // on the book's file, and the route still this device's.
-            guard !Task.isCancelled, let self, let current = self.current, current.book.isSameBook(as: book),
-                  PlaybackRoute.shared.group == nil,
-                  self.contains(LocalPlaybackService.shared.nowPlaying) else { return }
-            self.retry = nil
-            await self.start(current, at: time, on: .device)
         }
         return true
     }

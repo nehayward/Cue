@@ -53,13 +53,13 @@ final class QueueManager {
             // has started. Cue in the background (a widget's Play, a list
             // played as Cue was left) was suspended part-way, and the rest
             // waited until Cue next woke.
-            let time = BackgroundTime(name: "Queue on speaker")
-            do {
-                try await playSong(item)
-            } catch {
-                await handleError(for: item.playableContent, error: error)
+            await withBackgroundTime(named: "Queue on speaker") {
+                do {
+                    try await playSong(item)
+                } catch {
+                    await handleError(for: item.playableContent, error: error)
+                }
             }
-            time.end()
             item.done?()
             isProcessing = false
         }

@@ -543,12 +543,12 @@ final class BookShelfWidgetPublisher {
     func open(bookID: String, plays: Bool) async {
         guard let book = await findBook(withID: bookID) else {
             Self.log.error("book shelf widget: no book \(bookID, privacy: .public) to open")
-            AudiobookTabLink.showTab()
+            Router.showAudiobooks()
             return
         }
         Self.log.notice("book shelf widget: \(plays ? "open playing" : "open", privacy: .public) \(book.title, privacy: .public)")
         guard plays else {
-            AudiobookTabLink.shared.open(book)
+            Router.showAudiobooks(book)
             return
         }
         MediaDetailPresenter.dismissPresented()

@@ -2522,14 +2522,8 @@ final class LocalPlaybackService {
             // Cue is suspended soon after the phone locks while Apple's
             // player plays on: ask for the time to finish, so a lock straight
             // after Play doesn't leave the run at its first songs.
-            var background = UIBackgroundTaskIdentifier.invalid
-            background = UIApplication.shared.beginBackgroundTask(withName: "Queue Apple Music") {
-                UIApplication.shared.endBackgroundTask(background)
-                background = .invalid
-            }
-            while let self, await self.appendToAppleRun(token: token) {}
-            if background != .invalid {
-                UIApplication.shared.endBackgroundTask(background)
+            await withBackgroundTime(named: "Queue Apple Music") {
+                while let self, await self.appendToAppleRun(token: token) {}
             }
             if self?.appleFill?.token == token { self?.appleFill = nil }
         }
