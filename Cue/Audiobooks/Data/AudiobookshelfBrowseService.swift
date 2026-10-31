@@ -181,6 +181,24 @@ final class AudiobookshelfBrowseService {
 
     // MARK: - Every book
 
+    /// Every audiobook in every book library, for the book shelf widget's
+    /// One Book. Nil when a page didn't come, so a passing fault doesn't
+    /// empty the list kept. Audible isn't asked about them, as `rows(from:)`
+    /// does: there may be hundreds.
+    func everyBook() async -> [PlayableContent]? {
+        guard isAuthenticated, !libraries.isEmpty else { return nil }
+        let pageSize = 200
+        var books: [PlayableContent] = []
+        for library in libraries where library.isBooks {
+            for page in 0..<100 {
+                guard let result = await api.items(libraryID: library.id, page: page, limit: pageSize) else { return nil }
+                books += result.results.filter(\.hasAudio).map(\.toPlayable)
+                if result.results.count < pageSize || (result.total.map { (page + 1) * pageSize >= $0 } ?? false) { break }
+            }
+        }
+        return books
+    }
+
     /// Which server page holds the books from each offset a list asks for,
     /// by library and order: the list counts the rows it was given, and
     /// pages drop the library's ebooks, so an offset isn't a multiple of a

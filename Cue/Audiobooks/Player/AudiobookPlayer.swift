@@ -669,6 +669,9 @@ final class AudiobookPlayer {
     /// didn't start (said in an alert).
     @discardableResult
     private func start(_ audiobook: Audiobook, at time: TimeInterval, on target: Target = .route) async -> Bool {
+        // A switch still carrying the last queue across would go on filling
+        // the speaker's queue under the book's files.
+        await PlaybackRoute.shared.endHandOff()
         var audiobook = audiobook
         // Audiobookshelf streams belong to a listening session, opened
         // for each play; its files' URLs come from it.

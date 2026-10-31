@@ -8,6 +8,7 @@ import SonosKit
 import SubscriptionKit
 import MusicKit
 import MusicSearchKit
+import OSLog
 import StoreKit
 import SwiftUI
 import CoreSpotlight
@@ -1233,9 +1234,36 @@ struct CueApp: App {
 
     @MainActor
     private func handle(_ url: URL) {
+        // The widget's book, album or shelf is what was asked for: Quick Launch's
+        // player, which opens as Cue comes back, doesn't open over it.
+        if BookShelfWidgetState.book(in: url) != nil || BookShelfWidgetState.Albums.album(in: url) != nil || ["audiobooks", "album"].contains(url.host?.lowercased() ?? "") {
+            quickLaunchPending = false
+            BookShelfWidgetPublisher.log.info("shelf widget: link \(url.absoluteString, privacy: .public)")
+        }
         Task {
             guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return }
-            
+
+            // The book shelf widget's: a book's page, or the book played
+            // and the player opened. Before the speakers are looked for,
+            // which a book doesn't wait on.
+            if let link = BookShelfWidgetState.book(in: url) {
+                await BookShelfWidgetPublisher.shared.open(bookID: link.id, plays: link.play)
+                return
+            }
+            if let link = BookShelfWidgetState.Albums.album(in: url) {
+                await AlbumShelfWidgetPublisher.shared.open(albumID: link.id, plays: link.play)
+                return
+            }
+            if components.host?.lowercased() == "audiobooks" {
+                AudiobookTabLink.showTab()
+                return
+            }
+            // The Albums widget's own link (Open App, a tap off its albums):
+            // Cue, as it was.
+            if components.host?.lowercased() == "album" {
+                return
+            }
+
             // `updateGroups` returns at once while Sonos is switched off.
             if sonosService.groups.isEmpty {
                 try? await sonosService.updateGroups()
@@ -1769,6 +1797,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         WatchSyncService.shared.activate()
         // Lyrics for downloads that don't have them yet, slowly.
         DownloadLyrics.shared.start()
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+        // The book shelf widget's copy of the Audiobooks tab. Early, so a
+        // widget's Play that launched Cue in the background finds its book.
+        BookShelfWidgetPublisher.shared.start()
+        // The album shelf widget's albums, the same way.
+        AlbumShelfWidgetPublisher.shared.start()
+        // The discography widget's Plex artists, as Cue comes to the front.
+        DiscographyWidgetPublisher.shared.start()
+        #endif
         // The Audiobooks tab's shelves as last read, their covers decoded a
         // moment after launch, so the tab opens with them drawn.
         if UserDefaults.standard.bool(forKey: AppStorageKeys.hasPlexAudiobooks) || AudiobookshelfAPI.shared.isConfigured {

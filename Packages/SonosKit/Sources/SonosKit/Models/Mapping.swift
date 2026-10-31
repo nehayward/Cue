@@ -886,6 +886,9 @@ extension PlexMetadata {
                 artistID: artistID,
                 album: album,
                 albumID: albumID,
+                // An album's year, for lists newest first (an artist's
+                // albums, the discography widget).
+                albumYear: type == "album" ? releaseYear.flatMap { Calendar(identifier: .gregorian).date(from: DateComponents(year: $0, month: 1, day: 1)) } : nil,
                 position: trackNumber,
                 discNumber: discNumber,
                 audioCodec: audioCodec,

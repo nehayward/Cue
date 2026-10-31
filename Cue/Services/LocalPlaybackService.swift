@@ -3164,7 +3164,9 @@ final class LocalPlaybackService {
             return
         }
 
-        activateAudioSession(for: "the stream run at \(index)")
+        await activateAudioSession(for: "the stream run at \(index)", token: token)
+        // Taking the session can wait out Apple Music for a moment.
+        guard playToken == token else { return }
         releaseAppleQueue()
 
         streamRun = [:]
@@ -3224,7 +3226,8 @@ final class LocalPlaybackService {
         }
         guard playToken == token else { return }
 
-        activateAudioSession(for: "the station \(station.content.id)")
+        await activateAudioSession(for: "the station \(station.content.id)", token: token)
+        guard playToken == token else { return }
         releaseAppleQueue()
         let playerItem = AVPlayerItem(url: url)
         listenForStreamTitles(on: playerItem, token: token)
@@ -3270,24 +3273,97 @@ final class LocalPlaybackService {
     /// Takes the audio session for a stream player. The player goes on
     /// regardless and plays nothing when this fails, so the log line is
     /// what says why it's silent.
-    private func activateAudioSession(for what: String) {
-        do {
-            try Self.setPlaybackCategory(AVAudioSession.sharedInstance())
-            try AVAudioSession.sharedInstance().setActive(true)
-        } catch {
-            let code = (error as NSError).code
-            Self.log.error("activating the audio session for \(what, privacy: .public) failed: \(code) \(error.localizedDescription, privacy: .public)")
-            // Taking over from the keep-awake silence with Cue in the
-            // background, a session that doesn't mix can be refused. One that
-            // mixes isn't, and the song plays all the same.
-            if keepAwake.isHeld {
-                do {
-                    try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
-                    try AVAudioSession.sharedInstance().setActive(true)
-                    Self.log.notice("the audio session for \(what, privacy: .public) mixes with others for now")
-                } catch {
-                    Self.log.error("a mixing session for \(what, privacy: .public) failed too: \(error.localizedDescription, privacy: .public)")
+    ///
+    /// In the background (a widget's Play over Apple Music), iOS refuses a
+    /// session that doesn't mix while something else plays
+    /// (`cannotInterruptOthers`), and MusicKit's player, a process of its
+    /// own, was still playing: the hand-off's stop lands there a moment
+    /// after it's asked for. So Apple Music is stopped for certain and the
+    /// session asked for again every 250 ms, a second at most, before the
+    /// mixing fallback below.
+    ///
+    /// Only for Apple Music: refused over another app's audio, the session
+    /// fails as it did (it's that app's to give up), and over the
+    /// keep-awake silence it mixes at once. A newer play (`token`) ends the
+    /// wait, leaving Apple Music alone: it may be what that play started.
+    private func activateAudioSession(for what: String, token: Int) async {
+        let refused = AVAudioSession.ErrorCode.cannotInterruptOthers.rawValue
+        var appleMusicInTheWay = false
+        for attempt in 0...4 {
+            do {
+                try Self.setPlaybackCategory(AVAudioSession.sharedInstance())
+                try AVAudioSession.sharedInstance().setActive(true)
+                if attempt > 0 {
+                    Self.log.notice("took the audio session for \(what, privacy: .public) once Apple Music had stopped, \(attempt * 250) ms on")
                 }
+                sessionMixes = false
+                return
+            } catch where (error as NSError).code == refused && attempt < 4 && !keepAwake.isHeld {
+                guard playToken == token else { return }
+                if musicPlayer.state.playbackStatus != .stopped {
+                    appleMusicInTheWay = true
+                    musicPlayer.stop()
+                } else if !appleMusicInTheWay {
+                    // Another app's audio, with nothing of Cue's to stop.
+                    activationFailed(for: what, error: error, mixes: false)
+                    return
+                }
+                try? await Task.sleep(for: .milliseconds(250))
+                guard playToken == token else { return }
+            } catch {
+                activationFailed(for: what, error: error, mixes: keepAwake.isHeld || appleMusicInTheWay)
+                return
+            }
+        }
+    }
+
+    /// `mixes`: whether to fall back to a session that mixes, for the
+    /// refusals Cue's own audio caused (the keep-awake silence, Apple
+    /// Music's player stopping late).
+    private func activationFailed(for what: String, error: any Error, mixes: Bool) {
+        let code = (error as NSError).code
+        Self.log.error("activating the audio session for \(what, privacy: .public) failed: \(code) \(error.localizedDescription, privacy: .public)")
+        // Taking over from the keep-awake silence or Apple Music's player
+        // with Cue in the background, a session that doesn't mix can be
+        // refused. One that mixes isn't, and the song plays all the same.
+        guard mixes else { return }
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            try AVAudioSession.sharedInstance().setActive(true)
+            Self.log.notice("the audio session for \(what, privacy: .public) mixes with others for now")
+            sessionMixes = true
+            stopMixingSoon()
+        } catch {
+            Self.log.error("a mixing session for \(what, privacy: .public) failed too: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    /// The session mixes for want of better (`activationFailed`).
+    @ObservationIgnored private var sessionMixes = false
+
+    /// Takes the session that doesn't mix once nothing else plays: a
+    /// session that mixes gets no Lock Screen card, and one started over
+    /// Apple Music in the background could only mix until MusicKit's player
+    /// had stopped. Every half second for ten, while a stream plays.
+    private func stopMixingSoon() {
+        Task {
+            for _ in 0..<20 {
+                try? await Task.sleep(for: .milliseconds(500))
+                guard sessionMixes, backend == .stream else { return }
+                guard musicPlayer.state.playbackStatus != .playing else { continue }
+                do {
+                    try Self.setPlaybackCategory(AVAudioSession.sharedInstance())
+                    try AVAudioSession.sharedInstance().setActive(true)
+                } catch {
+                    continue
+                }
+                sessionMixes = false
+                Self.log.notice("the audio session no longer mixes: the Lock Screen card is Cue's again")
+                nowPlayingCard.reclaim()
+                return
+            }
+            if sessionMixes {
+                Self.log.error("the audio session still mixes ten seconds on: no Lock Screen card until the next song")
             }
         }
     }
