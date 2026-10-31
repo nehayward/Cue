@@ -286,6 +286,27 @@ in `Cue/Info.plist` and `Mac/Cue-Mac.plist`, and
 `com.apple.security.personal-information.location` in `Cue/Cue.entitlements`
 and `Cue/Cue-iOS.entitlements`.
 
+### MusicBrainz studio albums (later)
+Held off on 2026-10-31. Spotify's API types releases only as album, single or compilation, and
+files a DJ mix or remix album an artist put out as an album ("Club Future
+Nostalgia", which a title rule can't catch without "(DJ Mix)" in it).
+MusicBrainz types every release group: a primary type (Album, Single, EP)
+and secondary types (Live, Compilation, Remix, DJ-mix, Soundtrack, Demo…);
+a studio album is an Album with none. Free, no key, about one request a
+second, with a User-Agent naming the app and a contact. A Spotify artist
+maps straight to its MusicBrainz artist:
+`/ws/2/url?resource=https://open.spotify.com/artist/<id>&inc=artist-rels&fmt=json`,
+then `/ws/2/release-group?artist=<mbid>&type=album&limit=100&fmt=json`.
+Checked on Dua Lipa (2026-10-31): Dua Lipa, Future Nostalgia and Radical
+Optimism plain; both Club Future Nostalgias DJ-mix and Remix; Studio 2054
+and the Royal Albert Hall and Mexico albums Live. Its data isn't perfect
+("Tiny Desk Concert" untagged, an "[Unreleased]" entry), so match its
+release groups to the service's albums by plain title and year, keep only
+those that match, cache by artist, and fall back to the title rules when
+MusicBrainz has no answer.
+In Cue it could also tell a Plex artist's studio albums apart, and the
+discography widget's Albums where Cue has no Apple album list to go by.
+
 ### Monetization notes
 - Downloads (Plex/Subsonic, `DownloadManager`) are free up to
   `DownloadManager.freeSongLimit` songs held at a time, on the iPhone and the
