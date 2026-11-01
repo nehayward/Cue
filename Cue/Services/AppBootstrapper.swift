@@ -1,4 +1,5 @@
 import Defaults
+import MusicSearchKit
 import Nuke
 import SubscriptionKit
 import UIKit
@@ -9,6 +10,12 @@ final class AppBootstrapper {
 
     func bootstrap() {
         UITextField.appearance().clearButtonMode = .whileEditing
+        // No Apple Music alert until onboarding has asked which services
+        // are in use: Browse opens on the Apple library, and its first read
+        // put the alert over the welcome screen. Onboarding lets it go as
+        // it closes, and asks itself when Apple Music is chosen.
+        let hasOnboarded = GroupStorageKeys.storage?.bool(forKey: GroupStorageKeys.hasOnboarded) ?? false
+        AppleMusicPermission.isHeld = !hasOnboarded || OnboardingDebug.forceShow
         // The last answer stands in for one until RevenueCat or StoreKit gives
         // it, so Super doesn't flash the free tier at launch (the Lock Screen
         // card, the volume buttons, every room past the first).

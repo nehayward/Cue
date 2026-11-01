@@ -17,4 +17,18 @@ extension MediaSearchService {
     var isSupported: Bool {
         Self.supported.contains(self)
     }
+
+    /// A line on what the service is, under its name where Cue offers it
+    /// (`ServiceChoiceRow`).
+    var choiceDetail: String {
+        switch self {
+        case .apple: "Your library, the catalog and Apple Music radio."
+        case .plex: "Music and audiobooks from your Plex Media Server."
+        case .tuneIn: "Live radio from around the world. No account needed."
+        case .subsonic: "Navidrome, Airsonic or any Subsonic server."
+        case .audiobookshelf: "Audiobooks from your Audiobookshelf server."
+        case .files: "Music and books in a folder, here or in iCloud Drive."
+        default: title
+        }
+    }
 }

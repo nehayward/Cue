@@ -1,84 +1,82 @@
+import MusicKit
 import MusicSearchKit
 import SonosKit
 import SwiftUI
 
-/// Onboarding's third page — shows the music services Cue supports, with a
-/// checkmark for those the user has authorized in Sonos and a dashed circle
-/// for the rest. If nothing matches, surfaces an "Open Sonos App" CTA so the
-/// user can add a service without leaving the flow.
+/// Onboarding's services page: where the music is. Every service Cue plays
+/// is a row (`ServiceChoiceRow`) chosen with a tap, and what's chosen is
+/// what Search, Browse and the tabs offer afterwards (`WelcomeScreen`).
+/// Choosing Apple Music is what asks for Apple Music access, never sooner
+/// (`AppleMusicPermission`); a server set up in Cue opens its sign-in here;
+/// Plex signs in on the page after.
 struct ServicesStep: View {
-    let installed: Set<SonosServiceType>
-    var isActive: Bool = true
-    var advance: () -> Void
+    /// What was chosen when the page was last left, for coming back to it.
+    var initial: Set<MediaSearchService>? = nil
+    var advance: (_ chosen: Set<MediaSearchService>) -> Void
 
-    @State private var rowsIn = false
+    @Environment(CoreFeatures.self) private var coreFeatures
+    @Environment(\.scenePhase) private var scenePhase
 
-    /// Pairs the Sonos-side service type with the Cue-side `MediaSearchService`
-    /// it maps to, derived from the shared `sonosServiceType` mapping
-    /// (MediaSearchService+Sonos.swift) — a new music backend added there
-    /// shows up here automatically. Library is skipped: it has no Sonos
-    /// counterpart to detect.
-    private let mapping: [(SonosServiceType, MediaSearchService)] = MediaSearchService.supported.compactMap { service in
-        service.sonosServiceType.map { ($0, service) }
-    }
+    @State private var chosen: Set<MediaSearchService> = []
+    @State private var appleStatus = MusicAuthorization.currentStatus
+    @State private var isAskingApple = false
+    /// The server whose sign-in is up, and the one it was opened for, which
+    /// the sheet's dismissal reads after `signingIn` has gone back to nil.
+    @State private var signingIn: SignIn?
+    @State private var lastSignIn: MediaSearchService?
+    @State private var didSeed = false
+    @State private var contentIn = false
 
-    private var hasAnySupported: Bool {
-        mapping.contains { installed.contains($0.0) }
-    }
-
-    private var sortedMapping: [(SonosServiceType, MediaSearchService)] {
-        // Available services first, preserving the original order within each group
-        mapping.enumerated().sorted { l, r in
-            let lAvail = installed.contains(l.element.0)
-            let rAvail = installed.contains(r.element.0)
-            if lAvail != rAvail { return lAvail }
-            return l.offset < r.offset
-        }.map(\.element)
+    private struct SignIn: Identifiable {
+        let service: MediaSearchService
+        var id: String { service.rawValue }
     }
 
     var body: some View {
         VStack(spacing: 0) {
             VStack(spacing: 10) {
-                Text("Your Music Services")
+                Text("Where’s your music?")
                     .font(.system(size: 30, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
-                Text(hasAnySupported
-                     ? "Services with a checkmark are ready in Cue."
-                     : "Add a music service in the Sonos app to play in Cue.")
+                    .multilineTextAlignment(.center)
+                Text("Choose everything you listen to. Cue plays it right here, and on your speakers too.")
                     .font(.callout)
                     .foregroundStyle(.white.opacity(0.85))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 28)
             }
-            .padding(.top, 36)
-            .padding(.bottom, 24)
+            .padding(.top, 56)
+            .padding(.bottom, 20)
+            .opacity(contentIn ? 1 : 0)
+            .offset(y: contentIn ? 0 : 14)
 
             ScrollView {
                 VStack(spacing: 10) {
-                    ForEach(Array(sortedMapping.enumerated()), id: \.element.0) { index, pair in
-                        ServiceRow(
-                            service: pair.1,
-                            isAvailable: installed.contains(pair.0)
-                        )
-                        .opacity(rowsIn ? 1 : 0)
-                        .offset(y: rowsIn ? 0 : 18)
+                    ForEach(Array(MediaSearchService.supported.enumerated()), id: \.element) { index, service in
+                        ServiceChoiceRow(
+                            service: service,
+                            detail: detail(for: service),
+                            accessory: accessory(for: service)
+                        ) {
+                            tap(service)
+                        }
+                        .opacity(contentIn ? 1 : 0)
+                        .offset(y: contentIn ? 0 : 18)
                         .animation(
-                            .spring(response: 0.55, dampingFraction: 0.85)
-                                .delay(Double(index) * 0.06),
-                            value: rowsIn
+                            .spring(response: 0.55, dampingFraction: 0.85).delay(0.1 + Double(index) * 0.05),
+                            value: contentIn
                         )
                     }
                 }
                 .padding(.horizontal, 20)
-                .padding(.vertical, 4)
-                // Cap rows at ~500pt on iPad / Mac fullScreenCover so the
-                // service list reads as a centered column instead of
-                // stretching edge-to-edge. iPhone widths are below the cap
-                // so this is a no-op there.
+                .padding(.vertical, 8)
+                // A column on iPad and the Mac rather than rows across the
+                // whole window.
                 .frame(maxWidth: 500)
-                .frame(maxWidth: .infinity, alignment: .center)
+                .frame(maxWidth: .infinity)
             }
             .scrollIndicators(.hidden)
+            .scrollBounceBehavior(.basedOnSize)
             .mask {
                 VStack(spacing: 0) {
                     LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)
@@ -88,45 +86,174 @@ struct ServicesStep: View {
                         .frame(height: 24)
                 }
             }
+            // The rows' own colours are hierarchical; here they're on the
+            // dark mesh whatever the app's appearance.
+            .environment(\.colorScheme, .dark)
 
             VStack(spacing: 10) {
-                if !hasAnySupported {
-                    PrimaryPillButton(title: "Open Sonos App", icon: "arrow.up.forward.app") {
-                        openSonosApp()
-                    }
+                PrimaryPillButton(title: "Continue") {
+                    HapticManager.shared.fireHaptic(.buttonPress)
+                    advance(chosen)
                 }
-
-                if hasAnySupported {
-                    PrimaryPillButton(title: "Continue", action: advance)
-                } else {
-                    Button(action: advance) {
-                        Text("Skip for Now")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                    }
-                    .foregroundStyle(.white.opacity(0.85))
-                }
+                Text("You can change these any time in Settings.")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.55))
             }
             .padding(.horizontal, 28)
             .padding(.top, 8)
             .padding(.bottom, 28)
+            .opacity(contentIn ? 1 : 0)
+            .offset(y: contentIn ? 0 : 24)
         }
-        .onChange(of: isActive, initial: true) { _, active in
-            if active {
-                rowsIn = false
-                DispatchQueue.main.async { rowsIn = true }
+        .onAppear {
+            seedChoices()
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) { contentIn = true }
+        }
+        // Back from Settings, where Apple Music access may have been turned on.
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            let status = MusicAuthorization.currentStatus
+            if status != appleStatus {
+                appleStatus = status
+                if status == .authorized { choose(.apple) }
+            }
+        }
+        .sheet(item: $signingIn, onDismiss: finishSignIn) { signIn in
+            signInSheet(for: signIn.service)
+        }
+    }
+
+    // MARK: - Rows
+
+    private func accessory(for service: MediaSearchService) -> ServiceChoiceRow.Accessory {
+        if service == .apple, isAskingApple { return .progress }
+        return .check(chosen.contains(service))
+    }
+
+    /// The service's own line, unless something about it is worth saying.
+    private func detail(for service: MediaSearchService) -> String? {
+        switch service {
+        case .apple where appleStatus == .denied || appleStatus == .restricted:
+            return "Access is off. Tap to allow it in Settings."
+        case .plex where chosen.contains(.plex) && !isReady(.plex):
+            return "You’ll sign in on the next page."
+        default:
+            return nil
+        }
+    }
+
+    /// Set up already, so there's nothing to sign in to or allow.
+    private func isReady(_ service: MediaSearchService) -> Bool {
+        switch service {
+        case .apple: appleStatus == .authorized
+        case .plex: PlexAuthenticator.shared.authToken != nil
+        case .tuneIn: true
+        default: service.isConfiguredInCue == true
+        }
+    }
+
+    /// What was chosen before Back, else what's set up and switched on
+    /// already: radio on a new install, and everything in use when
+    /// onboarding is run again.
+    private func seedChoices() {
+        guard !didSeed else { return }
+        didSeed = true
+        chosen = initial ?? Set(MediaSearchService.supported.filter { isReady($0) && coreFeatures.isEnabled($0) })
+    }
+
+    // MARK: - Choosing
+
+    private func tap(_ service: MediaSearchService) {
+        if chosen.contains(service) {
+            HapticManager.shared.fireHaptic(.selection)
+            chosen.remove(service)
+            return
+        }
+        switch service {
+        case .apple:
+            chooseAppleMusic()
+        case .plex, .tuneIn:
+            choose(service)
+        default:
+            if isReady(service) {
+                choose(service)
+            } else {
+                HapticManager.shared.fireHaptic(.selection)
+                lastSignIn = service
+                signingIn = SignIn(service: service)
             }
         }
     }
 
-    private func openSonosApp() {
+    private func choose(_ service: MediaSearchService) {
+        HapticManager.shared.fireHaptic(.selection)
+        chosen.insert(service)
+    }
+
+    /// The system's alert, asked for here and nowhere earlier. Turned down
+    /// before, it can only be turned on in Settings.
+    private func chooseAppleMusic() {
+        switch appleStatus {
+        case .authorized:
+            choose(.apple)
+        case .notDetermined:
+            isAskingApple = true
+            Task {
+                let status = await AppleMusicPermission.ask()
+                appleStatus = status
+                isAskingApple = false
+                if status == .authorized {
+                    HapticManager.shared.fireHaptic(.notification(.success))
+                    chosen.insert(.apple)
+                } else {
+                    HapticManager.shared.fireHaptic(.notification(.warning))
+                }
+            }
+        default:
+            openMusicPrivacySettings()
+        }
+    }
+
+    // MARK: - Sign-in
+
+    @ViewBuilder
+    private func signInSheet(for service: MediaSearchService) -> some View {
+        switch service {
+        case .subsonic: SubsonicManagementView()
+        case .audiobookshelf: AudiobookshelfManagementView()
+        case .files: FilesManagementView()
+        default: EmptyView()
+        }
+    }
+
+    /// Signed in, the service is chosen; closed without, it stays as it was.
+    private func finishSignIn() {
+        guard let service = lastSignIn else { return }
+        lastSignIn = nil
+        if isReady(service) {
+            HapticManager.shared.fireHaptic(.notification(.success))
+            chosen.insert(service)
+        }
+    }
+
+    private func openMusicPrivacySettings() {
         #if canImport(UIKit)
-        if let url = URL(string: "sonos://"), UIApplication.shared.canOpenURL(url) {
+        #if targetEnvironment(macCatalyst)
+        let address = "x-apple.systempreferences:com.apple.preference.security?Privacy_Media"
+        #else
+        let address = UIApplication.openSettingsURLString
+        #endif
+        if let url = URL(string: address) {
             UIApplication.shared.open(url)
-        } else if let store = URL(string: "https://apps.apple.com/app/sonos/id1488977981") {
-            UIApplication.shared.open(store)
         }
         #endif
     }
+}
+
+#Preview {
+    ZStack {
+        MeshBackground().ignoresSafeArea()
+        ServicesStep { _ in }
+    }
+    .withEnvironments()
 }

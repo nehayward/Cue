@@ -2062,7 +2062,7 @@ public final class MusicSearchService {
     }
     
     public func requestMusicAuthorization() async -> Bool {
-        let status = await MusicAuthorization.request()
+        let status = await AppleMusicPermission.request()
 
         switch status {
         case .notDetermined:
