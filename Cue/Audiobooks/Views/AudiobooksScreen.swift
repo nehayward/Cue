@@ -17,9 +17,10 @@ struct AudiobooksScreen: View {
     @Environment(CoreFeatures.self) private var coreFeatures
     @Environment(MusicSearchService.self) private var musicSearchService
 
-    /// This tab's own stack, never a shared router: two stacks bound to one
-    /// path push each other.
-    @State private var router = Router()
+    /// This tab's own stack (`Router.audiobooks`, which a link outside the
+    /// tab pushes a book's page on), never another tab's: two stacks bound
+    /// to one path push each other.
+    @State private var router = Router.audiobooks
     @State private var store = AudiobookProgressStore.shared
     @State private var removals = ContinueListeningRemovals.shared
     @State private var shelf = AudiobookshelfBrowseService.shared

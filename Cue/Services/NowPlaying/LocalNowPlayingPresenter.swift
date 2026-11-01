@@ -115,6 +115,17 @@ final class LocalNowPlayingPresenter {
         }
     }
 
+    /// The audio session has stopped mixing (it mixed to start in the
+    /// background over Apple Music, which keeps a session that mixes off the
+    /// Lock Screen): asks again to be the Now Playing app, and writes the
+    /// card again at the next update.
+    func reclaim() {
+        published = nil
+        session?.becomeActiveIfPossible { active in
+            Self.log.notice("now playing session \(active ? "active" : "not active", privacy: .public) again, the session no longer mixing")
+        }
+    }
+
     // MARK: - Lifecycle
 
     /// Whether a card of this presenter's is up.

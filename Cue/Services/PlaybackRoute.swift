@@ -58,9 +58,10 @@ final class PlaybackRoute {
     /// and nothing is disabled by it — a second choice cancels the first.
     private(set) var isSwitching = false
 
-    /// The hand-off in flight. A new choice cancels it: the URLSession calls
-    /// under `SonosService` throw on cancellation, so a queue still filling in
-    /// stops where it is rather than racing the next switch.
+    /// The hand-off in flight, nil once it's done. A new choice cancels it,
+    /// and so does a new Play (`endHandOff()`): the URLSession calls under
+    /// `SonosService` throw on cancellation, so a queue still filling in
+    /// stops where it is rather than racing what comes next.
     @ObservationIgnored private var handoffTask: Task<Void, Never>?
     /// Bumped per switch, so a superseded hand-off's clean-up can't clear
     /// `isSwitching` for the one that replaced it.
@@ -335,6 +336,7 @@ final class PlaybackRoute {
             guard let self else { return }
             defer {
                 if self.switchToken == token {
+                    self.handoffTask = nil
                     self.isSwitching = false
                     // Nothing came across — nothing to carry, or a failure
                     // put the route back — so the player shows the route as
@@ -350,6 +352,36 @@ final class PlaybackRoute {
             } else {
                 await self.handOffToDevice(from: source)
             }
+        }
+    }
+
+    /// Ends a hand-off still under way, for a Play that takes over from it
+    /// (an album, Play Now, a book, radio): the new play is what the route
+    /// should be playing. Left running, the hand-off went on adding the
+    /// carried queue to the speaker one row at a time, a row landed between
+    /// the new play clearing the queue and adding its album, and the speaker
+    /// started that carried song in place of the album's first. A source the
+    /// hand-off hadn't stopped yet is stopped, and the player follows the
+    /// route at once rather than holding on the source.
+    func endHandOff() async {
+        let task = handoffTask
+        guard task != nil || hold != nil else { return }
+        handoffTask = nil
+        switchToken += 1
+        isSwitching = false
+        let stillPlaying = hold.flatMap { $0.sourceStopped ? nil : $0.source }
+        endHold()
+        if let task {
+            task.cancel()
+            // A request already on its way (a row being added) lands before
+            // the new play's own; one that won't stop isn't waited on long.
+            _ = await task.value(within: .seconds(1))
+            Self.log.notice("route: hand-off ended by a new play")
+        }
+        // The phone is parked by the play itself when it goes to a speaker.
+        if case let .group(id) = stillPlaying, PlayDestination.group(id) != destination,
+           let source = SonosService.shared.groups.first(where: { $0.coordinatorID == id }) {
+            await SonosService.shared.pause(ip: source.ip)
         }
     }
 

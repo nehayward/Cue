@@ -78,9 +78,9 @@ struct WelcomeStep: View {
     private var platformLine: String {
         #if canImport(UIKit)
         if UIDevice.current.userInterfaceIdiom == .phone {
-            return "iPhone, iPad, Watch, TV, and Mac."
+            return "iPhone, iPad, Watch, and CarPlay."
         }
         #endif
-        return "Built for Apple devices — iPhone, iPad, Watch, TV, and Mac."
+        return "Built for Apple devices — iPhone, iPad, Watch, and CarPlay."
     }
 }
