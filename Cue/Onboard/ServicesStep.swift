@@ -14,12 +14,13 @@ struct ServicesStep: View {
     var initial: Set<MediaSearchService>? = nil
     var advance: (_ chosen: Set<MediaSearchService>) -> Void
 
-    @Environment(CoreFeatures.self) private var coreFeatures
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var chosen: Set<MediaSearchService> = []
     @State private var appleStatus = MusicAuthorization.currentStatus
     @State private var isAskingApple = false
+    /// Apple Music turned down before: a tap explains, and offers Settings.
+    @State private var showsAppleMusicOff = false
     /// The server whose sign-in is up, and the one it was opened for, which
     /// the sheet's dismissal reads after `signingIn` has gone back to nil.
     @State private var signingIn: SignIn?
@@ -39,7 +40,7 @@ struct ServicesStep: View {
                     .font(.system(size: 30, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
-                Text("Choose everything you listen to. Cue plays it right here, and on your speakers too.")
+                Text("Pick the services you use. Cue plays them here and on your speakers.")
                     .font(.callout)
                     .foregroundStyle(.white.opacity(0.85))
                     .multilineTextAlignment(.center)
@@ -55,7 +56,6 @@ struct ServicesStep: View {
                     ForEach(Array(MediaSearchService.supported.enumerated()), id: \.element) { index, service in
                         ServiceChoiceRow(
                             service: service,
-                            detail: detail(for: service),
                             accessory: accessory(for: service)
                         ) {
                             tap(service)
@@ -95,7 +95,7 @@ struct ServicesStep: View {
                     HapticManager.shared.fireHaptic(.buttonPress)
                     advance(chosen)
                 }
-                Text("You can change these any time in Settings.")
+                Text("You can change this any time in Settings.")
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.55))
             }
@@ -121,6 +121,12 @@ struct ServicesStep: View {
         .sheet(item: $signingIn, onDismiss: finishSignIn) { signIn in
             signInSheet(for: signIn.service)
         }
+        .alert("Apple Music Access Is Off", isPresented: $showsAppleMusicOff) {
+            Button("Open Settings", action: openMusicPrivacySettings)
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Allow Cue to use Media & Apple Music in Settings to play your library.")
+        }
     }
 
     // MARK: - Rows
@@ -128,18 +134,6 @@ struct ServicesStep: View {
     private func accessory(for service: MediaSearchService) -> ServiceChoiceRow.Accessory {
         if service == .apple, isAskingApple { return .progress }
         return .check(chosen.contains(service))
-    }
-
-    /// The service's own line, unless something about it is worth saying.
-    private func detail(for service: MediaSearchService) -> String? {
-        switch service {
-        case .apple where appleStatus == .denied || appleStatus == .restricted:
-            return "Access is off. Tap to allow it in Settings."
-        case .plex where chosen.contains(.plex) && !isReady(.plex):
-            return "You’ll sign in on the next page."
-        default:
-            return nil
-        }
     }
 
     /// Set up already, so there's nothing to sign in to or allow.
@@ -152,13 +146,12 @@ struct ServicesStep: View {
         }
     }
 
-    /// What was chosen before Back, else what's set up and switched on
-    /// already: radio on a new install, and everything in use when
-    /// onboarding is run again.
+    /// Nothing is chosen for anyone: what's picked is what they tapped.
+    /// Coming back to the page, what was picked before.
     private func seedChoices() {
         guard !didSeed else { return }
         didSeed = true
-        chosen = initial ?? Set(MediaSearchService.supported.filter { isReady($0) && coreFeatures.isEnabled($0) })
+        chosen = initial ?? []
     }
 
     // MARK: - Choosing
@@ -191,7 +184,8 @@ struct ServicesStep: View {
     }
 
     /// The system's alert, asked for here and nowhere earlier. Turned down
-    /// before, it can only be turned on in Settings.
+    /// before, it can only be turned on in Settings, which a tap explains
+    /// rather than the row's line changing.
     private func chooseAppleMusic() {
         switch appleStatus {
         case .authorized:
@@ -210,7 +204,8 @@ struct ServicesStep: View {
                 }
             }
         default:
-            openMusicPrivacySettings()
+            HapticManager.shared.fireHaptic(.notification(.warning))
+            showsAppleMusicOff = true
         }
     }
 

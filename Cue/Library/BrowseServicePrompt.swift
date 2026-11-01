@@ -32,7 +32,7 @@ struct BrowseServicePrompt: View {
                             .accessibilityHidden(true)
                         Text("Nothing to Browse Yet")
                             .font(.title2.bold())
-                        Text("Add a service to browse your music here.")
+                        Text("Add a service to see your music here.")
                             .font(.callout)
                             .foregroundStyle(.secondary)
                     }

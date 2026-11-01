@@ -19,15 +19,16 @@ extension MediaSearchService {
     }
 
     /// A line on what the service is, under its name where Cue offers it
-    /// (`ServiceChoiceRow`).
+    /// (`ServiceChoiceRow`). Short enough to fit on one line on an iPhone,
+    /// so the rows are all one height.
     var choiceDetail: String {
         switch self {
-        case .apple: "Your library, the catalog and Apple Music radio."
-        case .plex: "Music and audiobooks from your Plex Media Server."
-        case .tuneIn: "Live radio from around the world. No account needed."
-        case .subsonic: "Navidrome, Airsonic or any Subsonic server."
-        case .audiobookshelf: "Audiobooks from your Audiobookshelf server."
-        case .files: "Music and books in a folder, here or in iCloud Drive."
+        case .apple: "Your library and the catalog."
+        case .plex: "Music and audiobooks you host."
+        case .tuneIn: "Live radio. No account needed."
+        case .subsonic: "Navidrome, Airsonic and others."
+        case .audiobookshelf: "Audiobooks you host."
+        case .files: "Audio files, here or in iCloud."
         default: title
         }
     }

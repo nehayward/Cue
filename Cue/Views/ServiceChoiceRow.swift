@@ -56,9 +56,11 @@ struct ServiceChoiceRow: View {
                 shape
                     .fill(Color.primary.opacity(isChosen ? 0.10 : 0.05))
                     .overlay {
+                        // One width either way: only the colour says it's
+                        // chosen, so nothing in the row moves.
                         shape.strokeBorder(
                             isChosen ? Color.accentColor.opacity(0.8) : Color.primary.opacity(0.08),
-                            lineWidth: isChosen ? 1.5 : 1
+                            lineWidth: 1.5
                         )
                     }
             }

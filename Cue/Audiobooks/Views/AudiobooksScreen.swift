@@ -203,7 +203,7 @@ struct AudiobooksScreen: View {
                     .accessibilityHidden(true)
                 Text("No Audiobooks Yet")
                     .font(.title2.bold())
-                Text("Choose where your books are, and listen to them here.")
+                Text("Choose where your books live.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -213,7 +213,7 @@ struct AudiobooksScreen: View {
                 ServiceChoiceRow(
                     service: .plex,
                     title: plexSignedIn ? "Choose Plex Books" : nil,
-                    detail: plexSignedIn ? "Pick the Plex libraries that hold your books." : "Audiobooks on your Plex Media Server."
+                    detail: plexSignedIn ? "Pick the libraries with books." : "Audiobooks on your Plex server."
                 ) {
                     // Signed in but switched off (left out in onboarding),
                     // the books chosen here would stay hidden: choosing
@@ -226,7 +226,7 @@ struct AudiobooksScreen: View {
                 ServiceChoiceRow(service: .audiobookshelf) {
                     openSignIn(.audiobookshelfManagement)
                 }
-                ServiceChoiceRow(service: .files, detail: "Books in a folder, here or in iCloud Drive.") {
+                ServiceChoiceRow(service: .files, detail: "Audiobook files, here or in iCloud.") {
                     openSignIn(.filesManagement)
                 }
             }
