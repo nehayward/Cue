@@ -306,30 +306,22 @@ struct PlexStep: View {
 
     @ViewBuilder
     private var footer: some View {
-        VStack(spacing: 10) {
-            if isAuthorized {
-                PrimaryPillButton(title: "Continue", action: advance)
-            } else {
-                PrimaryPillButton(
-                    title: plexAuthenticator.isStartingSignIn ? "Opening Plex…" : "Sign In to Plex",
-                    icon: "arrow.up.forward.app",
-                    isDisabled: plexAuthenticator.isStartingSignIn
-                ) {
-                    HapticManager.shared.fireHaptic(.buttonPress)
-                    plexAuthenticator.authenticate()
-                }
-                Button(action: advance) {
-                    Text("Skip for Now")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                }
-                .foregroundStyle(.white.opacity(0.85))
-            }
+        if isAuthorized {
+            PrimaryPillButton(title: "Continue", action: advance)
+                .padding(.horizontal, 28)
+                .padding(.top, 8)
+                .padding(.bottom, 28)
+        } else {
+            // The other set-up pages' foot: Set Up Later, and where to
+            // finish it.
+            SetupPageFooter(
+                actionTitle: plexAuthenticator.isStartingSignIn ? "Opening Plex…" : "Sign In to Plex",
+                actionIcon: "arrow.up.forward.app",
+                isActionDisabled: plexAuthenticator.isStartingSignIn,
+                action: { plexAuthenticator.authenticate() },
+                later: advance
+            )
         }
-        .padding(.horizontal, 28)
-        .padding(.top, 8)
-        .padding(.bottom, 28)
     }
 
     // MARK: - Loading & default selection

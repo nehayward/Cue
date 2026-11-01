@@ -14,6 +14,9 @@ import SwiftUI
 ///    is where Apple Music's alert comes up, if Apple Music is chosen
 ///  - `PlexStep.swift` — Plex sign-in + default library pick (only when Plex
 ///    is chosen and not set up)
+///  - `SubsonicSetupStep.swift`, `AudiobookshelfSetupStep.swift`,
+///    `FilesSetupStep.swift` — the same for each of those chosen and not set
+///    up, on `SetupPage`, each with Set Up Later
 ///  - `SonosQuestionStep.swift` — do you have Sonos? Sets the Sonos preference
 ///  - `DiscoveryStep.swift` — Local Network permission, searching, found/denied/notFound
 ///  - `ReadyStep.swift` — what's set up, and Start Listening
@@ -29,7 +32,7 @@ import SwiftUI
 /// file. Debug launch-arg helpers are in `OnboardingDebug.swift`.
 struct WelcomeScreen: View {
     enum Step: Int, CaseIterable {
-        case welcome, services, plex, sonos, discovery, ready, paywall, email
+        case welcome, services, plex, subsonic, audiobookshelf, files, sonos, discovery, ready, paywall, email
     }
 
     /// A change of page, set a pass ahead of `step`: the page leaving takes
@@ -53,6 +56,9 @@ struct WelcomeScreen: View {
     @State private var history: [Step] = []
     /// What the services page chose, kept for coming back to it.
     @State private var chosenServices: Set<MediaSearchService>?
+    /// The set-up pages the services chosen need, in order, settled as the
+    /// services page is left.
+    @State private var setupSteps: [Step] = []
 
     var body: some View {
         ZStack {
@@ -145,8 +151,20 @@ struct WelcomeScreen: View {
                 .id(Step.services)
                 .transition(slideTransition)
         case .plex:
-            PlexStep(advance: { goTo(.sonos) })
+            PlexStep(advance: { finishSetup(.plex) })
                 .id(Step.plex)
+                .transition(slideTransition)
+        case .subsonic:
+            SubsonicSetupStep(advance: { finishSetup(.subsonic) })
+                .id(Step.subsonic)
+                .transition(slideTransition)
+        case .audiobookshelf:
+            AudiobookshelfSetupStep(advance: { finishSetup(.audiobookshelf) })
+                .id(Step.audiobookshelf)
+                .transition(slideTransition)
+        case .files:
+            FilesSetupStep(advance: { finishSetup(.files) })
+                .id(Step.files)
                 .transition(slideTransition)
         case .sonos:
             SonosQuestionStep(answer: answerSonosQuestion)
@@ -157,8 +175,11 @@ struct WelcomeScreen: View {
                 .id(Step.discovery)
                 .transition(slideTransition)
         case .ready:
+            let chosen = MediaSearchService.supported.filter { chosenServices?.contains($0) == true }
             ReadyStep(
-                services: MediaSearchService.supported.filter { chosenServices?.contains($0) == true },
+                services: chosen,
+                // Chosen, but passed by with Set Up Later.
+                pending: chosen.filter { !$0.isAuthorized(on: []) },
                 finish: { dismiss() }
             )
             .id(Step.ready)
@@ -185,16 +206,41 @@ struct WelcomeScreen: View {
 
     /// What's chosen is what Search, Browse and the tabs offer. Nothing
     /// chosen leaves everything as it was, so a skip doesn't switch it all
-    /// off. Plex, chosen but not ready to play, signs in on its own page.
+    /// off. Each service chosen that isn't set up gets its page next.
     private func finishServices(_ chosen: Set<MediaSearchService>) {
         chosenServices = chosen
         if !chosen.isEmpty {
             coreFeatures.enableOnly(chosen)
             SearchSelectionStore.shared.selection = SelectedSearchServices([CoreFeatures.preferredDefaultService(from: chosen)])
         }
-        let plexReady = PlexAuthenticator.shared.authToken != nil && musicSearchService.plexServerID != nil
-            && !OnboardingDebug.showsPlexStep
-        goTo(chosen.contains(.plex) && !plexReady ? .plex : .sonos)
+        setupSteps = [.plex, .subsonic, .audiobookshelf, .files].filter { needsSetup($0, chosen: chosen) }
+        goTo(setupSteps.first ?? .sonos)
+    }
+
+    /// Whether `step` sets up a service chosen that isn't set up yet.
+    private func needsSetup(_ step: Step, chosen: Set<MediaSearchService>) -> Bool {
+        switch step {
+        case .plex:
+            let plexReady = PlexAuthenticator.shared.authToken != nil && musicSearchService.plexServerID != nil
+            return chosen.contains(.plex) && (!plexReady || OnboardingDebug.showsPlexStep)
+        case .subsonic:
+            return chosen.contains(.subsonic) && !SubsonicAPI.shared.isConfigured
+        case .audiobookshelf:
+            return chosen.contains(.audiobookshelf) && !AudiobookshelfAPI.shared.isConfigured
+        case .files:
+            return chosen.contains(.files) && !FilesLibraryService.shared.isConfigured
+        default:
+            return false
+        }
+    }
+
+    /// A set-up page done or passed by: the next one, then the speakers.
+    private func finishSetup(_ step: Step) {
+        guard let index = setupSteps.firstIndex(of: step), index + 1 < setupSteps.count else {
+            goTo(.sonos)
+            return
+        }
+        goTo(setupSteps[index + 1])
     }
 
     /// The answer is the Sonos preference. Yes turns it on without starting

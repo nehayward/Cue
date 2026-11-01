@@ -187,30 +187,15 @@ struct AudiobookshelfBrowseScreen: View {
     }
 
     private var notConnectedView: some View {
-        ContentUnavailableView {
-            Label("Audiobookshelf Isn't Set Up", systemImage: MusicService.audiobookshelfSymbolName)
-        } description: {
-            Text("Sign in to your Audiobookshelf server to listen to your books here or on your speakers, and keep your place in step with its other apps.")
-        } actions: {
-            VStack(spacing: 20) {
-                Button {
-                    router.presentedSheet = .audiobookshelfManagement
-                } label: {
-                    Text("Sign In")
-                        .frame(maxWidth: 220)
-                }
-                .buttonStyle(.borderedProminent)
-
-                Link(destination: URL(string: "https://www.audiobookshelf.org")!) {
-                    HStack(spacing: 4) {
-                        Text("About Audiobookshelf")
-                        Image(systemName: "arrow.up.forward")
-                            .font(.caption2)
-                    }
-                }
-                .buttonStyle(.bordered)
-                .tint(.accent)
-            }
+        ServiceSetupPrompt(
+            service: .audiobookshelf,
+            title: "Audiobookshelf Isn't Set Up",
+            message: "Sign in to your server to listen to your books here and on your speakers, in step with its other apps.",
+            actionTitle: "Set Up Audiobookshelf"
+        ) {
+            router.presentedSheet = .audiobookshelfManagement
+        } extra: {
+            ServiceSetupLink(title: "About Audiobookshelf", address: "https://www.audiobookshelf.org")
         }
     }
 }

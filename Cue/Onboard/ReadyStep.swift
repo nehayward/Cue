@@ -7,9 +7,12 @@ import UIKit
 
 /// Onboarding's last page: what's set up, where it plays, and the way in.
 /// The services chosen pop in as their marks, so the end of setup shows
-/// what it did rather than the sheet just closing.
+/// what it did rather than the sheet just closing; one passed by with Set Up
+/// Later is dimmed, with where to finish it.
 struct ReadyStep: View {
     let services: [MediaSearchService]
+    /// Of `services`, the ones not set up yet.
+    var pending: [MediaSearchService] = []
     var finish: () -> Void
 
     @Environment(SonosService.self) private var sonosService
@@ -56,6 +59,7 @@ struct ReadyStep: View {
                 HStack(spacing: 12) {
                     ForEach(Array(services.enumerated()), id: \.element) { index, service in
                         ServiceMarkTile(service: service, size: 48)
+                            .opacity(pending.contains(service) ? 0.35 : 1)
                             .scaleEffect(marksIn ? 1 : 0.4)
                             .opacity(marksIn ? 1 : 0)
                             .animation(
@@ -68,6 +72,17 @@ struct ReadyStep: View {
                 .padding(.top, 28)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(services.map(\.title).formatted(.list(type: .and)))
+
+                if !pending.isEmpty, pending.count < services.count {
+                    Text("Finish setting up \(pendingNames) any time in Settings.")
+                        .font(.footnote)
+                        .foregroundStyle(.white.opacity(0.6))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
+                        .padding(.top, 16)
+                        .opacity(marksIn ? 1 : 0)
+                        .animation(.easeOut(duration: 0.4).delay(0.3), value: marksIn)
+                }
             }
 
             Spacer(minLength: 24)
@@ -93,13 +108,21 @@ struct ReadyStep: View {
         }
     }
 
+    private var pendingNames: String {
+        pending.map(\.title).formatted(.list(type: .and))
+    }
+
     /// Where Cue plays: this device, and the speakers found on the way.
+    /// With nothing set up, where to do it.
     private var summary: String {
+        if services.isEmpty {
+            return "Add your music any time in Settings."
+        }
+        if pending.count == services.count {
+            return "Finish setting up \(pendingNames) any time in Settings."
+        }
         let speakers = sonosService.isEnabled ? sonosService.rooms.count : 0
-        let start = services.isEmpty
-            ? "Add your music any time in Settings."
-            : "Your music is ready to play on \(deviceName)"
-        guard !services.isEmpty else { return start }
+        let start = "Your music is ready to play on \(deviceName)"
         switch speakers {
         case 0: return start + "."
         case 1: return start + ", and on your Sonos speaker."

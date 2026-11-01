@@ -6,9 +6,10 @@ import SwiftUI
 /// Onboarding's services page: where the music is. Every service Cue plays
 /// is a row (`ServiceChoiceRow`) chosen with a tap, and what's chosen is
 /// what Search, Browse and the tabs offer afterwards (`WelcomeScreen`).
-/// Choosing Apple Music is what asks for Apple Music access, never sooner
-/// (`AppleMusicPermission`); a server set up in Cue opens its sign-in here;
-/// Plex signs in on the page after.
+/// A tap only ticks a row: each service chosen that needs signing in or a
+/// folder gets a page of its own after Continue (`SetupPage`), so picking
+/// is never interrupted by a form. The one exception is Apple Music, whose
+/// access is asked as it's chosen, and never sooner (`AppleMusicPermission`).
 struct ServicesStep: View {
     /// What was chosen when the page was last left, for coming back to it.
     var initial: Set<MediaSearchService>? = nil
@@ -21,17 +22,8 @@ struct ServicesStep: View {
     @State private var isAskingApple = false
     /// Apple Music turned down before: a tap explains, and offers Settings.
     @State private var showsAppleMusicOff = false
-    /// The server whose sign-in is up, and the one it was opened for, which
-    /// the sheet's dismissal reads after `signingIn` has gone back to nil.
-    @State private var signingIn: SignIn?
-    @State private var lastSignIn: MediaSearchService?
     @State private var didSeed = false
     @State private var contentIn = false
-
-    private struct SignIn: Identifiable {
-        let service: MediaSearchService
-        var id: String { service.rawValue }
-    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -118,9 +110,6 @@ struct ServicesStep: View {
                 if status == .authorized { choose(.apple) }
             }
         }
-        .sheet(item: $signingIn, onDismiss: finishSignIn) { signIn in
-            signInSheet(for: signIn.service)
-        }
         .alert("Apple Music Access Is Off", isPresented: $showsAppleMusicOff) {
             Button("Open Settings", action: openMusicPrivacySettings)
             Button("Cancel", role: .cancel) { }
@@ -134,16 +123,6 @@ struct ServicesStep: View {
     private func accessory(for service: MediaSearchService) -> ServiceChoiceRow.Accessory {
         if service == .apple, isAskingApple { return .progress }
         return .check(chosen.contains(service))
-    }
-
-    /// Set up already, so there's nothing to sign in to or allow.
-    private func isReady(_ service: MediaSearchService) -> Bool {
-        switch service {
-        case .apple: appleStatus == .authorized
-        case .plex: PlexAuthenticator.shared.authToken != nil
-        case .tuneIn: true
-        default: service.isConfiguredInCue == true
-        }
     }
 
     /// Nothing is chosen for anyone: what's picked is what they tapped.
@@ -162,19 +141,10 @@ struct ServicesStep: View {
             chosen.remove(service)
             return
         }
-        switch service {
-        case .apple:
+        if service == .apple {
             chooseAppleMusic()
-        case .plex, .tuneIn:
+        } else {
             choose(service)
-        default:
-            if isReady(service) {
-                choose(service)
-            } else {
-                HapticManager.shared.fireHaptic(.selection)
-                lastSignIn = service
-                signingIn = SignIn(service: service)
-            }
         }
     }
 
@@ -206,28 +176,6 @@ struct ServicesStep: View {
         default:
             HapticManager.shared.fireHaptic(.notification(.warning))
             showsAppleMusicOff = true
-        }
-    }
-
-    // MARK: - Sign-in
-
-    @ViewBuilder
-    private func signInSheet(for service: MediaSearchService) -> some View {
-        switch service {
-        case .subsonic: SubsonicManagementView()
-        case .audiobookshelf: AudiobookshelfManagementView()
-        case .files: FilesManagementView()
-        default: EmptyView()
-        }
-    }
-
-    /// Signed in, the service is chosen; closed without, it stays as it was.
-    private func finishSignIn() {
-        guard let service = lastSignIn else { return }
-        lastSignIn = nil
-        if isReady(service) {
-            HapticManager.shared.fireHaptic(.notification(.success))
-            chosen.insert(service)
         }
     }
 
