@@ -277,12 +277,12 @@ struct SearchScreen: View {
                 .toolbar {
 #if !targetEnvironment(macCatalyst)
                     // In the bar, which draws the blur under it as the list
-                    // scrolls. One item: the services menu is inside the
-                    // field. As a trailing item of its own, sized apart from
-                    // the field, two or three services' icons pushed the row
-                    // off the screen.
+                    // scrolls. One item, the field and the services menu
+                    // beside it: as a trailing item of its own, sized apart
+                    // from the field, two or three services' icons pushed the
+                    // row off the screen.
                     ToolbarItem(placement: .principal) {
-                        searchField
+                        searchBar
                             .frame(idealWidth: 800)
                     }
 #endif
@@ -492,6 +492,20 @@ struct SearchScreen: View {
         )
     }
 
+    /// The field and, beside it in a glass capsule of its own, the services
+    /// it searches, their chips overlapping as Clic's services row has them
+    /// (`ServiceAvatarStack`). Offline the field searches what's here, with
+    /// no services to choose.
+    private var searchBar: some View {
+        HStack(spacing: 8) {
+            searchField
+            if !offline.isActive {
+                MediaServiceMenu(selection: $selectionStore.selection, filters: $filters)
+                    .serviceMenuGlass()
+            }
+        }
+    }
+
     /// The search field: a glass capsule, with a ring in the accent while
     /// it has focus on the Mac, where there is no keyboard to say so.
     private var searchField: some View {
@@ -508,11 +522,6 @@ struct SearchScreen: View {
                     guard let idx = keyboardSelectedIndex else { return }
                     activateSelectedItem(at: idx)
                 }
-            // The services being searched, at the field's end: what the
-            // field searches is part of it.
-            if !offline.isActive {
-                MediaServiceMenu(selection: $selectionStore.selection, filters: $filters)
-            }
         }
         .toolbarBackground(with: true, in: .capsule)
         #if targetEnvironment(macCatalyst)
@@ -536,7 +545,7 @@ struct SearchScreen: View {
     /// row of its own the field starts at the same inset as the headers
     /// beside it.
     private var searchHeader: some View {
-        searchField
+        searchBar
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 16)
             .padding(.top, 10)
@@ -839,7 +848,15 @@ private struct MediaServiceMenu: View {
                 Label("Settings…", systemImage: "gear")
             }
         } label: {
-            ServiceIconRow(services: displayedServices)
+            // At the field's height. The chips change without animating: a
+            // chip's cutout for the one beside it comes and goes at once,
+            // and with the chips sliding it took a bite out of thin air.
+            ServiceAvatarStack(services: displayedServices, size: 22)
+                .animation(nil, value: displayedServices)
+                // The capsule's padding, in the label so a tap anywhere on
+                // the capsule opens the menu.
+                .padding(8)
+                .contentShape(.capsule)
         }
         .accessibilityLabel("Search Services")
         .accessibilityValue(displayedServices.map(\.title).joined(separator: ", "))
@@ -865,24 +882,20 @@ private struct MediaServiceMenu: View {
     }
 }
 
-/// Up to three brand-colored service icons in a row — the search menu's
-/// toolbar button. Deliberately plain: earlier overlapping/masked-seam
-/// variants glitched and clipped while the row animated between selection
-/// sizes, so the icons just sit side by side.
-private struct ServiceIconRow: View {
-    let services: [MediaSearchService]
-    var diameter: CGFloat = 26
-
-    private var shown: [MediaSearchService] { Array(services.prefix(3)) }
-
-    var body: some View {
-        HStack(spacing: 0) {
-            ForEach(shown, id: \.self) { service in
-                service.iconForMusicService
-                    .foregroundStyle(service.brandColor.gradient)
-                    .frame(width: diameter, height: diameter)
-            }
+private extension View {
+    /// The field's glass for the services menu, without the field's padding,
+    /// which the menu's label carries (`toolbarBackground(with:in:)`).
+    @ViewBuilder
+    func serviceMenuGlass() -> some View {
+#if !os(visionOS)
+        if #available(iOS 26.0, *) {
+            glassEffect(.regular.interactive(), in: .capsule)
+        } else {
+            background(.thickMaterial, in: .capsule)
         }
+#else
+        background(.thickMaterial, in: .capsule)
+#endif
     }
 }
 
