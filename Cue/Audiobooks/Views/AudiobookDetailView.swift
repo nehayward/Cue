@@ -149,6 +149,7 @@ struct AudiobookDetailView: View {
                             .padding(.top, 24)
                     }
                 }
+                .readableColumn()
                 .padding(.horizontal, 20)
                 .padding(.bottom, 24)
             }

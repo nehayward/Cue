@@ -8,6 +8,7 @@ struct LargePlayerView: View {
     @AppStorage(AppStorageKeys.showArtworkOnly) private var showArtworkOnly: Bool = false
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(Router.self) var router: Router
+    @Environment(\.usesPadLayout) private var usesPadLayout
 
     // Take an ID, not a `GroupRoom`. The live group is resolved from
     // `sonosService.groups` at body time so a topology refresh (which
@@ -16,7 +17,7 @@ struct LargePlayerView: View {
     // also re-resolve at start to avoid acting on a stale instance.
     let coordinatorID: String
 
-    // ContainerLargePlayerView sets this false on iPad/Mac (regular width)
+    // ContainerLargePlayerView sets this false on iPad/Mac/iPhone Duo (regular width)
     // and hosts the ellipsis menu itself, trailing its search/browse/queue
     // toolbar buttons.
     var showsEllipsisToolbarItem: Bool = true
@@ -29,15 +30,10 @@ struct LargePlayerView: View {
     @State private var isArtworkVisible: Bool = true
     @State private var showSleepTimerCancelConfirmation: Bool = false
 
+    /// The iPad's sizes: the iPad, the Mac and an iPhone Duo opened. Vision
+    /// keeps the iPhone's.
     private var isMacCatalystOrPad: Bool {
-        if UIDevice.current.userInterfaceIdiom == .pad {
-            return true
-        }
-#if targetEnvironment(macCatalyst)
-        return true
-#else
-        return false
-#endif
+        usesPadLayout && UIDevice.current.userInterfaceIdiom != .vision
     }
 
     // Resolved fresh on every read so topology refreshes (which replace
@@ -383,13 +379,15 @@ struct GroupScenePhaseSyncModifier: ViewModifier {
 struct GroupRefreshOnForegroundModifier: ViewModifier {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.usesPadLayout) private var usesPadLayout
     @State private var refreshID = UUID()
 
     func body(content: Content) -> some View {
         content
             .id(refreshID)
             .onChange(of: scenePhase) {
-                if horizontalSizeClass != .compact, UIDevice.current.userInterfaceIdiom == .pad {
+                // The iPad, and an iPhone Duo open (`PadLayout`).
+                if horizontalSizeClass != .compact, usesPadLayout, ![.mac, .vision].contains(UIDevice.current.userInterfaceIdiom) {
                     refreshID = UUID()
                 }
             }
@@ -469,6 +467,7 @@ struct GroupPlaybackScrubber: View {
     @Bindable var group: GroupRoom
 
     @Environment(\.displayScale) private var displayScale
+    @Environment(\.usesPadLayout) private var usesPadLayout
 
     /// True while a finger is on the bar. The bar then shows the stored
     /// position as is, without running it forward, or it would creep ahead
@@ -503,7 +502,7 @@ struct GroupPlaybackScrubber: View {
             position: { isScrubbing ? room.playbackPosition : room.estimatedPlaybackPosition() }
         ) { position in
             VStack(spacing: 0) {
-                VibeSlider(value: Binding(get: { position }, set: { room.playbackPosition = $0 }), in: scrubRange, step: 100, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24, delayDrag: false, immediateDrag: true, valueAnimation: nil, onEditingChanged: scrubbingChanged)
+                VibeSlider(value: Binding(get: { position }, set: { room.playbackPosition = $0 }), in: scrubRange, step: 100, baseHeight: usesPadLayout ? 24 : 16, delayDrag: false, immediateDrag: true, valueAnimation: nil, onEditingChanged: scrubbingChanged)
                 .frame(maxWidth: 500)
                 .frame(height: 40)
                 .foregroundStyle(.primary)
@@ -692,6 +691,7 @@ struct GroupMediaControlsView: View {
 fileprivate struct BottomToolbarView: View {
     @Environment(Router.self) private var router: Router
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.usesPadLayout) private var usesPadLayout
     @Bindable var group: GroupRoom
 
     @State private var scaleAnimation: Double = -40
@@ -700,7 +700,7 @@ fileprivate struct BottomToolbarView: View {
     var body: some View {
         @Bindable var router = router
 
-        if UIDevice.current.userInterfaceIdiom == .phone || horizontalSizeClass == .compact {
+        if !usesPadLayout || horizontalSizeClass == .compact {
             HStack(spacing: 0) {
                 GroupMenuButton(group: group) {
                     router.presentedSheet = .groupScreen(group: group)

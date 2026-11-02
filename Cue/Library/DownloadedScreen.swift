@@ -43,7 +43,7 @@ struct DownloadedScreen: View {
             }
         }
         .contentMargins(.top, EdgeInsets(), for: .scrollContent)
-        .contentMargins(.horizontal, 16)
+        .librarySideMargins()
         .navigationTitle(service == nil ? "Downloads" : "Downloaded")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

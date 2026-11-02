@@ -92,6 +92,7 @@ struct AudiobookAuthorView: View {
                     }
                 }
             }
+            .readableColumn()
             .padding(.horizontal, 20)
             .padding(.bottom, 24)
         }

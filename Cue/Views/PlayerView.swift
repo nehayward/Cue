@@ -24,7 +24,8 @@ import VibesDS
 /// the title and the artist (each opening its detail), the scrubber with
 /// the audio-quality badge, the transport, the volume row with its
 /// steppers, and the bottom row: lyrics at the leading edge, the route
-/// picker in the middle and the queue at the trailing edge.
+/// picker in the middle and the queue at the trailing edge. On the Mac
+/// they're in the navigation bar instead.
 struct PlayerView: View {
     @AppStorage(AppStorageKeys.showArtworkOnly) private var showArtworkOnly: Bool = false
     /// The same key the main window's panel uses, so showing the queue here
@@ -34,6 +35,15 @@ struct PlayerView: View {
     /// Lyrics in the artwork's place, held from song to song.
     @AppStorage(AppStorageKeys.lyricsShown) private var showLyrics: Bool = false
     @Environment(\.dismiss) private var dismiss
+    /// The iPad's layout: the iPad, the Mac, and an iPhone Duo open, which
+    /// reports the phone idiom (`PadLayout`).
+    @Environment(\.usesPadLayout) private var usesPadLayout
+#if targetEnvironment(macCatalyst)
+    /// A regular-width Mac window puts the player's buttons in the
+    /// navigation bar (`PlayerToolbarButtons`); a compact one keeps the row
+    /// under the volume.
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+#endif
 
     /// The cover's own router. The main window's sheets hang off the tab
     /// content underneath this cover, so anything routed there would come
@@ -60,34 +70,29 @@ struct PlayerView: View {
     /// holds one.
     private var group: GroupRoom? { route.presentedGroup }
 
-    /// Matches `LargePlayerView`: the wide layout is for anything that isn't a
-    /// phone, Catalyst included.
+    /// Matches `LargePlayerView`: the iPad's sizes, for the iPad, the Mac and
+    /// an iPhone Duo open. Vision keeps the iPhone's.
     private var isMacCatalystOrPad: Bool {
-        if UIDevice.current.userInterfaceIdiom == .pad {
-            return true
-        }
-#if targetEnvironment(macCatalyst)
-        return true
-#else
-        return false
-#endif
+        usesPadLayout && UIDevice.current.userInterfaceIdiom != .vision
     }
 
     /// The phone's layout, after the system's Now Playing: the artwork at
     /// the top and the title and controls spread down the rest of the
-    /// screen, with bigger transport. Lyrics go full screen only here.
+    /// screen, with bigger transport. Lyrics go full screen only here: an
+    /// iPhone, and an iPhone Duo folded.
     private var isPhoneLayout: Bool {
-        UIDevice.current.userInterfaceIdiom == .phone
+        !usesPadLayout
     }
 
-    /// iPad lays the player out as the phone does (`phoneContent`), in a
-    /// bigger frame and with the lyrics in the cover's place rather than
-    /// full screen. Only the Mac keeps the tight stack.
+    /// iPad, and an iPhone Duo open, lay the player out as the phone does
+    /// (`phoneContent`), in a bigger frame and with the lyrics in the
+    /// cover's place rather than full screen. Only the Mac keeps the tight
+    /// stack.
     private var isPadLayout: Bool {
 #if targetEnvironment(macCatalyst)
         false
 #else
-        UIDevice.current.userInterfaceIdiom == .pad
+        usesPadLayout && UIDevice.current.userInterfaceIdiom != .vision
 #endif
     }
 
@@ -138,11 +143,23 @@ struct PlayerView: View {
         }
     }
 
+    /// Whether the queue panel goes inside the navigation stack, between
+    /// the player and the bar: on a phone. An iPhone Duo open draws the bar
+    /// down the trailing edge beside the status bar, and with the panel
+    /// around the stack, as on iPad, the bar ran down the player column's
+    /// edge, mid-screen, with the panel past it; inside, the panel opens
+    /// between the player and the bar, which stays at the edge. iPad's and
+    /// the Mac's bar runs along the top of the player column, beside the
+    /// panel. The idiom never changes while the app runs, so neither place
+    /// ever swaps its view.
+    private static let queuePanelInStack = UIDevice.current.userInterfaceIdiom == .phone
+
     var body: some View {
-        // The stack sits inside the queue panel, so its bar spans the player
-        // column only, and the backdrop is drawn behind both from outside.
-        // An earlier stack here lost the zoom out of the mini player; if it
-        // goes again, that's where to look.
+        // On iPad and the Mac the stack sits inside the queue panel, so its
+        // bar spans the player column only; on a phone the panel is inside
+        // the stack (`queuePanelInStack`). The backdrop is drawn behind both
+        // from outside. An earlier stack here lost the zoom out of the mini
+        // player; if it goes again, that's where to look.
         NavigationStack {
             VStack(alignment: .center) {
                 // TV mode is the one screen of its own: a soundbar on TV
@@ -179,6 +196,7 @@ struct PlayerView: View {
             // home indicator's height too high. iPad's row pads itself.
             .safeAreaPadding(.bottom, isPhoneLayout || isPadLayout ? 0 : nil)
             .ignoresSafeArea(.keyboard)
+            .playerQueuePanel(if: Self.queuePanelInStack, isPresented: $appState.showsQueuePanel)
             .toolbar { toolbarContent }
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)
@@ -194,9 +212,7 @@ struct PlayerView: View {
         // it shows and hides in place, and the artwork reflows around it —
         // and a half-height sheet on a phone, where a side panel would only
         // squeeze both halves. `QueueNextUpView` follows the route too.
-        .queuePanel(isPresented: $appState.showsQueuePanel) {
-            QueueNextUpView()
-        }
+        .playerQueuePanel(if: !Self.queuePanelInStack, isPresented: $appState.showsQueuePanel)
         .background { backdrop }
         // The speaker's socket, sleep timer and play mode, and a drop on the
         // screen, follow the route: a switch to a speaker opens its socket
@@ -635,7 +651,8 @@ struct PlayerView: View {
 
     /// No title (only a close chevron leading on the Mac), and trailing
     /// the sleep timer, the like button and the menu — up here on every size, so the bar below
-    /// is only ever about where to go.
+    /// is only ever about where to go. The Mac's bar has that row's buttons
+    /// too, ahead of them (`PlayerToolbarButtons`), and no row below.
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
 #if targetEnvironment(macCatalyst)
@@ -667,6 +684,18 @@ struct PlayerView: View {
             ToolbarItem(placement: .topBarTrailing) { chip }
 #endif
         }
+
+#if targetEnvironment(macCatalyst)
+        // A capsule of their own, ahead of the like button and the menu.
+        if horizontalSizeClass != .compact {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                PlayerToolbarButtons(group: group, showQueue: $appState.showsQueuePanel)
+            }
+            if #available(iOS 26.0, *) {
+                ToolbarSpacer(.fixed, placement: .topBarTrailing)
+            }
+        }
+#endif
 
         ToolbarItemGroup(placement: .topBarTrailing) {
             if canTranscribe {
@@ -1029,6 +1058,7 @@ private struct PlayerScrubber: View {
     private var route: PlaybackRoute { .shared }
 
     @Environment(\.displayScale) private var displayScale
+    @Environment(\.usesPadLayout) private var usesPadLayout
 
     /// Held only while dragging, so the thumb stays under the finger rather
     /// than running on with the clock — and until the seek has been sent,
@@ -1084,7 +1114,7 @@ private struct PlayerScrubber: View {
                     ),
                     in: span,
                     step: 1,
-                    baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24,
+                    baseHeight: usesPadLayout ? 24 : 16,
                     delayDrag: false,
                     immediateDrag: true,
                     valueAnimation: nil
@@ -1346,7 +1376,11 @@ private struct LocalVolumeControlView: View {
     /// instead of the system's stepped echo.
     @State private var dragging: Double?
 
-    @ScaledMetric(relativeTo: .caption) private var sliderHeight: CGFloat = UIDevice.current.userInterfaceIdiom == .phone ? 20 : 24
+    @Environment(\.usesPadLayout) private var usesPadLayout
+    @ScaledMetric(relativeTo: .caption) private var phoneSliderHeight: CGFloat = 20
+    @ScaledMetric(relativeTo: .caption) private var padSliderHeight: CGFloat = 24
+
+    private var sliderHeight: CGFloat { usesPadLayout ? padSliderHeight : phoneSliderHeight }
 
     /// One notch of the hardware buttons.
     private static let step: Double = 1.0 / 16.0
@@ -1439,19 +1473,18 @@ private struct HiddenSystemVolumeView: UIViewRepresentable {
 
 // MARK: - Bottom toolbar
 
-/// The row under the volume. On a phone and iPad it has no glass: the route
-/// picker in the middle — on a speaker its menu is the regroup menu too —
-/// and the queue on the trailing edge, and lyrics on the leading edge. The
-/// Mac's wide row adds the room volume for a group of more than one and
-/// Identify Song (iPad's is in the navigation bar). No search
-/// or browse: the window's tabs are a dismiss away on every size, and the
-/// cover's sheets only doubled them. The wide row has no queue: the Mac's
-/// is in the window toolbar. The
-/// like button and the menu live in the navigation bar on every size, so this row
-/// is only ever about where to go next.
+/// The row under the volume, with no glass: the route picker in the middle
+/// — on a speaker its menu is the regroup menu too — and the queue on the
+/// trailing edge, and lyrics on the leading edge. No search or browse: the
+/// window's tabs are a dismiss away on every size, and the cover's sheets
+/// only doubled them. The like button and the menu live in the navigation
+/// bar on every size, so this row is only ever about where to go next. A
+/// regular-width Mac window has no row: its buttons, the queue's too, are
+/// in the navigation bar (`PlayerToolbarButtons`).
 private struct PlayerBottomToolbarView: View {
     @Environment(Router.self) private var router: Router
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.usesPadLayout) private var usesPadLayout
 
     /// The group on screen, or `nil` for this device.
     let group: GroupRoom?
@@ -1475,7 +1508,7 @@ private struct PlayerBottomToolbarView: View {
         return (group ?? route.group)?.nameWithCount ?? AudioOutputName.shared.name
     }
 
-    /// The flat row everywhere but a regular-width Mac window.
+    /// The row everywhere but a regular-width Mac window.
     private var isFlatRow: Bool {
 #if targetEnvironment(macCatalyst)
         horizontalSizeClass == .compact
@@ -1493,8 +1526,6 @@ private struct PlayerBottomToolbarView: View {
     }
 
     var body: some View {
-        @Bindable var router = router
-
         if isFlatRow {
             // No glass: lyrics leading, the route picker centred and the
             // queue trailing.
@@ -1533,47 +1564,9 @@ private struct PlayerBottomToolbarView: View {
                     .accessibilityHidden(true)
             }
             .padding(.top, 14)
-            .padding(.bottom, UIDevice.current.userInterfaceIdiom == .phone ? 0 : 14)
+            .padding(.bottom, usesPadLayout ? 14 : 0)
             .padding(.horizontal, 28)
             .frame(maxWidth: 500)
-        } else {
-            // No queue button: the Mac's is in the window toolbar.
-            HStack {
-                PlaybackRouteButton()
-                    .buttonBorderShape(.roundedRectangle)
-                    .glassButton()
-                    .help("Play On")
-
-                LyricsButton()
-                    .buttonBorderShape(.roundedRectangle)
-                    .glassButton()
-
-                if let group, group.rooms.count > 1 {
-                    roomVolumeButton(group)
-                        .buttonBorderShape(.roundedRectangle)
-                        .glassButton()
-                        .withPopoverDestinations(popoverDestination: $router.volumePopover)
-                        .help("Speaker Control")
-                }
-
-                if IdentifySongButton.isAvailable(for: group) {
-                    IdentifySongButton(group: group)
-                        .buttonBorderShape(.roundedRectangle)
-                        .glassButton()
-                }
-            }
-        }
-    }
-
-    private func roomVolumeButton(_ group: GroupRoom) -> some View {
-        Button {
-            router.volumePopover = .volumeControlsScreen(groupID: group.coordinatorID)
-        } label: {
-            Label("Room Volume", systemImage: "speaker.wave.2.fill")
-                .symbolRenderingMode(.hierarchical)
-                .frame(width: 24, height: 24)
-                .labelStyle(.iconOnly)
-                .fontDesign(.rounded)
         }
     }
 
@@ -1663,6 +1656,73 @@ private struct PlayerBottomToolbarView: View {
     }
 }
 
+#if targetEnvironment(macCatalyst)
+/// The Mac's player buttons, in the navigation bar beside the like button
+/// and the menu, as Music keeps Lyrics, Up Next and AirPlay in its toolbar:
+/// Play On, lyrics (a book's transcript), the room volume for a group of
+/// more than one, Identify Song and the queue panel's show and hide. They
+/// were a glass row under the volume, which took height from the cover and
+/// the transcript, and the queue's was in a window toolbar of its own. Each
+/// its own bar item: no stack round them.
+private struct PlayerToolbarButtons: View {
+    @Environment(Router.self) private var router: Router
+
+    /// The group on screen, or `nil` for this device.
+    let group: GroupRoom?
+    @Binding var showQueue: Bool
+
+    var body: some View {
+        @Bindable var router = router
+
+        PlaybackRouteButton()
+            .help("Play On")
+            .tint(.primary)
+
+        LyricsButton()
+            .tint(.primary)
+
+        if let group, group.rooms.count > 1 {
+            Button {
+                router.volumePopover = .volumeControlsScreen(groupID: group.coordinatorID)
+            } label: {
+                Label("Room Volume", systemImage: "speaker.wave.2.fill")
+                    .symbolRenderingMode(.hierarchical)
+                    .labelStyle(.iconOnly)
+            }
+            .tint(.primary)
+            .withPopoverDestinations(popoverDestination: $router.volumePopover)
+            .help("Speaker Control")
+        }
+
+        if IdentifySongButton.isAvailable(for: group) {
+            IdentifySongButton(group: group)
+                .tint(.primary)
+        }
+
+        // The queue gauge, or for a book the bookmark with its chapter's
+        // number, whose chapters take the panel (`QueueNextUpView`).
+        let isBook = AudiobookPlayer.shared.isPlayingBook(on: PlaybackRoute.shared.presented)
+        Button {
+            withAnimation {
+                showQueue.toggle()
+            }
+        } label: {
+            Group {
+                if isBook {
+                    AudiobookChapterIconView()
+                } else {
+                    PresentedQueueIconView()
+                }
+            }
+            .foregroundStyle(showQueue ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.primary))
+        }
+        .accessibilityLabel(isBook ? (showQueue ? "Hide Chapters" : "Show Chapters") : (showQueue ? "Hide Queue" : "Show Queue"))
+        .accessibilityAddTraits(showQueue ? .isSelected : [])
+        .help(showQueue ? "Hide Queue (⌥⌘0)" : "Show Queue (⌥⌘0)")
+    }
+}
+#endif
+
 /// The queue gauge for what's on screen: this device's queue, or the
 /// speaker's while it plays from its queue. Also the mini player's queue
 /// toggle on iPad.
@@ -1695,6 +1755,9 @@ struct AudiobookChapterIconView: View {
                         .offset(y: -2)
                 }
             }
+            // As the queue gauge: the number stays in the bookmark while
+            // its row slides.
+            .geometryGroup()
     }
 }
 
@@ -1870,6 +1933,22 @@ private struct PlayerBackdrop: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .allowsHitTesting(false)
         .ignoresSafeArea()
+    }
+}
+
+private extension View {
+    /// The player's queue panel, here only when `applies`: inside the
+    /// navigation stack or around it (`PlayerView.queuePanelInStack`), one
+    /// place or the other for as long as the app runs.
+    @ViewBuilder
+    func playerQueuePanel(if applies: Bool, isPresented: Binding<Bool>) -> some View {
+        if applies {
+            queuePanel(isPresented: isPresented) {
+                QueueNextUpView()
+            }
+        } else {
+            self
+        }
     }
 }
 

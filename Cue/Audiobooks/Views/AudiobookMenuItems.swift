@@ -45,7 +45,13 @@ struct AudiobookMenuItems: View {
         if ContinueListeningRemovals.shared.isListed(book) {
             Button {
                 HapticManager.shared.fireHaptic(.selection)
-                ContinueListeningRemovals.shared.remove(book)
+                // At once, in an animation: the row goes and the card and
+                // the page below close up as the menu's preview fades out
+                // where it is (`AudiobookContinueCard`). After the menu had
+                // closed, the preview flew back into the row first.
+                withAnimation(.smooth) {
+                    ContinueListeningRemovals.shared.remove(book)
+                }
             } label: {
                 Label("Remove from Continue Listening", systemImage: "minus.circle")
             }

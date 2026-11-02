@@ -33,8 +33,11 @@ struct AudiobooksScreen: View {
     /// this as a fixed margin instead, so the tab bar shrinking as the page
     /// scrolls (`tabBarMinimizeBehavior`) doesn't move the page's bottom
     /// edge mid-scroll. On a page barely a screen tall the edge moved 56 pt
-    /// under a coast, which bounced it back: the scroll stopped dead.
+    /// under a coast, which bounced it back: the scroll stopped dead. A new
+    /// width is another layout (an iPhone Duo opened or folded, a window
+    /// resized) and starts again from its own inset (`bottomInsetWidth`).
     @State private var fullBottomInset: CGFloat = 0
+    @State private var bottomInsetWidth: CGFloat = 0
 
     /// Whether Plex had books when last asked: the shelf's copy, not
     /// `@AppStorage`, which rebuilt the tab with every UserDefaults write.
@@ -145,8 +148,16 @@ struct AudiobooksScreen: View {
             }
             .withAppRouter()
         }
-        .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { inset in
-            fullBottomInset = max(fullBottomInset, inset)
+        .onGeometryChange(for: BottomInset.self) { proxy in
+            BottomInset(width: proxy.size.width, height: proxy.size.height, inset: proxy.safeAreaInsets.bottom)
+        } action: { measured in
+            // No room at all above the inset is UIKit partway through a
+            // switch of display (`FullScreenTabBarFix`), its tab bar over
+            // the whole screen: kept as the tallest, a Duo opened carried a
+            // margin the screen's height, black past the page's end.
+            guard measured.height > 0 else { return }
+            fullBottomInset = measured.width == bottomInsetWidth ? max(fullBottomInset, measured.inset) : measured.inset
+            bottomInsetWidth = measured.width
         }
         .environment(router)
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)
@@ -154,6 +165,13 @@ struct AudiobooksScreen: View {
     }
 
     private static let recentCount = 10
+
+    /// The screen's size with its bottom safe area, for `fullBottomInset`.
+    private struct BottomInset: Equatable {
+        let width: CGFloat
+        let height: CGFloat
+        let inset: CGFloat
+    }
 
     /// Every book not finished, started or only tried, as Audible has it,
     /// less those taken out of it and not listened to since

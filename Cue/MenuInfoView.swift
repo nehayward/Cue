@@ -5,6 +5,7 @@ import Defaults
 
 struct MenuInfoView: View {
     @Environment(Router.self) var router: Router
+    @Environment(\.usesPadLayout) private var usesPadLayout
     @Environment(\.liveActivityManager) var liveActivityManager
     @State private var coreFeatures = CoreFeatures.shared
 
@@ -121,7 +122,7 @@ struct MenuInfoView: View {
                                 .symbolRenderingMode(group.isMuted ? .hierarchical : .monochrome)
                                 .contentTransition(.symbolEffect(.replace))
                                 .foregroundStyle(.primary)
-                                .frame(width: UIDevice.current.userInterfaceIdiom == .phone ? 18 : 24, height: UIDevice.current.userInterfaceIdiom == .phone ? 18 : 24, alignment: .trailing)
+                                .frame(width: usesPadLayout ? 24 : 18, height: usesPadLayout ? 24 : 18, alignment: .trailing)
                         }
                     }
                     .buttonStyle(.plain)

@@ -7,6 +7,7 @@ import MusicSearchKit
 struct ArtworkView: View {
     @Environment(AlertService.self) var alertService
     @Environment(\.displayScale) private var displayScale
+    @Environment(\.usesPadLayout) private var usesPadLayout
 
     let group: GroupRoom
     var isDraggable: Bool = false
@@ -43,7 +44,7 @@ struct ArtworkView: View {
     }
 
     var cornerRadius: CGFloat {
-        UIDevice.current.userInterfaceIdiom == .phone ? 8 : 16
+        usesPadLayout ? 16 : 8
     }
 
     fileprivate var imageIDKey: String {

@@ -27,6 +27,7 @@ import WidgetKit
 struct MusicPlaybackView: View {
     @Environment(\.tabViewBottomAccessoryPlacement) var placement
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     /// The queue panel's flag (`AppState.showsQueuePanel`), observed rather
     /// than `@AppStorage`, which ran this again on every UserDefaults write.
     @State private var appState = AppState.shared
@@ -44,12 +45,28 @@ struct MusicPlaybackView: View {
     private var route: PlaybackRoute { .shared }
     private var sonosService: SonosService { .shared }
 
+    /// The iPad's layout (`PadLayout`), from the accessory's own size
+    /// classes for the same reason as the singletons above: an iPhone Duo
+    /// open is laid out as an iPad, though it reports the phone idiom.
+    private var usesPadLayout: Bool {
+        PadLayout.isActive(horizontal: horizontalSizeClass, vertical: verticalSizeClass)
+    }
+
     var body: some View {
         let _ = ScrollStopLog.note("body accessory")
         // The buttons sit in cells of their own width, which space them, so
         // the row's own spacing is small.
         HStack(spacing: 4) {
-            nowPlayingContent
+#if targetEnvironment(macCatalyst)
+            // The Mac's bar, after Music's: the transport at the leading
+            // end, Previous too, then the song, then Play On and the queue.
+            transportButtons(includesPrevious: true)
+            trackButton
+                .padding(.horizontal, 8)
+#else
+            trackButton
+            transportButtons(includesPrevious: false)
+#endif
 
             // Present playing or not: the route is set ahead of Play, which
             // is the whole point of it no longer asking. Not in the bar
@@ -62,12 +79,10 @@ struct MusicPlaybackView: View {
                     .frame(width: Self.buttonSide)
             }
 
-            // The queue panel's show/hide on iPad, where there is no sidebar
-            // header to hold it. Only at a regular width: a compact window
-            // has no side panel to show. The Mac has it in the window
-            // toolbar and the View menu.
-#if !targetEnvironment(macCatalyst)
-            if UIDevice.current.userInterfaceIdiom == .pad, horizontalSizeClass == .regular {
+            // The queue panel's show/hide on iPad, the Mac and an iPhone Duo
+            // open. Only at a regular width: a compact window has no side
+            // panel to show. The Mac's is in the View menu too.
+            if usesPadLayout, UIDevice.current.userInterfaceIdiom != .vision, horizontalSizeClass == .regular {
                 // A book's chapters take the panel (`QueueNextUpView`).
                 let isBook = AudiobookPlayer.shared.isPlayingBook(on: route.presented)
                 Button {
@@ -98,8 +113,8 @@ struct MusicPlaybackView: View {
                 .animation(.snappy, value: appState.showsQueuePanel)
                 .accessibilityLabel(isBook ? (appState.showsQueuePanel ? "Hide Chapters" : "Show Chapters") : (appState.showsQueuePanel ? "Hide Queue" : "Show Queue"))
                 .accessibilityAddTraits(appState.showsQueuePanel ? .isSelected : [])
+                .help(appState.showsQueuePanel ? "Hide Queue (⌥⌘0)" : "Show Queue (⌥⌘0)")
             }
-#endif
         }
         .padding(.horizontal, 12)
         .frame(maxWidth: maxWidth, maxHeight: 120)
@@ -119,12 +134,14 @@ struct MusicPlaybackView: View {
         }
     }
 
-    /// iPad's bar has the room for a longer title before it scrolls.
+    /// iPad's bar, and an iPhone Duo open's, has the room for a longer
+    /// title before it scrolls. The Mac's is wider again, as Music's is,
+    /// with the transport in it as well.
     private var maxWidth: CGFloat {
 #if targetEnvironment(macCatalyst)
-        500
+        760
 #else
-        UIDevice.current.userInterfaceIdiom == .pad ? 720 : 500
+        usesPadLayout && UIDevice.current.userInterfaceIdiom != .vision ? 720 : 500
 #endif
     }
 
@@ -133,9 +150,10 @@ struct MusicPlaybackView: View {
     /// the cover, the title and artist, and the buttons, centred. How far
     /// the song has got goes round Play and Pause, as on the watch, rather
     /// than in a line of its own, which pushed the row up against the top.
-    /// The wider iPad and Mac bars keep the line under the track text.
+    /// The wider iPad, Mac and iPhone Duo open bars keep the line under the
+    /// track text.
     private var isCompact: Bool {
-        UIDevice.current.userInterfaceIdiom == .phone || horizontalSizeClass == .compact
+        !usesPadLayout || horizontalSizeClass == .compact
     }
 
     /// The cover's side: smaller in the compact bar, with its room around it.
@@ -181,22 +199,22 @@ struct MusicPlaybackView: View {
 
     // MARK: - Now playing
 
-    /// The track and its transport. The display item, not the queue row: a
-    /// station reads as the song on air here just as it does in the player.
-    /// `GroupRoom` is `@Observable`, so a speaker's pushed track and playing
-    /// state redraw this in place.
+    /// A book reads as what's left of its chapter, and skips 15 and 30 s
+    /// where a song goes to the previous and the next: a book's file is a
+    /// chapter or more. Not while a hand-off holds the row.
+    private var isBook: Bool {
+        AudiobookPlayer.shared.isPlayingBook(on: route.presented) && !route.isHolding
+    }
+
+    /// The track: the cover, the title and the line under it, opening the
+    /// player. The display item, not the queue row: a station reads as the
+    /// song on air here just as it does in the player. `GroupRoom` is
+    /// `@Observable`, so a speaker's pushed track redraws this in place.
     @ViewBuilder
-    private var nowPlayingContent: some View {
+    private var trackButton: some View {
         let controller = route.presented
         let group = controller.group
         let item = controller.nowPlayingDisplay
-        // While a hand-off holds the row on its source, the source is on its
-        // way out: the buttons rest and Play reads as it did
-        // (`HeldPlaybackController`).
-        let isPlaying = controller.isPlaying
-        // A book reads as what's left of its chapter, and skips 30 s where a
-        // song goes to the next: a book's file is a chapter or more.
-        let isBook = AudiobookPlayer.shared.isPlayingBook(on: controller) && !route.isHolding
 
         Button {
             showPlayer.toggle()
@@ -252,8 +270,43 @@ struct MusicPlaybackView: View {
         }
         .buttonStyle(.plain)
         .zoomSource(.miniPlayer, in: zoomNamespace)
+    }
+
+    /// Play and Pause and Next, with Previous ahead of them on the Mac. While
+    /// a hand-off holds the row on its source, the source is on its way out:
+    /// the buttons rest and Play reads as it did (`HeldPlaybackController`).
+    @ViewBuilder
+    private func transportButtons(includesPrevious: Bool) -> some View {
+        let controller = route.presented
+        let item = controller.nowPlayingDisplay
+        let isPlaying = controller.isPlaying
 
         if item != nil || controller.isPlaying {
+            if includesPrevious, placement != .inline, controller.showsPrevious || isBook {
+                Button {
+                    HapticManager.shared.fireHaptic(.buttonPress)
+                    if isBook {
+                        Task { await AudiobookPlayer.shared.skip(by: -AudiobookPlayer.skipBackInterval) }
+                        return
+                    }
+                    Task {
+                        await controller.previous()
+                        // As Next: this brings the speaker's new song in.
+                        if let group = controller.group {
+                            try? await sonosService.updateGroups(from: [group])
+                        }
+                    }
+                } label: {
+                    Image(systemName: isBook ? "gobackward.\(Int(AudiobookPlayer.skipBackInterval))" : "backward.fill")
+                        .frame(width: Self.buttonSide, height: Self.buttonSide)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .font(.title3)
+                .accessibilityLabel(isBook ? "Back \(Int(AudiobookPlayer.skipBackInterval)) Seconds" : "Previous")
+                .disabled(!isBook && !controller.canGoBack)
+            }
+
             Button {
                 HapticManager.shared.fireHaptic(.buttonPress)
                 Task { await controller.togglePlayback() }
@@ -626,12 +679,15 @@ struct CueApp: App {
             // and the bottom bar put the real accent back — `Color("Accent")`
             // by name, since `.accentColor` now resolves to this tint.
 //            .tint(Color.primary.opacity(0.12))
-            // The toasts ("Added to …") on iPad and the Mac, over the content
-            // column. The tab screens draw them only on the phone, so on
-            // those the menu bar's playlist commands, and every other toast
-            // outside the player and the sheets, showed nothing.
-            .withAlert(enabled: !isPhone)
-            // The queue panel, beside the whole `TabView`. Inside
+            // The toasts ("Added to …") on iPad, the Mac and an iPhone Duo
+            // open, over the content column. The tab screens draw them only
+            // in the iPhone's layout, so on those the menu bar's playlist
+            // commands, and every other toast outside the player and the
+            // sheets, showed nothing.
+            .modifier(WindowToasts())
+            // The queue panel, beside the whole `TabView` on iPad and the
+            // Mac; on a phone each tab has its own (`Screens`), so an iPhone
+            // Duo open keeps its tab bar at the trailing edge. Inside
             // `withEnvironments()`, which the panel's view reads from.
             .modifier(WindowQueuePanel())
             .withEnvironments()
@@ -665,6 +721,11 @@ struct CueApp: App {
                     .withEnvironments()
             }
             .modifier(AdaptiveTabViewStyle())
+            // The iPad's layout or the iPhone's, from the window's size
+            // classes (`PadLayout`): out here, around the toasts, the queue
+            // panel and the player's cover, which all read it. An iPhone Duo
+            // open is the iPad's, and the iPhone's again folded.
+            .withPadLayout()
             // Settings ▸ Appearance. Applied to the windows, so everything
             // presented from them follows it too.
             .onChange(of: appState.colorScheme, initial: true) { _, preference in
@@ -1325,7 +1386,7 @@ struct CueApp: App {
                             return
                         }
                         router.selectedID = group.coordinatorID
-                        if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .vision {
+                        if !PadLayout.isActive || UIDevice.current.userInterfaceIdiom == .vision {
                             router.presentedSheet = .search(group: group)
                         } else {
                             router.inspectorSheet = .search(group: group)
@@ -1334,7 +1395,7 @@ struct CueApp: App {
                     return
                 }
                 router.selectedID = group.coordinatorID
-                if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .vision {
+                if !PadLayout.isActive || UIDevice.current.userInterfaceIdiom == .vision {
                     router.presentedSheet = .search(group: group)
                 } else {
                     router.inspectorSheet = .search(group: group)
@@ -1498,6 +1559,17 @@ struct CueApp: App {
         } catch {
             alertService.showAlert(with: error.localizedDescription, imageName: "exclamationmark.triangle")
         }
+    }
+}
+
+/// The toasts at the window wherever the tab screens leave them out: the
+/// iPad's layout (`PadLayout`), which an iPhone Duo goes in and out of as
+/// it's opened and folded.
+private struct WindowToasts: ViewModifier {
+    @Environment(\.usesPadLayout) private var usesPadLayout
+
+    func body(content: Content) -> some View {
+        content.withAlert(enabled: usesPadLayout)
     }
 }
 
@@ -1767,6 +1839,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Before the tab view is built: SwiftUI's tabs handed over again
         // unchanged took Search's keyboard and stopped scrolls.
         SameTabsFilter.install()
+        // An iPhone Duo opening left the tab bar over the whole screen, and
+        // every page's bottom safe area that tall.
+        FullScreenTabBarFix.install()
         // Sonos is opt-in here. This runs before any view body or `.task` can
         // call `monitor()`, which is what would put up the Local Network
         // prompt on a device that has never seen a speaker.
@@ -1928,7 +2003,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             builder.remove(menu: .document)
 
             // View › Show/Hide Queue, ⌥⌘0 as Xcode toggles its inspector.
-            // The toolbar item does the same; this is the keyboard's way in.
+            // The mini player's and the player's queue buttons do the same;
+            // this is the keyboard's way in.
             let toggleQueueCommand = UIKeyCommand(
                 title: AppState.shared.showsQueuePanel ? "Hide Queue" : "Show Queue",
                 image: UIImage(systemName: "sidebar.trailing"),
@@ -2114,7 +2190,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 }
 
 class CueSceneDelegate: NSObject, UIWindowSceneDelegate {
-    var toolbarDelegate = ToolbarDelegate()
     #if targetEnvironment(macCatalyst)
     private var windowSizeObserver: WindowSizeObserver?
     #endif
@@ -2123,16 +2198,13 @@ class CueSceneDelegate: NSObject, UIWindowSceneDelegate {
         
 #if targetEnvironment(macCatalyst)
         if let titlebar = windowScene.titlebar {
-            // A unified toolbar across the top of the window, the way Xcode
-            // and Music have one, holding the queue toggle in its trailing
-            // corner. No title: the sidebar header names the app.
-            let toolbar = NSToolbar(identifier: "com.cue.main")
-            toolbar.delegate = toolbarDelegate
-            toolbar.displayMode = .iconOnly
-            toolbar.allowsUserCustomization = false
+            // No title and no toolbar, so the window's content runs up under
+            // the traffic lights: the sidebar header names the app, and the
+            // queue's show and hide are the mini player's and the player's
+            // own (and View ▸ Show Queue). A toolbar of the queue toggle
+            // alone gave the window a header row that held nothing else.
             titlebar.titleVisibility = .hidden
-            titlebar.toolbarStyle = .unified
-            titlebar.toolbar = toolbar
+            titlebar.toolbar = nil
         }
         
         // Floor only. The old 2000x1500 ceiling stopped the window growing
@@ -2172,115 +2244,3 @@ class CueSceneDelegate: NSObject, UIWindowSceneDelegate {
         }
     }
 }
-
-final class ToolbarDelegate: NSObject {
-    @objc func prefs(_ sender:Any) {
-        Task { @MainActor in
-            Router.main.presentedSheet = .settings()
-        }
-    }
-
-    @objc func search(_ sender:Any) {
-        Task { @MainActor in
-            Router.main.inspectorSheet = .search()
-        }
-    }
-    
-    @objc func sorting(_ sender:Any) {
-        Task { @MainActor in
-            print("HERE")
-        }
-    }
-
-    @objc func toggleQueue(_ sender: Any) {
-        Task { @MainActor in
-            AppState.shared.showsQueuePanel.toggle()
-        }
-    }
-}
-
-#if targetEnvironment(macCatalyst)
-extension NSToolbarItem.Identifier {
-    static let preferences = NSToolbarItem.Identifier("com.cue.preferences")
-    static let sorting = NSToolbarItem.Identifier("com.cue.sorting")
-    static let toggleQueue = NSToolbarItem.Identifier("com.cue.toggleQueue")
-//    static let newFolder = NSToolbarItem.Identifier("com.highcaffeinecontent.catalystexample.newfolder")
-//    static let search = NSToolbarItem.Identifier("com.cue.search")
-}
-
-
-extension ToolbarDelegate: NSToolbarDelegate {
-
-    func toolbarIdentifiers() -> [NSToolbarItem.Identifier] {
-        // Just the queue toggle, pushed to the trailing edge — Xcode's
-        // inspector button. No sidebar toggle or tracking separator: the
-        // SwiftUI tab sidebar isn't a split-view column AppKit can drive.
-        return [.flexibleSpace, .toggleQueue]
-    }
-
-    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        return toolbarIdentifiers()
-    }
-
-    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        return toolbarIdentifiers()
-    }
-
-    func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
-        if itemIdentifier == .toggleQueue {
-            let barItem = UIBarButtonItem(image: UIImage(systemName: "sidebar.trailing"), style: .plain, target: self, action: #selector(toggleQueue(_:)))
-            let item = NSToolbarItem(itemIdentifier: itemIdentifier, barButtonItem: barItem)
-            item.label = NSLocalizedString("Queue", comment: "")
-            item.accessibilityLabel = NSLocalizedString("Show or Hide Queue", comment: "")
-            item.toolTip = NSLocalizedString("Show or Hide Queue (⌥⌘0)", comment: "")
-            return item
-        }
-        if itemIdentifier == .preferences {
-            let barItem = UIBarButtonItem(image: UIImage(systemName: "switch.2"), style: .plain, target: self, action: #selector(prefs(_:)))
-            let item = NSToolbarItem(itemIdentifier: itemIdentifier, barButtonItem: barItem)
-            item.accessibilityLabel = NSLocalizedString("Settings", comment: "")
-            item.toolTip = NSLocalizedString("Settings", comment: "")
-            return item
-        }
-//        else if itemIdentifier == .search {
-//            let barItem = UIBarButtonItem(image: UIImage(systemName: "sparkle.magnifyingglass"), style: .plain, target: self, action: #selector(search))
-//            let item = NSToolbarItem(itemIdentifier: itemIdentifier, barButtonItem: barItem)
-//            item.accessibilityLabel = NSLocalizedString("Search", comment: "")
-//            item.toolTip = NSLocalizedString("Search", comment: "")
-//            return item
-//        }
-//        else if itemIdentifier == .newFolder {
-//            let barItem = UIBarButtonItem(image: UIImage(systemName: "plus"), style: .plain, target: self, action: nil)
-//            let item = NSToolbarItem(itemIdentifier: itemIdentifier, barButtonItem: barItem)
-//            item.accessibilityLabel = NSLocalizedString("TOOLBAR_NEW_FOLDER_BUTTON", comment: "")
-//            item.toolTip = NSLocalizedString("TOOLBAR_NEW_FOLDER_BUTTON", comment: "")
-//
-//            return item
-//        }
-//        else if itemIdentifier == .search {
-//
-//            if let searchItem = CATAppDelegate.appKitController?.searchToolbarItem(sceneIdentifier:scene?.session.persistentIdentifier ?? UUID().uuidString, itemIdentifier: itemIdentifier, target: self, selector: #selector(search(_:))) {
-//                return searchItem
-//            }
-////            else {
-//                return NSToolbarItem(itemIdentifier: itemIdentifier)
-////            }
-//        }
-//        else {
-//            return NSToolbarItem(itemIdentifier: itemIdentifier)
-//        }
-        
-        if itemIdentifier == .sorting {
-            let barItem = UIBarButtonItem(image: UIImage(systemName: "switch.2"), style: .plain, target: self, action: #selector(prefs(_:)))
-            let item = NSToolbarItem(itemIdentifier: itemIdentifier, barButtonItem: barItem)
-            item.accessibilityLabel = NSLocalizedString("Settings", comment: "")
-            item.toolTip = NSLocalizedString("Settings", comment: "")
-            return item
-        }
-        return NSToolbarItem(itemIdentifier: itemIdentifier)
-    }
-
-}
-#endif
-
-

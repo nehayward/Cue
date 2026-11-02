@@ -49,6 +49,14 @@ struct AudiobookContinueCard: View {
             ForEach(books.prefix(Self.shownCount)) { book in
                 AudiobookContinueRow(book: book)
                     .padding(.vertical, 8)
+                    // A book taken out goes at once, as the rows close up
+                    // over it. Taken out from its menu, the closing menu
+                    // brings its row back from the menu, drawn over whatever
+                    // the row was doing: a row left to fade was put back
+                    // whole, the card closing up under it before it faded.
+                    // With the row gone the menu's preview fades out where
+                    // it is.
+                    .transition(.asymmetric(insertion: .opacity, removal: .identity))
             }
         }
         // A book played moves to the top: the rows slide into their new

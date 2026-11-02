@@ -138,6 +138,7 @@ struct PlexCollectionsScreen: View {
 /// so it can be renamed or deleted but not edited item by item.
 struct PlexCollectionScreen: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.usesPadLayout) private var usesPadLayout
     @Environment(Router.self) private var router
     @Environment(AlertService.self) private var alertService
     @Environment(PlexBrowseService.self) private var plexBrowseService
@@ -166,15 +167,16 @@ struct PlexCollectionScreen: View {
 
     /// The cover's height, as on an album's page.
     private var heroHeight: Double {
-        UIDevice.current.userInterfaceIdiom == .phone ? 340 : 400
+        usesPadLayout ? 400 : 340
     }
 
     /// The cover's width. Edge to edge on a phone, to line up with the grid
     /// under it: the album page's 400 pt cap left it inset on a phone wider
-    /// than that. Capped on an iPad, where the full width would crop the
-    /// cover to a strip; the blurred copy fills the sides.
+    /// than that. Capped on an iPad (and an iPhone Duo open), where the full
+    /// width would crop the cover to a strip; the blurred copy fills the
+    /// sides.
     private var heroCoverWidth: CGFloat {
-        UIDevice.current.userInterfaceIdiom == .phone ? .infinity : 400
+        usesPadLayout ? 400 : .infinity
     }
 
     init(collection: PlayableContent) {

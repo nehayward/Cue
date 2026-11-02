@@ -16,7 +16,11 @@ struct VolumeControlView: View {
     /// button press in between can't make the next drag skip a level.
     @State private var lastSentVolume: Int?
 
-    @ScaledMetric(relativeTo: .caption) private var sliderHeight: CGFloat = UIDevice.current.userInterfaceIdiom == .phone ? 20 : 24
+    @Environment(\.usesPadLayout) private var usesPadLayout
+    @ScaledMetric(relativeTo: .caption) private var phoneSliderHeight: CGFloat = 20
+    @ScaledMetric(relativeTo: .caption) private var padSliderHeight: CGFloat = 24
+
+    private var sliderHeight: CGFloat { usesPadLayout ? padSliderHeight : phoneSliderHeight }
 
     var body: some View {
         HStack(alignment: .center, spacing: 0) {

@@ -240,6 +240,7 @@ struct SceneBuilderScreen: View {
 
 fileprivate struct RoomSpeakerScreen: View {
     @Environment(SonosService.self) var sonosService: SonosService
+    @Environment(\.usesPadLayout) private var usesPadLayout
     @Environment(\.dismiss) var dismiss
 
     var isEditing: Bool = false
@@ -302,7 +303,7 @@ fileprivate struct RoomSpeakerScreen: View {
                 Text("Selected Speakers")
                     .bold()
                 HStack(alignment: .center, spacing: 0) {
-                    VibeSlider(value: $groupVolume, in: 0...100, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 12 : 20)
+                    VibeSlider(value: $groupVolume, in: 0...100, baseHeight: usesPadLayout ? 20 : 12)
                         .accessibilityLabel("Scene Volume")
                         .accessibilityValue("\(Int(groupVolume.rounded())) percent")
                     Text("\(groupVolume, specifier: "%03.0f")%")

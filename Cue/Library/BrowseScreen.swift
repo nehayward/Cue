@@ -11,6 +11,7 @@ import Defaults
 struct BrowseScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.usesPadLayout) private var usesPadLayout
 
     @Environment(SonosService.self) private var sonosService
     @Environment(MusicSearchService.self) private var musicSearchService
@@ -26,7 +27,8 @@ struct BrowseScreen: View {
     @State private var isLoaded: Bool = false
     @State private var coreFeatures = CoreFeatures.shared
 
-    private var showAlert: Bool { UIDevice.current.userInterfaceIdiom == .phone }
+    /// The window draws them in the iPad's layout (`WindowToasts`).
+    private var showAlert: Bool { !usesPadLayout }
     
     var body: some View {
         // Offline, Browse leaves the tab bar and Downloads takes its place
