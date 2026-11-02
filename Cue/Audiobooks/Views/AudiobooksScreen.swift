@@ -61,77 +61,91 @@ struct AudiobooksScreen: View {
             && filesBooks.isEmpty && listened.isEmpty && downloaded.isEmpty
 
         NavigationStack(path: $router.path) {
-            // A scroll view, not a list: a list gives each of its rows one
-            // long-press menu, the first in it, so every book in the
-            // Continue Listening card or a shelf brought up the first
-            // book's menu.
-            ScrollView {
-                // A plain stack, not a lazy one: the tab is a handful of
-                // sections, each shelf lazy in its own row, and a lazy stack
-                // guessed the height of the sections out of view 100-150 pt
-                // out, then corrected it as they came in. The page's height
-                // changed under the finger at every pass of the top, which
-                // jolted the scroll or stopped it dead.
-                VStack(alignment: .leading, spacing: 0) {
-                    if !needsServer {
-                        AudiobookContinueCard(books: continuing)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                    }
-
-                    // On this device or on their way: what plays with no
-                    // network.
-                    if !downloaded.isEmpty {
-                        VStack(alignment: .leading, spacing: 0) {
-                            AudiobookSectionTitle(title: "Downloads", destination: .bookDownloads)
-                            AudiobookCoverRow(books: downloaded)
+            // The page, and over it while there's no server for books the
+            // prompt to set one up, a layer of its own rather than an
+            // overlay of the scroll view: that runs under the bars, so the
+            // prompt was padded up by `fullBottomInset`, and a keyboard (an
+            // iPad sign-in sheet's) kept as that inset pushed it under the
+            // tab bar. The stack's frame is the room between the bars, so
+            // the prompt is centred there, and a keyboard doesn't move it.
+            ZStack {
+                // A scroll view, not a list: a list gives each of its rows one
+                // long-press menu, the first in it, so every book in the
+                // Continue Listening card or a shelf brought up the first
+                // book's menu.
+                ScrollView {
+                    // A plain stack, not a lazy one: the tab is a handful of
+                    // sections, each shelf lazy in its own row, and a lazy stack
+                    // guessed the height of the sections out of view 100-150 pt
+                    // out, then corrected it as they came in. The page's height
+                    // changed under the finger at every pass of the top, which
+                    // jolted the scroll or stopped it dead.
+                    VStack(alignment: .leading, spacing: 0) {
+                        if !needsServer {
+                            AudiobookContinueCard(books: continuing)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
                         }
-                        .fontDesign(.rounded)
-                    }
 
-                    if !isOffline {
-                        AudiobookSeriesSection(
-                            plexBooks: showsPlex ? plex.all : [],
-                            shelfSeries: showsAudiobookshelf ? shelf.series : []
-                        )
-                        AudiobookCollectionsSection(collections: showsAudiobookshelf ? shelf.collections : [])
-                        libraries
-                            .fontDesign(.rounded)
-                    }
-
-                    if !finished.isEmpty {
-                        VStack(alignment: .leading, spacing: 0) {
-                            AudiobookSectionTitle(title: "Finished")
-                            ForEach(finished.prefix(Self.recentCount)) { book in
-                                AudiobookFinishedRow(book: book)
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 6)
+                        // On this device or on their way: what plays with no
+                        // network.
+                        if !downloaded.isEmpty {
+                            VStack(alignment: .leading, spacing: 0) {
+                                AudiobookSectionTitle(title: "Downloads", destination: .bookDownloads)
+                                AudiobookCoverRow(books: downloaded)
                             }
+                            .fontDesign(.rounded)
                         }
-                        .fontDesign(.rounded)
-                    }
 
-                    AudiobookWordsSection()
+                        if !isOffline {
+                            AudiobookSeriesSection(
+                                plexBooks: showsPlex ? plex.all : [],
+                                shelfSeries: showsAudiobookshelf ? shelf.series : []
+                            )
+                            AudiobookCollectionsSection(collections: showsAudiobookshelf ? shelf.collections : [])
+                            libraries
+                                .fontDesign(.rounded)
+                        }
+
+                        if !finished.isEmpty {
+                            VStack(alignment: .leading, spacing: 0) {
+                                AudiobookSectionTitle(title: "Finished")
+                                ForEach(finished.prefix(Self.recentCount)) { book in
+                                    AudiobookFinishedRow(book: book)
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 6)
+                                }
+                            }
+                            .fontDesign(.rounded)
+                        }
+
+                        AudiobookWordsSection()
+                    }
+                    // The whole width, as the lazy stack took: a plain one
+                    // hugs its sections, and with none (no server yet) the
+                    // scroll view went to nothing wide.
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                // The whole width, as the lazy stack took: a plain one
-                // hugs its sections, and with none (no server yet) the
-                // scroll view, and the sign-in prompt over it, went to
-                // nothing wide.
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .overlay {
+                // Rounded is set on each part rather than here: the outermost
+                // `.fontDesign` wins, and the book's title is New York.
+                .contentMargins(.bottom, 120 + fullBottomInset, for: .scrollContent)
+                .contentMargins(.bottom, fullBottomInset, for: .scrollIndicators)
+                .ignoresSafeArea(.all, edges: .bottom)
+                .scrollStopLog("audiobooks")
+
                 if needsServer {
-                    // Centred above the tab bar: the scroll view runs under it.
-                    serverPrompt
-                        .padding(.bottom, fullBottomInset)
+                    // Scrolling only where it doesn't fit (a phone on its
+                    // side, large type) rather than running under the bars.
+                    ViewThatFits(in: .vertical) {
+                        serverPrompt
+                        ScrollView {
+                            serverPrompt
+                                .padding(.vertical, 24)
+                        }
+                    }
                 }
             }
-            // Rounded is set on each part rather than here: the outermost
-            // `.fontDesign` wins, and the book's title is New York.
-            .contentMargins(.bottom, 120 + fullBottomInset, for: .scrollContent)
-            .contentMargins(.bottom, fullBottomInset, for: .scrollIndicators)
-            .ignoresSafeArea(.container, edges: .bottom)
-            .scrollStopLog("audiobooks")
+            .ignoresSafeArea(.keyboard, edges: .bottom)
             .navigationTitle("Audiobooks")
             // Inline, as the library tabs have it.
             .toolbarTitleDisplayMode(.inline)

@@ -52,7 +52,7 @@ struct AppearanceSettingsScreen: View {
             } header: {
                 Text("Tabs")
             } footer: {
-                Text("While you're offline, Browse and Radio hide, Audiobooks shows only books downloaded whole, and Downloads always shows.")
+                Text("While you're offline, Home and Radio hide, Audiobooks shows only books downloaded whole, and Downloads always shows.")
             }
         }
         .navigationTitle("Appearance")
