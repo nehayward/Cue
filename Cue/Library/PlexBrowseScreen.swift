@@ -41,6 +41,11 @@ struct PlexBrowseScreen: View {
         PlexLibraryLists.albumSortOptions(plexBrowseService: plexBrowseService)
     }
 
+    /// The pull to refresh on Artists and Albums, shared with their tabs.
+    private var serverListRefresh: () async -> Void {
+        PlexLibraryLists.serverListRefresh(musicSearchService: musicSearchService)
+    }
+
     /// The server and library the collections are read from.
     private var collectionSource: String {
         "\(musicSearchService.plexServerID ?? "")/\(musicSearchService.plexLibrarySelectionID ?? "")"
@@ -62,6 +67,7 @@ struct PlexBrowseScreen: View {
                     NavigationLink(value: RouterDestination.playableList(
                         title: "Artists",
                         showSectionIndex: false,
+                        refreshAction: serverListRefresh,
                         action: { offset in
                             await plexBrowseService.artists(offset: offset)
                         }
@@ -75,6 +81,7 @@ struct PlexBrowseScreen: View {
                         allowsGrid: true,
                         sortOptions: albumSortOptions,
                         sortKey: PlexLibraryLists.albumSortKey,
+                        refreshAction: serverListRefresh,
                         searchAction: { query, offset in
                             await musicSearchService.searchPlexAlbums(query: query, offset: offset)
                         }
