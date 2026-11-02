@@ -1903,8 +1903,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // hold about its chapters.
         AudiobookAudit.startIfRequested()
         #if os(iOS)
-        // Cue's log as a file the Mac can copy off the phone.
+        // Cue's log as a file the Mac can copy off the phone. Not on the
+        // Mac, whose console goes to a file already (`Scripts/mac-logs.sh`):
+        // reading the log store every 20 s cost it a core for seconds at a
+        // time.
+        #if !targetEnvironment(macCatalyst)
         PhoneLogFile.start()
+        #endif
         // `-dance.cue.logDefaultsWrites YES`: every UserDefaults write by
         // key, and who made it.
         DefaultsWriteLog.startIfRequested()

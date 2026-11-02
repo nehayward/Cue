@@ -75,9 +75,14 @@ private struct DesktopNowPlayingCard: View {
                 HStack(spacing: 12) {
                     artwork(item: item, group: group)
                     VStack(alignment: .leading, spacing: 2) {
+                        // Cut short rather than scrolled: the bar is always
+                        // on screen, and a marquee redraws every frame while
+                        // it moves. The whole title is the tooltip.
                         if let title = item?.title {
-                            MarqueeText(title)
+                            Text(title)
                                 .font(.callout.weight(.semibold))
+                                .lineLimit(1)
+                                .help(title)
                         } else {
                             Text("Not Playing")
                                 .font(.callout.weight(.semibold))
