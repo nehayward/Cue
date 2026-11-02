@@ -21,7 +21,7 @@ is in `Website/README.md`; this note is the to-do list.
   the DNS page's recommendation, which sets Cloudflare's report address.
 - [x] **www and plain http.** Both redirect to https://cue.dance from the
   Worker (`site.wwwHost`, the `www.cue.dance` route in `wrangler.toml`),
-  live from the next deploy.
+  live since 2026-11-02.
 - [ ] **Check the logo rules.** The services section shows the Apple Music
   and Plex marks (Simple Icons, `Website/src/lib/brand-marks.js`). Apple's
   identity guidelines are strict; if in doubt, swap the mark for an icon.
