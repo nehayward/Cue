@@ -504,6 +504,9 @@ struct SearchScreen: View {
                     .serviceMenuGlass()
             }
         }
+        // One height: the menu's capsule takes the field's, whatever the
+        // text's line height makes that, rather than its chips' own.
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     /// The search field: a glass capsule, with a ring in the accent while
@@ -854,8 +857,10 @@ private struct MediaServiceMenu: View {
             ServiceAvatarStack(services: displayedServices, size: 22)
                 .animation(nil, value: displayedServices)
                 // The capsule's padding, in the label so a tap anywhere on
-                // the capsule opens the menu.
+                // the capsule opens the menu, and as tall as the field
+                // beside it (`searchBar`).
                 .padding(8)
+                .frame(maxHeight: .infinity)
                 .contentShape(.capsule)
         }
         .accessibilityLabel("Search Services")
