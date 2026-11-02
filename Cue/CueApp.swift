@@ -776,7 +776,9 @@ struct CueApp: App {
                 // without it the card never appeared for speaker playback.
                 NowPlayingSessionService.shared.activate()
 #elseif targetEnvironment(macCatalyst)
+                // The Dock's menu and Cue Mini follow the player from here on.
                 DockMenuCoordinator.shared.installIfNeeded()
+                CueMiniLink.shared.start()
 #endif
             }
             //            .withAlert()

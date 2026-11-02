@@ -2,13 +2,20 @@ import Foundation
 import SonosKitMini
 import SwiftUI
 
+/// Cue Mini's menu: Cue's player first (`CueNowPlayingCard`), then the
+/// Sonos speakers, each group with its own song and volume, while Cue has
+/// Sonos switched on.
 struct GroupMenuScreen: View {
     @State private var sonosServiceMini = SonosMiniService.shared
     @State private var menuVisibilityService = MenuVisibilityService.shared
+    @State private var link = CueLink.shared
     @State private var isLoading: Bool = false
     @State private var scenes: [SonosScene] = []
     @State private var isVisible = false
     @State private var expandedGroupIDs: Set<String> = []
+    /// The player card's height, which the speaker list's room is what's
+    /// left of the screen after.
+    @State private var cardHeight: Double = 0
 
     private var filteredDeviceBindings: [Binding<SonosDevice>] {
         sonosServiceMini.sortedNowPlaying
@@ -17,6 +24,16 @@ struct GroupMenuScreen: View {
             .map { index, _ in
                 $sonosServiceMini.sortedNowPlaying[index]
             }
+    }
+
+    /// The group Cue plays on, as the speakers here know it, for its volume
+    /// in the player card: by its coordinator, or a room in it.
+    private var cueGroupBinding: Binding<SonosDevice>? {
+        guard link.showsSpeakers, let id = link.speakerGroupID,
+              let index = sonosServiceMini.devices.firstIndex(where: { device in
+                  device.id == id || device.rooms.contains { $0.id == id }
+              }) else { return nil }
+        return $sonosServiceMini.devices[index]
     }
 
     var body: some View {
@@ -28,6 +45,8 @@ struct GroupMenuScreen: View {
                 loadScenes()
                 isVisible = true
                 menuVisibilityService.setMenuVisible(true)
+                // A fresh clock from Cue, and anything missed.
+                link.send(.refresh)
             }
             .onDisappear {
                 isVisible = false
@@ -56,16 +75,18 @@ struct GroupMenuScreen: View {
     }
 
     var mainContent: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 8) {
-                ForEach(filteredDeviceBindings) { $device in
-                    GroupItemView(isVisible: $isVisible, device: $device, expandedGroupIDs: $expandedGroupIDs)
-                }
+        VStack(alignment: .leading, spacing: 12) {
+            CueNowPlayingCard(isVisible: isVisible, speakerGroup: cueGroupBinding)
+                .padding(.horizontal, 12)
+                .onGeometryChange(for: Double.self) { $0.size.height } action: { cardHeight = $0 }
+
+            if link.showsSpeakers {
+                speakers
             }
-            .padding(.horizontal, 12)
         }
-        .frame(minWidth: 400, minHeight: min(contentIdealHeight, screenMaxHeight))
-        .task {
+        .frame(minWidth: 400, alignment: .top)
+        .task(id: link.showsSpeakers) {
+            guard link.showsSpeakers else { return }
             // Single load path per popover open. Previously loadWatch ran twice
             // concurrently (a .task on the body plus this onAppear); when the
             // topology changed, both runs called disconnectAll + addPlayers and
@@ -79,47 +100,66 @@ struct GroupMenuScreen: View {
             // don't trigger a metadata event.
             await sonosServiceMini.refreshQueueTotals()
         }
-        .overlay {
-            // Scoped to the overlay on purpose. On `mainContent` this animated
-            // every row whenever isLoading flipped — and it flips in the .task
-            // that runs on the same update as onAppear, which is what made the
-            // now-playing title animate into place as the panel opened.
-            GroupMenuEmptyOverlay(isLoading: isLoading, isEmpty: filteredDeviceBindings.isEmpty)
-                .animation(.snappy, value: isLoading)
+        .safeArea(edge: .bottom) {
+            GroupMenuBottomBar(scenes: link.showsSpeakers ? scenes : [])
+        }
+    }
+
+    /// The speaker groups, after Cue's player: a section of their own,
+    /// for the rooms Cue isn't playing on as much as the one it is.
+    private var speakers: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Speakers")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 16)
+
+            if filteredDeviceBindings.isEmpty {
+                // Its own animation: on the whole menu this animated every
+                // row whenever isLoading flipped, which it does as the menu
+                // opens.
+                GroupMenuEmptyRow(isLoading: isLoading)
+                    .animation(.snappy, value: isLoading)
+            } else {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 8) {
+                        ForEach(filteredDeviceBindings) { $device in
+                            GroupItemView(isVisible: $isVisible, device: $device, expandedGroupIDs: $expandedGroupIDs)
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                }
+                .frame(minHeight: min(contentIdealHeight, max(screenMaxHeight - cardHeight, 200)))
+                .animation(.snappy, value: sonosServiceMini.devices.map(\.isPlaying))
+            }
         }
         .onChange(of: filteredDeviceBindings.map(\.wrappedValue.id)) { _, ids in
             expandedGroupIDs.formIntersection(ids)
-        }
-        .animation(.snappy, value: sonosServiceMini.devices.map(\.isPlaying))
-        .safeArea(edge: .bottom) {
-            GroupMenuBottomBar(scenes: scenes)
         }
     }
 }
 
 // MARK: - Extracted Subviews
 
-fileprivate struct GroupMenuEmptyOverlay: View {
+/// No speakers to list: still looking, or none found. Quiet, since Cue
+/// plays on this Mac without them.
+fileprivate struct GroupMenuEmptyRow: View {
     let isLoading: Bool
-    let isEmpty: Bool
 
     var body: some View {
-        if isLoading, isEmpty {
-            ProgressView()
-                .padding(.vertical)
-                .controlSize(.small)
-                .transition(.opacity)
-        } else if !isLoading, isEmpty {
-            Link(destination: URL(string: "cue://")!) {
-                Text("Sonos System not found, Launch Cue")
-                    .font(.title2)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .padding(.vertical)
+        VStack {
+            if isLoading {
+                ProgressView()
+                    .controlSize(.small)
+            } else {
+                Text("No Sonos speakers found")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .transition(.opacity)
         }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .transition(.opacity)
     }
 }
 

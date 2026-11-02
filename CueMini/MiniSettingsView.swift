@@ -47,7 +47,7 @@ struct MiniSettingsView: View {
                         }
                     }
                     
-                    Text("Pin a speaker from the main menu to prioritize it for menu bar display and keyboard shortcuts. Pinned speakers will show their track name in the menu bar and receive all media control commands.")
+                    Text("Pin a speaker from the speaker list to put it ahead of Cue's player in the menu bar and the keyboard shortcuts. A pinned speaker shows its song in the menu bar and receives all media control commands.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -61,22 +61,22 @@ struct MiniSettingsView: View {
                 
                 KeyboardShortcuts.Recorder(for: .volumeUp) {
                     Text("Volume Up")
-                    Text("Increase volume of pinned speaker (or currently playing group)")
+                    Text("Increase the volume of the pinned speaker, else the group Cue plays on, else the group playing")
                 }
                 
                 KeyboardShortcuts.Recorder(for: .volumeDown) {
                     Text("Volume Down")
-                    Text("Decrease volume of pinned speaker (or currently playing group)")
+                    Text("Decrease the volume of the pinned speaker, else the group Cue plays on, else the group playing")
                 }
                 
                 KeyboardShortcuts.Recorder(for: .nextTrack) {
                     Text("Next Track")
-                    Text("Skip to next track on pinned speaker (or currently playing speaker)")
+                    Text("Skip to the next track in Cue's player, or on the pinned speaker")
                 }
                 
                 KeyboardShortcuts.Recorder(for: .previousTrack) {
                     Text("Previous Track")
-                    Text("Go to previous track on pinned speaker (or currently playing speaker)")
+                    Text("Go to the previous track in Cue's player, or on the pinned speaker")
                 }
             }
             

@@ -22,4 +22,16 @@ protocol MacBridgeable: NSObjectProtocol {
     /// no dictionary has one. UIKit's dictionary page only opens Dictionary
     /// on the Mac, so Cue lays this out itself (`DictionaryDefinitionView`).
     func definition(of term: String) -> String?
+
+    /// Posts a distributed notification, delivered at once even to an app
+    /// in the background. A sandboxed app can send a string `object` but no
+    /// user info. Catalyst has no `DistributedNotificationCenter` of its
+    /// own; this is how Cue talks to Cue Mini (`CueMiniLink`).
+    func postDistributedNotification(named name: String, object: String?)
+
+    /// Calls `handler` on the main thread with the object of each
+    /// distributed notification named `name`, delivered even while Cue is
+    /// in the background. A second call for the same name replaces the
+    /// handler.
+    func observeDistributedNotification(named name: String, handler: @escaping (String?) -> Void)
 }

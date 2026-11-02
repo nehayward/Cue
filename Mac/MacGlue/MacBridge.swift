@@ -201,4 +201,46 @@ final class MacBridge: NSObject, MacBridgeable, @unchecked Sendable {
         guard range.length > 0, let definition = DCSCopyTextDefinition(nil, text, range) else { return nil }
         return definition.takeRetainedValue() as String
     }
+
+    // MARK: - Distributed notifications
+
+    /// The handler for each name observed.
+    private var distributedHandlers: [String: (String?) -> Void] = [:]
+
+    func postDistributedNotification(named name: String, object: String?) {
+        DistributedNotificationCenter.default().postNotificationName(
+            Notification.Name(name),
+            object: object,
+            userInfo: nil,
+            deliverImmediately: true
+        )
+    }
+
+    func observeDistributedNotification(named name: String, handler: @escaping (String?) -> Void) {
+        let isNew = distributedHandlers[name] == nil
+        distributedHandlers[name] = handler
+        guard isNew else { return }
+        // Delivered immediately: AppKit suspends distributed notifications
+        // while an app isn't active, which Cue isn't while its menu bar app
+        // is being used.
+        DistributedNotificationCenter.default().addObserver(
+            self,
+            selector: #selector(receiveDistributedNotification(_:)),
+            name: Notification.Name(name),
+            object: nil,
+            suspensionBehavior: .deliverImmediately
+        )
+    }
+
+    @objc private func receiveDistributedNotification(_ notification: Notification) {
+        let object = notification.object as? String
+        let name = notification.name.rawValue
+        if Thread.isMainThread {
+            distributedHandlers[name]?(object)
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                self?.distributedHandlers[name]?(object)
+            }
+        }
+    }
 }
