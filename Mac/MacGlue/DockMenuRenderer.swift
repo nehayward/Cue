@@ -7,26 +7,11 @@ import ObjectiveC.runtime
 ///
 /// Lives entirely inside the MacGlue bundle so the app side only sees the
 /// `DockMenuRenderable` protocol.
+///
+/// Top to bottom: where Cue plays (This Mac and each Sonos group), Sleep
+/// Timer, Playback, Volume (a group only), Now Playing, then the transport.
+/// The system adds Options, Show All Windows, Hide and Quit after it.
 final class DockMenuRenderer: NSObject, DockMenuRenderable, @unchecked Sendable {
-
-    /// Everything the menu renders from. Refreshed via `updateDockMenu`; read
-    /// by `populate` each time the dock menu is built.
-    private struct State {
-        var speakerName: String?
-        var trackTitle: String?
-        var trackArtist: String?
-        var isPlaying = false
-        var isRepeatAll = false
-        var isShuffle = false
-        var isCrossfade = false
-        var isMuted = false
-        var volume = 0
-        var favoriteSupported = false
-        var sleepMinutesRemaining = 0
-        var groupIDs: [String] = []
-        var groupNames: [String] = []
-        var selectedGroupID: String?
-    }
 
     /// Sleep-timer presets offered in the submenu, in minutes.
     private let sleepTimerPresets = [15, 30, 45, 60]
@@ -34,13 +19,14 @@ final class DockMenuRenderer: NSObject, DockMenuRenderable, @unchecked Sendable 
     // MARK: - Handlers
 
     private var dockCommandHandler: ((DockCommand) -> Void)?
-    private var switchGroupHandler: ((String) -> Void)?
+    private var switchRouteHandler: ((String) -> Void)?
     private var sleepTimerHandler: ((Int) -> Void)?
     private var menuWillOpenHandler: (() -> Void)?
 
     // MARK: - State
 
-    private var state = State()
+    private var state = DockMenuState()
+    private let decoder = JSONDecoder()
 
     // MARK: - Swizzle anchor
 
@@ -73,46 +59,17 @@ final class DockMenuRenderer: NSObject, DockMenuRenderable, @unchecked Sendable 
     /// every open (`buildDockMenu`), so this just stores — there's no live
     /// menu to mutate (the Dock snapshots the menu when `applicationDockMenu`
     /// returns and ignores later changes).
-    func updateDockMenu(
-        speakerName: String?,
-        trackTitle: String?,
-        trackArtist: String?,
-        isPlaying: Bool,
-        isRepeatAll: Bool,
-        isShuffle: Bool,
-        isCrossfade: Bool,
-        isMuted: Bool,
-        volume: Int,
-        favoriteSupported: Bool,
-        sleepMinutesRemaining: Int,
-        groupIDs: [String],
-        groupNames: [String],
-        selectedGroupID: String?
-    ) {
-        state = State(
-            speakerName: speakerName,
-            trackTitle: trackTitle,
-            trackArtist: trackArtist,
-            isPlaying: isPlaying,
-            isRepeatAll: isRepeatAll,
-            isShuffle: isShuffle,
-            isCrossfade: isCrossfade,
-            isMuted: isMuted,
-            volume: volume,
-            favoriteSupported: favoriteSupported,
-            sleepMinutesRemaining: sleepMinutesRemaining,
-            groupIDs: groupIDs,
-            groupNames: groupNames,
-            selectedGroupID: selectedGroupID
-        )
+    func updateDockMenu(_ state: Data) {
+        guard let decoded = try? decoder.decode(DockMenuState.self, from: state) else { return }
+        self.state = decoded
     }
 
     func setDockCommandHandler(_ handler: @escaping (DockCommand) -> Void) {
         dockCommandHandler = handler
     }
 
-    func setSwitchGroupHandler(_ handler: @escaping (String) -> Void) {
-        switchGroupHandler = handler
+    func setSwitchRouteHandler(_ handler: @escaping (String) -> Void) {
+        switchRouteHandler = handler
     }
 
     func setSleepTimerHandler(_ handler: @escaping (Int) -> Void) {
@@ -131,84 +88,151 @@ final class DockMenuRenderer: NSObject, DockMenuRenderable, @unchecked Sendable 
     private func buildDockMenu() -> NSMenu {
         menuWillOpenHandler?()
         let menu = NSMenu()
+        // Each item's `isEnabled` as set: left to AppKit, an item whose
+        // target answers its action is enabled whatever it says.
+        menu.autoenablesItems = false
         populate(menu)
         return menu
     }
 
-    /// Fills `menu` from the current `state`.
+    /// Fills `menu` from the current `state`, a section at a time with a
+    /// separator between each that has something in it.
     private func populate(_ menu: NSMenu) {
-        let hasSpeaker = state.speakerName != nil
-
-        // Sleep Timer submenu
-        let sleepItem = NSMenuItem(title: "Sleep Timer", action: nil, keyEquivalent: "")
-        sleepItem.submenu = makeSleepTimerSubmenu(enabled: hasSpeaker)
-        sleepItem.isEnabled = hasSpeaker
-        menu.addItem(sleepItem)
-
-        menu.addItem(.separator())
-
-        // Playback modes
-        menu.addItem(disabledLabel("Playback"))
-        menu.addItem(toggleItem(title: "Repeat", isOn: state.isRepeatAll, command: .toggleRepeat, enabled: hasSpeaker))
-        menu.addItem(toggleItem(title: "Shuffle", isOn: state.isShuffle, command: .toggleShuffle, enabled: hasSpeaker))
-        menu.addItem(toggleItem(title: "Crossfade", isOn: state.isCrossfade, command: .toggleCrossfade, enabled: hasSpeaker))
-
-        menu.addItem(.separator())
-
-        // Volume + mute. (A slider would be nicer, but dock menus don't
-        // render custom `NSMenuItem` views — only standard items, so we show
-        // the level as a disabled header above ± actions.)
-        if hasSpeaker {
-            menu.addItem(disabledLabel("Volume — \(state.volume)%"))
+        let sections: [[NSMenuItem]] = [
+            routeItems(),
+            [sleepTimerItem()],
+            playbackItems(),
+            volumeItems(),
+            nowPlayingItems(),
+            transportItems(),
+        ]
+        for section in sections where !section.isEmpty {
+            if !menu.items.isEmpty {
+                menu.addItem(.separator())
+            }
+            for item in section {
+                menu.addItem(item)
+            }
         }
-        menu.addItem(actionItem(title: "Volume Up", command: .volumeUp, enabled: hasSpeaker))
-        menu.addItem(alternateItem(title: "Volume Up (+5)", command: .volumeUpLarge, enabled: hasSpeaker))
-        menu.addItem(actionItem(title: "Volume Down", command: .volumeDown, enabled: hasSpeaker))
-        menu.addItem(alternateItem(title: "Volume Down (−5)", command: .volumeDownLarge, enabled: hasSpeaker))
-        menu.addItem(toggleItem(title: "Mute", isOn: state.isMuted, command: .toggleMute, enabled: hasSpeaker))
-        let hasAnySpeaker = !state.groupIDs.isEmpty
-        menu.addItem(actionItem(title: "Mute All Speakers", command: .muteAll, enabled: hasAnySpeaker))
-        menu.addItem(actionItem(title: "Unmute All Speakers", command: .unmuteAll, enabled: hasAnySpeaker))
-
-        menu.addItem(.separator())
-
-        // Room name doubles as the "Switch Speaker" submenu trigger.
-        let roomHeader = NSMenuItem(title: state.speakerName ?? "No Speaker Selected", action: nil, keyEquivalent: "")
-        roomHeader.submenu = makeGroupsSubmenu()
-        roomHeader.isEnabled = !state.groupIDs.isEmpty
-        menu.addItem(roomHeader)
-
-        menu.addItem(.separator())
-
-        // Now Playing: disabled label, track line, and Favorite grouped together.
-        menu.addItem(disabledLabel("Now Playing"))
-
-        let trackItem = actionItem(title: nowPlayingLine(), command: .openSpeaker, enabled: hasSpeaker)
-        trackItem.indentationLevel = 1
-        menu.addItem(trackItem)
-
-        // Favorite — the toggle command resolves the current state itself,
-        // so the item label stays a plain verb.
-        menu.addItem(actionItem(title: "Favorite", command: .toggleFavorite, enabled: hasSpeaker && state.favoriteSupported))
-
-        menu.addItem(.separator())
-
-        // Transport
-        menu.addItem(actionItem(title: state.isPlaying ? "Pause" : "Play", command: .playPause, enabled: hasSpeaker))
-        menu.addItem(actionItem(title: "Next", command: .next, enabled: hasSpeaker))
-        menu.addItem(actionItem(title: "Previous", command: .previous, enabled: hasSpeaker))
-
         // NB: Catalyst auto-appends "Options" / "Show All Windows" / "Hide" /
         // "Quit". Don't add them ourselves — that's where duplicate-block
         // bugs come from.
     }
 
-    private func makeSleepTimerSubmenu(enabled: Bool) -> NSMenu {
-        let submenu = NSMenu()
-        let active = state.sleepMinutesRemaining > 0
+    /// This Mac and each Sonos group, the one playback goes to checked. A
+    /// group the free tier can't play on carries a lock, and opens the
+    /// paywall.
+    private func routeItems() -> [NSMenuItem] {
+        state.routes.map { route in
+            let item = NSMenuItem(title: route.name, action: #selector(switchRouteFromDock(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = route.id
+            item.state = route.isCurrent ? .on : .off
+            if route.isLocked {
+                item.image = NSImage(systemSymbolName: "lock.fill", accessibilityDescription: "Cue Super")
+            }
+            return item
+        }
+    }
 
-        if active {
-            submenu.addItem(disabledLabel("Sleeps in \(state.sleepMinutesRemaining) min"))
+    private func sleepTimerItem() -> NSMenuItem {
+        let item = NSMenuItem(title: "Sleep Timer", action: nil, keyEquivalent: "")
+        item.submenu = makeSleepTimerSubmenu()
+        item.isEnabled = state.canSetSleepTimer
+        return item
+    }
+
+    /// Repeat and Shuffle while something plays from a queue (not a book),
+    /// and Crossfade on a speaker.
+    private func playbackItems() -> [NSMenuItem] {
+        var items: [NSMenuItem] = []
+        if let mode = state.repeatMode {
+            let title = switch mode {
+            case .off: "Repeat Off"
+            case .all: "Repeat All"
+            case .one: "Repeat One"
+            }
+            items.append(toggleItem(title: title, isOn: mode != .off, command: .cycleRepeat, enabled: state.canChangePlayMode))
+        }
+        if let isShuffled = state.isShuffled {
+            items.append(toggleItem(title: "Shuffle", isOn: isShuffled, command: .toggleShuffle, enabled: state.canShuffle))
+        }
+        if let isCrossfaded = state.isCrossfaded {
+            items.append(toggleItem(title: "Crossfade", isOn: isCrossfaded, command: .toggleCrossfade, enabled: true))
+        }
+        guard !items.isEmpty else { return [] }
+        return [disabledLabel("Playback")] + items
+    }
+
+    /// The group's volume and mutes. Nothing on this Mac, whose volume is
+    /// macOS's. (A slider would be nicer, but dock menus don't render custom
+    /// `NSMenuItem` views — only standard items, so the level is a disabled
+    /// header above ± actions.)
+    private func volumeItems() -> [NSMenuItem] {
+        guard let volume = state.volume else { return [] }
+        let canChange = !state.isVolumeFixed
+        var items = [
+            disabledLabel(state.isVolumeFixed ? "Volume — Fixed" : "Volume — \(volume)%"),
+            actionItem(title: "Volume Up", command: .volumeUp, enabled: canChange),
+            alternateItem(title: "Volume Up (+5)", command: .volumeUpLarge, enabled: canChange),
+            actionItem(title: "Volume Down", command: .volumeDown, enabled: canChange),
+            alternateItem(title: "Volume Down (−5)", command: .volumeDownLarge, enabled: canChange),
+            toggleItem(title: "Mute", isOn: state.isMuted, command: .toggleMute, enabled: true),
+        ]
+        if state.showsMuteAll {
+            items.append(actionItem(title: "Mute All Speakers", command: .muteAll, enabled: true))
+            items.append(actionItem(title: "Unmute All Speakers", command: .unmuteAll, enabled: true))
+        }
+        return items
+    }
+
+    /// The song (or the book and its chapter), which opens the player, and
+    /// Favorite where its service can like it.
+    private func nowPlayingItems() -> [NSMenuItem] {
+        var items = [disabledLabel("Now Playing")]
+
+        let line = state.nowPlaying.map(truncated) ?? "Not Playing"
+        let trackItem = actionItem(title: line, command: .openPlayer, enabled: state.nowPlaying != nil)
+        trackItem.indentationLevel = 1
+        items.append(trackItem)
+
+        if let note = state.nowPlayingNote {
+            let noteItem = disabledLabel(note)
+            noteItem.indentationLevel = 1
+            items.append(noteItem)
+        }
+
+        if state.showsFavorite {
+            items.append(toggleItem(title: "Favorite", isOn: state.isFavorite, command: .toggleFavorite, enabled: true))
+        }
+        return items
+    }
+
+    /// Play or Pause, then Next and Previous (a book's ±30/15 s), as Music's
+    /// own dock menu orders them.
+    private func transportItems() -> [NSMenuItem] {
+        var items = [actionItem(title: state.isPlaying ? "Pause" : "Play", command: .playPause, enabled: state.canPlay)]
+        if let next = state.nextTitle {
+            items.append(actionItem(title: next, command: .next, enabled: state.hasNext))
+        }
+        if let previous = state.previousTitle {
+            items.append(actionItem(title: previous, command: .previous, enabled: state.canGoBack))
+        }
+        return items
+    }
+
+    private func makeSleepTimerSubmenu() -> NSMenu {
+        let submenu = NSMenu()
+        submenu.autoenablesItems = false
+        let enabled = state.canSetSleepTimer
+        let endsAt = state.sleepEndsAt.flatMap { $0 > .now ? $0 : nil }
+        let active = endsAt != nil || state.sleepsAtEndOfItem
+
+        if state.sleepsAtEndOfItem {
+            submenu.addItem(disabledLabel("Sleeps at \(state.endOfItemTitle)"))
+            submenu.addItem(.separator())
+        } else if let endsAt {
+            submenu.addItem(disabledLabel("Sleeps in \(Self.timeLeft(until: endsAt))"))
             submenu.addItem(.separator())
         }
 
@@ -221,6 +245,16 @@ final class DockMenuRenderer: NSObject, DockMenuRenderable, @unchecked Sendable 
 
         submenu.addItem(.separator())
 
+        // The song's or the chapter's end: the command works out how long
+        // that is when it's chosen.
+        let endOfItem = toggleItem(
+            title: state.endOfItemTitle,
+            isOn: state.sleepsAtEndOfItem,
+            command: .sleepAtEndOfItem,
+            enabled: enabled && state.canSleepAtEndOfItem
+        )
+        submenu.addItem(endOfItem)
+
         for minutes in sleepTimerPresets {
             let title = minutes % 60 == 0 ? "\(minutes / 60) Hour" : "\(minutes) Minutes"
             let item = NSMenuItem(title: title, action: #selector(sleepTimerSelected(_:)), keyEquivalent: "")
@@ -229,45 +263,29 @@ final class DockMenuRenderer: NSObject, DockMenuRenderable, @unchecked Sendable 
             item.isEnabled = enabled
             submenu.addItem(item)
         }
-
-        // "End of Song" sets a timer for the current track's remaining time.
-        // Only meaningful while something is playing — the command resolves the
-        // exact duration itself, so it routes through the regular command path.
-        submenu.addItem(.separator())
-        submenu.addItem(actionItem(title: "End of Song", command: .sleepAtEndOfTrack, enabled: enabled && state.isPlaying))
         return submenu
     }
 
-    private func makeGroupsSubmenu() -> NSMenu {
-        let submenu = NSMenu()
-
-        // Disabled title at the top of the submenu so the chevron's intent is
-        // obvious when the parent item is just a room name.
-        submenu.addItem(disabledLabel("Switch Speaker"))
-        submenu.addItem(.separator())
-
-        for (id, name) in zip(state.groupIDs, state.groupNames) {
-            let item = NSMenuItem(title: name, action: #selector(switchGroupFromDock(_:)), keyEquivalent: "")
-            item.target = self
-            item.representedObject = id
-            item.state = (id == state.selectedGroupID) ? .on : .off
-            submenu.addItem(item)
+    /// "23 min", "1 hr 5 min", or "less than a minute", counted as the menu
+    /// opens.
+    private static func timeLeft(until date: Date) -> String {
+        let minutes = Int((date.timeIntervalSinceNow / 60).rounded(.up))
+        guard minutes > 0 else { return "less than a minute" }
+        let hours = minutes / 60
+        let rest = minutes % 60
+        switch (hours, rest) {
+        case (0, _): return "\(rest) min"
+        case (_, 0): return "\(hours) hr"
+        default: return "\(hours) hr \(rest) min"
         }
-        if state.groupIDs.isEmpty {
-            submenu.addItem(disabledLabel("No Speakers Available"))
-        }
-        return submenu
     }
 
-    private func nowPlayingLine() -> String {
-        let title = state.trackTitle?.trimmingCharacters(in: .whitespaces) ?? ""
-        let artist = state.trackArtist?.trimmingCharacters(in: .whitespaces) ?? ""
-        switch (title.isEmpty, artist.isEmpty) {
-        case (true, true): return "Nothing Playing"
-        case (false, true): return title
-        case (true, false): return artist
-        case (false, false): return "\(title) — \(artist)"
-        }
+    /// A dock menu is as wide as its longest item, and a long title with a
+    /// long artist made it a band across the screen.
+    private func truncated(_ line: String) -> String {
+        let limit = 60
+        guard line.count > limit else { return line }
+        return String(line.prefix(limit - 1)).trimmingCharacters(in: .whitespaces) + "…"
     }
 
     /// A non-interactive section header / info row.
@@ -309,24 +327,29 @@ final class DockMenuRenderer: NSObject, DockMenuRenderable, @unchecked Sendable 
     /// read back from the item's `tag`.
     @objc private func performCommand(_ sender: NSMenuItem) {
         guard let command = DockCommand(rawValue: sender.tag) else { return }
-        // "Open Speaker" deliberately brings the app forward; transport and
+        // Opening the player deliberately brings Cue forward; transport and
         // toggle commands deliberately don't — controlling playback from the
         // dock shouldn't yank Cue (and its menu bar) into the foreground.
-        if command == .openSpeaker {
-            NSApp.activate(ignoringOtherApps: true)
+        if command == .openPlayer {
+            NSApp.activate()
         }
         dockCommandHandler?(command)
     }
 
-    @objc private func switchGroupFromDock(_ sender: NSMenuItem) {
-        guard let id = sender.representedObject as? String else { return }
-        // Optimistically reflect the new selection so the next menu open is
-        // correct immediately, even before the async refresh round-trip lands.
-        if let index = state.groupIDs.firstIndex(of: id) {
-            state.selectedGroupID = id
-            state.speakerName = state.groupNames[index]
+    @objc private func switchRouteFromDock(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? String,
+              let index = state.routes.firstIndex(where: { $0.id == id }) else { return }
+        if state.routes[index].isLocked {
+            // The paywall goes up in Cue's window, so Cue comes forward.
+            NSApp.activate()
+        } else {
+            // Shows the new choice on the next open even before the app's
+            // state comes back round.
+            for i in state.routes.indices {
+                state.routes[i].isCurrent = i == index
+            }
         }
-        switchGroupHandler?(id)
+        switchRouteHandler?(id)
     }
 
     @objc private func sleepTimerSelected(_ sender: NSMenuItem) {
