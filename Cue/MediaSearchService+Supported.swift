@@ -17,4 +17,19 @@ extension MediaSearchService {
     var isSupported: Bool {
         Self.supported.contains(self)
     }
+
+    /// A line on what the service is, under its name where Cue offers it
+    /// (`ServiceChoiceRow`). Short enough to fit on one line on an iPhone,
+    /// so the rows are all one height.
+    var choiceDetail: String {
+        switch self {
+        case .apple: "Your library and the catalog."
+        case .plex: "Music and audiobooks you host."
+        case .tuneIn: "Live radio. No account needed."
+        case .subsonic: "Navidrome, Airsonic and others."
+        case .audiobookshelf: "Audiobooks you host."
+        case .files: "Audio files, here or in iCloud."
+        default: title
+        }
+    }
 }

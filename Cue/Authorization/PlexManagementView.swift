@@ -175,6 +175,15 @@ struct PlexManagementView: View {
                     Button("Done", action: dismiss.callAsFunction)
                 }
             }
+            // Signing in turns Plex on, as the Subsonic and Audiobookshelf
+            // sheets do: onboarding switches off what wasn't chosen, and a
+            // Plex signed in from the Audiobooks tab afterwards showed no
+            // books.
+            .onChange(of: plexAuthenticator.authToken) { old, new in
+                if old == nil, new != nil {
+                    CoreFeatures.shared.enabledServices(.plex).wrappedValue = true
+                }
+            }
         }
     }
 

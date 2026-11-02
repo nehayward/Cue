@@ -140,10 +140,23 @@ struct FilesManagementView: View {
     }
 
     private func chooseFolder() {
+        FilesFolderChoice.present { _ in pickError = nil }
+    }
+}
+
+/// Choosing the Files folder, from Settings' sheet or onboarding's page:
+/// the system's folder picker, then the scan, with Files switched on.
+enum FilesFolderChoice {
+    /// `chosen` hears whether a folder was taken, once the picker closes.
+    @MainActor
+    static func present(chosen: @escaping (Bool) -> Void = { _ in }) {
         guard FeatureGate.shared.unlock(.files) else { return }
+        let library = FilesLibraryService.shared
         FolderPicker.shared.present { url in
-            guard let url else { return }
-            pickError = nil
+            guard let url else {
+                chosen(false)
+                return
+            }
             library.setFolder(url)
             if let error = library.lastError {
                 AlertService.shared.showAlert(with: error, imageName: "exclamationmark.triangle")
@@ -156,6 +169,7 @@ struct FilesManagementView: View {
             // Switching it on is also what gives it a sidebar section on
             // iPad and Mac.
             CoreFeatures.shared.enabledServices(.files).wrappedValue = true
+            chosen(library.lastError == nil)
         }
     }
 }

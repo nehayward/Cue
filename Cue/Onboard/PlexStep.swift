@@ -3,8 +3,8 @@ import NukeUI
 import SonosKit
 import SwiftUI
 
-/// Onboarding's Plex setup page — only shown when Plex was found among the
-/// user's authorized Sonos services on the `ServicesStep`. Walks the user
+/// Onboarding's Plex setup page — only shown when Plex was chosen on the
+/// `ServicesStep` and isn't signed in with a library yet. Walks the user
 /// through signing into Plex, then auto-picks sensible defaults (Remote Access
 /// connection + the first music library) so the service is ready to use without
 /// forcing a trip into Preferences. The picked library is still editable from
@@ -21,17 +21,45 @@ struct PlexStep: View {
     /// shown as overlapping circles to make libraries easier to recognize.
     @State private var artworkByLibrary: [String: [URL]] = [:]
     @State private var isLoading = false
+    /// A first read of the servers has finished: until then the page shows
+    /// it loading, not "No music libraries found" for the moment before the
+    /// read starts.
+    @State private var hasLoaded = false
+    @State private var contentIn = false
+    @State private var rowsIn = false
 
     private var isAuthorized: Bool { plexAuthenticator.authToken != nil }
+
+    /// What the page shows below its header. Each comes in with a slide and
+    /// a fade, as the steps do, rather than popping in when a read finishes.
+    private enum Phase: Hashable {
+        case signIn, loading, empty, libraries
+    }
+
+    private var phase: Phase {
+        guard isAuthorized else { return .signIn }
+        if isLoading || !hasLoaded { return .loading }
+        return allLibraries.isEmpty ? .empty : .libraries
+    }
+
+    /// What leaves fades at once and what arrives slides up a beat later,
+    /// so "Loading…" isn't still on top of the libraries coming in.
+    private var phaseTransition: AnyTransition {
+        .asymmetric(
+            insertion: .opacity.combined(with: .offset(y: 28))
+                .animation(.spring(response: 0.55, dampingFraction: 0.85).delay(0.12)),
+            removal: .opacity.animation(.easeOut(duration: 0.12))
+        )
+    }
 
     /// Header copy reflects the current state so it never contradicts the body
     /// (e.g. claiming "we picked a library" while still loading or when none
     /// were found).
     private var headerSubtitle: String {
         if !isAuthorized {
-            return "Sign in with the Plex account linked to your Sonos system. Plex opens in Safari, so a saved password fills in."
+            return "Sign in to play your Plex server's music here and on your speakers. Plex opens in Safari, so a saved password fills in."
         }
-        if isLoading {
+        if phase == .loading {
             return "Getting your Plex libraries ready…"
         }
         if allLibraries.isEmpty {
@@ -60,18 +88,37 @@ struct PlexStep: View {
         VStack(spacing: 0) {
             header
 
-            if isAuthorized {
-                authorizedContent
-            } else {
-                authPrompt
+            ZStack(alignment: .top) {
+                switch phase {
+                case .signIn:
+                    authPrompt
+                        .transition(phaseTransition)
+                case .loading:
+                    loadingContent
+                        .transition(phaseTransition)
+                case .empty:
+                    emptyContent
+                        .transition(phaseTransition)
+                case .libraries:
+                    librariesContent
+                        .transition(phaseTransition)
+                }
             }
-
-            Spacer(minLength: 0)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .opacity(contentIn ? 1 : 0)
+            .offset(y: contentIn ? 0 : 24)
+            .animation(.spring(response: 0.55, dampingFraction: 0.85), value: phase)
 
             footer
+                .opacity(contentIn ? 1 : 0)
+                .offset(y: contentIn ? 0 : 24)
+                .animation(.easeInOut(duration: 0.25), value: isAuthorized)
         }
         .multilineTextAlignment(.center)
-        .onAppear { plexAuthenticator.restartMonitor() }
+        .onAppear {
+            plexAuthenticator.restartMonitor()
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) { contentIn = true }
+        }
         .onDisappear { plexAuthenticator.stopMonitor() }
         // Auth completes asynchronously via the polling monitor — when the
         // token lands, load servers and apply the default selection.
@@ -87,8 +134,9 @@ struct PlexStep: View {
 
     private var header: some View {
         VStack(spacing: 10) {
-            MediaSearchService.plex.iconForMusicService
-                .frame(width: 44, height: 44)
+            // The services page's tile, larger.
+            ServiceMarkTile(service: .plex, size: 60)
+                .environment(\.colorScheme, .dark)
                 .padding(.bottom, 4)
 
             Text("Set Up Plex")
@@ -99,6 +147,8 @@ struct PlexStep: View {
                 .font(.callout)
                 .foregroundStyle(.white.opacity(0.85))
                 .padding(.horizontal, 28)
+                .contentTransition(.opacity)
+                .animation(.easeInOut(duration: 0.3), value: headerSubtitle)
         }
         .padding(.top, 36)
         .padding(.bottom, 24)
@@ -142,48 +192,58 @@ struct PlexStep: View {
 
     // MARK: - Authorized
 
-    @ViewBuilder
-    private var authorizedContent: some View {
-        if isLoading {
-            VStack(spacing: 12) {
-                ProgressView()
-                    .tint(.white)
-                Text("Loading your Plex libraries…")
-                    .font(.callout)
-                    .foregroundStyle(.white.opacity(0.85))
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.top, 24)
-        } else if allLibraries.isEmpty {
-            VStack(spacing: 8) {
-                Text("No music libraries found")
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                Text("Make sure your Plex Media Server is online and reachable, then continue.")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.7))
-                    .padding(.horizontal, 28)
-            }
-            .padding(.top, 16)
-        } else {
-            VStack(spacing: 16) {
-                // Same connection switch used on the Plex settings screen.
-                PlexConnectionPicker(selection: connectionBinding)
-                    .environment(\.colorScheme, .dark)
-                    .padding(.horizontal, 20)
-                    .frame(maxWidth: 500)
-                    .frame(maxWidth: .infinity, alignment: .center)
-
-                libraryList
-            }
+    private var loadingContent: some View {
+        VStack(spacing: 12) {
+            ProgressView()
+                .tint(.white)
+            Text("Loading your Plex libraries…")
+                .font(.callout)
+                .foregroundStyle(.white.opacity(0.85))
         }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 24)
+    }
+
+    private var emptyContent: some View {
+        VStack(spacing: 8) {
+            Text("No music libraries found")
+                .font(.headline)
+                .foregroundStyle(.white)
+            Text("Make sure your Plex Media Server is online and reachable, then continue.")
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.7))
+                .padding(.horizontal, 28)
+        }
+        .padding(.top, 16)
+    }
+
+    private var librariesContent: some View {
+        VStack(spacing: 16) {
+            // Same connection switch used on the Plex settings screen.
+            PlexConnectionPicker(selection: connectionBinding)
+                .environment(\.colorScheme, .dark)
+                .padding(.horizontal, 20)
+                .frame(maxWidth: 500)
+                .frame(maxWidth: .infinity, alignment: .center)
+
+            libraryList
+        }
+        // The rows follow the list in, one after another.
+        .onAppear { rowsIn = true }
+        .onDisappear { rowsIn = false }
     }
 
     private var libraryList: some View {
         ScrollView {
             VStack(spacing: 10) {
-                ForEach(allLibraries, id: \.library.id) { pair in
+                ForEach(Array(allLibraries.enumerated()), id: \.element.library.id) { index, pair in
                     libraryRow(server: pair.server, library: pair.library)
+                        .opacity(rowsIn ? 1 : 0)
+                        .offset(y: rowsIn ? 0 : 18)
+                        .animation(
+                            .spring(response: 0.55, dampingFraction: 0.85).delay(0.12 + Double(index) * 0.06),
+                            value: rowsIn
+                        )
                 }
             }
             .padding(.horizontal, 20)
@@ -246,30 +306,22 @@ struct PlexStep: View {
 
     @ViewBuilder
     private var footer: some View {
-        VStack(spacing: 10) {
-            if isAuthorized {
-                PrimaryPillButton(title: "Continue", action: advance)
-            } else {
-                PrimaryPillButton(
-                    title: plexAuthenticator.isStartingSignIn ? "Opening Plex…" : "Sign In to Plex",
-                    icon: "arrow.up.forward.app",
-                    isDisabled: plexAuthenticator.isStartingSignIn
-                ) {
-                    HapticManager.shared.fireHaptic(.buttonPress)
-                    plexAuthenticator.authenticate()
-                }
-                Button(action: advance) {
-                    Text("Skip for Now")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                }
-                .foregroundStyle(.white.opacity(0.85))
-            }
+        if isAuthorized {
+            PrimaryPillButton(title: "Continue", action: advance)
+                .padding(.horizontal, 28)
+                .padding(.top, 8)
+                .padding(.bottom, 28)
+        } else {
+            // The other set-up pages' foot: Set Up Later, and where to
+            // finish it.
+            SetupPageFooter(
+                actionTitle: plexAuthenticator.isStartingSignIn ? "Opening Plex…" : "Sign In to Plex",
+                actionIcon: "arrow.up.forward.app",
+                isActionDisabled: plexAuthenticator.isStartingSignIn,
+                action: { plexAuthenticator.authenticate() },
+                later: advance
+            )
         }
-        .padding(.horizontal, 28)
-        .padding(.top, 8)
-        .padding(.bottom, 28)
     }
 
     // MARK: - Loading & default selection
@@ -315,6 +367,7 @@ struct PlexStep: View {
             musicSearchService.plexServerID = id
             musicSearchService.plexLibrarySelectionID = firstLibrary.key
         }
+        hasLoaded = true
 
         // Fetch artwork previews in the background so the library list shows
         // immediately and the circles fill in as they arrive.

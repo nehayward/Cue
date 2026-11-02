@@ -176,9 +176,9 @@ struct DiscoveryStep: View {
 
     private var headerSubtitle: String {
         switch discoveryStatus {
-        case .idle: return "Tap Continue to scan your network for Sonos."
-        case .searching: return "Looking for speakers on your Wi-Fi."
-        case .found: return "You're all set."
+        case .idle: return "Cue looks for your speakers on this Wi‑Fi. Allow Local Network access when it asks."
+        case .searching: return "Looking for speakers on your Wi‑Fi."
+        case .found: return "They’re ready to play whatever you choose."
         case .denied: return "Allow Local Network access in Settings to continue."
         case .notFound: return "Make sure your Sonos is powered on and on this Wi-Fi."
         }

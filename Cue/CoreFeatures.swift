@@ -52,23 +52,18 @@ final class CoreFeatures {
         return service != .audiobookshelf || AudiobookshelfAPI.shared.isConfigured
     }
 
-    /// Sync Cue's per-service enabled flags to whatever the user has actually
-    /// authorized in Sonos. Called from onboarding once discovery succeeds so
-    /// the user doesn't see search/browse tabs for services they can't use.
-    ///
-    /// Self-hosted services answer from their in-Cue setup. Every other
-    /// service — including Apple Music — is gated on the Sonos installed
-    /// set, because plenty of users don't subscribe to Apple Music and
-    /// would otherwise see a tab that returns no playable results.
+    /// Switches on the services chosen in onboarding and off the rest, so
+    /// Search, Browse and the tabs offer only what's in use. An Apple Music
+    /// left out is never read, and never asks for access.
     @MainActor
-    func syncEnabledServices(from installed: Set<SonosServiceType>) {
+    func enableOnly(_ chosen: Set<MediaSearchService>) {
         for service in MediaSearchService.supported {
-            setFeature(value: service.isAuthorized(on: installed), service.title)
+            setFeature(value: chosen.contains(service), service.title)
         }
     }
 
     /// Disable any service the user no longer has authorized in Sonos.
-    /// Unlike `syncEnabledServices` this never re-enables anything, so a
+    /// Unlike `enableOnly` this never re-enables anything, so a
     /// manual "off" choice survives. Called whenever the Services screen
     /// gets a fresh (non-empty) discovery result, so search/browse stop
     /// offering services that can't return playable results.
@@ -96,16 +91,11 @@ final class CoreFeatures {
         }
     }
 
-    /// Preferred default service after discovery — Apple Music first, then
-    /// Plex, then radio. Falls back to `.files` when nothing is installed
-    /// (e.g. no Sonos system found, or none of the supported services are
-    /// set up), since a folder on this device needs no account at all.
-    static func preferredDefaultService(from installed: Set<SonosServiceType>) -> MediaSearchService {
-        if installed.contains(.appleMusic) { return .apple }
-        if installed.contains(.plex) { return .plex }
-        if installed.contains(.tunein) { return .tuneIn }
-        if installed.contains(.sonosRadio) { return .sonosRadio }
-        return .files
+    /// The service Search starts on after onboarding: Apple Music first,
+    /// then the servers, then radio. Falls back to `.files`, since a folder
+    /// on this device needs no account at all.
+    static func preferredDefaultService(from chosen: Set<MediaSearchService>) -> MediaSearchService {
+        [MediaSearchService.apple, .plex, .subsonic, .tuneIn, .files].first(where: chosen.contains) ?? .files
     }
 
     private func feature(feature: FeatureKeys) -> Bool {
