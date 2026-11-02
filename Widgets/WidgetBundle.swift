@@ -12,8 +12,8 @@ import SwiftUI
 @main
 struct CueWidgetBundle: WidgetBundle {
     var body: some Widget {
-        BookShelfWidget()
         AlbumShelfWidget()
         DiscographyWidget()
+        BookShelfWidget()
     }
 }

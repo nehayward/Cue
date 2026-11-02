@@ -1,0 +1,30 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "website",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "Website",
+        "run",
+        "dev"
+      ],
+      "port": 8787
+    },
+    {
+      "name": "website-branch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "/Users/nick/Developer/Cue-website/Website",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "8788"
+      ],
+      "port": 8788
+    }
+  ]
+}
