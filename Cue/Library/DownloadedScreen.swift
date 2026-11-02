@@ -48,7 +48,9 @@ struct DownloadedScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if managesDownloads {
-                ToolbarItem(placement: .primaryAction) {
+                // Top left on the tab, where every Browse page has its gear;
+                // a provider's page pushed here has Back there instead.
+                ToolbarItem(placement: service == nil ? .topBarLeading : .primaryAction) {
                     Button {
                         router.navigate(to: .downloads)
                     } label: {
