@@ -392,19 +392,6 @@ struct CueApp: App {
     
 #if targetEnvironment(macCatalyst)
     private var menuAppLaunchAtLoginManager = MenuAppLaunchAtLoginManager.shared
-
-    /// Composite key driving `.task(id:)` for the dock menu. Reading these
-    /// properties during body eval registers SwiftUI observation, so any
-    /// change re-fires the refresh task.
-    private var dockRefreshKey: DockMenuCoordinator.RefreshKey {
-        let group = router.selectedID.flatMap { id in sonosService.sorted.first(where: { $0.coordinatorID == id }) }
-        return .init(
-            selectedGroupID: router.selectedID,
-            trackUnique: group?.coordinatorRoom.track.unique,
-            isPlaying: group?.coordinatorRoom.isPlaying ?? false,
-            availableGroupIDs: sonosService.sorted.map { $0.coordinatorID }
-        )
-    }
 #endif
     
     /// Shared by the zoom's two halves: the source in the tab bar accessory and
@@ -773,6 +760,8 @@ struct CueApp: App {
                 // was lost with the rest of the old launch block below, and
                 // without it the card never appeared for speaker playback.
                 NowPlayingSessionService.shared.activate()
+#elseif targetEnvironment(macCatalyst)
+                DockMenuCoordinator.shared.installIfNeeded()
 #endif
             }
             //            .withAlert()

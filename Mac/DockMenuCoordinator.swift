@@ -1,91 +1,136 @@
 #if targetEnvironment(macCatalyst)
+import Defaults
 import Foundation
-import MusicSearchKit
+import Observation
 import SonosKit
 import UIKit
 
-/// Glue between Cue's services and the MacGlue dock menu. Owns:
-///   • dock menu state pushes  (refresh on selection / playback changes)
-///   • dock command handling   (play/pause, mute, repeat, favorite, etc.)
-///   • switch-speaker routing  (updates `Router.selectedID`)
+/// Glue between Cue's player and the MacGlue dock menu, whose right-click
+/// menu controls whatever the player shows (`PlaybackRoute.presented`): this
+/// Mac or a Sonos group, as the mini player and the player do.
 ///
-/// One instance, installed once from CueApp's `.onAppear`. Subsequent
-/// `refresh()` calls are cheap.
+///   • the menu's state, built from the player and pushed to the bundle
+///     whenever what it reads changes (`withObservationTracking`), since the
+///     swizzled `applicationDockMenu(_:)` builds the menu synchronously and
+///     can't wait for anything
+///   • its commands: transport (a book's ±15/30 s), play mode, the sleep
+///     timer, a group's volume and mutes, Favorite
+///   • its route list: This Mac and each Sonos group, switched as Play On
+///     switches, the free tier's locks included
+///
+/// One instance, installed once from CueApp's `.onAppear`.
 @MainActor
 final class DockMenuCoordinator {
     static let shared = DockMenuCoordinator()
 
-    /// Composite identifier for `.task(id:)` in CueApp. Reading any of these
-    /// fields triggers SwiftUI observation, so a change to selection,
-    /// playback state, track, or the available speaker list all re-fire the
-    /// refresh task — and the previous in-flight refresh is auto-cancelled.
-    struct RefreshKey: Hashable {
-        let selectedGroupID: String?
-        let trackUnique: String?
-        let isPlaying: Bool
-        let availableGroupIDs: [String]
-    }
-
     private var dockMenu: DockMenuRenderable?
-    private weak var router: Router?
-    private var sonosService: SonosService?
-    private var refreshTask: Task<Void, Never>?
+    /// The state last pushed, so an unchanged one isn't sent again.
+    private var lastState: DockMenuState?
+    /// The coalesced rebuild after a change, while one is waiting.
+    private var pendingRefresh: Task<Void, Never>?
     private var pollTask: Task<Void, Never>?
+    /// The group whose crossfade was last asked for.
+    private var crossfadeAsked: ObjectIdentifier?
+    private let encoder = JSONEncoder()
+
+    private var route: PlaybackRoute { .shared }
+    private var sonos: SonosService { .shared }
+    private var books: AudiobookPlayer { .shared }
 
     private init() {}
 
-    /// Wire the coordinator to the bundle's dock menu surface and Cue's
-    /// services. Call once after MacGlue is loaded.
-    func install(bridge: MacBridgeable, router: Router, sonosService: SonosService) {
-        // `.onAppear` can fire more than once (window close/reopen, scene
-        // changes). Installing again would re-swizzle `applicationDockMenu`
-        // — leaking the previous block-backed IMP — and re-register every
-        // handler, so wire up exactly once.
-        guard dockMenu == nil else { return }
+    /// Wires the dock menu to the player, once: `.onAppear` fires again as
+    /// windows close and open, and installing again would swizzle
+    /// `applicationDockMenu` again and leak the block before it. Nothing
+    /// without the MacGlue bundle.
+    func installIfNeeded() {
+        guard dockMenu == nil, let dockMenu = MenuAppLaunchAtLoginManager.shared.bridge?.dockMenu else { return }
+        self.dockMenu = dockMenu
 
-        self.dockMenu = bridge.dockMenu
-        self.router = router
-        self.sonosService = sonosService
+        dockMenu.setupDockMenu()
+        dockMenu.setDockCommandHandler { [weak self] command in
+            Task { @MainActor [weak self] in
+                await self?.execute(command)
+            }
+        }
+        dockMenu.setSwitchRouteHandler { [weak self] id in
+            Task { @MainActor [weak self] in
+                self?.switchRoute(to: id)
+            }
+        }
+        dockMenu.setSleepTimerHandler { [weak self] minutes in
+            Task { @MainActor [weak self] in
+                await self?.setSleepTimer(minutes: minutes)
+            }
+        }
+        dockMenu.setMenuWillOpenHandler { [weak self] in
+            // The menu showing now is drawn from the cache; this only reads
+            // what nothing follows live, for the next open.
+            Task { @MainActor [weak self] in
+                await self?.readOnOpen()
+            }
+        }
+        observe()
+    }
 
-        dockMenu?.setupDockMenu()
-        dockMenu?.setDockCommandHandler { [weak self] command in
-            self?.handle(command: command)
+    // MARK: - Keeping the menu current
+
+    /// Builds the state, pushes it if it changed, and watches everything it
+    /// read: any change rebuilds it, a quarter second later so a burst (a
+    /// new song lands as several writes) is one rebuild.
+    private func observe() {
+        let state = withObservationTracking {
+            makeState()
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.scheduleRefresh()
+            }
         }
-        dockMenu?.setSwitchGroupHandler { [weak self] id in
-            self?.router?.selectedID = id
-            // Refresh straight away so the menu reflects the new speaker on
-            // the next open — without waiting for the 5s background poll.
-            Task { @MainActor in await self?.refresh() }
-        }
-        dockMenu?.setSleepTimerHandler { [weak self] minutes in
-            self?.handleSleepTimer(minutes)
-        }
-        dockMenu?.setMenuWillOpenHandler { [weak self] in
-            // Non-blocking nudge: refresh the cache when the menu opens so
-            // it's current for the *next* open. The menu shown right now is
-            // built synchronously from cache — kept warm by
-            // `startBackgroundRefresh()` while the window is closed.
-            //
-            // We can't refresh synchronously here: SonosKit's
-            // `getCurrentTrack` is `@MainActor`, so blocking the main thread
-            // to wait for the fetch deadlocks.
-            Task { @MainActor in await self?.refresh() }
+        push(state)
+        readCrossfadeIfUnknown()
+    }
+
+    /// A group's crossfade is known only once something has asked (the
+    /// player does as it opens), and the menu would show it off until then.
+    /// Asked once a group: a topology refresh makes new groups, which ask
+    /// again.
+    private func readCrossfadeIfUnknown() {
+        guard let group = route.presented.group, !route.isHolding, group.isCrossfaded == nil,
+              crossfadeAsked != ObjectIdentifier(group) else { return }
+        crossfadeAsked = ObjectIdentifier(group)
+        Task {
+            if let crossfaded = await sonos.isCrossfaded(for: group), group.isCrossfaded == nil {
+                group.isCrossfaded = crossfaded
+            }
         }
     }
 
-    // MARK: - Background polling
+    private func scheduleRefresh() {
+        guard pendingRefresh == nil else { return }
+        pendingRefresh = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(250))
+            guard let self else { return }
+            pendingRefresh = nil
+            observe()
+        }
+    }
 
-    /// While the Mac window is closed, monitoring (`sonosPulse` / `watcher`)
-    /// is cancelled for performance, so the cached model freezes. The dock
-    /// menu is built synchronously from that cache — `applicationDockMenu`
-    /// can't await — so we keep the cache warm with a slow poll of the
-    /// selected group. Started / stopped by CueApp on scene-phase changes.
+    private func push(_ state: DockMenuState) {
+        guard state != lastState, let dockMenu, let data = try? encoder.encode(state) else { return }
+        lastState = state
+        dockMenu.updateDockMenu(data)
+    }
+
+    /// Kept for `CueApp.handleScenePhase`. While Cue is off screen with
+    /// Sonos monitoring stopped, nothing writes a speaker's state into the
+    /// model the menu follows, so a slow read of the group being heard keeps
+    /// it current. It does nothing while monitoring runs, or on this Mac.
     func startBackgroundRefresh() {
         guard pollTask == nil else { return }
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
-                await self?.refresh()
-                try? await Task.sleep(for: .seconds(5))
+                await self?.refreshSpeakerIfUnmonitored()
+                try? await Task.sleep(for: .seconds(10))
             }
         }
     }
@@ -95,277 +140,400 @@ final class DockMenuCoordinator {
         pollTask = nil
     }
 
-    /// Refreshes the dock-menu cache once. Driven by `.task(id:)` while the
-    /// window is open, by the background poll while it's closed, and after a
-    /// dock command. Cancels any in-flight refresh so the latest call wins.
-    func refresh() async {
-        refreshTask?.cancel()
-        let task = Task { [weak self] in
-            guard let self else { return }
-            await self.performRefresh()
+    private func refreshSpeakerIfUnmonitored() async {
+        guard !sonos.allowsMonitoring, let group = route.audibleGroup else { return }
+        try? await sonos.updateGroups(from: [group])
+    }
+
+    /// As the menu opens: what the monitor doesn't read (a timer set or
+    /// called off from elsewhere, whether the song is a favorite), read now
+    /// so the next open has it, as the player reads them as it opens. The
+    /// model's observers rebuild the menu.
+    private func readOnOpen() async {
+        await refreshSpeakerIfUnmonitored()
+        if let group = route.presented.group, !route.isHolding {
+            await sonos.getSleepTimer(group: group)
         }
-        refreshTask = task
-        await task.value
+        if let target = favoriteTarget(), LiveActivityFavoriteStore.shared.favorites[target.trackID] == nil {
+            // Records what it reads in the store the menu draws from.
+            _ = await MusicSearchService.shared.isFavorite(trackID: target.trackID, service: target.service)
+        }
     }
 
-    private func performRefresh() async {
-        guard let dockMenu, let router, let sonosService else { return }
+    // MARK: - The state
 
-        let id = router.selectedID
-        let group = id.flatMap { id in sonosService.sorted.first(where: { $0.coordinatorID == id }) }
-        let allGroups = sonosService.sorted
-        let snapshot = await snapshot(for: group)
-        if Task.isCancelled { return }
-        push(snapshot, allGroups: allGroups, selectedID: id, to: dockMenu)
+    /// A book's file is a chapter or more, so a book skips 15 and 30 s where
+    /// a song goes to the previous and the next (`MusicPlaybackView`). Not
+    /// while a hand-off holds the player.
+    private var isBook: Bool {
+        books.isPlayingBook(on: route.presented) && !route.isHolding
     }
 
-    /// Forwards a snapshot + group list to the renderer. Pure plumbing.
-    private func push(_ snapshot: Snapshot, allGroups: [GroupRoom], selectedID: String?, to dockMenu: DockMenuRenderable) {
-        dockMenu.updateDockMenu(
-            speakerName: snapshot.speakerName,
-            trackTitle: snapshot.trackTitle,
-            trackArtist: snapshot.trackArtist,
-            isPlaying: snapshot.isPlaying,
-            isRepeatAll: snapshot.isRepeatAll,
-            isShuffle: snapshot.isShuffle,
-            isCrossfade: snapshot.isCrossfade,
-            isMuted: snapshot.isMuted,
-            volume: snapshot.volume,
-            favoriteSupported: snapshot.favoriteSupported,
-            sleepMinutesRemaining: snapshot.sleepMinutesRemaining,
-            groupIDs: allGroups.map { $0.coordinatorID },
-            groupNames: allGroups.map { $0.nameWithCount },
-            selectedGroupID: selectedID
-        )
-    }
+    private func makeState() -> DockMenuState {
+        let controller = route.presented
+        let item = controller.nowPlayingDisplay
+        let isBook = isBook
+        var state = DockMenuState()
 
-    // MARK: - State snapshot
+        state.routes = routes()
 
-    private struct Snapshot {
-        var speakerName: String?
-        var trackTitle: String?
-        var trackArtist: String?
-        var isPlaying = false
-        var isRepeatAll = false
-        var isShuffle = false
-        var isCrossfade = false
-        var isMuted = false
-        var volume = 0
-        var favoriteSupported = false
-        var sleepMinutesRemaining = 0
-    }
+        // Sleep timer, on whichever route; End of Chapter for a book.
+        state.canSetSleepTimer = controller.isActive && item != nil
+        state.sleepEndsAt = controller.sleepTimerEndDate
+        state.endOfItemTitle = isBook ? "End of Chapter" : "End of Song"
+        state.canSleepAtEndOfItem = isBook || controller.duration > 0
+        state.sleepsAtEndOfItem = isBook ? books.sleepsAt != nil : controller.sleepsAtEndOfTrack
 
-    /// Fetches the current track + playback state from the device.
-    ///
-    /// Only track + playback are fetched live; the toggle states and sleep
-    /// timer are read from the cached `group` model — they change rarely, and
-    /// fetching them would add round-trips to every poll. Favorite state is
-    /// skipped here (an internet round-trip) — the menu always shows
-    /// "Favorite" and the toggle command re-checks the real state itself.
-    private func snapshot(for group: GroupRoom?) async -> Snapshot {
-        guard let group, let sonosService else { return Snapshot() }
-        let ip = group.coordinatorRoom.ip
-
-        let track = await sonosService.getTrack(ip: ip) ?? group.coordinatorRoom.track
-        let isPlaying = (await sonosService.getPlaybackInfo(ip: ip)) == .playing
-        let mode = group.playMode
-        let service = track.musicService
-
-        let sleepMinutes: Int = {
-            guard let endsAt = group.coordinatorRoom.sleepTimer else { return 0 }
-            return max(0, Int(endsAt.timeIntervalSinceNow / 60))
-        }()
-
-        return Snapshot(
-            speakerName: group.nameWithCount,
-            trackTitle: track.song,
-            trackArtist: track.artist,
-            isPlaying: isPlaying,
-            isRepeatAll: mode.isRepeatAllEnabled,
-            isShuffle: mode.isShuffleEnabled,
-            isCrossfade: group.isCrossfaded ?? false,
-            isMuted: group.isMuted,
-            volume: Int(group.coordinatorRoom.volume.rounded()),
-            favoriteSupported: !track.trackID.isEmpty && [.apple, .spotify, .soundcloud].contains(service),
-            sleepMinutesRemaining: sleepMinutes
-        )
-    }
-
-    // MARK: - Sleep timer
-
-    /// Selected group, resolved from the current router state.
-    private var selectedGroup: GroupRoom? {
-        guard let sonosService, let id = router?.selectedID else { return nil }
-        return sonosService.sorted.first { $0.coordinatorID == id }
-    }
-
-    private func handleSleepTimer(_ minutes: Int) {
-        guard let sonosService, let group = selectedGroup else { return }
-        Task { @MainActor in
-            if minutes <= 0 {
-                await sonosService.stopSleepTimer(group: group)
-            } else {
-                await sonosService.sleepTimer(group: group, duration: .seconds(minutes * 60))
+        // Playback. A book has no shuffle or repeat, as in the player.
+        if item != nil, !isBook {
+            let repeatMode: DockMenuState.RepeatMode = switch controller.repeatMode {
+            case .off: .off
+            case .all: .all
+            case .one: .one
             }
-            await self.refresh()
+            state.repeatMode = repeatMode
+            state.isShuffled = controller.isShuffled
+            state.canChangePlayMode = controller.isActive
+            // As the player's menu: nothing to shuffle with one song left.
+            state.canShuffle = controller.isActive
+                && (controller.group != nil || controller.isShuffled || LocalPlaybackService.shared.upNextCount >= 2)
+        }
+        if let group = controller.group, !route.isHolding {
+            state.isCrossfaded = group.isCrossfaded ?? false
+        }
+
+        // Volume: the group being heard, as the hardware buttons have it.
+        // Nothing on this Mac, whose volume is macOS's.
+        if let group = route.audibleGroup {
+            state.volume = Int(group.groupVolume.rounded())
+            state.isVolumeFixed = group.coordinatorRoom.isOutputFixed
+            state.isMuted = group.isMuted
+            state.showsMuteAll = FeatureGate.shared.isAvailable(.allRooms) && activeGroups.count > 1
+        }
+
+        // Now Playing.
+        if isBook, let book = books.current {
+            state.nowPlaying = Self.line(book.book.title, books.currentChapter?.title ?? book.book.subtitle)
+        } else if let item {
+            // The artist alone where it's known: a speaker's subtitle is
+            // "Artist • Album".
+            let artist = item.metadata?.artist.flatMap { $0.isEmpty ? nil : $0 }
+            state.nowPlaying = Self.line(item.title, artist ?? item.subtitle)
+        }
+        if route.isHolding {
+            state.nowPlayingNote = "Moving to \(route.group?.nameWithCount ?? "This Mac")…"
+        }
+        if let target = favoriteTarget() {
+            state.showsFavorite = true
+            state.isFavorite = LiveActivityFavoriteStore.shared.favorites[target.trackID] ?? false
+        }
+
+        // Transport.
+        state.isPlaying = controller.isPlaying
+        state.canPlay = controller.isActive
+        if isBook {
+            state.previousTitle = "Back \(Int(AudiobookPlayer.skipBackInterval)) Seconds"
+            state.canGoBack = true
+            state.nextTitle = "Forward \(Int(AudiobookPlayer.skipForwardInterval)) Seconds"
+            state.hasNext = true
+        } else {
+            // A live station has nothing to go back or on to.
+            state.previousTitle = controller.showsPrevious ? "Previous" : nil
+            state.canGoBack = controller.canGoBack && item != nil
+            state.nextTitle = controller.showsNext ? "Next" : nil
+            state.hasNext = controller.hasNext
+        }
+        return state
+    }
+
+    /// The Sonos groups that can play, by name as Play On lists its rooms
+    /// (the service's own sort can put whatever plays first).
+    private var activeGroups: [GroupRoom] {
+        sonos.groups
+            .filter(\.isActive)
+            .sorted { $0.coordinatorRoom.name.localizedStandardCompare($1.coordinatorRoom.name) == .orderedAscending }
+    }
+
+    /// This Mac and each group, the route checked. None while no speaker
+    /// can be reached (Sonos off, no Wi‑Fi) or none is found: This Mac on
+    /// its own would be a list of one.
+    private func routes() -> [DockMenuState.Route] {
+        guard sonos.isAvailable else { return [] }
+        let groups = activeGroups
+        guard !groups.isEmpty else { return [] }
+        let gate = FeatureGate.shared
+        let destination = route.destination
+        let device = DockMenuState.Route(
+            id: DockMenuState.deviceRouteID,
+            name: "This Mac",
+            isCurrent: destination == .device,
+            isLocked: gate.needsSuper(.onDevicePlayback)
+        )
+        return [device] + groups.map { group in
+            DockMenuState.Route(
+                id: group.coordinatorID,
+                name: group.nameWithCount,
+                isCurrent: destination.groupID == group.coordinatorID,
+                isLocked: !gate.isGroupUnlocked(group.coordinatorID)
+            )
         }
     }
 
-    // MARK: - Command handling
-
-    private func handle(command: DockCommand) {
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            await self.execute(command: command)
-            await self.refresh()
+    /// "Title — Artist", either alone when the other is empty.
+    private static func line(_ title: String, _ detail: String) -> String? {
+        let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let detail = detail.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch (title.isEmpty, detail.isEmpty) {
+        case (true, true): return nil
+        case (false, true): return title
+        case (true, false): return detail
+        case (false, false): return "\(title) — \(detail)"
         }
     }
 
-    private func execute(command: DockCommand) async {
-        guard let sonosService, let router else { return }
-        let id = router.selectedID
-        let group = id.flatMap { id in sonosService.sorted.first(where: { $0.coordinatorID == id }) }
+    /// The song Favorite likes, as the player's like button has it: a
+    /// speaker's track, or this Mac's song (the one on air, for a station
+    /// Apple Music knows). Nil where its service can't like it, for a book,
+    /// and through a hand-off.
+    private func favoriteTarget() -> (trackID: String, service: MusicService)? {
+        guard !route.isHolding, !isBook else { return nil }
+        let controller = route.presented
+        if let group = controller.group {
+            let track = group.coordinatorRoom.track
+            guard !track.trackID.isEmpty, track.musicService.supportsFavoriteTrack else { return nil }
+            return (track.trackID, track.musicService)
+        }
+        let local = LocalPlaybackService.shared
+        if let song = local.onAirMatch {
+            return (song.id, song.content.service)
+        }
+        guard let item = local.nowPlaying, !item.content.type.isRadio,
+              item.content.service.supportsFavoriteTrack else { return nil }
+        return (item.id, item.content.service)
+    }
 
+    // MARK: - Commands
+
+    private func execute(_ command: DockCommand) async {
+        let controller = route.presented
         switch command {
         case .playPause:
-            guard let group else { return }
-            await sonosService.togglePlayback(ip: group.coordinatorRoom.ip)
+            await controller.togglePlayback()
 
         case .next:
-            guard let group else { return }
-            await sonosService.next(ip: group.coordinatorRoom.ip)
-
-        case .previous:
-            guard let group else { return }
-            await sonosService.previous(ip: group.coordinatorRoom.ip)
-
-        case .volumeUp:
-            guard let group else { return }
-            await sonosService.setRelativeGroupVolume(ip: group.coordinatorRoom.ip, volume: 1)
-            // Optimistically mirror into the cached model — monitoring is
-            // paused while the window is closed, so the next snapshot would
-            // otherwise show a stale level.
-            group.coordinatorRoom.volume = min(100, group.coordinatorRoom.volume + 1)
-
-        case .volumeDown:
-            guard let group else { return }
-            await sonosService.setRelativeGroupVolume(ip: group.coordinatorRoom.ip, volume: -1)
-            group.coordinatorRoom.volume = max(0, group.coordinatorRoom.volume - 1)
-
-        case .volumeUpLarge:
-            guard let group else { return }
-            await sonosService.setRelativeGroupVolume(ip: group.coordinatorRoom.ip, volume: 5)
-            group.coordinatorRoom.volume = min(100, group.coordinatorRoom.volume + 5)
-
-        case .volumeDownLarge:
-            guard let group else { return }
-            await sonosService.setRelativeGroupVolume(ip: group.coordinatorRoom.ip, volume: -5)
-            group.coordinatorRoom.volume = max(0, group.coordinatorRoom.volume - 5)
-
-        case .toggleRepeat:
-            guard let group else { return }
-            let mode = await sonosService.playMode(ip: group.coordinatorRoom.ip)
-            let next = mode.isRepeatAllEnabled
-                ? mode.subtracting(.repeatAll)
-                : mode.union(.repeatAll).subtracting(.repeatOne)
-            await sonosService.setPlayMode(group.coordinatorRoom.ip, mode: next)
-            group.playMode = next
-
-        case .toggleShuffle:
-            guard let group else { return }
-            let mode = await sonosService.playMode(ip: group.coordinatorRoom.ip)
-            let next = mode.symmetricDifference(.shuffle)
-            await sonosService.setPlayMode(group.coordinatorRoom.ip, mode: next)
-            group.playMode = next
-
-        case .toggleCrossfade:
-            guard let group else { return }
-            let current = await sonosService.isCrossfaded(for: group) ?? group.isCrossfaded ?? false
-            await sonosService.setCrossfade(group: group, enabled: !current)
-
-        case .toggleMute:
-            guard let group else { return }
-            let current = await sonosService.isMuted(for: group) ?? group.isMuted
-            await sonosService.setGroupMute(group: group, mute: !current)
-
-        case .muteAll:
-            await withTaskGroup(of: Void.self) { taskGroup in
-                for group in sonosService.sorted {
-                    taskGroup.addTask {
-                        await sonosService.setGroupMute(group: group, mute: true)
-                    }
-                }
+            if isBook {
+                await books.skip(by: AudiobookPlayer.skipForwardInterval)
+                return
+            }
+            await controller.next()
+            // As the mini player's Next: this brings the speaker's new song
+            // in with nothing on screen listening.
+            if let group = controller.group {
+                try? await sonos.updateGroups(from: [group])
             }
 
-        case .unmuteAll:
-            await withTaskGroup(of: Void.self) { taskGroup in
-                for group in sonosService.sorted {
-                    taskGroup.addTask {
-                        await sonosService.setGroupMute(group: group, mute: false)
+        case .previous:
+            if isBook {
+                await books.skip(by: -AudiobookPlayer.skipBackInterval)
+                return
+            }
+            await controller.previous()
+            if let group = controller.group {
+                try? await sonos.updateGroups(from: [group])
+            }
+
+        case .volumeUp:
+            await changeVolume(by: 1)
+        case .volumeDown:
+            await changeVolume(by: -1)
+        case .volumeUpLarge:
+            await changeVolume(by: 5)
+        case .volumeDownLarge:
+            await changeVolume(by: -5)
+
+        case .cycleRepeat:
+            await controller.setRepeatMode(controller.repeatMode.next)
+
+        case .toggleShuffle:
+            await controller.setShuffle(!controller.isShuffled)
+
+        case .toggleCrossfade:
+            guard let group = controller.group else { return }
+            let current: Bool
+            if let known = group.isCrossfaded {
+                current = known
+            } else {
+                current = await sonos.isCrossfaded(for: group) ?? false
+            }
+            await sonos.setCrossfade(group: group, enabled: !current)
+
+        case .toggleMute:
+            guard let group = route.audibleGroup else { return }
+            await setMuted(!group.isMuted, group)
+
+        case .muteAll, .unmuteAll:
+            let mute = command == .muteAll
+            let groups = activeGroups.filter { FeatureGate.shared.isGroupUnlocked($0.coordinatorID) }
+            await withDiscardingTaskGroup { tasks in
+                for group in groups {
+                    tasks.addTask { @MainActor in
+                        await self.setMuted(mute, group)
                     }
                 }
             }
 
         case .toggleFavorite:
-            guard let group else { return }
-            await toggleFavorite(track: group.coordinatorRoom.track)
+            await toggleFavorite()
 
-        case .sleepAtEndOfTrack:
-            guard let group else { return }
-            await sonosService.sleepAtEndOfTrack(group: group)
+        case .openPlayer:
+            bringCueForward()
+            Router.main.isPlayerPresented = true
 
-        case .openSpeaker:
-            guard let group else { return }
-            router.selectedID = group.coordinatorID
-            router.path.removeAll()
-            // Dock-menu item clicks (unlike dock-icon clicks) don't fire
-            // `applicationShouldHandleReopen`, so the Catalyst scene isn't
-            // brought back when the window was closed. Request scene
-            // activation explicitly so the app comes forward.
-            if let session = UIApplication.shared.openSessions.first {
-                UIApplication.shared.requestSceneSessionActivation(session, userActivity: nil, options: nil)
-            } else {
-                UIApplication.shared.requestSceneSessionActivation(nil, userActivity: nil, options: nil)
-            }
+        case .sleepAtEndOfItem:
+            await sleepAtEndOfItem()
         }
     }
 
-    // MARK: - Favorite helpers
+    // MARK: Volume
 
-    private func isFavorite(track: SonosKit.Track) async -> Bool {
-        switch track.musicService {
-        case .spotify:
-            return await MusicSearchService.shared.isSpotifyTrackSaved(id: track.trackID)
-        case .soundcloud:
-            return await MusicSearchService.shared.isSoundCloudTrackLiked(id: track.trackID) ?? false
-        case .apple:
-            return (try? await AppleMusicAPI.shared.isFavorite(songId: track.trackID)) ?? false
-        default:
-            return false
+    /// A step of the group's volume, as the player's − and + do: relative,
+    /// so it moves every room in proportion, and turning up unmutes. Shown
+    /// in the model at once and held against the poll for a moment, so the
+    /// next open reads the new level.
+    private func changeVolume(by step: Int) async {
+        guard let group = route.audibleGroup, !group.coordinatorRoom.isOutputFixed else { return }
+        if step > 0, group.isMuted {
+            await setMuted(false, group)
+        }
+        group.isEditingVolume = true
+        group.groupVolume = max(0, min(100, group.groupVolume + Double(step)))
+        await sonos.setRelativeGroupVolume(ip: group.ip, volume: step)
+        try? await Task.sleep(for: .milliseconds(400))
+        group.isEditingVolume = false
+    }
+
+    /// Sonos's group mute mutes or unmutes every room in it. Shown at once
+    /// on the rooms too, as Play On's All Speakers does; the poll confirms it.
+    private func setMuted(_ mute: Bool, _ group: GroupRoom) async {
+        group.holdMute(mute)
+        for room in group.rooms where room.isMuted != mute {
+            room.holdMute(mute)
+        }
+        await sonos.setGroupMute(group: group, mute: mute)
+    }
+
+    // MARK: Favorite
+
+    /// The like button's tap: the store first, so the next open shows it,
+    /// and Plex's and Subsonic's rating caches in step for their rows.
+    private func toggleFavorite() async {
+        guard let target = favoriteTarget() else { return }
+        let store = LiveActivityFavoriteStore.shared
+        let current: Bool
+        if let known = store.favorites[target.trackID] {
+            current = known
+        } else {
+            current = await MusicSearchService.shared.isFavorite(trackID: target.trackID, service: target.service)
+        }
+        let favorite = !current
+        store.set(favorite, for: target.trackID)
+        switch target.service {
+        case .plex: FavoriteRatingCache.shared.set(favorite ? 10 : 0, for: target.trackID)
+        case .subsonic: FavoriteRatingCache.shared.set(favorite ? 1 : 0, for: target.trackID)
+        default: break
+        }
+        await MusicSearchService.shared.setFavorite(favorite, trackID: target.trackID, service: target.service)
+    }
+
+    // MARK: Sleep timer
+
+    /// As the player's menu sets one, on whichever route: on the speaker for
+    /// a group, else on this Mac. Any of these puts End of Chapter away, or
+    /// it would move the new timer back to the chapter's end.
+    private func setSleepTimer(minutes: Int) async {
+        guard !route.isHolding else { return }
+        let controller = route.presented
+        books.forgetChapterSleep()
+        guard minutes > 0 else {
+            await controller.cancelSleepTimer()
+            return
+        }
+        let duration = Duration.seconds(minutes * 60)
+        if let group = controller.group {
+            await sonos.sleepTimer(group: group, duration: duration)
+        } else {
+            LocalPlaybackService.shared.sleepTimer(duration)
         }
     }
 
-    private func toggleFavorite(track: SonosKit.Track) async {
-        let currentlyFavorited = await isFavorite(track: track)
-        let newFavorite = !currentlyFavorited
-        switch track.musicService {
-        case .spotify:
-            if newFavorite {
-                await MusicSearchService.shared.saveSpotifyTrack(id: track.trackID)
-            } else {
-                await MusicSearchService.shared.deleteSpotifyTrack(id: track.trackID)
-            }
-        case .soundcloud:
-            if newFavorite {
-                await MusicSearchService.shared.likeSoundCloudTrack(id: track.trackID)
-            } else {
-                await MusicSearchService.shared.unlikeSoundCloudTrack(id: track.trackID)
-            }
-        case .apple:
-            try? await AppleMusicAPI.shared.updateFavoriteStatus(songId: track.trackID, favorite: newFavorite)
-        default:
-            break
+    private func sleepAtEndOfItem() async {
+        guard !route.isHolding else { return }
+        let controller = route.presented
+        if isBook {
+            await books.sleepAtEndOfChapter()
+            return
         }
+        books.forgetChapterSleep()
+        if let group = controller.group {
+            await sonos.sleepAtEndOfTrack(group: group)
+        } else {
+            LocalPlaybackService.shared.sleepAtEndOfTrack()
+        }
+    }
+
+    // MARK: - Routes
+
+    /// As Play On switches: This Mac or a group, the free tier's locked ones
+    /// opening the paywall instead. Play On's Ask is a prompt a menu can't
+    /// put up, so it takes the prompt's first answer, Move.
+    private func switchRoute(to id: String) {
+        // The menu checked the choice itself as it was made. Sent again
+        // whatever came of it, so a choice turned down or gone nowhere (the
+        // paywall, a group gone meanwhile) isn't left checked.
+        defer {
+            lastState = nil
+            push(makeState())
+        }
+        let target: PlayDestination = id == DockMenuState.deviceRouteID ? .device : .group(id)
+        guard target != route.destination else { return }
+        let gate = FeatureGate.shared
+        if target == .device, !gate.isAvailable(.onDevicePlayback) {
+            if gate.needsSuper(.onDevicePlayback) {
+                presentPaywall(for: .onDevicePlayback)
+            }
+            return
+        }
+        if let groupID = target.groupID, !gate.isGroupUnlocked(groupID) {
+            presentPaywall(for: .allRooms)
+            return
+        }
+        route.switchTo(target, carrying: QueueTransferPreference.current != .never)
+    }
+
+    /// The paywall over Cue's window, brought back first if it was closed.
+    private func presentPaywall(for feature: GatedFeature) {
+        bringCueForward()
+        Task { @MainActor in
+            // A window brought back takes a moment to have a scene to
+            // present from.
+            for _ in 0..<30 where !Self.hasActiveWindow {
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+            FeatureGate.shared.presentPaywall(PaywallReason(feature: feature))
+        }
+    }
+
+    private static var hasActiveWindow: Bool {
+        UIApplication.shared.connectedScenes.contains { $0.activationState == .foregroundActive }
+    }
+
+    /// Dock-menu item clicks (unlike dock-icon clicks) don't fire
+    /// `applicationShouldHandleReopen`, so the Catalyst scene isn't brought
+    /// back when the window was closed. Asks for it explicitly; the renderer
+    /// has already activated the app.
+    private func bringCueForward() {
+        let session = UIApplication.shared.openSessions.first { $0.role == .windowApplication }
+        UIApplication.shared.requestSceneSessionActivation(session, userActivity: nil, options: nil)
     }
 }
 #endif
