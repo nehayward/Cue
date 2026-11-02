@@ -55,7 +55,7 @@ struct BrowseServicePrompt: View {
                 .frame(maxWidth: .infinity)
             }
             .fontDesign(.rounded)
-            .navigationTitle("Browse")
+            .navigationTitle("Home")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {

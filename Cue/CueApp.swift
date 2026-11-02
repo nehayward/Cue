@@ -569,11 +569,11 @@ struct CueApp: App {
                     // The phone's three on every device, Browse first in
                     // Home's place: providers are browsed from Browse's menu
                     // and set up in Settings › Services. No provider tabs, so
-                    // the bar never overflows into More. The house is
-                    // Browse's here, since it is the home. Offline it goes,
-                    // and Downloads leads in its place.
+                    // the bar never overflows into More. Browse is the home
+                    // here, so it's named Home and has the house. Offline it
+                    // goes, and Downloads leads in its place.
                     if appState.showsBrowseTab {
-                        Tab("Browse", image: "home.fill", value: AppTab.browse) {
+                        Tab("Home", image: "home.fill", value: AppTab.browse) {
                             Screens.browse
                         }
                     }
