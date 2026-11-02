@@ -17,8 +17,8 @@ is in `Website/README.md`; this note is the to-do list.
   site, in Help, the press kit and the footer. Email Routing forwards it to
   the verified `nehayward+9@gmail.com` (checked 2026-11-02; the catch-all is
   off, so any other address bounces); a test message hasn't been sent.
-- [ ] **DMARC for cue.dance.** Missing (clic.dance has one). Add it from
-  the DNS page's recommendation, which sets Cloudflare's report address.
+- [x] **DMARC for cue.dance.** Added 2026-11-02 through DMARC Management
+  (Email ▸ DMARC Management), so its reports show in the dashboard.
 - [x] **www and plain http.** Both redirect to https://cue.dance from the
   Worker (`site.wwwHost`, the `www.cue.dance` route in `wrangler.toml`),
   live since 2026-11-02.
