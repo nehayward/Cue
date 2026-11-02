@@ -136,8 +136,13 @@ struct DesktopShell: View {
         .onChange(of: selected, initial: true) { _, tab in
             keep(tab)
         }
-        // Settings, from the sidebar's gear.
-        .withSheetDestinations(sheetDestinations: $desktopRouter.presentedSheet)
+        // Settings, from the sidebar's gear: from a view of its own, so
+        // only the sheets it puts up draw their close button.
+        .background {
+            Color.clear
+                .withSheetDestinations(sheetDestinations: $desktopRouter.presentedSheet)
+                .environment(\.presentsDismissibleSheets, true)
+        }
     }
 
     /// Every kept page, the selected one on top, or the playlist chosen in

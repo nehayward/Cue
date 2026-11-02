@@ -411,23 +411,8 @@ extension View {
             .environment(FeatureGate.shared)
     }
     
-    @ViewBuilder
     func addDismiss(override: Bool = false, action: @escaping () -> Void) -> some View {
-        if override || Router.main.presentedSheet != nil  {
-            toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(role: .cancel) {
-                        action()
-                    } label: {
-                        Label("Dismiss", systemImage: "xmark")
-                            .labelStyle(.iconOnly)
-                    }
-                    .keyboardShortcut(.escape, modifiers: [])
-                }
-            }
-        } else {
-            self
-        }
+        modifier(DismissButtonModifier(override: override, action: action))
     }
     
     func sheetRequirements() -> some View {
@@ -629,3 +614,38 @@ private struct InspectorContentView: View {
     }
 }
 #endif
+
+extension EnvironmentValues {
+    /// Set where sheets are presented whose screens should draw their close
+    /// button (`addDismiss`): the Mac window's own sheets (`DesktopShell`),
+    /// which `Router.main` knows nothing of. On the Mac a sheet has no
+    /// swipe to close it, so without the button it couldn't be closed.
+    @Entry var presentsDismissibleSheets = false
+}
+
+/// `addDismiss`'s close button, while the screen is in a sheet the main
+/// router or a presenter that asks for it put up.
+private struct DismissButtonModifier: ViewModifier {
+    let override: Bool
+    let action: () -> Void
+
+    @Environment(\.presentsDismissibleSheets) private var presentsDismissibleSheets
+
+    func body(content: Content) -> some View {
+        if override || presentsDismissibleSheets || Router.main.presentedSheet != nil {
+            content.toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(role: .cancel) {
+                        action()
+                    } label: {
+                        Label("Dismiss", systemImage: "xmark")
+                            .labelStyle(.iconOnly)
+                    }
+                    .keyboardShortcut(.escape, modifiers: [])
+                }
+            }
+        } else {
+            content
+        }
+    }
+}
