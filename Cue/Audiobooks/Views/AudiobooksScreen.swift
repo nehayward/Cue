@@ -16,8 +16,6 @@ import SwiftUI
 struct AudiobooksScreen: View {
     @Environment(CoreFeatures.self) private var coreFeatures
     @Environment(MusicSearchService.self) private var musicSearchService
-    /// Flips as an iPhone Duo opens or folds (`PadLayout`).
-    @Environment(\.usesPadLayout) private var usesPadLayout
 
     /// This tab's own stack (`Router.audiobooks`, which a link outside the
     /// tab pushes a book's page on), never another tab's: two stacks bound
@@ -40,6 +38,12 @@ struct AudiobooksScreen: View {
     /// resized) and starts again from its own inset (`bottomInsetWidth`).
     @State private var fullBottomInset: CGFloat = 0
     @State private var bottomInsetWidth: CGFloat = 0
+    /// Where the page is scrolled, to put it back within its content
+    /// (`settleIfPastEnd`).
+    @State private var scrollPosition = ScrollPosition(edge: .top)
+    @State private var scrollPhase: ScrollPhase = .idle
+    /// Scrolled further than the content reaches.
+    @State private var isPastEnd = false
 
     /// Whether Plex had books when last asked: the shelf's copy, not
     /// `@AppStorage`, which rebuilt the tab with every UserDefaults write.
@@ -121,13 +125,28 @@ struct AudiobooksScreen: View {
                 // nothing wide.
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            // A new scroll view, at the top, as an iPhone Duo opens or folds.
-            // This one kept the place it had in the layout before, which
-            // the other width lays out a different height: opened, the page
-            // stayed scrolled past its own end, shelves at the top and black
-            // under them, and folded, its top under the bar; a page that
-            // fits the screen doesn't scroll, so nothing brought it back.
-            .id(usesPadLayout)
+            // Put back within its content when it comes to rest past it.
+            // An iPhone Duo opened or folded left the page where it was in
+            // the other layout, which the new width lays out a different
+            // height: opened, it stayed scrolled past the end of a page now
+            // shorter than the screen, shelves at the top and black under
+            // them, until the phone was turned. Only at rest: a pull past
+            // the end bounces back by itself.
+            .scrollPosition($scrollPosition)
+            .onScrollPhaseChange { _, phase in
+                scrollPhase = phase
+                settleIfPastEnd()
+            }
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                let end = max(
+                    -geometry.contentInsets.top,
+                    geometry.contentSize.height + geometry.contentInsets.bottom - geometry.containerSize.height
+                )
+                return geometry.contentOffset.y > end + 1
+            } action: { _, pastEnd in
+                isPastEnd = pastEnd
+                settleIfPastEnd()
+            }
             .overlay {
                 if needsServer {
                     // Centred above the tab bar: the scroll view runs under it.
@@ -169,6 +188,13 @@ struct AudiobooksScreen: View {
     }
 
     private static let recentCount = 10
+
+    /// Scrolls to the end of the page, the top of one that fits the screen,
+    /// when it rests further than its content reaches (`isPastEnd`).
+    private func settleIfPastEnd() {
+        guard isPastEnd, scrollPhase == .idle else { return }
+        scrollPosition.scrollTo(edge: .bottom)
+    }
 
     /// The screen's width with its bottom safe area, for `fullBottomInset`.
     private struct BottomInset: Equatable {
