@@ -73,9 +73,25 @@ struct BrowseScreen: View {
 }
 
 private extension BrowseScreen {
-    /// The chosen provider's browse screen.
+    /// Whether any service switched on has a browse screen: radio alone
+    /// has none.
+    var hasBrowsableService: Bool {
+        MediaSearchService.supported.contains { coreFeatures.isEnabled($0) && $0.isBrowseSupported }
+    }
+
+    /// The chosen provider's browse screen, or the services to add when
+    /// none that's switched on can be browsed.
     @ViewBuilder
     var browseScreen: some View {
+        if !hasBrowsableService {
+            BrowseServicePrompt()
+        } else {
+            providerScreen
+        }
+    }
+
+    @ViewBuilder
+    var providerScreen: some View {
         switch browseMediaService {
         case .apple:
             AppleLibraryBrowseScreen()
@@ -109,13 +125,14 @@ private extension BrowseScreen {
 }
 
 private extension BrowseScreen {
-    /// Moves off a browse service that is disabled — or gone — to the first
-    /// one still on, so the screen never sits on a provider it can't show.
+    /// Moves off a browse service that is disabled — or gone, or has no
+    /// browse screen (radio) — to the first one still on, so the screen
+    /// never sits on a provider it can't show.
     func fallBackFromDisabledService() {
-        if coreFeatures.isEnabled(browseMediaService) {
+        if coreFeatures.isEnabled(browseMediaService), browseMediaService.isBrowseSupported {
             return
         }
-        guard let service = MediaSearchService.supported.first(where: { coreFeatures.isEnabled($0) }) else { return }
+        guard let service = MediaSearchService.supported.first(where: { coreFeatures.isEnabled($0) && $0.isBrowseSupported }) else { return }
         browseMediaService = service
     }
 }

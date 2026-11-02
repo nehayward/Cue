@@ -19,12 +19,30 @@ enum MediaDetailPresenter {
             coordinator.animate(alongsideTransition: nil) { _ in present(content) }
             return
         }
-        let host = UIHostingController(rootView: AnyView(PresentedMediaDetail(content: content).withEnvironments()))
+        let host = PresentedPageHost(rootView: AnyView(PresentedMediaDetail(content: content).withEnvironments()))
         // The `.page` sizing the router's sheets ask for.
         host.modalPresentationStyle = .pageSheet
         top.present(host, animated: true)
     }
+
+    /// Takes down the pages presented here, and anything over them, for a
+    /// link that opens something of its own.
+    static func dismissPresented() {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+        var controller = (scene?.keyWindow ?? scene?.windows.first)?.rootViewController
+        while let presented = controller?.presentedViewController {
+            if presented is PresentedPageHost, !presented.isBeingDismissed {
+                presented.presentingViewController?.dismiss(animated: false)
+                return
+            }
+            controller = presented
+        }
+    }
 }
+
+/// A page `MediaDetailPresenter` put up, to tell it from other presentations.
+private final class PresentedPageHost: UIHostingController<AnyView> {}
 
 /// The controller presented last in the active window, past any on its way
 /// down: where something presented over whatever is on screen goes.

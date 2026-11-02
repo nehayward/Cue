@@ -54,6 +54,10 @@ enum AppTab: Hashable, Codable {
     static var search = Router()
     static var secondary = Router()
     static var browse = Router()
+    /// The Audiobooks tab's own stack, here so a book's page can be pushed
+    /// on it from outside the tab (`showAudiobooks(_:)`). Bound by that tab
+    /// alone: two stacks bound to one path push each other.
+    static var audiobooks = Router()
 
     var selectedID: String?
     /// The selected tab. On `Router.main` only — the per-screen routers
@@ -136,6 +140,28 @@ enum AppTab: Hashable, Codable {
         switch tab {
         case .search: SearchActivator.shared.requestFocus()
         case .home, .browse, .radio, .audiobooks, .downloads, .provider, .providerCollection: break
+        }
+    }
+
+    /// The Audiobooks tab, the player and any page presented over the tabs
+    /// put away; with `book`, its page on the tab's own stack, so Back goes
+    /// to the tab (the book shelf widget's Open Book, a `cue://audiobook`
+    /// link), rather than a page presented over everything, which each tap
+    /// stacked another of. The tab's stack is bound to `audiobooks`, so the
+    /// page shows even when the tab is only now made. While the tab is
+    /// hidden (Settings ▸ Appearance), the book's page over whatever is on
+    /// screen.
+    @MainActor
+    static func showAudiobooks(_ book: PlayableContent? = nil) {
+        if let book, !AppState.shared.showsAudiobooksTab {
+            MediaDetailPresenter.present(book)
+            return
+        }
+        main.isPlayerPresented = false
+        MediaDetailPresenter.dismissPresented()
+        main.selectedTab = .audiobooks
+        if let book {
+            audiobooks.path = [.audiobookDetail(content: book)]
         }
     }
 

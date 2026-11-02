@@ -49,11 +49,18 @@ final class QueueManager {
         
         for await item in queue {
             isProcessing = true
-            do {
-                try await playSong(item)
-            } catch {
-                await handleError(for: item.playableContent, error: error)
+            // A speaker's queue fills in a song at a time, after its first
+            // has started. Cue in the background (a widget's Play, a list
+            // played as Cue was left) was suspended part-way, and the rest
+            // waited until Cue next woke.
+            await withBackgroundTime(named: "Queue on speaker") {
+                do {
+                    try await playSong(item)
+                } catch {
+                    await handleError(for: item.playableContent, error: error)
+                }
             }
+            item.done?()
             isProcessing = false
         }
     }
@@ -169,4 +176,6 @@ struct QueueItem {
     var total: Int = 1
     var title: String = ""
     var showBanner: Bool = true
+    /// Told once the speaker has the item, or it failed.
+    var done: (@MainActor () -> Void)? = nil
 }

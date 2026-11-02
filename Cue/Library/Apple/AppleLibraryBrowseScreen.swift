@@ -45,6 +45,12 @@ struct AppleLibraryBrowseScreen: View {
             .task {
                 await updateAppleMusicBrowseService()
             }
+            // Read again once Apple Music may be asked: on a new install the
+            // first read comes while onboarding holds the alert, and reads
+            // nothing.
+            .onReceive(NotificationCenter.default.publisher(for: AppleMusicPermission.didChange)) { _ in
+                Task { await updateAppleMusicBrowseService() }
+            }
             .withAppRouter()
             .toolbar {
                 // The gear every provider's browse screen has; this one was

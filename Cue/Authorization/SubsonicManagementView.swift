@@ -9,40 +9,18 @@ import SonosKit
 struct SubsonicManagementView: View {
     @Environment(\.dismiss) private var dismiss
 
-    @State private var subsonic = SubsonicAPI.shared
-    @State private var serverAddress: String = ""
-    @State private var username: String = ""
-    @State private var password: String = ""
-    @State private var isConnecting = false
-    @State private var result: SubsonicAPI.PingResult?
+    /// The fields and the sign-in itself, shared with onboarding's page.
+    @State private var signIn = SubsonicSignIn()
 
     private enum Field { case address, username, password }
     @FocusState private var focused: Field?
 
-    private var canConnect: Bool {
-        !isConnecting && !serverAddress.isEmpty && !username.isEmpty && !password.isEmpty
-    }
-
-    /// Fields differ from what's stored, so there is something to save.
-    private var hasUnsavedEdits: Bool {
-        serverAddress != subsonic.serverAddress
-            || username != subsonic.username
-            || password != subsonic.password
-    }
-
-    /// One action, never both. Connect appears only when there is a complete
-    /// edit to save, so a connected user who clears a field still has
-    /// Disconnect — gating purely on "edited" stranded them with a Connect
-    /// button their empty field had already disabled.
-    private var showsDisconnect: Bool {
-        subsonic.isConfigured && !(hasUnsavedEdits && canConnect)
-    }
-
     var body: some View {
+        @Bindable var signIn = signIn
         NavigationStack {
             List {
                 Section {
-                    TextField("navidrome.local:4533", text: $serverAddress)
+                    TextField("navidrome.local:4533", text: $signIn.serverAddress)
                         .textContentType(.URL)
                         .keyboardType(.URL)
                         .autocorrectionDisabled()
@@ -50,11 +28,11 @@ struct SubsonicManagementView: View {
                         .focused($focused, equals: .address)
                         .submitLabel(.next)
                         .onSubmit {
-                            tidyAddress()
+                            signIn.tidyAddress()
                             focused = .username
                         }
 
-                    TextField("Username", text: $username)
+                    TextField("Username", text: $signIn.username)
                         .textContentType(.username)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
@@ -62,41 +40,41 @@ struct SubsonicManagementView: View {
                         .submitLabel(.next)
                         .onSubmit { focused = .password }
 
-                    SecureField("Password", text: $password)
+                    SecureField("Password", text: $signIn.password)
                         .textContentType(.password)
                         .focused($focused, equals: .password)
                         .submitLabel(.go)
-                        .onSubmit { if canConnect { Task { await connect() } } }
+                        .onSubmit { if signIn.canConnect { connect() } }
                 } footer: {
                     Text("Works with Navidrome, Airsonic, Gonic and other Subsonic-compatible servers. Your speakers stream from this address too, so it has to be reachable from your network.")
                 }
 
                 Section {
-                    Button(role: showsDisconnect ? .destructive : nil) {
-                        if showsDisconnect {
-                            disconnect()
+                    Button(role: signIn.showsDisconnect ? .destructive : nil) {
+                        if signIn.showsDisconnect {
+                            signIn.disconnect()
                         } else {
-                            Task { await connect() }
+                            connect()
                         }
                     } label: {
                         Group {
-                            if isConnecting {
+                            if signIn.isConnecting {
                                 ProgressView()
                             } else {
-                                Text(showsDisconnect ? "Disconnect" : "Connect")
+                                Text(signIn.showsDisconnect ? "Disconnect" : "Connect")
                             }
                         }
                         .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
-                    .tint(showsDisconnect ? .red : .accentColor)
-                    .disabled(!showsDisconnect && !canConnect)
+                    .tint(signIn.showsDisconnect ? .red : .accentColor)
+                    .disabled(!signIn.showsDisconnect && !signIn.canConnect)
                     .listRowBackground(Color.clear)
                 } footer: {
-                    switch result {
+                    switch signIn.result {
                     case let .failure(message):
                         Text(message).foregroundStyle(.red)
-                    case .success where !hasUnsavedEdits:
+                    case .success where !signIn.hasUnsavedEdits:
                         Text("Connected. Subsonic now appears in search and browse.")
                     default:
                         Text("Your login is saved once the server accepts it.")
@@ -117,9 +95,7 @@ struct SubsonicManagementView: View {
                 }
             }
             .onAppear {
-                serverAddress = subsonic.serverAddress
-                username = subsonic.username
-                password = subsonic.password
+                signIn.loadStored()
             }
             .task {
                 // A sheet isn't ready for focus on the same runloop pass it
@@ -127,7 +103,7 @@ struct SubsonicManagementView: View {
                 // the stored value, not the @State copy `onAppear` fills —
                 // SwiftUI doesn't order the two, so the copy may still be
                 // empty for a configured server.
-                guard subsonic.serverAddress.isEmpty else { return }
+                guard !signIn.isConfigured else { return }
                 try? await Task.sleep(for: .milliseconds(350))
                 focused = .address
             }
@@ -141,63 +117,18 @@ struct SubsonicManagementView: View {
     /// "connection failed" under the title only says it twice, less usefully.
     @ViewBuilder
     private var statusIndicator: some View {
-        if isConnecting {
+        if signIn.isConnecting {
             ProgressView()
-        } else if subsonic.isConfigured {
+        } else if signIn.isConfigured {
             Text("Connected")
                 .font(.caption.smallCaps())
                 .foregroundStyle(.green.gradient)
         }
     }
 
-    /// Reduces a pasted browser URL to the server's REST root, in place, so
-    /// the field shows the address that will actually be used. A scheme the
-    /// user didn't type stays off until connecting settles it, since a public
-    /// name is tried over HTTPS first (`SubsonicAPI.checkLogin`).
-    private func tidyAddress() {
-        guard var tidied = SubsonicAPI.normalizedAddress(serverAddress) else { return }
-        if !serverAddress.contains("://"), tidied.hasPrefix("http://") {
-            tidied.removeFirst("http://".count)
-        }
-        serverAddress = tidied
-    }
-
-    /// Verifies the login against the server and stores it only if the server
-    /// accepts it — a rejected password never replaces a working one.
-    private func connect() async {
+    private func connect() {
         focused = nil
-        tidyAddress()
-        isConnecting = true
-        let check = await subsonic.checkLogin(address: serverAddress, username: username, password: password)
-        isConnecting = false
-        result = check.result
-        guard check.result == .success, let address = check.address else { return }
-
-        // The address that answered, scheme and all.
-        serverAddress = address
-        subsonic.serverAddress = address
-        subsonic.username = username
-        subsonic.password = password
-        // Anything cached from a previous server belongs to that server.
-        MusicSearchService.shared.clearSubsonicSongCache()
-        // A working server means the service is authorized — surface it in
-        // search and browse right away.
-        CoreFeatures.shared.enabledServices(.subsonic).wrappedValue = true
-        Task { await SubsonicBrowseService.shared.refresh() }
-    }
-
-    private func disconnect() {
-        serverAddress = ""
-        username = ""
-        password = ""
-        result = nil
-        subsonic.serverAddress = ""
-        subsonic.username = ""
-        subsonic.password = ""
-        MusicSearchService.shared.clearSubsonicSongCache()
-        // Mirror the connect path, which enables the service — otherwise the
-        // Settings toggle stays visually on for a service that can't play.
-        CoreFeatures.shared.enabledServices(.subsonic).wrappedValue = false
+        Task { await signIn.connect() }
     }
 }
 

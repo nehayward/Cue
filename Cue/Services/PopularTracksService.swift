@@ -14,7 +14,7 @@ final class PopularTracksService {
     }
 
     func matchAppleMusic(artistName: String, songs: [PlayableContent]) async -> [PlayableContent] {
-        guard let authorization = try? await MusicAuthorization.request(), authorization == .authorized else { return [] }
+        guard await AppleMusicPermission.request() == .authorized else { return [] }
         var searchRequest = MusicCatalogSearchRequest(term: artistName, types: [Artist.self])
         searchRequest.limit = 1
         guard let searchResponse = try? await searchRequest.response(),

@@ -10,20 +10,22 @@ struct AppleMusicPermissionsView: View {
 
     var body: some View {
         ContentUnavailableView {
-            Label("Improved Search", systemImage: "magnifyingglass")
+            Label("Connect Apple Music", systemImage: "apple.logo")
         } description: {
-            Text("Enhance search with search suggestions.")
+            Text(musicSearchService.appleMusicAuthorizationStatus == .denied
+                 ? "Apple Music access is off. Turn it on in Settings to search your library and the catalog."
+                 : "Allow access to search your library and the Apple Music catalog.")
         } actions: {
             switch musicSearchService.appleMusicAuthorizationStatus {
             case .notDetermined, .authorized:
                 Button {
                     HapticManager.shared.fireHaptic(.buttonPress)
                     Task {
-                        await musicSearchService.requestMusicAuthorization()
+                        await AppleMusicPermission.ask()
                         appleMusicAuthorized = musicSearchService.getMusicAuthorization()
                     }
                 } label: {
-                    Text("Continue")
+                    Text("Allow Access")
                 }
                 .buttonStyle(.bordered)
                 .bold()
@@ -40,7 +42,7 @@ struct AppleMusicPermissionsView: View {
                     }
                     #endif
                 } label: {
-                    Text("Allow in System Setting")
+                    Text("Open Settings")
                 }
                 .buttonStyle(.bordered)
                 .bold()

@@ -17,9 +17,10 @@ struct AudiobooksScreen: View {
     @Environment(CoreFeatures.self) private var coreFeatures
     @Environment(MusicSearchService.self) private var musicSearchService
 
-    /// This tab's own stack, never a shared router: two stacks bound to one
-    /// path push each other.
-    @State private var router = Router()
+    /// This tab's own stack (`Router.audiobooks`, which a link outside the
+    /// tab pushes a book's page on), never another tab's: two stacks bound
+    /// to one path push each other.
+    @State private var router = Router.audiobooks
     @State private var store = AudiobookProgressStore.shared
     @State private var removals = ContinueListeningRemovals.shared
     @State private var shelf = AudiobookshelfBrowseService.shared
@@ -187,37 +188,58 @@ struct AudiobooksScreen: View {
 
     // MARK: - No server
 
-    /// The tab before any server for books is set up: the way to one.
-    /// Signed in to Plex already, what's missing is which of its libraries
-    /// hold books, which the Plex sheet chooses too.
+    /// The tab before any server for books is set up: the way to one, each
+    /// a row with its mark and a line on it, as onboarding offers services
+    /// (`ServiceChoiceRow`). Signed in to Plex already, what's missing is
+    /// which of its libraries hold books, which the Plex sheet chooses too.
     private var serverPrompt: some View {
         let plexSignedIn = plexAuthenticator.authToken != nil
-        return ContentUnavailableView {
-            Label("No Audiobooks Yet", systemImage: "book")
-        } description: {
-            Text(plexSignedIn
-                ? "Choose which of your Plex libraries hold books, or sign in to Audiobookshelf, to listen to them here."
-                : "Sign in to Plex or Audiobookshelf to listen to your books here.")
-        } actions: {
-            VStack(spacing: 12) {
-                Button {
-                    router.presentedSheet = .plexManagement
-                } label: {
-                    Text(plexSignedIn ? "Choose Plex Books" : "Sign In to Plex")
-                        .frame(maxWidth: 240)
-                }
-                .buttonStyle(.borderedProminent)
-
-                Button {
-                    router.presentedSheet = .audiobookshelfManagement
-                } label: {
-                    Text("Sign In to Audiobookshelf")
-                        .frame(maxWidth: 240)
-                }
-                .buttonStyle(.bordered)
+        return VStack(spacing: 24) {
+            VStack(spacing: 8) {
+                Image(systemName: "books.vertical.fill")
+                    .font(.system(size: 44))
+                    .foregroundStyle(.secondary)
+                    .padding(.bottom, 4)
+                    .accessibilityHidden(true)
+                Text("No Audiobooks Yet")
+                    .font(.title2.bold())
+                Text("Choose where your books live.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
             }
+            .multilineTextAlignment(.center)
+
+            VStack(spacing: 10) {
+                ServiceChoiceRow(
+                    service: .plex,
+                    title: plexSignedIn ? "Choose Plex Books" : nil,
+                    detail: plexSignedIn ? "Pick the libraries with books." : "Audiobooks on your Plex server."
+                ) {
+                    // Signed in but switched off (left out in onboarding),
+                    // the books chosen here would stay hidden: choosing
+                    // them is choosing Plex.
+                    if plexSignedIn {
+                        coreFeatures.enabledServices(.plex).wrappedValue = true
+                    }
+                    openSignIn(.plexManagement)
+                }
+                ServiceChoiceRow(service: .audiobookshelf) {
+                    openSignIn(.audiobookshelfManagement)
+                }
+                ServiceChoiceRow(service: .files, detail: "Audiobook files, here or in iCloud.") {
+                    openSignIn(.filesManagement)
+                }
+            }
+            // A column on iPad and the Mac.
+            .frame(maxWidth: 460)
         }
+        .padding(.horizontal, 20)
         .fontDesign(.rounded)
+    }
+
+    private func openSignIn(_ sheet: SheetDestination) {
+        HapticManager.shared.fireHaptic(.selection)
+        router.presentedSheet = sheet
     }
 
     // MARK: - Libraries

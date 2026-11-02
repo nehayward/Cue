@@ -18,18 +18,15 @@ struct FilesBrowseScreen: View {
                 MusicLeftOffSection()
                 if !library.isConfigured {
                     // No folder yet: the one way in is from here.
-                    ContentUnavailableView {
-                        Label("No Folder Chosen", systemImage: "folder.badge.questionmark")
-                    } description: {
-                        Text("Pick a folder of music on this device or in iCloud Drive to browse it here.")
-                    } actions: {
-                        Button {
-                            router.presentedSheet = .filesManagement
-                        } label: {
-                            Text("Choose Folder")
-                        }
-                        .buttonStyle(.borderedProminent)
+                    ServiceSetupPrompt(
+                        service: .files,
+                        title: "No Folder Chosen",
+                        message: "Pick a folder of music or audiobooks on this device or in iCloud Drive to browse it here.",
+                        actionTitle: "Choose Folder"
+                    ) {
+                        router.presentedSheet = .filesManagement
                     }
+                    .padding(.vertical, 48)
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                 } else if !library.isScanning, library.songs.isEmpty {

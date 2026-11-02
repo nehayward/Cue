@@ -181,51 +181,28 @@ struct SubsonicBrowseScreen: View {
         SubsonicLibraryLists.albumSortOptions(musicSearchService: musicSearchService)
     }
 
-    /// Shown when no server is configured yet. Centred (an overlay, not a list
-    /// row) so it reads as an empty state rather than content jammed under the
-    /// navigation bar, and it points people with no server at the projects
-    /// that provide one.
+    /// Shown when no server is configured yet: the set-up prompt every
+    /// service's page has (`ServiceSetupPrompt`), pointing people with no
+    /// server at the projects that provide one.
     private var notConnectedView: some View {
-        ContentUnavailableView {
-            Label("No Server Connected", systemImage: "externaldrive.fill.badge.icloud")
-        } description: {
-            Text("Connect a Subsonic-compatible server to browse your own music library and play it here or on your Sonos speakers.")
-        } actions: {
-            VStack(spacing: 20) {
-                Button {
-                    router.presentedSheet = .subsonicManagement
-                } label: {
-                    Text("Connect Server")
-                        .frame(maxWidth: 220)
-                }
-                .buttonStyle(.borderedProminent)
-
-                VStack(spacing: 10) {
-                    Text("Don't have a server yet?")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-
-                    HStack(spacing: 10) {
-                        serverProjectLink("Navidrome", address: "https://www.navidrome.org")
-                        serverProjectLink("Airsonic", address: "https://airsonic.github.io")
-                    }
+        ServiceSetupPrompt(
+            service: .subsonic,
+            title: "Subsonic Isn't Set Up",
+            message: "Connect a Navidrome, Airsonic or other Subsonic server to browse it here and play it on your speakers.",
+            actionTitle: "Set Up Subsonic"
+        ) {
+            router.presentedSheet = .subsonicManagement
+        } extra: {
+            VStack(spacing: 10) {
+                Text("Don't have a server yet?")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 10) {
+                    ServiceSetupLink(title: "Navidrome", address: "https://www.navidrome.org")
+                    ServiceSetupLink(title: "Airsonic", address: "https://airsonic.github.io")
                 }
             }
         }
-    }
-
-    /// A link out to a self-hosted server project. Secondary (`.bordered`) on
-    /// purpose — Connect Server stays the one prominent action on the screen.
-    private func serverProjectLink(_ name: String, address: String) -> some View {
-        Link(destination: URL(string: address)!) {
-            HStack(spacing: 4) {
-                Text(name)
-                Image(systemName: "arrow.up.forward")
-                    .font(.caption2)
-            }
-        }
-        .buttonStyle(.bordered)
-        .tint(.accent)
     }
 }
 

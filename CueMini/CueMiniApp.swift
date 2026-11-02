@@ -182,13 +182,29 @@ struct MenuBarLabelView: View {
 
     var body: some View {
         HStack {
-            if let image = NSImage.cueIcon.withSymbolConfiguration(.init(pointSize: 32, weight: .black)) {
-                Image(nsImage: image)
-            }
+            Image(nsImage: .cueMark)
             if let title {
                 Text(title)
             }
         }
         .animation(.spring, value: title)
     }
+}
+
+private extension NSImage {
+    /// Cue's play triangle (`CueMark`, shared with the widgets) on the menu
+    /// bar's 16-point square, a template the menu bar tints.
+    static let cueMark: NSImage = {
+        let image = NSImage(size: NSSize(width: 16, height: 16), flipped: true) { bounds in
+            guard let context = NSGraphicsContext.current?.cgContext else { return false }
+            let height: CGFloat = 14
+            let width = height * CueMark.aspectRatio
+            let mark = CGRect(x: (bounds.width - width) / 2, y: (bounds.height - height) / 2, width: width, height: height)
+            context.addPath(CueMark().path(in: mark).cgPath)
+            context.fillPath()
+            return true
+        }
+        image.isTemplate = true
+        return image
+    }()
 }

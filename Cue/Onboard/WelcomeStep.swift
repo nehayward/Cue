@@ -78,8 +78,8 @@ struct WelcomeStep: View {
     /// Mac and an iPhone Duo open get the full marketing line.
     private var platformLine: String {
         if !usesPadLayout {
-            return "iPhone, iPad, Watch, TV, and Mac."
+            return "iPhone, iPad, Watch, and CarPlay."
         }
-        return "Built for Apple devices — iPhone, iPad, Watch, TV, and Mac."
+        return "Built for Apple devices — iPhone, iPad, Watch, and CarPlay."
     }
 }
