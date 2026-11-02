@@ -16,6 +16,8 @@ import SwiftUI
 struct AudiobooksScreen: View {
     @Environment(CoreFeatures.self) private var coreFeatures
     @Environment(MusicSearchService.self) private var musicSearchService
+    /// Flips as an iPhone Duo opens or folds (`PadLayout`).
+    @Environment(\.usesPadLayout) private var usesPadLayout
 
     /// This tab's own stack (`Router.audiobooks`, which a link outside the
     /// tab pushes a book's page on), never another tab's: two stacks bound
@@ -33,8 +35,11 @@ struct AudiobooksScreen: View {
     /// this as a fixed margin instead, so the tab bar shrinking as the page
     /// scrolls (`tabBarMinimizeBehavior`) doesn't move the page's bottom
     /// edge mid-scroll. On a page barely a screen tall the edge moved 56 pt
-    /// under a coast, which bounced it back: the scroll stopped dead.
+    /// under a coast, which bounced it back: the scroll stopped dead. A new
+    /// width is another layout (an iPhone Duo opened or folded, a window
+    /// resized) and starts again from its own inset (`bottomInsetWidth`).
     @State private var fullBottomInset: CGFloat = 0
+    @State private var bottomInsetWidth: CGFloat = 0
 
     /// Whether Plex had books when last asked: the shelf's copy, not
     /// `@AppStorage`, which rebuilt the tab with every UserDefaults write.
@@ -116,6 +121,13 @@ struct AudiobooksScreen: View {
                 // nothing wide.
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            // A new scroll view, at the top, as an iPhone Duo opens or folds.
+            // This one kept the place it had in the layout before, which
+            // the other width lays out a different height: opened, the page
+            // stayed scrolled past its own end, shelves at the top and black
+            // under them, and folded, its top under the bar; a page that
+            // fits the screen doesn't scroll, so nothing brought it back.
+            .id(usesPadLayout)
             .overlay {
                 if needsServer {
                     // Centred above the tab bar: the scroll view runs under it.
@@ -145,8 +157,11 @@ struct AudiobooksScreen: View {
             }
             .withAppRouter()
         }
-        .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { inset in
-            fullBottomInset = max(fullBottomInset, inset)
+        .onGeometryChange(for: BottomInset.self) { proxy in
+            BottomInset(width: proxy.size.width, inset: proxy.safeAreaInsets.bottom)
+        } action: { measured in
+            fullBottomInset = measured.width == bottomInsetWidth ? max(fullBottomInset, measured.inset) : measured.inset
+            bottomInsetWidth = measured.width
         }
         .environment(router)
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)
@@ -154,6 +169,12 @@ struct AudiobooksScreen: View {
     }
 
     private static let recentCount = 10
+
+    /// The screen's width with its bottom safe area, for `fullBottomInset`.
+    private struct BottomInset: Equatable {
+        let width: CGFloat
+        let inset: CGFloat
+    }
 
     /// Every book not finished, started or only tried, as Audible has it,
     /// less those taken out of it and not listened to since
