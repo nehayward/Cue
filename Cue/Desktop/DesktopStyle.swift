@@ -30,6 +30,23 @@ enum DesktopStyle {
     static let hover = Color.primary.opacity(0.07)
     /// Under the chosen sidebar row.
     static let selection = Color.primary.opacity(0.1)
+
+    /// How much larger than its base a measure draws at this type size
+    /// (`InterfaceSize`): the body text's size over its default 17 pt, so
+    /// a card grows with the text in it.
+    static func scale(_ typeSize: DynamicTypeSize) -> CGFloat {
+        let body: CGFloat = switch typeSize {
+        case .xSmall: 14
+        case .small: 15
+        case .medium: 16
+        case .large: 17
+        case .xLarge: 19
+        case .xxLarge: 21
+        case .xxxLarge: 23
+        default: 25
+        }
+        return body / 17
+    }
 }
 
 extension View {
@@ -100,9 +117,12 @@ private struct DesktopIconButton: View {
     let side: CGFloat
     let isFilled: Bool
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var isHovering = false
 
     var body: some View {
+        let side = (side * DesktopStyle.scale(typeSize)).rounded()
+
         configuration.label
             .frame(width: side, height: side)
             .background {

@@ -76,14 +76,20 @@ struct DesktopShell: View {
     /// flag rather than the width, so a resize runs this again only as it
     /// crosses the line.
     @State private var isWide = true
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     private var router: Router { .main }
+
+    /// A base measure at the window's size (`InterfaceSize`).
+    private func scaled(_ value: CGFloat) -> CGFloat {
+        (value * DesktopStyle.scale(typeSize)).rounded()
+    }
 
     /// Pages kept besides the one showing: Browse, Search and a few more.
     private static let keptTabLimit = 6
 
     private var queueWidth: CGFloat {
-        min(max(CGFloat(appState.queuePanelWidth), 280), 400)
+        scaled(min(max(CGFloat(appState.queuePanelWidth), 280), 400))
     }
 
     /// The queue's card, while it's asked for and the window has room.
@@ -102,11 +108,11 @@ struct DesktopShell: View {
         VStack(spacing: DesktopStyle.gap) {
             HStack(spacing: DesktopStyle.gap) {
                 DesktopSidebar()
-                    .frame(width: DesktopStyle.sidebarWidth)
+                    .frame(width: scaled(DesktopStyle.sidebarWidth))
 
                 VStack(spacing: 8) {
                     DesktopToolbar()
-                        .frame(height: DesktopStyle.toolbarHeight)
+                        .frame(height: scaled(DesktopStyle.toolbarHeight))
                     pages(selected: selected)
                         .clipShape(.rect(cornerRadius: DesktopStyle.cornerRadius))
                 }
@@ -121,18 +127,18 @@ struct DesktopShell: View {
             .animation(.snappy, value: showsQueueCard)
 
             DesktopPlayerBar(
-                sidebarWidth: DesktopStyle.sidebarWidth,
+                sidebarWidth: scaled(DesktopStyle.sidebarWidth),
                 queueWidth: queueWidth,
                 showsQueueSummary: showsQueueSummary
             )
-            .frame(height: DesktopStyle.barHeight)
+            .frame(height: scaled(DesktopStyle.barHeight))
         }
         .padding(.horizontal, DesktopStyle.gap)
         .padding(.bottom, DesktopStyle.gap)
         .padding(.top, DesktopStyle.topInset)
         .background(DesktopStyle.windowBackground)
         .ignoresSafeArea()
-        .onGeometryChange(for: Bool.self) { $0.size.width >= DesktopStyle.queueMinWindowWidth } action: { isWide = $0 }
+        .onGeometryChange(for: Bool.self) { [threshold = scaled(DesktopStyle.queueMinWindowWidth)] in $0.size.width >= threshold } action: { isWide = $0 }
         .onChange(of: selected, initial: true) { _, tab in
             keep(tab)
         }
@@ -147,11 +153,22 @@ struct DesktopShell: View {
 
     /// Every kept page, the selected one on top, or the playlist chosen in
     /// the sidebar over them all.
+    ///
+    /// In an overlay, so the hidden pages' frozen sizes (`KeptPageFrame`)
+    /// never size the column.
     private func pages(selected: AppTab) -> some View {
-        ZStack {
+        Color.clear.overlay(alignment: .topLeading) {
+            pageStack(selected: selected)
+        }
+        .clipped()
+    }
+
+    private func pageStack(selected: AppTab) -> some View {
+        ZStack(alignment: .topLeading) {
             ForEach(keptTabs, id: \.self) { tab in
                 let isShown = desktop.playlist == nil && tab == selected
                 page(for: tab)
+                    .modifier(KeptPageFrame(isShown: isShown))
                     .opacity(isShown ? 1 : 0)
                     .allowsHitTesting(isShown)
                     // Off too, so a hidden page's keyboard shortcuts (Escape
@@ -199,6 +216,28 @@ struct DesktopShell: View {
         if tabs != keptTabs {
             keptTabs = tabs
         }
+    }
+}
+
+/// A kept page's frame: all the room there is while it shows; hidden, the
+/// size it last showed at, so a window being resized lays out the page on
+/// show alone, as a `TabView` doesn't lay out its tabs off screen. Shown
+/// again, it takes the room there is now, once.
+private struct KeptPageFrame: ViewModifier {
+    let isShown: Bool
+    @State private var lastSize: CGSize?
+
+    func body(content: Content) -> some View {
+        let frozen = isShown ? nil : lastSize
+
+        content
+            .frame(width: frozen?.width, height: frozen?.height)
+            .frame(maxWidth: frozen == nil ? .infinity : nil, maxHeight: frozen == nil ? .infinity : nil, alignment: .topLeading)
+            .onGeometryChange(for: CGSize.self) { $0.size } action: { size in
+                if isShown {
+                    lastSize = size
+                }
+            }
     }
 }
 

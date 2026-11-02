@@ -10,6 +10,7 @@ import SwiftUI
 struct DesktopSidebar: View {
     @State private var appState = AppState.shared
     @State private var desktopRouter = Router.desktop
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         VStack(spacing: 0) {
@@ -58,7 +59,7 @@ struct DesktopSidebar: View {
             Image("CueIconGlass")
                 .resizable()
                 .scaledToFit()
-                .frame(width: 26, height: 26)
+                .frame(width: 26 * DesktopStyle.scale(typeSize), height: 26 * DesktopStyle.scale(typeSize))
             Text("Cue")
                 .font(.headline)
             Spacer(minLength: 0)
@@ -112,12 +113,16 @@ struct DesktopSidebarLabel<Icon: View>: View {
     var badge: Int = 0
     @ViewBuilder var icon: () -> Icon
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     var body: some View {
+        let tile = (36 * DesktopStyle.scale(typeSize)).rounded()
+
         HStack(spacing: 12) {
             icon()
-                .font(.system(size: 15, weight: .semibold))
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(isSelected ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
-                .frame(width: 36, height: 36)
+                .frame(width: tile, height: tile)
                 .background(
                     isSelected ? AnyShapeStyle(Color("Accent")) : AnyShapeStyle(.quaternary),
                     in: .rect(cornerRadius: 10)
@@ -285,6 +290,7 @@ private struct DesktopPlaylistRows: View {
     @Environment(AppleMusicBrowseService.self) private var apple
     @Environment(PlexBrowseService.self) private var plex
     @Environment(SubsonicBrowseService.self) private var subsonic
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var desktop = DesktopState.shared
 
     /// Read from the browse services, which their screens fill too.
@@ -299,6 +305,8 @@ private struct DesktopPlaylistRows: View {
     }
 
     var body: some View {
+        let cover = (36 * DesktopStyle.scale(typeSize)).rounded()
+
         ForEach(playlists) { playlist in
             let isSelected = desktop.isShowing(playlist)
             Button {
@@ -306,7 +314,7 @@ private struct DesktopPlaylistRows: View {
             } label: {
                 HStack(spacing: 12) {
                     ContentArtworkView(content: playlist, showMusicSource: false)
-                        .frame(width: 36, height: 36)
+                        .frame(width: cover, height: cover)
                         .clipShape(.rect(cornerRadius: 7))
                     Text(playlist.title)
                         .font(.callout.weight(.semibold))

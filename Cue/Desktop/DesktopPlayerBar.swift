@@ -47,13 +47,6 @@ private struct BarCard<Content: View>: View {
     }
 }
 
-/// Whether what's on screen is a book: the transport skips 15 and 30 s,
-/// and the queue's card is its chapters.
-@MainActor
-private func isPlayingBook(on route: PlaybackRoute) -> Bool {
-    AudiobookPlayer.shared.isPlayingBook(on: route.presented) && !route.isHolding
-}
-
 // MARK: - Now playing
 
 /// The song: its cover, title and artist, opening the player, and the like
@@ -62,6 +55,11 @@ private func isPlayingBook(on route: PlaybackRoute) -> Bool {
 private struct DesktopNowPlayingCard: View {
     private var route: PlaybackRoute { .shared }
     @State private var router = Router.main
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    private func scaled(_ value: CGFloat) -> CGFloat {
+        (value * DesktopStyle.scale(typeSize)).rounded()
+    }
 
     var body: some View {
         let controller = route.presented
@@ -128,28 +126,35 @@ private struct DesktopNowPlayingCard: View {
                     .background(.quaternary, in: .rect(cornerRadius: 9))
             }
         }
-        .frame(width: 52, height: 52)
+        .frame(width: scaled(52), height: scaled(52))
     }
 
     @ViewBuilder
     private func subtitle(item: PlayableContent?) -> some View {
-        if isPlayingBook(on: route) {
+        if PlayerCommands.isBook {
             AudiobookTimeLeft(prefix: AudiobookPlayer.shared.current?.book.subtitle, isCompact: true)
         } else if let subtitle = item?.subtitle, !subtitle.isEmpty {
             Text(subtitle)
         }
     }
 
-    /// The player's like button, as its navigation bar has it.
+    /// The player's like button, by its rule: a speaker's track; on this
+    /// device the song on air while a station plays and Apple Music has
+    /// it, else the song where its service can like it.
     @ViewBuilder
     private func likeButton(item: PlayableContent?, group: GroupRoom?) -> some View {
+        let local = LocalPlaybackService.shared
         if !route.isHolding {
             if let group {
                 LikeButtonView(group: group)
-                    .frame(width: 36, height: 36)
-            } else if let item, item.content.service.supportsFavoriteTrack {
+                    .frame(width: scaled(36), height: scaled(36))
+            } else if let song = local.onAirMatch {
+                LikeButtonView(content: song)
+                    .id(song.content.id)
+                    .frame(width: scaled(36), height: scaled(36))
+            } else if let item = local.nowPlaying, item.content.service.supportsFavoriteTrack {
                 LikeButtonView(content: item)
-                    .frame(width: 36, height: 36)
+                    .frame(width: scaled(36), height: scaled(36))
             }
         }
     }
@@ -165,31 +170,21 @@ private struct DesktopTransportCard: View {
 
     var body: some View {
         let controller = route.presented
-        let isBook = isPlayingBook(on: route)
 
         BarCard(horizontalPadding: 8) {
             Button {
-                Task {
-                    if isBook {
-                        await AudiobookPlayer.shared.skip(by: -AudiobookPlayer.skipBackInterval)
-                    } else {
-                        await controller.previous()
-                        if let group = controller.group {
-                            try? await SonosService.shared.updateGroups(from: [group])
-                        }
-                    }
-                }
+                Task { await PlayerCommands.previous() }
             } label: {
-                Image(systemName: isBook ? "gobackward.\(Int(AudiobookPlayer.skipBackInterval))" : "backward.fill")
+                Image(systemName: PlayerCommands.previousSymbol)
                     .font(.title3)
             }
             .buttonStyle(DesktopIconButtonStyle(side: 44))
-            .disabled(!isBook && !(controller.showsPrevious && controller.canGoBack))
-            .accessibilityLabel(isBook ? "Back \(Int(AudiobookPlayer.skipBackInterval)) Seconds" : "Previous")
-            .help(isBook ? "Back \(Int(AudiobookPlayer.skipBackInterval)) Seconds" : "Previous")
+            .disabled(!PlayerCommands.canGoPrevious)
+            .accessibilityLabel(PlayerCommands.previousTitle)
+            .help(PlayerCommands.previousTitle)
 
             Button {
-                Task { await controller.togglePlayback() }
+                Task { await PlayerCommands.togglePlayback() }
             } label: {
                 Image(systemName: controller.isPlaying ? "pause.fill" : "play.fill")
                     .font(.title)
@@ -201,24 +196,15 @@ private struct DesktopTransportCard: View {
             .help(controller.isPlaying ? "Pause" : "Play")
 
             Button {
-                Task {
-                    if isBook {
-                        await AudiobookPlayer.shared.skip(by: AudiobookPlayer.skipForwardInterval)
-                    } else {
-                        await controller.next()
-                        if let group = controller.group {
-                            try? await SonosService.shared.updateGroups(from: [group])
-                        }
-                    }
-                }
+                Task { await PlayerCommands.next() }
             } label: {
-                Image(systemName: isBook ? "goforward.\(Int(AudiobookPlayer.skipForwardInterval))" : "forward.fill")
+                Image(systemName: PlayerCommands.nextSymbol)
                     .font(.title3)
             }
             .buttonStyle(DesktopIconButtonStyle(side: 44))
-            .disabled(!isBook && !(controller.showsNext && controller.hasNext))
-            .accessibilityLabel(isBook ? "Forward \(Int(AudiobookPlayer.skipForwardInterval)) Seconds" : "Next")
-            .help(isBook ? "Forward \(Int(AudiobookPlayer.skipForwardInterval)) Seconds" : "Next")
+            .disabled(!PlayerCommands.canGoNext)
+            .accessibilityLabel(PlayerCommands.nextTitle)
+            .help(PlayerCommands.nextTitle)
         }
     }
 }
@@ -252,15 +238,16 @@ private struct DesktopScrubberCard: View {
 private struct DesktopActionsCard: View {
     private var route: PlaybackRoute { .shared }
     @State private var appState = AppState.shared
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         let controller = route.presented
-        let isBook = isPlayingBook(on: route)
+        let isBook = PlayerCommands.isBook
 
         BarCard(horizontalPadding: 8) {
             PlaybackRouteButton()
                 .font(.title3)
-                .frame(width: 44, height: 44)
+                .frame(width: 44 * DesktopStyle.scale(typeSize), height: 44 * DesktopStyle.scale(typeSize))
                 .desktopHover(cornerRadius: 22)
                 .help("Play On")
 
@@ -287,20 +274,14 @@ private struct DesktopActionsCard: View {
                     appState.showsQueuePanel.toggle()
                 }
             } label: {
-                Group {
-                    if isBook {
-                        AudiobookChapterIconView()
-                    } else {
-                        PresentedQueueIconView()
-                    }
-                }
-                .font(.title3)
-                .foregroundStyle(appState.showsQueuePanel ? AnyShapeStyle(Color("Accent")) : AnyShapeStyle(.primary))
+                QueueToggleIcon()
+                    .font(.title3)
+                    .foregroundStyle(appState.showsQueuePanel ? AnyShapeStyle(Color("Accent")) : AnyShapeStyle(.primary))
             }
             .buttonStyle(DesktopIconButtonStyle(side: 44))
-            .accessibilityLabel(isBook ? (appState.showsQueuePanel ? "Hide Chapters" : "Show Chapters") : (appState.showsQueuePanel ? "Hide Queue" : "Show Queue"))
+            .accessibilityLabel(QueueToggleIcon.title(isShown: appState.showsQueuePanel))
             .accessibilityAddTraits(appState.showsQueuePanel ? .isSelected : [])
-            .help(appState.showsQueuePanel ? "Hide Queue (⌥⌘0)" : "Show Queue (⌥⌘0)")
+            .help("\(QueueToggleIcon.title(isShown: appState.showsQueuePanel)) (⌥⌘0)")
         }
     }
 }
@@ -309,10 +290,11 @@ private struct DesktopActionsCard: View {
 /// group's slider (`VolumeControlView`, which sends the levels).
 private struct DesktopSpeakerVolume: View {
     @Bindable var group: GroupRoom
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         VolumeControlView(group: group, immediateDrag: true)
-            .frame(width: 200)
+            .frame(width: 200 * DesktopStyle.scale(typeSize))
             .padding(.horizontal, 4)
     }
 }
@@ -326,7 +308,7 @@ private struct DesktopQueueSummaryCard: View {
 
     var body: some View {
         let controller = route.presented
-        let isBook = isPlayingBook(on: route)
+        let isBook = PlayerCommands.isBook
 
         BarCard(horizontalPadding: 18) {
             VStack(alignment: .leading, spacing: 2) {

@@ -24,6 +24,24 @@ struct AppearanceSettingsScreen: View {
                 Text("Theme")
             }
 
+            // The Mac's window only: iPhone and iPad follow the system's
+            // text size.
+            if AppState.usesDesktopShell {
+                Section {
+                    Picker("Interface Size", selection: $appState.interfaceSize) {
+                        ForEach(InterfaceSize.allCases) { size in
+                            Text(size.title).tag(size)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                } header: {
+                    Text("Interface Size")
+                } footer: {
+                    Text("View ▸ Bigger (⌘+) and Smaller (⌘−) change it too.")
+                }
+            }
+
             Section {
                 Toggle(isOn: $appState.showRadioTab) {
                     Label {

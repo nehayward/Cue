@@ -43,7 +43,6 @@ struct MusicPlaybackView: View {
     /// Singletons rather than the environment: the accessory is hosted
     /// outside what `withEnvironments()` installs on the tab content.
     private var route: PlaybackRoute { .shared }
-    private var sonosService: SonosService { .shared }
 
     /// The iPad's layout (`PadLayout`), from the accessory's own size
     /// classes for the same reason as the singletons above: an iPhone Duo
@@ -57,16 +56,8 @@ struct MusicPlaybackView: View {
         // The buttons sit in cells of their own width, which space them, so
         // the row's own spacing is small.
         HStack(spacing: 4) {
-#if targetEnvironment(macCatalyst)
-            // The Mac's bar, after Music's: the transport at the leading
-            // end, Previous too, then the song, then Play On and the queue.
-            transportButtons(includesPrevious: true)
             trackButton
-                .padding(.horizontal, 8)
-#else
-            trackButton
-            transportButtons(includesPrevious: false)
-#endif
+            transportButtons
 
             // Present playing or not: the route is set ahead of Play, which
             // is the whole point of it no longer asking. Not in the bar
@@ -83,23 +74,12 @@ struct MusicPlaybackView: View {
             // open. Only at a regular width: a compact window has no side
             // panel to show. The Mac's is in the View menu too.
             if usesPadLayout, UIDevice.current.userInterfaceIdiom != .vision, horizontalSizeClass == .regular {
-                // A book's chapters take the panel (`QueueNextUpView`).
-                let isBook = AudiobookPlayer.shared.isPlayingBook(on: route.presented)
                 Button {
                     withAnimation(.snappy) {
                         appState.showsQueuePanel.toggle()
                     }
                 } label: {
-                    // The player's queue gauge: how far through the queue
-                    // playback is, for what's on screen. For a book, the
-                    // player's bookmark with the chapter's number.
-                    Group {
-                        if isBook {
-                            AudiobookChapterIconView()
-                        } else {
-                            PresentedQueueIconView()
-                        }
-                    }
+                    QueueToggleIcon()
                         .font(.title3)
                         // Shown: a soft accent disc behind the gauge rather
                         // than the gauge itself in accent, so its number stays
@@ -111,9 +91,9 @@ struct MusicPlaybackView: View {
                 }
                 .buttonStyle(.plain)
                 .animation(.snappy, value: appState.showsQueuePanel)
-                .accessibilityLabel(isBook ? (appState.showsQueuePanel ? "Hide Chapters" : "Show Chapters") : (appState.showsQueuePanel ? "Hide Queue" : "Show Queue"))
+                .accessibilityLabel(QueueToggleIcon.title(isShown: appState.showsQueuePanel))
                 .accessibilityAddTraits(appState.showsQueuePanel ? .isSelected : [])
-                .help(appState.showsQueuePanel ? "Hide Queue (⌥⌘0)" : "Show Queue (⌥⌘0)")
+                .help("\(QueueToggleIcon.title(isShown: appState.showsQueuePanel)) (⌥⌘0)")
             }
         }
         .padding(.horizontal, 12)
@@ -135,14 +115,10 @@ struct MusicPlaybackView: View {
     }
 
     /// iPad's bar, and an iPhone Duo open's, has the room for a longer
-    /// title before it scrolls. The Mac's is wider again, as Music's is,
-    /// with the transport in it as well.
+    /// title before it scrolls. (The Mac's window has a bar of its own,
+    /// `DesktopPlayerBar`.)
     private var maxWidth: CGFloat {
-#if targetEnvironment(macCatalyst)
-        760
-#else
         usesPadLayout && UIDevice.current.userInterfaceIdiom != .vision ? 720 : 500
-#endif
     }
 
     /// The iPhone's bar, and an iPad window's at a compact width, is as
@@ -199,12 +175,9 @@ struct MusicPlaybackView: View {
 
     // MARK: - Now playing
 
-    /// A book reads as what's left of its chapter, and skips 15 and 30 s
-    /// where a song goes to the previous and the next: a book's file is a
-    /// chapter or more. Not while a hand-off holds the row.
-    private var isBook: Bool {
-        AudiobookPlayer.shared.isPlayingBook(on: route.presented) && !route.isHolding
-    }
+    /// A book reads as what's left of its chapter, and skips 30 s where a
+    /// song goes to the next (`PlayerCommands`).
+    private var isBook: Bool { PlayerCommands.isBook }
 
     /// The track: the cover, the title and the line under it, opening the
     /// player. The display item, not the queue row: a station reads as the
@@ -272,44 +245,19 @@ struct MusicPlaybackView: View {
         .zoomSource(.miniPlayer, in: zoomNamespace)
     }
 
-    /// Play and Pause and Next, with Previous ahead of them on the Mac. While
-    /// a hand-off holds the row on its source, the source is on its way out:
-    /// the buttons rest and Play reads as it did (`HeldPlaybackController`).
+    /// Play and Pause, and Next (a book's 30 s forward). While a hand-off
+    /// holds the row on its source, the source is on its way out: the
+    /// buttons rest and Play reads as it did (`HeldPlaybackController`).
     @ViewBuilder
-    private func transportButtons(includesPrevious: Bool) -> some View {
+    private var transportButtons: some View {
         let controller = route.presented
         let item = controller.nowPlayingDisplay
         let isPlaying = controller.isPlaying
 
         if item != nil || controller.isPlaying {
-            if includesPrevious, placement != .inline, controller.showsPrevious || isBook {
-                Button {
-                    HapticManager.shared.fireHaptic(.buttonPress)
-                    if isBook {
-                        Task { await AudiobookPlayer.shared.skip(by: -AudiobookPlayer.skipBackInterval) }
-                        return
-                    }
-                    Task {
-                        await controller.previous()
-                        // As Next: this brings the speaker's new song in.
-                        if let group = controller.group {
-                            try? await sonosService.updateGroups(from: [group])
-                        }
-                    }
-                } label: {
-                    Image(systemName: isBook ? "gobackward.\(Int(AudiobookPlayer.skipBackInterval))" : "backward.fill")
-                        .frame(width: Self.buttonSide, height: Self.buttonSide)
-                        .contentShape(.rect)
-                }
-                .buttonStyle(.plain)
-                .font(.title3)
-                .accessibilityLabel(isBook ? "Back \(Int(AudiobookPlayer.skipBackInterval)) Seconds" : "Previous")
-                .disabled(!isBook && !controller.canGoBack)
-            }
-
             Button {
                 HapticManager.shared.fireHaptic(.buttonPress)
-                Task { await controller.togglePlayback() }
+                Task { await PlayerCommands.togglePlayback() }
             } label: {
                 MiniPlayerPlayPauseLabel(controller: controller, isRinged: isCompact, showsProgress: item != nil)
             }
@@ -322,27 +270,16 @@ struct MusicPlaybackView: View {
             if placement != .inline, controller.showsNext || isBook {
                 Button {
                     HapticManager.shared.fireHaptic(.buttonPress)
-                    if isBook {
-                        Task { await AudiobookPlayer.shared.skip(by: AudiobookPlayer.skipForwardInterval) }
-                        return
-                    }
-                    Task {
-                        await controller.next()
-                        // Nothing may be listening to the speaker with the
-                        // player closed; this brings the new song in.
-                        if let group = controller.group {
-                            try? await sonosService.updateGroups(from: [group])
-                        }
-                    }
+                    Task { await PlayerCommands.next() }
                 } label: {
-                    Image(systemName: isBook ? "goforward.\(Int(AudiobookPlayer.skipForwardInterval))" : "forward.fill")
+                    Image(systemName: PlayerCommands.nextSymbol)
                         .frame(width: Self.buttonSide, height: Self.buttonSide)
                         .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
                 .font(.title3)
-                .accessibilityLabel(isBook ? "Forward \(Int(AudiobookPlayer.skipForwardInterval)) Seconds" : "Next")
-                .disabled(!isBook && !controller.hasNext)
+                .accessibilityLabel(PlayerCommands.nextTitle)
+                .disabled(!PlayerCommands.canGoNext)
             }
         }
     }
@@ -619,39 +556,6 @@ struct CueApp: App {
 //            .safeAreaInset(edge: .top) {
 //                GlobalSearchField(selectedTab: $selectedTab)
 //            }
-        .tabViewSidebarHeader {
-            HStack(spacing: 10) {
-                Image("CueIconGlass")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 32, height: 32)
-                Text("Cue")
-                    .font(.title3.bold())
-                Spacer(minLength: 0)
-            }
-            .padding(.vertical, 4)
-        }
-        // The speaker-group count footer is off for now; the slot is
-        // still the place for it when it comes back.
-//            .tabViewSidebarFooter {
-//                let count = sonosService.sorted.count
-//                Label(
-//                    count == 1 ? "1 Speaker Group" : "\(count) Speaker Groups",
-//                    systemImage: count == 0 ? "hifispeaker.slash" : "hifispeaker.2"
-//                )
-//                .font(.footnote)
-//                .foregroundStyle(.secondary)
-//                .padding(.vertical, 4)
-//            }
-        // No bottom bar: the queue toggle is in the sidebar header.
-        // The sidebar's selection highlight is drawn in the tint, so this
-        // is what takes it off accent-teal. A TabView sidebar has no way to
-        // colour the row's label separately from its fill, so this gets the
-        // subtle neutral capsule but not Music.app's accent-coloured label.
-        // The tint reaches the whole TabView, which is why the tab content
-        // and the bottom bar put the real accent back — `Color("Accent")`
-        // by name, since `.accentColor` now resolves to this tint.
-//            .tint(Color.primary.opacity(0.12))
         // The queue panel, beside the whole `TabView` on iPad; on a phone
         // each tab has its own (`Screens`), so an iPhone Duo open keeps its
         // tab bar at the trailing edge. Inside `withEnvironments()`, which
@@ -728,6 +632,9 @@ struct CueApp: App {
             // panel and the player's cover, which all read it. An iPhone Duo
             // open is the iPad's, and the iPhone's again folded.
             .withPadLayout()
+            // The Mac window's own scale (`InterfaceSize`), round the player
+            // and the sheets too.
+            .interfaceSize(appState.interfaceSize)
             // Settings ▸ Appearance. Applied to the windows, so everything
             // presented from them follows it too.
             .onChange(of: appState.colorScheme, initial: true) { _, preference in
@@ -1579,23 +1486,18 @@ private struct WindowToasts: ViewModifier {
     }
 }
 
-/// `.sidebarAdaptable` on the Mac, where the sidebar is; the plain tab bar
-/// on iPhone and iPad, which have none. The adaptable style runs the
-/// sidebar's tab model everywhere it is applied — hidden tabs,
-/// customization — and a tab that model hides is a tab bar item with no
-/// view controller behind it. `.tabBarOnly` on iPad so the bar can't be
-/// turned into a sidebar there either.
+/// The plain tab bar on iPad, so it can't be turned into a sidebar: the
+/// adaptable style runs the sidebar's tab model wherever it is applied —
+/// hidden tabs, customization — and a tab that model hides is a tab bar
+/// item with no view controller behind it. (The Mac's window has no
+/// `TabView`: `DesktopShell`.)
 private struct AdaptiveTabViewStyle: ViewModifier {
     func body(content: Content) -> some View {
-#if targetEnvironment(macCatalyst)
-        content.tabViewStyle(.sidebarAdaptable)
-#else
         if UIDevice.current.userInterfaceIdiom == .pad {
             content.tabViewStyle(.tabBarOnly)
         } else {
             content
         }
-#endif
     }
 }
 
@@ -2169,6 +2071,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                     ]),
                 ])
                 builder.insertSibling(controlsMenu, afterMenu: .view)
+
+                // View ▸ Bigger, Smaller and Default Size, as a browser's
+                // zoom: the window's own scale (`InterfaceSize`). ⌘= too,
+                // unlisted, as + is a shifted key.
+                let sizeCommands = UIMenu(title: "", options: .displayInline, children: [
+                    UIKeyCommand(title: "Bigger", action: #selector(interfaceBigger), input: "+", modifierFlags: .command),
+                    // A property list of its own: two commands with one
+                    // action and none is a duplicate, which crashes at launch.
+                    UIKeyCommand(title: "Bigger", action: #selector(interfaceBigger), input: "=", modifierFlags: .command, propertyList: "equals", attributes: .hidden),
+                    UIKeyCommand(title: "Smaller", action: #selector(interfaceSmaller), input: "-", modifierFlags: .command),
+                    UIKeyCommand(title: "Default Size", action: #selector(interfaceDefaultSize), input: "0", modifierFlags: .command),
+                ])
+                builder.insertChild(sizeCommands, atEndOfMenu: .view)
             }
         }
     }
@@ -2176,61 +2091,32 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // MARK: - Controls menu
 
     @objc func controlsTogglePlayback() {
-        Task { @MainActor in await PlaybackRoute.shared.presented.togglePlayback() }
+        Task { @MainActor in await PlayerCommands.togglePlayback() }
     }
 
-    /// Next, or a book's 30 s forward, as the player's button.
     @objc func controlsNext() {
-        Task { @MainActor in
-            let controller = PlaybackRoute.shared.presented
-            if AudiobookPlayer.shared.isPlayingBook(on: controller) {
-                await AudiobookPlayer.shared.skip(by: AudiobookPlayer.skipForwardInterval)
-            } else if controller.showsNext, controller.hasNext {
-                await controller.next()
-            }
-        }
+        Task { @MainActor in await PlayerCommands.next() }
     }
 
-    /// Previous, or a book's 15 s back.
     @objc func controlsPrevious() {
-        Task { @MainActor in
-            let controller = PlaybackRoute.shared.presented
-            if AudiobookPlayer.shared.isPlayingBook(on: controller) {
-                await AudiobookPlayer.shared.skip(by: -AudiobookPlayer.skipBackInterval)
-            } else if controller.showsPrevious, controller.canGoBack {
-                await controller.previous()
-            }
-        }
+        Task { @MainActor in await PlayerCommands.previous() }
     }
 
     @objc func controlsToggleShuffle() {
-        Task { @MainActor in
-            let controller = PlaybackRoute.shared.presented
-            await controller.setShuffle(!controller.isShuffled)
-        }
+        Task { @MainActor in await PlayerCommands.toggleShuffle() }
     }
 
     @objc func controlsCycleRepeat() {
-        Task { @MainActor in
-            let controller = PlaybackRoute.shared.presented
-            await controller.setRepeatMode(controller.repeatMode.next)
-        }
+        Task { @MainActor in await PlayerCommands.cycleRepeat() }
     }
 
     /// A Sonos group's volume by 5. On this Mac the volume is macOS's own.
     @objc func controlsVolumeUp() {
-        Task { @MainActor in await Self.nudgeSpeakerVolume(by: 5) }
+        Task { @MainActor in await PlayerCommands.nudgeSpeakerVolume(by: 5) }
     }
 
     @objc func controlsVolumeDown() {
-        Task { @MainActor in await Self.nudgeSpeakerVolume(by: -5) }
-    }
-
-    @MainActor
-    private static func nudgeSpeakerVolume(by step: Int) async {
-        guard let group = PlaybackRoute.shared.presented.group else { return }
-        await SonosService.shared.setRelativeGroupVolume(ip: group.ip, volume: step)
-        group.groupVolume = min(max(group.groupVolume + Double(step), 0), 100)
+        Task { @MainActor in await PlayerCommands.nudgeSpeakerVolume(by: -5) }
     }
 
     /// The window's search field, with Search showing.
@@ -2243,6 +2129,26 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     @objc func controlsShowPlayer() {
         Task { @MainActor in Router.main.isPlayerPresented = true }
+    }
+
+    @objc func interfaceBigger() {
+        Task { @MainActor in
+            if let size = AppState.shared.interfaceSize.bigger {
+                AppState.shared.interfaceSize = size
+            }
+        }
+    }
+
+    @objc func interfaceSmaller() {
+        Task { @MainActor in
+            if let size = AppState.shared.interfaceSize.smaller {
+                AppState.shared.interfaceSize = size
+            }
+        }
+    }
+
+    @objc func interfaceDefaultSize() {
+        Task { @MainActor in AppState.shared.interfaceSize = .standard }
     }
 
     /// Drives the foreground playlist editor's undo, routed from the Playlist menu / ⌘Z.

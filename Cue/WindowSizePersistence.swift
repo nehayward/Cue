@@ -42,7 +42,10 @@ final class WindowSizeObserver: NSObject {
                 WindowFrameStore.savedFrame = frame
             }
             self.debounceWork = work
-            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 0.3, execute: work)
+            // Once the window has been still a second: a write of any key
+            // runs every view holding `@AppStorage` again, which mid-drag
+            // made the resize stutter.
+            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 1, execute: work)
         }
     }
 

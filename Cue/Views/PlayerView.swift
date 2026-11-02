@@ -1721,26 +1721,17 @@ private struct PlayerToolbarButtons: View {
                 .tint(.primary)
         }
 
-        // The queue gauge, or for a book the bookmark with its chapter's
-        // number, whose chapters take the panel (`QueueNextUpView`).
-        let isBook = AudiobookPlayer.shared.isPlayingBook(on: PlaybackRoute.shared.presented)
         Button {
             withAnimation {
                 showQueue.toggle()
             }
         } label: {
-            Group {
-                if isBook {
-                    AudiobookChapterIconView()
-                } else {
-                    PresentedQueueIconView()
-                }
-            }
-            .foregroundStyle(showQueue ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.primary))
+            QueueToggleIcon()
+                .foregroundStyle(showQueue ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.primary))
         }
-        .accessibilityLabel(isBook ? (showQueue ? "Hide Chapters" : "Show Chapters") : (showQueue ? "Hide Queue" : "Show Queue"))
+        .accessibilityLabel(QueueToggleIcon.title(isShown: showQueue))
         .accessibilityAddTraits(showQueue ? .isSelected : [])
-        .help(showQueue ? "Hide Queue (⌥⌘0)" : "Show Queue (⌥⌘0)")
+        .help("\(QueueToggleIcon.title(isShown: showQueue)) (⌥⌘0)")
     }
 }
 #endif

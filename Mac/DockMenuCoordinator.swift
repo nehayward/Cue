@@ -163,11 +163,8 @@ final class DockMenuCoordinator {
     // MARK: - The state
 
     /// A book's file is a chapter or more, so a book skips 15 and 30 s where
-    /// a song goes to the previous and the next (`MusicPlaybackView`). Not
-    /// while a hand-off holds the player.
-    private var isBook: Bool {
-        books.isPlayingBook(on: route.presented) && !route.isHolding
-    }
+    /// a song goes to the previous and the next (`PlayerCommands`).
+    private var isBook: Bool { PlayerCommands.isBook }
 
     private func makeState() -> DockMenuState {
         let controller = route.presented
@@ -318,44 +315,26 @@ final class DockMenuCoordinator {
         let controller = route.presented
         switch command {
         case .playPause:
-            await controller.togglePlayback()
-
+            await PlayerCommands.togglePlayback()
         case .next:
-            if isBook {
-                await books.skip(by: AudiobookPlayer.skipForwardInterval)
-                return
-            }
-            await controller.next()
-            // As the mini player's Next: this brings the speaker's new song
-            // in with nothing on screen listening.
-            if let group = controller.group {
-                try? await sonos.updateGroups(from: [group])
-            }
-
+            await PlayerCommands.next()
         case .previous:
-            if isBook {
-                await books.skip(by: -AudiobookPlayer.skipBackInterval)
-                return
-            }
-            await controller.previous()
-            if let group = controller.group {
-                try? await sonos.updateGroups(from: [group])
-            }
+            await PlayerCommands.previous()
 
         case .volumeUp:
-            await changeVolume(by: 1)
+            await PlayerCommands.nudgeSpeakerVolume(by: 1)
         case .volumeDown:
-            await changeVolume(by: -1)
+            await PlayerCommands.nudgeSpeakerVolume(by: -1)
         case .volumeUpLarge:
-            await changeVolume(by: 5)
+            await PlayerCommands.nudgeSpeakerVolume(by: 5)
         case .volumeDownLarge:
-            await changeVolume(by: -5)
+            await PlayerCommands.nudgeSpeakerVolume(by: -5)
 
         case .cycleRepeat:
-            await controller.setRepeatMode(controller.repeatMode.next)
+            await PlayerCommands.cycleRepeat()
 
         case .toggleShuffle:
-            await controller.setShuffle(!controller.isShuffled)
+            await PlayerCommands.toggleShuffle()
 
         case .toggleCrossfade:
             guard let group = controller.group else { return }
@@ -369,7 +348,7 @@ final class DockMenuCoordinator {
 
         case .toggleMute:
             guard let group = route.audibleGroup else { return }
-            await setMuted(!group.isMuted, group)
+            await PlayerCommands.setMuted(!group.isMuted, group)
 
         case .muteAll, .unmuteAll:
             let mute = command == .muteAll
@@ -377,7 +356,7 @@ final class DockMenuCoordinator {
             await withDiscardingTaskGroup { tasks in
                 for group in groups {
                     tasks.addTask { @MainActor in
-                        await self.setMuted(mute, group)
+                        await PlayerCommands.setMuted(mute, group)
                     }
                 }
             }
@@ -395,32 +374,6 @@ final class DockMenuCoordinator {
     }
 
     // MARK: Volume
-
-    /// A step of the group's volume, as the player's − and + do: relative,
-    /// so it moves every room in proportion, and turning up unmutes. Shown
-    /// in the model at once and held against the poll for a moment, so the
-    /// next open reads the new level.
-    private func changeVolume(by step: Int) async {
-        guard let group = route.audibleGroup, !group.coordinatorRoom.isOutputFixed else { return }
-        if step > 0, group.isMuted {
-            await setMuted(false, group)
-        }
-        group.isEditingVolume = true
-        group.groupVolume = max(0, min(100, group.groupVolume + Double(step)))
-        await sonos.setRelativeGroupVolume(ip: group.ip, volume: step)
-        try? await Task.sleep(for: .milliseconds(400))
-        group.isEditingVolume = false
-    }
-
-    /// Sonos's group mute mutes or unmutes every room in it. Shown at once
-    /// on the rooms too, as Play On's All Speakers does; the poll confirms it.
-    private func setMuted(_ mute: Bool, _ group: GroupRoom) async {
-        group.holdMute(mute)
-        for room in group.rooms where room.isMuted != mute {
-            room.holdMute(mute)
-        }
-        await sonos.setGroupMute(group: group, mute: mute)
-    }
 
     // MARK: Favorite
 

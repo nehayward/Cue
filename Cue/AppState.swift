@@ -40,6 +40,11 @@ final class AppState {
     var colorScheme: ColorSchemePreference {
         didSet { save(colorScheme.rawValue, from: oldValue.rawValue, as: AppStorageKeys.colorScheme) }
     }
+    /// Settings ▸ Appearance ▸ Interface Size, and View ▸ Bigger and
+    /// Smaller, on the Mac (`InterfaceSize`).
+    var interfaceSize: InterfaceSize {
+        didSet { save(interfaceSize.rawValue, from: oldValue.rawValue, as: AppStorageKeys.interfaceSize) }
+    }
     #if DEBUG
     /// Settings ▸ Debug ▸ Shrink Tab Bar on Scroll.
     var minimizesTabBar: Bool {
@@ -79,6 +84,7 @@ final class AppState {
         showAudiobooksTab = Self.bool(AppStorageKeys.showAudiobooksTab, default: true)
         showDownloadsTab = Self.bool(AppStorageKeys.showDownloadsTab, default: true)
         colorScheme = Self.colorSchemeSetting()
+        interfaceSize = defaults.string(forKey: AppStorageKeys.interfaceSize).flatMap(InterfaceSize.init(rawValue:)) ?? .standard
         #if DEBUG
         minimizesTabBar = Self.bool(Self.minimizesTabBarKey, default: true)
         #endif

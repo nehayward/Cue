@@ -251,19 +251,11 @@ final class CueMiniLink {
         let controller = PlaybackRoute.shared.presented
         switch command {
         case .togglePlayback:
-            await controller.togglePlayback()
+            await PlayerCommands.togglePlayback()
         case .next:
-            await controller.next()
-            // Nothing may be listening to the speaker with the player
-            // closed; this brings the new song in.
-            if let group = controller.group {
-                try? await SonosService.shared.updateGroups(from: [group])
-            }
+            await PlayerCommands.next()
         case .previous:
-            await controller.previous()
-            if let group = controller.group {
-                try? await SonosService.shared.updateGroups(from: [group])
-            }
+            await PlayerCommands.previous()
         case .skip(let seconds):
             guard AudiobookPlayer.shared.isPlayingBook(on: controller) else { return }
             await AudiobookPlayer.shared.skip(by: seconds)
