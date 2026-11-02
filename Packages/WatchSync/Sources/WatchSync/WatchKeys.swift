@@ -6,7 +6,9 @@ import Foundation
 /// pick made on one device shows as made on the other.
 public enum WatchKeys {
     /// The song's id with path separators and the extension dot made safe;
-    /// Plex ids bare, others behind their service's name.
+    /// Plex ids bare, others behind their service's name. A book's file is
+    /// a song here too: an Audiobookshelf file's id (`<item>|<index>|<file>`)
+    /// keeps its bars, as on the iPhone.
     public static func song(source: WatchSource, id: String) -> String {
         let safe = id
             .replacingOccurrences(of: "/", with: "-")

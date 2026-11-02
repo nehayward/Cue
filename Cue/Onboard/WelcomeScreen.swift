@@ -1,45 +1,64 @@
-import Analytics
 import Defaults
 import MusicSearchKit
 import SonosKit
 import SubscriptionKit
 import SwiftUI
 
-/// Root onboarding sheet. Owns the per-step navigation, the discovered-services
-/// state, and the bail-out / completion bookkeeping (`hasOnboarded`,
-/// `didBailOut`, `monitor()` on dismiss). Each step page lives in its own file:
+/// Root onboarding sheet. Owns the per-step navigation (forward, and back
+/// with the button top left), the services chosen, and the completion
+/// bookkeeping (`hasOnboarded`, `monitor()` and Apple Music's alert let go on
+/// dismiss). Each step page lives in its own file:
 ///
 ///  - `WelcomeStep.swift` — splash + Get Started
+///  - `ServicesStep.swift` — where the music is: the services to use, which
+///    is where Apple Music's alert comes up, if Apple Music is chosen
+///  - `PlexStep.swift` — Plex sign-in + default library pick (only when Plex
+///    is chosen and not set up)
+///  - `SubsonicSetupStep.swift`, `AudiobookshelfSetupStep.swift`,
+///    `FilesSetupStep.swift` — the same for each of those chosen and not set
+///    up, on `SetupPage`, each with Set Up Later
 ///  - `SonosQuestionStep.swift` — do you have Sonos? Sets the Sonos preference
 ///  - `DiscoveryStep.swift` — Local Network permission, searching, found/denied/notFound
-///  - `ServicesStep.swift` — list of music services with checkmarks
-///  - `PlexStep.swift` — Plex sign-in + default library pick (only when Plex found)
-///  - `PaywallStep.swift` — CuePaywall wrapper (skipped when already subscribed)
-///  - `EmailStep.swift` — optional newsletter capture (final step)
+///  - `ReadyStep.swift` — what's set up, and Start Listening
+///  - `PaywallStep.swift` — CuePaywall wrapper (held back for now)
+///  - `EmailStep.swift` — optional newsletter capture (held back for now)
+///
+/// The player comes first (CLAUDE.md, Product Priorities), so the services
+/// are asked before the speakers, and saying no to Sonos still ends set up.
 ///
 /// Supporting visual atoms (`MeshBackground`, `ShockwaveLogo`, `FloatingAppIcon`,
-/// `SearchPulse`, `StateGlyph`, `DiscoveredSpeakerList`, `ServiceRow`,
-/// `PrimaryPillButton`, `glassPill`) also each have their own file. Debug
-/// launch-arg helpers are in `OnboardingDebug.swift`.
+/// `SearchPulse`, `StateGlyph`, `DiscoveredSpeakerList`, `PrimaryPillButton`,
+/// `glassPill`, and the shared `ServiceChoiceRow`) also each have their own
+/// file. Debug launch-arg helpers are in `OnboardingDebug.swift`.
 struct WelcomeScreen: View {
     enum Step: Int, CaseIterable {
-        case welcome, sonos, discovery, services, plex, paywall, email
+        case welcome, services, plex, subsonic, audiobookshelf, files, sonos, discovery, ready, paywall, email
+    }
+
+    /// A change of page, set a pass ahead of `step`: the page leaving takes
+    /// its transition from the last pass it was drawn in, so the direction
+    /// has to be on it before it goes.
+    private struct Move: Equatable {
+        let step: Step
+        let isBack: Bool
     }
 
     @Environment(SonosService.self) private var sonosService
     @Environment(SubscriptionService.self) private var subscriptionService
     @Environment(CoreFeatures.self) private var coreFeatures
+    @Environment(MusicSearchService.self) private var musicSearchService
     @Environment(\.dismiss) private var dismiss
     @AppStorage(GroupStorageKeys.hasOnboarded, store: GroupStorageKeys.storage) private var hasOnboarded: Bool = false
-    @AppStorage(AppStorageKeys.selectedSearchServices) private var searchSelection = SelectedSearchServices()
 
     @State private var step: Step = .welcome
-    @State private var installedServices: Set<SonosServiceType> = []
-    /// Set when the user closes onboarding before reaching Services. Used
-    /// only to distinguish the analytics event (bailed vs completed) —
-    /// `hasOnboarded` is written either way so the sheet doesn't
-    /// re-present on next launch. Users can re-run setup from Preferences.
-    @State private var didBailOut = false
+    @State private var move: Move?
+    /// The pages come to, for Back.
+    @State private var history: [Step] = []
+    /// What the services page chose, kept for coming back to it.
+    @State private var chosenServices: Set<MediaSearchService>?
+    /// The set-up pages the services chosen need, in order, settled as the
+    /// services page is left.
+    @State private var setupSteps: [Step] = []
 
     var body: some View {
         ZStack {
@@ -48,47 +67,52 @@ struct WelcomeScreen: View {
 
             stepContent
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .overlay(alignment: .topTrailing) {
-                    if step != .paywall {
-                        Button {
+
+            // A layer of its own over the pages, so Back and Close stay put
+            // while a page slides: as overlays on the pages they went with
+            // each one.
+            VStack {
+                HStack {
+                    if showsBack {
+                        OnboardingCircleButton(systemName: "chevron.backward", label: "Back") {
                             HapticManager.shared.fireHaptic(.selection)
-                            // Closing before Services is recorded as a
-                            // "bailed" analytics event but still marks
-                            // onboarding complete — users found the repeat
-                            // re-presentation annoying and can restart
-                            // setup from Preferences if they need to.
-                            if [.welcome, .sonos, .discovery].contains(step) {
-                                didBailOut = true
-                            }
-                            dismiss()
-                        } label: {
-                            Image(systemName: "xmark")
-                                .font(.callout.weight(.semibold))
-                                .foregroundStyle(.white.opacity(0.85))
-                                .frame(width: 34, height: 34)
-                                .background(.ultraThinMaterial, in: Circle())
-                                .overlay {
-                                    Circle().strokeBorder(.white.opacity(0.2), lineWidth: 1)
-                                }
+                            goBack()
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Close")
-                        .padding(.top, 8)
-                        .padding(.trailing, 16)
+                        .transition(.opacity.combined(with: .scale(scale: 0.8)))
+                    }
+                    Spacer()
+                    if ![.ready, .paywall].contains(step) {
+                        // Closing early still marks onboarding complete —
+                        // users found the repeat re-presentation annoying
+                        // and can restart setup from Preferences if they
+                        // need to.
+                        OnboardingCircleButton(systemName: "xmark", label: "Close") {
+                            HapticManager.shared.fireHaptic(.selection)
+                            dismiss()
+                        }
+                        .transition(.opacity)
                     }
                 }
+                .padding(.top, 8)
+                .padding(.horizontal, 16)
+                Spacer()
+            }
+            .animation(.easeInOut(duration: 0.25), value: showsBack)
+            .animation(.easeInOut(duration: 0.25), value: step)
         }
         .fontDesign(.rounded)
         // Force users to use the X button — no swipe-down dismiss, so they
         // can't accidentally bail mid-onboarding.
         .interactiveDismissDisabled()
-        .task {
-            // Funnel entry point — fires once when the sheet first appears.
-            Analytics.shared.track(OnboardingEvent.started)
+        .onChange(of: move) { _, move in
+            guard let move else { return }
+            withAnimation(stepAnimation) { step = move.step }
         }
         .onDisappear {
+            // However it ends, Apple Music may ask from here on: a screen
+            // that read nothing while it was held reads again.
+            AppleMusicPermission.isHeld = false
             guard !OnboardingDebug.forceShow else { return }
-            Analytics.shared.track(didBailOut ? OnboardingEvent.bailed : OnboardingEvent.completed)
             // Mark onboarding done regardless of bail vs complete — the
             // sheet shouldn't keep re-presenting on every launch. Direct
             // write + synchronize on the app-group store because
@@ -109,31 +133,57 @@ struct WelcomeScreen: View {
         .spring(response: 0.6, dampingFraction: 0.85)
     }
 
+    private var showsBack: Bool {
+        !history.isEmpty && ![.welcome, .ready, .paywall].contains(step)
+    }
+
     /// One step view at a time. Each case is given its own `.id()` so SwiftUI
     /// treats it as a fresh view identity on `step` change.
     @ViewBuilder
     private var stepContent: some View {
         switch step {
         case .welcome:
-            WelcomeStep(advance: { goTo(.sonos) })
+            WelcomeStep(advance: { goTo(.services) })
                 .id(Step.welcome)
+                .transition(slideTransition)
+        case .services:
+            ServicesStep(initial: chosenServices, advance: finishServices)
+                .id(Step.services)
+                .transition(slideTransition)
+        case .plex:
+            PlexStep(advance: { finishSetup(.plex) })
+                .id(Step.plex)
+                .transition(slideTransition)
+        case .subsonic:
+            SubsonicSetupStep(advance: { finishSetup(.subsonic) })
+                .id(Step.subsonic)
+                .transition(slideTransition)
+        case .audiobookshelf:
+            AudiobookshelfSetupStep(advance: { finishSetup(.audiobookshelf) })
+                .id(Step.audiobookshelf)
+                .transition(slideTransition)
+        case .files:
+            FilesSetupStep(advance: { finishSetup(.files) })
+                .id(Step.files)
                 .transition(slideTransition)
         case .sonos:
             SonosQuestionStep(answer: answerSonosQuestion)
                 .id(Step.sonos)
                 .transition(slideTransition)
         case .discovery:
-            DiscoveryStep(advance: advanceFromDiscovery, skip: advanceToPostServices)
+            DiscoveryStep(advance: { goTo(.ready) }, skip: { goTo(.ready) })
                 .id(Step.discovery)
                 .transition(slideTransition)
-        case .services:
-            ServicesStep(installed: installedServices, advance: advanceFromServices)
-                .id(Step.services)
-                .transition(slideTransition)
-        case .plex:
-            PlexStep(advance: advanceFromPlex)
-                .id(Step.plex)
-                .transition(slideTransition)
+        case .ready:
+            let chosen = MediaSearchService.supported.filter { chosenServices?.contains($0) == true }
+            ReadyStep(
+                services: chosen,
+                // Chosen, but passed by with Set Up Later.
+                pending: chosen.filter { !$0.isAuthorized(on: []) },
+                finish: { dismiss() }
+            )
+            .id(Step.ready)
+            .transition(slideTransition)
         case .paywall:
             PaywallStep()
                 .id(Step.paywall)
@@ -145,11 +195,52 @@ struct WelcomeScreen: View {
         }
     }
 
+    /// Forward slides in from the trailing edge, Back from the leading one.
     private var slideTransition: AnyTransition {
-        .asymmetric(
-            insertion: .move(edge: .trailing),
-            removal: .move(edge: .leading)
+        let isBack = move?.isBack == true
+        return .asymmetric(
+            insertion: .move(edge: isBack ? .leading : .trailing),
+            removal: .move(edge: isBack ? .trailing : .leading)
         )
+    }
+
+    /// What's chosen is what Search, Browse and the tabs offer. Nothing
+    /// chosen leaves everything as it was, so a skip doesn't switch it all
+    /// off. Each service chosen that isn't set up gets its page next.
+    private func finishServices(_ chosen: Set<MediaSearchService>) {
+        chosenServices = chosen
+        if !chosen.isEmpty {
+            coreFeatures.enableOnly(chosen)
+            SearchSelectionStore.shared.selection = SelectedSearchServices([CoreFeatures.preferredDefaultService(from: chosen)])
+        }
+        setupSteps = [.plex, .subsonic, .audiobookshelf, .files].filter { needsSetup($0, chosen: chosen) }
+        goTo(setupSteps.first ?? .sonos)
+    }
+
+    /// Whether `step` sets up a service chosen that isn't set up yet.
+    private func needsSetup(_ step: Step, chosen: Set<MediaSearchService>) -> Bool {
+        switch step {
+        case .plex:
+            let plexReady = PlexAuthenticator.shared.authToken != nil && musicSearchService.plexServerID != nil
+            return chosen.contains(.plex) && (!plexReady || OnboardingDebug.showsPlexStep)
+        case .subsonic:
+            return chosen.contains(.subsonic) && !SubsonicAPI.shared.isConfigured
+        case .audiobookshelf:
+            return chosen.contains(.audiobookshelf) && !AudiobookshelfAPI.shared.isConfigured
+        case .files:
+            return chosen.contains(.files) && !FilesLibraryService.shared.isConfigured
+        default:
+            return false
+        }
+    }
+
+    /// A set-up page done or passed by: the next one, then the speakers.
+    private func finishSetup(_ step: Step) {
+        guard let index = setupSteps.firstIndex(of: step), index + 1 < setupSteps.count else {
+            goTo(.sonos)
+            return
+        }
+        goTo(setupSteps[index + 1])
     }
 
     /// The answer is the Sonos preference. Yes turns it on without starting
@@ -157,121 +248,41 @@ struct WelcomeScreen: View {
     /// before it appears. No leaves it off, so nothing touches the network,
     /// and skips the speaker pages.
     private func answerSonosQuestion(_ hasSonos: Bool) {
-        Analytics.shared.track(hasSonos ? OnboardingEvent.answeredHasSonos : OnboardingEvent.answeredNoSonos)
         sonosService.setEnabled(hasSonos, startMonitoring: false)
-        if hasSonos {
-            goTo(.discovery)
-        } else {
-            advanceToPostServices()
-        }
-    }
-
-    private func advanceFromDiscovery() {
-        Task {
-            let installed: [SonosServiceType]
-            if OnboardingDebug.mockNoServices {
-                installed = []
-            } else {
-                installed = await fetchInstalledServices()
-            }
-            await MainActor.run {
-                let installedSet = Set(installed)
-                installedServices = installedSet
-                // Sync per-service enabled flags so search/browse only surface
-                // services the user has actually authorized in Sonos. The
-                // self-hosted ones (Subsonic, Files) answer from their own
-                // setup instead.
-                coreFeatures.syncEnabledServices(from: installedSet)
-                // Default the active search service to Apple Music if
-                // available, then Plex, then radio — matches what most users
-                // want without forcing them into Preferences.
-                searchSelection = SelectedSearchServices([CoreFeatures.preferredDefaultService(from: installedSet)])
-                goTo(.services)
-            }
-        }
-    }
-
-    /// Fetches the user's authorized Sonos music services with retries.
-    ///
-    /// `SonosService.services()` reads from the keychain, which gets
-    /// populated asynchronously: `onServerListening()` starts a media-server
-    /// listener, subscribes to Sonos's ZoneGroupTopology, decrypts the
-    /// pushed payload, then writes the MediaServer list to keychain. On a
-    /// cold launch or if the decrypter / parser hiccups, the first call
-    /// returns empty. Try a few times with growing delays before settling.
-    private func fetchInstalledServices() async -> [SonosServiceType] {
-        // Total worst case ~4.5s (0 + 1.5 + 3.0). Most users get data on
-        // the first or second attempt; the third covers slow Wi-Fi or a
-        // first-launch keychain write race.
-        let delays: [UInt64] = [0, 1_500, 3_000]
-        for delay in delays {
-            if delay > 0 {
-                try? await Task.sleep(for: .milliseconds(Int(delay)))
-            }
-            let services = await sonosService.services()
-            if !services.isEmpty {
-                logServices(services)
-                return services.map(\.type)
-            }
-        }
-        // Truly empty (no services authorized) — surface the empty-state UI.
-        #if DEBUG
-        print("[Sonos Service] No media servers found after 3 attempts — keychain empty.")
-        #endif
-        return []
-    }
-
-    private func logServices(_ services: [MediaServer]) {
-        #if DEBUG
-        for service in services {
-            print("""
-            [Sonos Service]
-              name: \(service.name)
-              type: \(service.type)
-              serviceId: \(service.serviceId)
-              udn (id): \(service.id)
-            """)
-        }
-        #endif
-    }
-
-    /// Services → next. When the user has Plex among their authorized Sonos
-    /// services, route through the Plex setup step first so it's ready to use;
-    /// otherwise skip straight to the paywall / email handoff.
-    private func advanceFromServices() {
-        if installedServices.contains(.plex) {
-            goTo(.plex)
-        } else {
-            advanceToPostServices()
-        }
-    }
-
-    /// Plex setup → next. Same paywall / email handoff as everyone else.
-    private func advanceFromPlex() {
-        advanceToPostServices()
-    }
-
-    /// Shared post-services routing. Onboarding ends here for now: the
-    /// paywall and newsletter steps are held back. To bring them back, go to
-    /// `.email` for subscribers and `.paywall` for everyone else.
-    private func advanceToPostServices() {
-        dismiss()
+        goTo(hasSonos ? .discovery : .ready)
     }
 
     private func goTo(_ next: Step) {
-        // Track "viewed" events at the moment a step is entered. Discovery
-        // entry isn't tracked here — `DiscoveryStep` fires more granular
-        // started/succeeded/notFound/denied events itself.
-        switch next {
-        case .services: Analytics.shared.track(OnboardingEvent.viewedServices)
-        case .plex:     Analytics.shared.track(OnboardingEvent.viewedPlex)
-        // Reuse the existing top-level `viewedPaywall` event (which fires
-        // for paywall views anywhere in the app) instead of creating an
-        // onboarding-specific duplicate.
-        case .paywall:  Analytics.shared.track(AnalyticEvents.viewedPaywall)
-        default: break
+        history.append(step)
+        move = Move(step: next, isBack: false)
+    }
+
+    private func goBack() {
+        guard let previous = history.popLast() else { return }
+        move = Move(step: previous, isBack: true)
+    }
+}
+
+/// The round glass buttons in onboarding's top corners: Back and Close.
+struct OnboardingCircleButton: View {
+    let systemName: String
+    let label: LocalizedStringKey
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.callout.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.85))
+                .frame(width: 34, height: 34)
+                .background(.ultraThinMaterial, in: Circle())
+                .overlay {
+                    Circle().strokeBorder(.white.opacity(0.2), lineWidth: 1)
+                }
+                .contentShape(Circle())
         }
-        withAnimation(stepAnimation) { step = next }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
     }
 }
 

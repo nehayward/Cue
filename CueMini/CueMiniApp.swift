@@ -1,7 +1,7 @@
 import SwiftUI
 import SonosKitMini
 import KeyboardShortcuts
-import Kingfisher
+import Nuke
 
 @MainActor
 @Observable
@@ -84,18 +84,15 @@ struct CueMiniApp: App {
 //        }
 //        #endif
         
-        // Configure KingFisher image cache with aggressive limits to prevent memory bloat
-        ImageCache.default.memoryStorage.config.totalCostLimit = 10 * 1024 * 1024  // 10MB
-        ImageCache.default.memoryStorage.config.countLimit = 50  // Max 50 images in memory
-        ImageCache.default.memoryStorage.config.expiration = .seconds(300)  // 5 minutes in memory
-        ImageCache.default.diskStorage.config.sizeLimit = 20 * 1024 * 1024  // 20MB
-        ImageCache.default.diskStorage.config.expiration = .days(1)
+        // Configure Nuke's memory cache with aggressive limits to prevent memory bloat
+        ImageCache.shared.costLimit = 10 * 1024 * 1024  // 10MB
+        ImageCache.shared.countLimit = 50  // Max 50 images in memory
+        ImageCache.shared.ttl = 300  // 5 minutes in memory
 
         // Menu bar apps run for weeks — trim image caches and re-accumulating
         // device data on a 24h cadence, same as the Watch app already does.
         SonosMiniService.shared.onPeriodicCleanup = {
-            ImageCache.default.clearMemoryCache()
-            ImageCache.default.cleanExpiredDiskCache()
+            ImageCache.shared.removeAll()
         }
         SonosMiniService.shared.startPeriodicCleanup()
 
@@ -185,13 +182,29 @@ struct MenuBarLabelView: View {
 
     var body: some View {
         HStack {
-            if let image = NSImage.cueIcon.withSymbolConfiguration(.init(pointSize: 32, weight: .black)) {
-                Image(nsImage: image)
-            }
+            Image(nsImage: .cueMark)
             if let title {
                 Text(title)
             }
         }
         .animation(.spring, value: title)
     }
+}
+
+private extension NSImage {
+    /// Cue's play triangle (`CueMark`, shared with the widgets) on the menu
+    /// bar's 16-point square, a template the menu bar tints.
+    static let cueMark: NSImage = {
+        let image = NSImage(size: NSSize(width: 16, height: 16), flipped: true) { bounds in
+            guard let context = NSGraphicsContext.current?.cgContext else { return false }
+            let height: CGFloat = 14
+            let width = height * CueMark.aspectRatio
+            let mark = CGRect(x: (bounds.width - width) / 2, y: (bounds.height - height) / 2, width: width, height: height)
+            context.addPath(CueMark().path(in: mark).cgPath)
+            context.fillPath()
+            return true
+        }
+        image.isTemplate = true
+        return image
+    }()
 }

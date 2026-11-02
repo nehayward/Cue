@@ -19,7 +19,10 @@ struct SubsonicBrowseScreen: View {
 
         NavigationStack(path: $router.path) {
             List {
+                // Above the library, a section of its own.
+                MusicLeftOffSection()
                 if subsonicBrowseService.isAuthenticated {
+                    // One group of rows, as on the Apple and Plex libraries.
                     NavigationLink(value: RouterDestination.playableList(
                         title: "Artists",
                         // Off for now: the index fights the paginated loads
@@ -30,8 +33,6 @@ struct SubsonicBrowseScreen: View {
                     )) {
                         Label("Artists", systemImage: "music.mic")
                     }
-                    .listRowInsets(.default)
-                    .listRowSeparator(.hidden)
 
                     NavigationLink(value: RouterDestination.playableList(
                         title: "Albums",
@@ -50,8 +51,6 @@ struct SubsonicBrowseScreen: View {
                     )) {
                         Label("Albums", systemImage: "smallcircle.circle.fill")
                     }
-                    .listRowInsets(.default)
-                    .listRowSeparator(.hidden)
 
                     NavigationLink(value: RouterDestination.playableList(
                         title: "Songs",
@@ -68,83 +67,54 @@ struct SubsonicBrowseScreen: View {
                     )) {
                         Label("Songs", systemImage: "music.note")
                     }
-                    .listRowInsets(.default)
-                    .listRowSeparator(.hidden)
-
-                    NavigationLink(value: RouterDestination.downloaded(service: .subsonic)) {
-                        Label("Downloaded", systemImage: "arrow.down.circle")
-                    }
-                    .listRowInsets(.default)
-                    .listRowSeparator(.hidden)
-
-                    NavigationLink(value: RouterDestination.playableList(
-                        title: "Recently Added",
-                        showSectionIndex: false,
-                        allowsGrid: true,
-                        refreshAction: serverListRefresh,
-                        action: { offset in await musicSearchService.subsonicRecentAlbums(offset: offset) }
-                    )) {
-                        Label("Recently Added", systemImage: "clock")
-                    }
-                    .listRowInsets(.default)
-                    .listRowSeparator(.hidden)
 
                     NavigationLink(value: RouterDestination.playableGridScreen(
                         title: "Playlists",
                         items: $subsonicBrowseService.userPlaylists,
                         action: { _ in }
                     )) {
-                        Label("Playlists", systemImage: "music.note.list")
+                        Label("Playlists (\(subsonicBrowseService.userPlaylists.count))", systemImage: "rectangle.stack.badge.play")
                     }
-                    .listRowInsets(.default)
-                    .listRowSeparator(.hidden)
 
                     if !subsonicBrowseService.userPlaylists.isEmpty {
                         ForEach(subsonicBrowseService.userPlaylists.prefix(5)) { item in
                             PlayableContentView(item: item)
-                                .listRowInsets(.default)
-                                .listRowSeparator(.hidden)
                         }
                     } else if isLoading {
                         ProgressView()
                             .frame(maxWidth: .infinity)
-                            .listRowSeparator(.hidden)
                     }
 
-                    if !subsonicBrowseService.recentAlbums.isEmpty {
-                        Section {
-                            Text("Recently Added Albums")
+                    // Recently Added as the Apple library shows it: the title
+                    // opens the whole list, the newest under it out of the
+                    // group.
+                    Section {
+                        NavigationLink(value: recentlyAddedDestination) {
+                            Text("Recently Added")
                                 .fontDesign(.rounded)
                                 .fontWeight(.semibold)
-
-                            LazyVGrid(columns: [.init(), .init()]) {
-                                ForEach(subsonicBrowseService.recentAlbums.prefix(10)) { item in
-                                    PlayableContentRowView(item: item)
-                                        .buttonStyle(.plain)
-                                        .geometryGroup()
-                                }
-                            }
                         }
-                        .listRowInsets(.default)
-                        .listRowSeparator(.hidden)
-                        .listSectionSeparator(.hidden)
-                    }
 
+                        PlayableContentGridView(items: subsonicBrowseService.recentAlbums, limit: 6)
+                    }
+                    .listSectionSpacing(0)
+                    .listRowInsets(.default)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
                 }
             }
+            .musicLeftOffRoom()
             .overlay {
                 if !subsonicBrowseService.isAuthenticated, !isLoading {
                     notConnectedView
                 }
             }
-            .listSectionSpacing(4)
-            .listStyle(.plain)
-            .listRowSeparator(.hidden)
-            .listSectionSeparator(.hidden)
             .animation(.default, value: subsonicBrowseService.userPlaylists)
             .animation(hasLoadedOnce ? .default : nil, value: subsonicBrowseService.recentAlbums)
             .contentMargins(.top, EdgeInsets(), for: .scrollContent)
-            .miniPlayerOnScrollHandler()
+            // Default placement, as on Plex's: `.scrollContent` insets the
+            // rows but leaves the group's background running to the edge.
+            .librarySideMargins()
             .fontDesign(.rounded)
             .foregroundStyle(.primary)
             .navigationTitle("Subsonic")
@@ -188,6 +158,17 @@ struct SubsonicBrowseScreen: View {
         .withFullScreenCoverDestinations(destinations: $router.presentedFullScreenCover)
     }
 
+    /// Every album by when it was added, newest first.
+    private var recentlyAddedDestination: RouterDestination {
+        .playableList(
+            title: "Recently Added",
+            showSectionIndex: false,
+            allowsGrid: true,
+            refreshAction: serverListRefresh,
+            action: { offset in await musicSearchService.subsonicRecentAlbums(offset: offset) }
+        )
+    }
+
     /// The line under the Songs title, shared with the Songs tab.
     private var songSyncStatus: () -> String? {
         SubsonicLibraryLists.songSyncStatus(musicSearchService: musicSearchService)
@@ -209,51 +190,28 @@ struct SubsonicBrowseScreen: View {
         SubsonicLibraryLists.serverListRefresh(musicSearchService: musicSearchService)
     }
 
-    /// Shown when no server is configured yet. Centred (an overlay, not a list
-    /// row) so it reads as an empty state rather than content jammed under the
-    /// navigation bar, and it points people with no server at the projects
-    /// that provide one.
+    /// Shown when no server is configured yet: the set-up prompt every
+    /// service's page has (`ServiceSetupPrompt`), pointing people with no
+    /// server at the projects that provide one.
     private var notConnectedView: some View {
-        ContentUnavailableView {
-            Label("No Server Connected", systemImage: "externaldrive.fill.badge.icloud")
-        } description: {
-            Text("Connect a Subsonic-compatible server to browse your own music library and play it here or on your Sonos speakers.")
-        } actions: {
-            VStack(spacing: 20) {
-                Button {
-                    router.presentedSheet = .subsonicManagement
-                } label: {
-                    Text("Connect Server")
-                        .frame(maxWidth: 220)
-                }
-                .buttonStyle(.borderedProminent)
-
-                VStack(spacing: 10) {
-                    Text("Don't have a server yet?")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-
-                    HStack(spacing: 10) {
-                        serverProjectLink("Navidrome", address: "https://www.navidrome.org")
-                        serverProjectLink("Airsonic", address: "https://airsonic.github.io")
-                    }
+        ServiceSetupPrompt(
+            service: .subsonic,
+            title: "Subsonic Isn't Set Up",
+            message: "Connect a Navidrome, Airsonic or other Subsonic server to browse it here and play it on your speakers.",
+            actionTitle: "Set Up Subsonic"
+        ) {
+            router.presentedSheet = .subsonicManagement
+        } extra: {
+            VStack(spacing: 10) {
+                Text("Don't have a server yet?")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 10) {
+                    ServiceSetupLink(title: "Navidrome", address: "https://www.navidrome.org")
+                    ServiceSetupLink(title: "Airsonic", address: "https://airsonic.github.io")
                 }
             }
         }
-    }
-
-    /// A link out to a self-hosted server project. Secondary (`.bordered`) on
-    /// purpose — Connect Server stays the one prominent action on the screen.
-    private func serverProjectLink(_ name: String, address: String) -> some View {
-        Link(destination: URL(string: address)!) {
-            HStack(spacing: 4) {
-                Text(name)
-                Image(systemName: "arrow.up.forward")
-                    .font(.caption2)
-            }
-        }
-        .buttonStyle(.bordered)
-        .tint(.accent)
     }
 }
 

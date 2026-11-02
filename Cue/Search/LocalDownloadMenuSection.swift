@@ -1,4 +1,3 @@
-import Analytics
 import SonosKit
 import SwiftUI
 
@@ -15,7 +14,10 @@ struct LocalDownloadMenuSection: View {
 
     var body: some View {
         let manager = DownloadManager.shared
-        if [.plex, .subsonic].contains(item.content.service) {
+        // A book's file downloads with its book, never as a song of its own.
+        if let book = Self.book(of: item) {
+            bookSection(book)
+        } else if [.plex, .subsonic].contains(item.content.service) {
             if item.content.type == .track {
                 if manager.isDownloaded(item) {
                     Button {
@@ -70,7 +72,7 @@ struct LocalDownloadMenuSection: View {
                         if manager.download(item) {
                             Self.confirmQueued(item, alertService: alertService)
                         } else {
-                            Self.offerSuperForDownloads(alertService: alertService)
+                            Self.offerSuperForDownloads()
                         }
                     } label: {
                         Label("Download", systemImage: "arrow.down.circle")
@@ -80,6 +82,14 @@ struct LocalDownloadMenuSection: View {
             } else if manager.canDownload(contentsOf: item) {
                 switch manager.containerState(for: item) {
                 case .downloaded:
+                    let removed = manager.removedTrackCount(forContentsOf: item)
+                    if removed > 0 {
+                        Button {
+                            downloadContainer()
+                        } label: {
+                            Label(removed == 1 ? "Download 1 More Song" : "Download \(removed) More Songs", systemImage: "arrow.down.circle")
+                        }
+                    }
                     Button {
                         HapticManager.shared.fireHaptic(.buttonPress)
                         manager.removeDownload(contentsOf: item)
@@ -194,14 +204,46 @@ struct LocalDownloadMenuSection: View {
     private var freeLimitNote: some View {
         let manager = DownloadManager.shared
         if manager.remainingFreeSlots != nil {
-            Text("\(manager.heldCount) of \(DownloadManager.freeSongLimit) free downloads")
+            Text("\(manager.heldAgainstLimit) of \(DownloadManager.freeSongLimit) free downloads")
         }
     }
 
     private func downloadContainer() {
-        guard FeatureGate.shared.unlock(.downloads) else { return }
+        guard FeatureGate.shared.unlock(.download(of: item)) else { return }
         Task { @MainActor in
             await Self.download(item, alertService: alertService)
+        }
+    }
+
+    /// The loaded book `item` is a file of, if it is one.
+    private static func book(of item: PlayableContent) -> PlayableContent? {
+        let books = AudiobookPlayer.shared
+        return books.contains(item) ? books.current?.book : nil
+    }
+
+    /// The whole book, as its page's download button has it.
+    @ViewBuilder
+    private func bookSection(_ book: PlayableContent) -> some View {
+        let manager = DownloadManager.shared
+        if manager.canDownload(contentsOf: book) {
+            // At a glance, not the progress: an open menu redrawn with every
+            // bit of progress flickers.
+            switch manager.containerPresence(for: book) {
+            case .downloaded:
+                Label("Book Downloaded", systemImage: "arrow.down.circle.fill")
+            case .downloading:
+                Label("Downloading Book…", systemImage: "arrow.down.circle.dotted")
+            case nil:
+                Button {
+                    HapticManager.shared.fireHaptic(.buttonPress)
+                    guard FeatureGate.shared.unlock(.bookDownloads) else { return }
+                    Task { @MainActor in
+                        await Self.download(book, alertService: alertService)
+                    }
+                } label: {
+                    Label("Download Book", systemImage: "arrow.down.circle")
+                }
+            }
         }
     }
 
@@ -226,6 +268,11 @@ struct LocalDownloadMenuSection: View {
     static func download(_ item: PlayableContent, alertService: AlertService) async {
         let manager = DownloadManager.shared
         let result = await manager.download(contentsOf: item)
+        guard !result.couldNotLoad else {
+            let server = item.content.service == .plex ? "Plex" : item.content.service == .audiobookshelf ? "Audiobookshelf" : "the server"
+            alertService.showAlertContent(with: item, subtitle: "Couldn't reach \(server). Try again.", symbolName: "exclamationmark.triangle")
+            return
+        }
         switch (result.queued, result.heldBack) {
         case (0, 0):
             if manager.isDownloaded(contentsOf: item) {
@@ -233,30 +280,28 @@ struct LocalDownloadMenuSection: View {
             } else {
                 alertService.showAlert(with: "Nothing to download", imageName: "arrow.down.circle")
             }
+        case (0, _) where item.content.type == .audiobook:
+            FeatureGate.shared.presentPaywall(PaywallReason(feature: .bookDownloads))
         case (0, _):
-            offerSuperForDownloads(alertService: alertService)
+            offerSuperForDownloads()
         case (let queued, 0):
             // Held for Wi‑Fi, the cellular question speaks for the batch.
             let held = Set(manager.cellularHeldKeys)
             guard !manager.waitingTrackKeys(forContentsOf: item).contains(where: held.contains) else { return }
-            alertService.showAlertContent(with: item, subtitle: queued == 1 ? "Downloading 1 song" : "Downloading \(queued) songs", symbolName: "arrow.down.circle")
+            let what = item.content.type == .audiobook ? "Downloading" : (queued == 1 ? "Downloading 1 song" : "Downloading \(queued) songs")
+            alertService.showAlertContent(with: item, subtitle: LocalizedStringKey(what), symbolName: "arrow.down.circle")
         case (let queued, let heldBack):
             // Part of the album made it in before the limit; say how much
-            // didn't, and where the rest is.
-            offerSuperForDownloads(text: "Downloading \(queued) of \(queued + heldBack) songs", alertService: alertService)
+            // didn't, and what would take the rest.
+            offerSuperForDownloads(detail: "\(queued) of \(queued + heldBack) songs are downloading. Cue Super makes room for the other \(heldBack), and every song after.")
         }
     }
 
-    /// The free download limit was reached. Says so in a banner that opens
-    /// the paywall when tapped, so the menu's own tap isn't hijacked by a
-    /// full-screen cover.
+    /// The free download limit was reached: the paywall comes up on the
+    /// tap that hit it, opening on the free meter (`PaywallReasonCard`), so
+    /// it's plain why and how many are held.
     @MainActor
-    static func offerSuperForDownloads(text: String = "\(DownloadManager.freeSongLimit) free downloads used", alertService: AlertService) {
-        Analytics.shared.track(.downloadLimitReached)
-        alertService.showActionAlert(with: text, subtitle: "Tap for unlimited with Cue Super", imageName: "arrow.down.circle") {
-            HapticManager.shared.fireHaptic(.buttonPress)
-            Analytics.shared.track(.viewedPaywall, with: ["source": "downloads"])
-            Router.main.fullScreenCover(to: .paywall)
-        }
+    static func offerSuperForDownloads(detail: String? = nil) {
+        FeatureGate.shared.presentPaywall(PaywallReason(feature: .unlimitedDownloads, detail: detail))
     }
 }

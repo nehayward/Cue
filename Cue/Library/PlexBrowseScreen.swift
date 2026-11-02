@@ -1,4 +1,3 @@
-import Analytics
 import CloudStorage
 import MusicSearchKit
 import Defaults
@@ -20,6 +19,12 @@ struct PlexBrowseScreen: View {
     @State private var router = Router.browse
     @State private var isLoading: Bool = false
     @State private var plexAuthenticator = PlexAuthenticator.shared
+    /// The server has books: a library kept for them, or books among the
+    /// music under an audiobook genre (see `PlexAudiobookSettingsSection`).
+    /// Nil until the server is asked; the answer kept from before
+    /// (`hasPlexAudiobooks`) stands in meanwhile, so the row doesn't pop in.
+    @State private var hasAudiobooks: Bool?
+    @AppStorage(AppStorageKeys.hasPlexAudiobooks) private var hadAudiobooks = false
 
     /// The Songs list's sort menu, shared with the Songs tab.
     private var songSortOptions: [PlayableListSort] {
@@ -41,11 +46,18 @@ struct PlexBrowseScreen: View {
         PlexLibraryLists.serverListRefresh(musicSearchService: musicSearchService)
     }
 
+    /// The server and library the collections are read from.
+    private var collectionSource: String {
+        "\(musicSearchService.plexServerID ?? "")/\(musicSearchService.plexLibrarySelectionID ?? "")"
+    }
+
     var body: some View {
         @Bindable var plexBrowseService = plexBrowseService
 
         NavigationStack(path: $router.path) {
             List {
+                // Above the library, a section of its own.
+                MusicLeftOffSection()
                 if musicSearchService.isPlexAuthorized, musicSearchService.plexServerID != nil {
                     // Artists and Albums still page in from the server, a
                     // hundred rows a request, so the section index is off for
@@ -94,13 +106,38 @@ struct PlexBrowseScreen: View {
                         Label("Songs", systemImage: "music.note")
                     }
 
-                    NavigationLink(value: RouterDestination.downloaded(service: .plex)) {
-                        Label("Downloaded", systemImage: "arrow.down.circle")
+                    if let count = plexBrowseService.collectionCount, count > 0 {
+                        NavigationLink(value: RouterDestination.plexCollections) {
+                            Label("Collections (\(count))", systemImage: "square.stack.3d.up")
+                        }
                     }
 
-                    NavigationLink(value: RouterDestination.playableGridScreen(title: "Playlists", items: $plexBrowseService.userPlaylists, action: { offset in
-                        await plexBrowseService.updateUserPlaylists(offset: offset)
-                    })) {
+                    if hasAudiobooks ?? hadAudiobooks {
+                        NavigationLink(value: RouterDestination.playableList(
+                            title: "Audiobooks",
+                            showSectionIndex: false,
+                            allowsGrid: true,
+                            // A pull has Plex scan for books added on the server.
+                            refreshAction: { await AudiobookLibrary.scanPlexBooks() },
+                            loadingStatus: { PlexBookScan.shared.status },
+                            action: { offset in
+                                // Read whole: the shelf merges several sources.
+                                guard offset == 0 else { return [] }
+                                return await AudiobookLibrary.plexShelf()
+                            }
+                        )) {
+                            Label("Audiobooks", systemImage: "book")
+                        }
+                    }
+
+                    NavigationLink(value: RouterDestination.playableGridScreen(
+                        title: "Playlists",
+                        items: $plexBrowseService.userPlaylists,
+                        sort: PlexLibraryLists.playlistSort(plexBrowseService: plexBrowseService),
+                        action: { offset in
+                            await plexBrowseService.updateUserPlaylists(offset: offset)
+                        }
+                    )) {
                         Label("Playlists (\(plexBrowseService.userPlaylists.count))", systemImage: "rectangle.stack.badge.play")
                     }
                     
@@ -118,14 +155,14 @@ struct PlexBrowseScreen: View {
                     PlexLibrarySelectionView()
                 }
             }
+            .musicLeftOffRoom()
             .navigationBarTitleDisplayMode(.inline)
             .contentMargins(.top, EdgeInsets(), for: .scrollContent)
-            .miniPlayerOnScrollHandler()
             // Default placement, not `.scrollContent`: the scoped form insets
             // the rows but leaves the List's section background running to the
             // scroll view's edge, so the card butted straight up against the
             // sidebar with no gap.
-            .contentMargins(.horizontal, 16)
+            .librarySideMargins()
             .fontDesign(.rounded)
             .foregroundStyle(.primary)
             .navigationTitle("Plex Library")
@@ -134,15 +171,26 @@ struct PlexBrowseScreen: View {
                 isLoading = true
                 await updatePlexBrowseService()
                 isLoading = false
+                let hasBooks = await PlexAPI.shared.hasAudiobooks()
+                hasAudiobooks = hasBooks
+                if hasBooks, !hadAudiobooks {
+                    hadAudiobooks = true
+                }
                 // Opening the library is the moment to notice the server has
                 // more songs than the synced copy — Songs is one tap away.
                 await musicSearchService.refreshPlexLibraryIfChanged()
+            }
+            .task(id: collectionSource) {
+                // Collections belong to a library, not the server, so they
+                // follow a change of library too.
+                await plexBrowseService.updateCollections()
             }
             .refreshable {
                 // Songs is served from a synced copy of the library; a
                 // refresh should pick up anything added on the server since.
                 musicSearchService.clearPlexSongCache()
                 await updatePlexBrowseService()
+                await plexBrowseService.updateCollections()
             }
             .withAppRouter()
             .toolbar {
@@ -159,17 +207,13 @@ struct PlexBrowseScreen: View {
                 // Signed out: the list above renders nothing, so show the
                 // same empty state the Plex tab uses instead of a bare button.
                 if plexAuthenticator.authToken == nil {
-                    ContentUnavailableView {
-                        Label("Plex Isn't Set Up", systemImage: "person.crop.circle.badge.exclamationmark")
-                    } description: {
-                        Text("Sign in to Plex to browse its library here.")
-                    } actions: {
-                        Button {
-                            router.presentedSheet = .plexManagement
-                        } label: {
-                            Text("Set Up Plex")
-                        }
-                        .buttonStyle(.borderedProminent)
+                    ServiceSetupPrompt(
+                        service: .plex,
+                        title: "Plex Isn't Set Up",
+                        message: "Sign in to browse your Plex library here and play it on your speakers.",
+                        actionTitle: "Set Up Plex"
+                    ) {
+                        router.presentedSheet = .plexManagement
                     }
                 }
             }

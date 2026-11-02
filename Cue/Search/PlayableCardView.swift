@@ -14,7 +14,6 @@ struct PlayableCardView: View {
     @Environment(PlaylistContainer.self) private var playlistsContainer: PlaylistContainer
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
-    @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
     
     var item: PlayableContent
     var hideArtwork: Bool = false
@@ -159,6 +158,8 @@ struct PlayableCardView: View {
                 router.navigate(to: .mediaDetail(content: item, group: selectedGroupService.group, zoomSource: zoomSource))
             case .artist, .libraryArtist:
                 router.navigate(to: .artistDetail(content: item, group: selectedGroupService.group))
+            case .audiobook:
+                router.navigate(to: .audiobookDetail(content: item))
             case .track, .favorite, .radio, .artistRadio, .songRadio, .liveRadio, .unique:
                 play()
             case .folder:
@@ -176,7 +177,10 @@ struct PlayableCardView: View {
         Task { @MainActor in
             let defaultPosition = position ?? QueuePosition.defaultPosition(
                 for: item.content.type,
-                replaceQueueByDefault: replaceQueueByDefault
+                // Read when played, not held in `@AppStorage`: any
+                // UserDefaults write re-runs a view holding it, every card
+                // on screen with it.
+                replaceQueueByDefault: UserDefaults.standard.bool(forKey: Defaults.AppStorageKeys.defaultPlayAction)
             )
             let queueSong: ((GroupRoom, QueuePosition) async throws -> Void) = { group, selectedPosition in
                 QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: selectedPosition))

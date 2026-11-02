@@ -1,4 +1,3 @@
-import Analytics
 import RevenueCatUI
 import SubscriptionKit
 import SonosKit
@@ -22,6 +21,9 @@ extension View {
             case let .addToPlaylist(content):
                 AddToPlaylistSheet(content: content)
                     .presentationDragIndicator(.hidden)
+                    .withEnvironments()
+            case let .addToPlexCollection(content):
+                AddToPlexCollectionSheet(content: content)
                     .withEnvironments()
             default:
                 Group {
@@ -86,7 +88,7 @@ extension View {
                         let selectedGroupService = SelectedGroupService(group: group)
 
                         NavigationStack(path: $router.path) {
-                            MediaDetailView(playableContent: content)
+                            MediaDetailDestination(content: content)
                                 .navigationBarTitleDisplayMode(.inline)
                                 .withAppRouter()
                                 .addDismiss {
@@ -119,7 +121,6 @@ extension View {
                                     sheetDestinations.wrappedValue = nil
                                 }
                         }
-                        .miniPlayerOnScrollHandler()
     #if !targetEnvironment(macCatalyst) && !os(visionOS)
                         .safeArea(edge: .bottom) {
                             MiniPlayerView()
@@ -158,7 +159,7 @@ extension View {
                         EmptyView()
                     case .confirmDeletePlaylist:
                         EmptyView()
-                    case .addToPlaylist:
+                    case .addToPlaylist, .addToPlexCollection:
                         EmptyView()
                     case let .renamePlaylist(content: content):
                         NewPlaylistView(playlist: content)
@@ -175,6 +176,8 @@ extension View {
                         PlexManagementView()
                     case .subsonicManagement:
                         SubsonicManagementView()
+                    case .audiobookshelfManagement:
+                        AudiobookshelfManagementView()
                     case .filesManagement:
                         FilesManagementView()
                     case let .volumeControlsScreen(groupID: groupID):
@@ -198,6 +201,9 @@ extension View {
                         ReorderSoundCloudLibrarySectionsView()
                     case .shareToWatch:
                         ShareToWatchView()
+                    case .audiobookChapters:
+                        AudiobookChaptersView()
+                            .presentationDetents([.medium, .large])
                     case .paywall, .onboard:
                         // Routed via `withFullScreenCoverDestinations` —
                         // listed here to keep the switch exhaustive but never
@@ -296,7 +302,7 @@ extension View {
                     let selectedGroupService = SelectedGroupService(group: group)
                     
                     NavigationStack {
-                        MediaDetailView(playableContent: content)
+                        MediaDetailDestination(content: content)
                             .navigationBarTitleDisplayMode(.inline)
                             .withAppRouter()
                     }

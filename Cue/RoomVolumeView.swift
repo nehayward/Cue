@@ -4,6 +4,7 @@ import VibesDS
 
 struct RoomVolumeView: View {
     @Environment(SonosService.self) private var sonosService: SonosService
+    @Environment(\.usesPadLayout) private var usesPadLayout
 
     @Bindable var room: Room
     @State private var isEditing: Bool = false
@@ -43,7 +44,7 @@ struct RoomVolumeView: View {
                 .buttonRepeatBehavior(.enabled)
                 .accessibilityLabel("Volume Down")
                 
-                VibeSlider(value: $room.volume, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 20 : 24, delayDrag: true, showValue: true) { isEditing in
+                VibeSlider(value: $room.volume, baseHeight: usesPadLayout ? 24 : 20, delayDrag: true, showValue: true) { isEditing in
                     if room.isMuted {
                         Task {
                             await sonosService.setRoomMute(room: room, mute: false)

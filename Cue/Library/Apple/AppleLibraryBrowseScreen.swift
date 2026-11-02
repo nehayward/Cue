@@ -1,4 +1,3 @@
-import Analytics
 import CloudStorage
 import MusicSearchKit
 import NukeUI
@@ -27,21 +26,30 @@ struct AppleLibraryBrowseScreen: View {
         
         NavigationStack(path: $router.path) {
             List {
+                // Above the library, a section of its own.
+                MusicLeftOffSection()
                 ForEach(configStore.configuration.visibleSections(), id: \.self) { section in
                     sectionView(for: section)
                 }
             }
+            .musicLeftOffRoom()
 #if targetEnvironment(macCatalyst)
             .listStyle(.plain)
 #endif
             .contentMargins(.top, EdgeInsets(), for: .scrollContent)
-            .contentMargins(.horizontal, 16, for: .scrollContent)
+            .librarySideMargins(for: .scrollContent)
             .fontDesign(.rounded)
             .foregroundStyle(.primary)
             .navigationTitle("Apple Library")
             .navigationBarTitleDisplayMode(.inline)
             .task {
                 await updateAppleMusicBrowseService()
+            }
+            // Read again once Apple Music may be asked: on a new install the
+            // first read comes while onboarding holds the alert, and reads
+            // nothing.
+            .onReceive(NotificationCenter.default.publisher(for: AppleMusicPermission.didChange)) { _ in
+                Task { await updateAppleMusicBrowseService() }
             }
             .withAppRouter()
             .toolbar {
@@ -128,13 +136,6 @@ struct AppleLibraryBrowseScreen: View {
                 Label("Songs", systemImage: "music.note")
             }
 
-        case .downloaded:
-            // The songs the Music app has downloaded; Cue lists and plays
-            // them, and the Music app is where they're added and removed.
-            NavigationLink(value: RouterDestination.downloaded(service: .apple)) {
-                Label("Downloaded", systemImage: "arrow.down.circle")
-            }
-
         case .playlistFolders:
             NavigationLink(value: RouterDestination.playableGridScreen(title: "Playlist Folders", items: $appleMusicBrowseService.userPlaylistFolders, action: { offset in
                 await appleMusicBrowseService.updateUsersApplePlaylistFolders(offset: offset)
@@ -155,7 +156,8 @@ struct AppleLibraryBrowseScreen: View {
                         .fontDesign(.rounded)
                         .fontWeight(.semibold)
                 }
-                .tag(UUID().uuidString)
+                // Stable: a fresh UUID re-tagged the row on every pass.
+                .tag("appleRecentlyPlayedHeader")
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
                 

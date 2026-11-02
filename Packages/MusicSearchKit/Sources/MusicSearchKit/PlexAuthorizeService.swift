@@ -24,10 +24,11 @@ public final class PlexAuthenticator: NSObject {
     /// Why the last sign-in couldn't start, for the sign-in screens to show.
     public private(set) var signInError: String?
 
-    /// Identifies this install to Plex. Kept across launches: Plex lists each
-    /// client identifier that signs in under Authorized Devices, and a fresh
-    /// one per launch added another "Cue" there with every sign-in.
-    @ObservationIgnored private var clientID = PlexAuthenticator.storedClientID()
+    /// Identifies Cue to Plex: the same "Cue" every other Plex request
+    /// sends (`PlexAPI`). Plex lists each client identifier that signs in
+    /// under Authorized Devices, and a fresh one per launch added another
+    /// "Cue" there with every sign-in; a fixed one stays a single entry.
+    private let clientID = PlexAuthenticator.product
     @ObservationIgnored private var pinID: Int?
     @ObservationIgnored private var pollTask: Task<Void, Never>?
     @ObservationIgnored private var session: ASWebAuthenticationSession?
@@ -35,7 +36,6 @@ public final class PlexAuthenticator: NSObject {
     public static var shared = PlexAuthenticator()
 
     private static let product = "Cue"
-    private static let clientIDKey = "com.cue.plexClientID"
 
     @ObservationIgnored
     public var authToken: String? {
@@ -52,15 +52,6 @@ public final class PlexAuthenticator: NSObject {
 
     public override init() {
         super.init()
-    }
-
-    private static func storedClientID() -> String {
-        if let stored = UserDefaults.standard.string(forKey: clientIDKey), !stored.isEmpty {
-            return stored
-        }
-        let id = UUID().uuidString
-        UserDefaults.standard.set(id, forKey: clientIDKey)
-        return id
     }
 
 #if os(iOS) || targetEnvironment(macCatalyst) || os(visionOS)

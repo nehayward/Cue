@@ -14,6 +14,9 @@ public enum MusicService: Sendable, Codable, CaseIterable {
     case sonosRadio
     case pandora
     case subsonic
+    /// An Audiobookshelf server the listener signed in to in Cue: books,
+    /// played straight from the server on this device or a speaker.
+    case audiobookshelf
     /// Audio files in a folder the user picked, indexed and played by the
     /// app itself. Never seen from a Sonos speaker.
     case files
@@ -43,6 +46,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             self = .pandora
         case "subsonic":
             self = .subsonic
+        case "audiobookshelf":
+            self = .audiobookshelf
         case "files":
             self = .files
         default:
@@ -74,6 +79,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             "pandora"
         case .subsonic:
             "subsonic"
+        case .audiobookshelf:
+            "audiobookshelf"
         case .files:
             "files"
         default:
@@ -105,6 +112,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             "Pandora"
         case .subsonic:
             "Subsonic"
+        case .audiobookshelf:
+            "Audiobookshelf"
         case .files:
             "Files"
         default:
@@ -136,12 +145,18 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             "pandora"
         case .subsonic:
             "subsonic"
+        case .audiobookshelf:
+            "audiobookshelf"
         case .files:
             "files"
         default:
             ""
         }
     }
+
+    /// Audiobookshelf has no badge of its own in the asset catalog; a book
+    /// stands for it, apart from the Library's symbol.
+    public static let audiobookshelfSymbolName = "book.closed.fill"
 
     private var librarySymbolName: String {
         if #available(iOS 26.0, macOS 26.0, visionOS 26.0, watchOS 26.0, *) {
@@ -183,6 +198,10 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             SwiftUI.Image(systemName: "externaldrive.fill.badge.icloud")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
+        case .audiobookshelf:
+            SwiftUI.Image(systemName: Self.audiobookshelfSymbolName)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
         case .files:
             SwiftUI.Image(systemName: "folder.fill")
                 .resizable()
@@ -209,6 +228,11 @@ public enum MusicService: Sendable, Codable, CaseIterable {
                 .aspectRatio(contentMode: .fit)
         case .subsonic:
             SwiftUI.Image(systemName: "externaldrive.fill.badge.icloud")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .foregroundStyle(brandColor.gradient)
+        case .audiobookshelf:
+            SwiftUI.Image(systemName: Self.audiobookshelfSymbolName)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .foregroundStyle(brandColor.gradient)
@@ -274,6 +298,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             return UIImage(systemName: "airplayaudio")
         case .subsonic:
             return UIImage(systemName: "externaldrive.fill.badge.icloud")
+        case .audiobookshelf:
+            return UIImage(systemName: Self.audiobookshelfSymbolName)
         case .files:
             return UIImage(systemName: "folder.fill")
         case .tuneIn, .soundcloud, .deezer, .pandora:
@@ -334,6 +360,7 @@ public enum MusicService: Sendable, Codable, CaseIterable {
     public var directStreamProvider: DirectStreamProvider.Type? {
         switch self {
         case .subsonic: SubsonicAPI.self
+        case .audiobookshelf: AudiobookshelfAPI.self
         default: nil
         }
     }
@@ -388,6 +415,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             Color(red: 54.0 / 255.0, green: 104.0 / 255.0, blue: 255.0 / 255.0)
         case .subsonic:
             Color(red: 255.0 / 255.0, green: 184.0 / 255.0, blue: 0 / 255.0)
+        case .audiobookshelf:
+            Color(red: 205.0 / 255.0, green: 140.0 / 255.0, blue: 80.0 / 255.0)
         case .files:
             Color(red: 50.0 / 255.0, green: 150.0 / 255.0, blue: 255.0 / 255.0)
         case .unknown:
@@ -417,6 +446,7 @@ extension MusicService {
         case "sonosRadio": self = .sonosRadio
         case "pandora":    self = .pandora
         case "subsonic":   self = .subsonic
+        case "audiobookshelf": self = .audiobookshelf
         case "files":      self = .files
         default:           self = .unknown
         }

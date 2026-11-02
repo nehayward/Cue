@@ -1,4 +1,3 @@
-import Analytics
 import CloudStorage
 import MusicSearchKit
 import Defaults
@@ -32,7 +31,6 @@ struct GenreListView: View {
                 }
             }
         }
-        .miniPlayerOnScrollHandler()
         .listStyle(.inset)
         .navigationTitle("Genres")
         .navigationBarTitleDisplayMode(.inline)

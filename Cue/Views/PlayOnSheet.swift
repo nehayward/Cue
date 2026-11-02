@@ -1,11 +1,14 @@
 import Defaults
 import SonosKit
 import SwiftUI
+import VibesDS
 
 /// Where playback goes, and how loud each place is: the sheet behind the Play
 /// On button while speakers can be reached (`SonosService.isAvailable`). It
 /// zooms out of the button, one height fitted to its rooms, and a pull down
-/// puts it back.
+/// puts it back. At a regular width it's a popover from the button instead,
+/// as the system's AirPlay picker is on iPad (`isPopover`): the same rows,
+/// at a fixed width and the same fitted height.
 ///
 /// Laid out like the system's AirPlay picker: what's playing on top, then This
 /// Device and every active room. Each row is its own volume slider — the fill
@@ -26,12 +29,18 @@ import SwiftUI
 /// sheet's pull to dismiss. A tap that lands while the list is still moving
 /// only stops it; it never regroups.
 struct PlayOnSheet: View {
-    @Environment(\.dismiss) private var dismiss
-
     /// Singletons, not the environment: the button that presents this sits in
     /// the tab bar accessory, outside what `withEnvironments()` installs.
     private var sonosService: SonosService { .shared }
     private var route: PlaybackRoute { .shared }
+
+    /// Shown in a popover rather than a sheet: no pull to dismiss to keep
+    /// clear of, and its size is its ideal one.
+    let isPopover: Bool
+
+    init(isPopover: Bool = false) {
+        self.isPopover = isPopover
+    }
 
     /// A switch waiting on the transfer prompt's answer.
     @State private var pending: PendingSwitch?
@@ -63,9 +72,10 @@ struct PlayOnSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             // Outside the list, so a pull down on it is always the sheet's.
-            PlayOnHeader()
+            PlayOnHeader(isPopover: isPopover)
                 .padding(.horizontal, 24)
-                .padding(.top, 28)
+                // Clear of the sheet's grabber; a popover has none.
+                .padding(.top, isPopover ? 20 : 28)
                 .padding(.bottom, 8)
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
                     headerHeight = $0
@@ -79,6 +89,12 @@ struct PlayOnSheet: View {
             bottomInset = $0
             refit()
         }
+        // A popover takes its content's ideal size: a fixed width, and the
+        // height a sheet would be fitted to.
+        .frame(
+            idealWidth: isPopover ? 400 : nil,
+            idealHeight: isPopover ? (sheetHeight ?? openingSheetHeight) : nil
+        )
         // Opens fitted to the rooms, as the system's picker does, and a swipe
         // up still takes it to full height. The binding keeps it fitted as
         // the fit changes, unless it's been pulled up.
@@ -121,7 +137,9 @@ struct PlayOnSheet: View {
         // Off outright when the rows fit, so every vertical drag is the
         // sheet's. A volume drag needs nothing here: the list's pan waits
         // for `SidewaysPan` to fail, so it can't scroll while one runs.
-        .scrollDisabled(listFits)
+        // A popover has no pull to leave room for, and the system can make
+        // it shorter than it asked for, so its list always scrolls.
+        .scrollDisabled(listFits && !isPopover)
         .scrollBounceBehavior(.basedOnSize)
         // With more rooms than fit, the indicator shows on open that the
         // list goes on; with nothing to scroll, nothing shows.
@@ -179,9 +197,10 @@ struct PlayOnSheet: View {
         1 + (activeRooms.isEmpty ? 1 : speakerItems.count)
     }
 
-    /// What decides the height, as `FittedSheetHeights` files it.
+    /// What decides the height, as `FittedSheetHeights` files it. A
+    /// popover's has no safe area under it, so it's filed apart.
     private var layout: String {
-        "rows \(rowCount), buttons \(showsGroupingBar ? 1 : 0)"
+        "\(isPopover ? "popover, " : "")rows \(rowCount), buttons \(showsGroupingBar ? 1 : 0)"
     }
 
     private var fittedDetent: PresentationDetent {
@@ -192,14 +211,14 @@ struct PlayOnSheet: View {
     /// sheet zooms out of the button at its size instead of changing size
     /// once it's up. A guess the first time.
     private var openingSheetHeight: CGFloat {
-        min(FittedSheetHeights.height(for: layout) ?? estimatedSheetHeight, Self.tallestSheet)
+        min(FittedSheetHeights.height(for: layout) ?? estimatedSheetHeight, tallest)
     }
 
     /// The header, the rows and the buttons on a speaker, at the default
     /// text size.
     private var estimatedSheetHeight: CGFloat {
         let buttons: CGFloat = showsGroupingBar ? 96 : 0
-        return min(106 + CGFloat(rowCount) * 68 + buttons, Self.tallestSheet)
+        return min(106 + CGFloat(rowCount) * 68 + buttons, tallest)
     }
 
     /// Fits the sheet to its parts, once the rows are measured: up to about
@@ -210,8 +229,8 @@ struct PlayOnSheet: View {
         // A point to spare, so rounding never leaves the list a hair too
         // long to sit still.
         let needed = headerHeight + rowsHeight + bar + bottomInset + 1
-        listFits = needed <= Self.tallestSheet
-        let target = min(max(needed, Self.shortestSheet), Self.tallestSheet)
+        listFits = needed <= tallest
+        let target = min(max(needed, Self.shortestSheet), tallest)
         let current = sheetHeight ?? openingSheetHeight
         guard abs(target - current) > 0.5 else { return }
         // Grows with the rows as a group opens out into its rooms.
@@ -222,6 +241,12 @@ struct PlayOnSheet: View {
     }
 
     private static let shortestSheet: CGFloat = 240
+
+    /// A popover hangs above its button rather than rising from the bottom
+    /// edge, so it gets less of the window.
+    private var tallest: CGFloat {
+        isPopover ? Self.tallestSheet * 0.75 : Self.tallestSheet
+    }
 
     private static var tallestSheet: CGFloat {
         let windows = UIApplication.shared.connectedScenes
@@ -319,15 +344,15 @@ struct PlayOnSheet: View {
     private func select(_ target: PlayDestination) {
         guard target != route.destination else { return }
         if target == .device, !FeatureGate.shared.isAvailable(.onDevicePlayback) {
-            // The paywall is a full-screen cover off the root, and can't go
-            // up over this one: close it first.
             if FeatureGate.shared.needsSuper(.onDevicePlayback) {
-                dismiss()
-                Task {
-                    try? await Task.sleep(for: .milliseconds(400))
-                    FeatureGate.shared.presentPaywall()
-                }
+                FeatureGate.shared.presentPaywall(PaywallReason(feature: .onDevicePlayback))
             }
+            return
+        }
+        // The free tier plays on one group, the top row's (see
+        // `FeatureGate.isGroupUnlocked`); the others are Super's.
+        if let id = target.groupID, !FeatureGate.shared.isGroupUnlocked(id) {
+            FeatureGate.shared.presentPaywall(PaywallReason(feature: .allRooms))
             return
         }
         HapticManager.shared.fireHaptic(.selection)
@@ -547,14 +572,20 @@ private struct GroupRow: View {
     let listIsSettled: Bool
     let onSelect: (PlayDestination) -> Void
 
+    /// Super's, not the free tier's one group: no volume, and a tap opens
+    /// the paywall.
+    private var isLocked: Bool {
+        !FeatureGate.shared.isGroupUnlocked(group.coordinatorID)
+    }
+
     var body: some View {
         VolumeRouteRow(
             title: group.nameWithCount,
             subtitle: GroupNote.text(for: group) ?? Text(rooms.map(\.name).formatted(.list(type: .and))),
             icon: .speakers(rooms.count),
-            mark: isCurrent ? .checkmark : .empty,
+            mark: isLocked ? .locked : isCurrent ? .checkmark : .empty,
             // A fixed-output coordinator ignores volume: nothing to drag.
-            level: group.coordinatorRoom.isOutputFixed ? nil : level / 100,
+            level: isLocked || group.coordinatorRoom.isOutputFixed ? nil : level / 100,
             isMuted: group.isMuted || rooms.allSatisfy(\.isMuted),
             listIsSettled: listIsSettled,
             onTap: { onSelect(.group(group.coordinatorID)) },
@@ -601,22 +632,25 @@ private struct RoomRow: View {
             subtitle: note,
             icon: .symbol(room.isSoundbar ? "tv.and.hifispeaker.fill" : "hifispeaker.fill"),
             mark: mark,
-            level: room.volume / 100,
+            level: isLocked ? nil : room.volume / 100,
             isMuted: room.isMuted,
             listIsSettled: listIsSettled,
             onTap: tap,
             onLevel: { volumes.set(room, to: $0 * 100) }
         )
         .contextMenu {
-            Button {
-                HapticManager.shared.fireHaptic(.selection)
-                let mute = !room.isMuted
-                Task { await sonosService.setRoomMute(room: room, mute: mute) }
-            } label: {
-                Label(
-                    room.isMuted ? "Unmute" : "Mute",
-                    systemImage: room.isMuted ? "speaker.wave.2.fill" : "speaker.slash.fill"
-                )
+            // A locked room's controls are Super's, its mute with its volume.
+            if !isLocked {
+                Button {
+                    HapticManager.shared.fireHaptic(.selection)
+                    let mute = !room.isMuted
+                    Task { await sonosService.setRoomMute(room: room, mute: mute) }
+                } label: {
+                    Label(
+                        room.isMuted ? "Unmute" : "Mute",
+                        systemImage: room.isMuted ? "speaker.wave.2.fill" : "speaker.slash.fill"
+                    )
+                }
             }
             if let membership, membership.isMember(room), membership.group.rooms.count > 1 {
                 Button {
@@ -629,8 +663,21 @@ private struct RoomRow: View {
     }
 
     private var mark: VolumeRouteRow.Mark {
+        if isLocked { return .locked }
         guard let membership else { return .empty }
         return membership.isMember(room) ? .checkedCircle : .circle
+    }
+
+    /// Without Super: on this device, a room whose group isn't the free
+    /// tier's one; on a speaker, a room outside the group that isn't the
+    /// free room, since joining it is Super's. No volume, and a tap opens
+    /// the paywall. A room already in the group isn't locked: it can leave.
+    private var isLocked: Bool {
+        if let membership {
+            return membership.needsSuper(toJoin: room)
+        }
+        guard let group = ownGroup else { return false }
+        return !FeatureGate.shared.isGroupUnlocked(group.coordinatorID)
     }
 
     /// The group the room is in now, which may not be the one playback is on.
@@ -687,6 +734,9 @@ private enum FittedSheetHeights {
 private struct PlayOnHeader: View {
     @Environment(\.dismiss) private var dismiss
 
+    /// A popover closes on a click outside it, so it needs no close button.
+    let isPopover: Bool
+
     private var route: PlaybackRoute { .shared }
 
     /// The speaker's track on a group, this device's display item otherwise
@@ -741,17 +791,19 @@ private struct PlayOnHeader: View {
 #if targetEnvironment(macCatalyst)
             // A Mac sheet has no pull to close it, and a click outside
             // doesn't either.
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.body.weight(.semibold))
-                    .frame(width: 24, height: 24)
+            if !isPopover {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.body.weight(.semibold))
+                        .frame(width: 24, height: 24)
+                }
+                .buttonBorderShape(.circle)
+                .glassButton()
+                .keyboardShortcut(.cancelAction)
+                .accessibilityLabel("Close")
             }
-            .buttonBorderShape(.circle)
-            .glassButton()
-            .keyboardShortcut(.cancelAction)
-            .accessibilityLabel("Close")
 #endif
         }
     }
@@ -789,6 +841,8 @@ struct VolumeRouteRow: View {
         case checkmark
         /// A room that can join the group, and one that's in it.
         case circle, checkedCircle
+        /// A route Cue Super unlocks.
+        case locked
     }
 
     let title: String
@@ -977,6 +1031,10 @@ struct VolumeRouteRow: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.title3)
                     .foregroundStyle(.tint)
+            case .locked:
+                Image(systemName: "lock.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -988,6 +1046,9 @@ struct VolumeRouteRow: View {
         }
         if isMuted {
             parts.append(String(localized: "Muted"))
+        }
+        if mark == .locked {
+            parts.append(String(localized: "Requires Cue Super"))
         }
         return parts.joined(separator: ", ")
     }
@@ -1209,70 +1270,6 @@ private struct SlashLine: Shape {
     }
 }
 
-/// A pan that only ever starts sideways.
-///
-/// One that sets off up or down fails at once, so the list's scroll and the
-/// sheet's pull to dismiss get every vertical drag as if the row weren't
-/// there. Their pans wait for it to fail, the few points it takes to tell,
-/// so a sideways drag is never a scroll or a dismiss as well. UIKit rather
-/// than a SwiftUI drag: only a recognizer can decline to begin, where a
-/// SwiftUI gesture takes the touch first and decides after.
-struct SidewaysPan: UIGestureRecognizerRepresentable {
-    var isEnabled = true
-    let onBegan: () -> Void
-    /// Points moved sideways since it began.
-    let onChanged: (CGFloat) -> Void
-    let onEnded: () -> Void
-
-    func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator {
-        Coordinator()
-    }
-
-    func makeUIGestureRecognizer(context: Context) -> UIPanGestureRecognizer {
-        let pan = UIPanGestureRecognizer()
-        pan.maximumNumberOfTouches = 1
-        pan.delegate = context.coordinator
-        return pan
-    }
-
-    func updateUIGestureRecognizer(_ recognizer: UIPanGestureRecognizer, context: Context) {
-        recognizer.isEnabled = isEnabled
-    }
-
-    func handleUIGestureRecognizerAction(_ recognizer: UIPanGestureRecognizer, context: Context) {
-        switch recognizer.state {
-        case .began:
-            // Measured from here, not from where the finger landed: the few
-            // points it took to tell the direction shouldn't jump the level.
-            recognizer.setTranslation(.zero, in: recognizer.view)
-            onBegan()
-        case .changed:
-            onChanged(recognizer.translation(in: recognizer.view).x)
-        case .ended, .cancelled, .failed:
-            onEnded()
-        default:
-            break
-        }
-    }
-
-    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
-        func gestureRecognizerShouldBegin(_ recognizer: UIGestureRecognizer) -> Bool {
-            guard let pan = recognizer as? UIPanGestureRecognizer else { return true }
-            let moved = pan.translation(in: pan.view)
-            let motion = moved == .zero ? pan.velocity(in: pan.view) : moved
-            return abs(motion.x) > abs(motion.y)
-        }
-
-        /// The list's pan and the sheet's: any other pan the touch could
-        /// start.
-        func gestureRecognizer(
-            _ recognizer: UIGestureRecognizer,
-            shouldBeRequiredToFailBy other: UIGestureRecognizer
-        ) -> Bool {
-            other is UIPanGestureRecognizer && other !== recognizer
-        }
-    }
-}
 
 // MARK: - Volume
 

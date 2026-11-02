@@ -25,6 +25,10 @@ struct PlayableContentView: View {
     var hideDetails: Bool = false
     var hideContentType: Bool = false
     var index: Int? = nil
+    /// The number the row shows in place of `index`, which stays its place
+    /// in `parent` for playing: a downloaded song's own track number, on
+    /// an album page that lists only the songs on the device.
+    var number: Int? = nil
     var dismissOnComplete: Bool = false
     var total: Int = 1
 
@@ -38,21 +42,22 @@ struct PlayableContentView: View {
 
     /// When set (track shown inside an editable playlist), adds a "Remove from Playlist" menu action.
     var onRemoveFromPlaylist: (() -> Void)? = nil
-    
-    private var isCurrentlyPlaying: Bool {
-        guard let trackID = selectedGroupService?.group?.coordinatorRoom.track.trackID else { return false }
-        // Compare both IDs decoded. The now-playing trackID is percent-encoded for some
-        // services (e.g. Plex, whose ID is `clientID%3A3%3AratingKey` — the parser re-encodes
-        // the colons via `.urlPathAllowed`), while `content.id` is already decoded here, so an
-        // encoded-vs-decoded compare never matched and the Plex row never highlighted.
-        return trackID.removingPercentEncoding == item.content.id.removingPercentEncoding
-    }
+    /// When set, what a tap on the row plays, in place of the row within
+    /// `parent`: a playlist listed in an order of its own (sorted by title,
+    /// say) plays the songs as they're listed, which the playlist itself
+    /// doesn't know. The menu's Play Next and Play Last still take the song.
+    var playAction: (() -> Void)? = nil
+    /// How far through it the listener is, as a thin bar under the text:
+    /// a book's. Nil draws none.
+    var progress: Double? = nil
     
     private var subtitleText: String {
         if item.content.type.isRadio {
             return item.content.type.title
         }
-        if hideContentType {
+        // A book's row says who wrote it (and what's left), not that it's
+        // a book.
+        if hideContentType || item.content.type == .audiobook {
             return item.subtitle
         }
         if item.subtitle.isEmpty {
@@ -91,6 +96,10 @@ struct PlayableContentView: View {
                     NavigationLink(value: RouterDestination.folderBrowse(item: item, title: item.title)) {
                         folderContent
                     }
+                case .audiobook:
+                    NavigationLink(value: RouterDestination.audiobookDetail(content: item)) {
+                        content
+                    }
                 case .track, .favorite, .radio, .songRadio, .artistRadio, .libraryTrack, .unique, .liveRadio:
                     content
                 }
@@ -118,7 +127,7 @@ struct PlayableContentView: View {
                     // Positions are ordinals, so no grouping separator: "1005"
                     // not "1,005". Column width follows the digit count of the
                     // longest index in the list so rows stay aligned past 999.
-                    Text(index, format: .number.grouping(.never))
+                    Text(number ?? index, format: .number.grouping(.never))
                         .font(.caption.monospacedDigit())
                         .lineLimit(1)
                         .frame(width: indexColumnWidth(for: index), alignment: .center)
@@ -133,10 +142,7 @@ struct PlayableContentView: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
-                        Text(item.title)
-                            .lineLimit(1)
-                            .foregroundStyle(isCurrentlyPlaying ? Color.accentColor : Color.primary)
-                            .fontWeight(isCurrentlyPlaying ? .semibold : .regular)
+                        NowPlayingTitle(item: item)
 
                         Spacer(minLength: 0)
 
@@ -162,6 +168,14 @@ struct PlayableContentView: View {
                         .lineLimit(1)
                         .opacity(0.7)
                         .font(.footnote)
+
+                    // In the text's column and as wide as it, so it lines up
+                    // with the title; at the default text size it ends level
+                    // with the cover's foot.
+                    if let progress {
+                        AudiobookProgressBar(fraction: progress, height: 2)
+                            .padding(.top, 4)
+                    }
                 }
 
                 Spacer(minLength: 0)
@@ -266,10 +280,19 @@ struct PlayableContentView: View {
     
     private func play(position: QueuePosition? = nil) {
         if let add = adding?.add, add {
+            // A book has no address a speaker's alarm or a scene can play.
+            guard item.content.type != .audiobook else {
+                alertService.showAlert(with: "A book can’t be an alarm’s or a scene’s music", imageName: "book")
+                return
+            }
             adding?.content = item
             return
         }
         hideKeyboard()
+        if position == nil, let playAction {
+            playAction()
+            return
+        }
         Task { @MainActor in
             let defaultPosition = position ?? QueuePosition.defaultPosition(
                 for: (parent ?? item).content.type,
@@ -304,6 +327,23 @@ struct PlayableContentView: View {
         default:
             return 20
         }
+    }
+}
+
+/// A row's title, in the accent while it's the song the player shows, on
+/// this device or a speaker. A view of its own so only the title redraws:
+/// read in the row, each new song re-ran every row in the list — artwork,
+/// menu, swipe actions — and so did each page a long queue adds on this
+/// device.
+private struct NowPlayingTitle: View {
+    let item: PlayableContent
+
+    var body: some View {
+        let isCurrent = PlaybackRoute.shared.isPresenting(item)
+        Text(item.title)
+            .lineLimit(1)
+            .foregroundStyle(isCurrent ? Color.accentColor : Color.primary)
+            .fontWeight(isCurrent ? .semibold : .regular)
     }
 }
 

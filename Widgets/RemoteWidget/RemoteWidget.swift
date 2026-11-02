@@ -8,7 +8,7 @@ import Collections
 
 struct Provider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> RemoteWidgetEntry {
-        let activeSubscription = CloudStorageSync.shared.bool(for: "com.cue.subscriptions") ?? false
+        let activeSubscription = GroupStorageKeys.defaults.hasSuper
         return RemoteWidgetEntry(
             date: Date(),
             configuration: RemoteWidgetConfigurationIntent(),
@@ -21,7 +21,7 @@ struct Provider: AppIntentTimelineProvider {
     }
 
     func snapshot(for configuration: RemoteWidgetConfigurationIntent, in context: Context) async -> RemoteWidgetEntry {
-        let activeSubscription = CloudStorageSync.shared.bool(for: "com.cue.subscriptions") ?? false
+        let activeSubscription = GroupStorageKeys.defaults.hasSuper
         return RemoteWidgetEntry(
             date: Date(),
             configuration: configuration,
@@ -34,7 +34,7 @@ struct Provider: AppIntentTimelineProvider {
     }
     
     func timeline(for configuration: RemoteWidgetConfigurationIntent, in context: Context) async -> Timeline<RemoteWidgetEntry> {
-        let activeSubscription = CloudStorageSync.shared.bool(for: "com.cue.subscriptions") ?? false
+        let activeSubscription = GroupStorageKeys.defaults.hasSuper
 
         if let room = configuration.room {
             if let group = await SonosService.shared.getGroupCoordinatorWithRoom(roomID: room.id),
@@ -261,4 +261,50 @@ struct RemoteWidget: Widget {
     RemoteWidget()
 } timeline: {
     RemoteWidgetEntry.previewBarbie()
+}
+
+// Moved from WidgetBundle.swift, for this widget only (the extension builds
+// the book shelf alone now).
+// MARK: iOS 18 Remove if iOS 18
+extension WidgetConfiguration {
+    func promptsForUserConfigurationIfiOS18() -> some WidgetConfiguration {
+        if #available(iOSApplicationExtension 18.0, *) {
+            return promptsForUserConfiguration()
+        } else {
+            return self
+        }
+    }
+}
+
+@available(iOS, deprecated: 18.0, message: "use WidgetAccentedRenderingMode instead")
+enum BackdeployedWidgetAccentedRenderingMode {
+    case accented
+    case accentedDesaturated
+    case desaturated
+    case fullColor
+    
+    @available(iOS 18.0, *)
+    func toRenderingMode() -> WidgetAccentedRenderingMode {
+        switch self {
+        case .accented: .accented
+        case .accentedDesaturated: .accentedDesaturated
+        case .desaturated: .desaturated
+        case .fullColor: .fullColor
+        }
+    }
+}
+
+extension Image {
+    @available(iOS, deprecated: 18.0, message: "use widgetAccentedRenderingMode instead")
+    @ViewBuilder
+    func backdeployedWidgetAccentedRenderingMode(
+        _ mode: BackdeployedWidgetAccentedRenderingMode
+    ) -> some View {
+        if #available(iOS 18.0, *) {
+            self.widgetAccentedRenderingMode(mode.toRenderingMode())
+        }
+        else {
+            self
+        }
+    }
 }

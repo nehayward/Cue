@@ -21,7 +21,7 @@ struct EmptyQueueView: View {
     private var recentlyPlayed: [PlayableContent] {
         var seen = Set<String>()
         var result: [PlayableContent] = []
-        for item in playHistoryService.history {
+        for item in playHistoryService.plays {
             let key = "\(item.title.lowercased())|\(item.subtitle.lowercased())"
             guard seen.insert(key).inserted else { continue }
             result.append(item)

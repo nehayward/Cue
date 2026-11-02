@@ -34,11 +34,37 @@ struct ContentArtworkView: View {
         (content.content.service == .library || content.content.service == .apple)
     }
     
+    /// What's drawn: `content`, or for a book the cover of the Audible
+    /// edition it was matched to (`drawnContent(for:)`).
+    private var drawn: PlayableContent { Self.drawnContent(for: content) }
+
+    /// The content whose cover stands for `content`: a book matched to an
+    /// Audible edition by length shows that edition's cover, and so do the
+    /// files of the book loaded to play (the player, its queue), since a
+    /// server can give every book of a series the first one's cover (Plex
+    /// has the full-cast Harry Potters as Philosopher's Stone). Anything
+    /// else is itself. Shared with the Lock Screen, the watch and CarPlay,
+    /// so they all show the same cover.
+    @MainActor
+    static func drawnContent(for content: PlayableContent) -> PlayableContent {
+        switch content.content.type {
+        case .audiobook:
+            return AudiobookDetails.shared.coverContent(for: content)
+        case .track where content.content.service == .plex || content.content.service == .audiobookshelf:
+            guard let book = AudiobookPlayer.shared.current, book.partIndex(of: content) != nil else { return content }
+            let cover = AudiobookDetails.shared.coverContent(for: book.book)
+            return cover.id == book.book.id ? content : cover
+        default:
+            return content
+        }
+    }
+
     private var artworkURL: URL? {
-        if preferredSize != 50, let artwork = content.artwork {
+        let drawn = drawn
+        if preferredSize != 50, let artwork = drawn.artwork {
             return artwork
         }
-        if let thumbnail = content.thumbnail {
+        if let thumbnail = drawn.thumbnail {
             return thumbnail
         }
         return fetchedArtworkURL
@@ -54,7 +80,7 @@ struct ContentArtworkView: View {
     // the item alone let the row's already-cached thumbnail satisfy the
     // player's request — the big artwork came back visibly soft.
     private var artworkRequest: ImageRequest {
-        Self.artworkRequest(for: content, url: artworkURL, preferredSize: preferredSize)
+        Self.artworkRequest(for: drawn, url: artworkURL, preferredSize: preferredSize)
     }
 
     /// The request a view `preferredSize` wide makes for `content`'s artwork
@@ -116,6 +142,21 @@ struct ContentArtworkView: View {
     /// What the device player's cover asks for (`PlayerView`).
     static let playerPreferredSize: Double = 600
 
+    /// Decodes `contents`' covers, as a view `preferredSize` wide draws
+    /// them, into the memory cache, so a page that swaps between them (a
+    /// series' readings) draws each at once rather than loading it then.
+    @MainActor
+    static func prefetch(_ contents: [PlayableContent], preferredSize: Double) {
+        let requests = contents.compactMap { content -> ImageRequest? in
+            let drawn = drawnContent(for: content)
+            guard let url = preferredSize != 50 ? drawn.artwork ?? drawn.thumbnail : drawn.thumbnail ?? drawn.artwork else { return nil }
+            return artworkRequest(for: drawn, url: url, preferredSize: preferredSize)
+        }
+        pagePrefetcher.startPrefetching(with: requests)
+    }
+
+    private static let pagePrefetcher = ImagePrefetcher(destination: .memoryCache)
+
     private static let prefetcher = ImagePrefetcher(destination: .memoryCache)
 
     /// Decodes `content`'s player cover into the memory cache ahead of time,
@@ -157,7 +198,7 @@ struct ContentArtworkView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         .onAppear {
             guard let foundAverageColor,
-                  let cached = UIImage.cachedAverageColor(forKey: content.imageKey) else { return }
+                  let cached = UIImage.cachedAverageColor(forKey: drawn.imageKey) else { return }
             foundAverageColor(Color(uiColor: cached))
         }
         .task(id: content.id) {
@@ -179,7 +220,7 @@ struct ContentArtworkView: View {
                         // and a grid of covers scrolling past was paying
                         // for one per tile to hand the result to nobody.
                         guard let foundAverageColor,
-                              let color = state.imageContainer?.image.findAverageColor(cacheKey: content.imageKey) else { return }
+                              let color = state.imageContainer?.image.findAverageColor(cacheKey: drawn.imageKey) else { return }
                         foundAverageColor(Color(uiColor: color))
                     }
             } else {
@@ -187,7 +228,7 @@ struct ContentArtworkView: View {
                     .aspectRatio(contentMode: .fit)
                     .foregroundStyle(placeholderStyle)
                     .overlay {
-                        if content.thumbnail == nil || state.error != nil {
+                        if drawn.thumbnail == nil || state.error != nil {
                             Image(systemName: "music.note")
                                 .resizable()
                                 .scaledToFit()

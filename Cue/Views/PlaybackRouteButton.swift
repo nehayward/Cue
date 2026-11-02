@@ -39,9 +39,19 @@ struct PlaybackRouteButton: View {
                 // With Sonos off, or away from Wi‑Fi, the only routes are the
                 // system's, so the button is the system's AirPlay picker
                 // itself. Speakers are switched on in Settings ▸ Sonos.
-                AirPlayRoutePicker()
+                // In a car the sound goes to CarPlay, and the button shows a
+                // car where the AirPlay glyph was, the way Music's does. The
+                // picker underneath still takes the tap.
+                AirPlayRoutePicker(hidesGlyph: sonosService.isInCar)
                     .frame(width: 30, height: 30)
+                    .overlay {
+                        if sonosService.isInCar {
+                            Image(systemName: "car.fill")
+                                .allowsHitTesting(false)
+                        }
+                    }
                     .accessibilityLabel("AirPlay")
+                    .accessibilityValue(sonosService.isInCar ? "CarPlay" : AudioOutputName.shared.name ?? "")
             }
         }
         // Re-read on every appearance: the share extension writes this too, so
@@ -52,10 +62,26 @@ struct PlaybackRouteButton: View {
 
 /// The Play On button while Sonos is on: opens `PlayOnSheet`.
 private struct SonosRouteButton: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
     private var route: PlaybackRoute { .shared }
 
     @State private var isPresented = false
     @Namespace private var transition
+
+    /// Where there's room, a popover from the button, as the system's
+    /// AirPlay picker is on iPad; a sheet zooming out of it otherwise.
+    private var presentsPopover: Bool {
+        horizontalSizeClass == .regular
+    }
+
+    private var showsSheet: Binding<Bool> {
+        Binding(get: { isPresented && !presentsPopover }, set: { isPresented = $0 })
+    }
+
+    private var showsPopover: Binding<Bool> {
+        Binding(get: { isPresented && presentsPopover }, set: { isPresented = $0 })
+    }
 
     var body: some View {
         Button {
@@ -65,15 +91,18 @@ private struct SonosRouteButton: View {
             // glyph: the route is Cue's, not AirPlay's.
             Image("hifispeaker.arrow.forward.fill")
                 .accessibilityLabel("Play On")
-                .accessibilityValue(route.group?.nameWithCount ?? "This Device")
+                .accessibilityValue(route.group?.nameWithCount ?? AudioOutputName.shared.name ?? "This Device")
         }
         // The sheet grows out of the button and shrinks back into it,
         // rather than sliding up from the bottom edge, far from where the
         // tap was.
         .zoomSource(.playOn, in: transition)
-        .sheet(isPresented: $isPresented) {
+        .sheet(isPresented: showsSheet) {
             PlayOnSheet()
                 .zoomTransition(from: .playOn, in: transition)
+        }
+        .popover(isPresented: showsPopover) {
+            PlayOnSheet(isPopover: true)
         }
     }
 }
@@ -81,16 +110,22 @@ private struct SonosRouteButton: View {
 /// The system AirPlay button: a tap puts up the system route sheet, the
 /// same one Control Center shows, and the device's audio follows it.
 private struct AirPlayRoutePicker: UIViewRepresentable {
+    /// Draws the picker without its own glyph, for a symbol laid over it.
+    var hidesGlyph = false
+
     func makeUIView(context: Context) -> AVRoutePickerView {
         let picker = AVRoutePickerView()
         picker.prioritizesVideoDevices = false
-        picker.tintColor = .label
-        picker.activeTintColor = .tintColor
         picker.backgroundColor = .clear
         return picker
     }
 
-    func updateUIView(_ uiView: AVRoutePickerView, context: Context) {}
+    func updateUIView(_ uiView: AVRoutePickerView, context: Context) {
+        // The glyph is drawn in these tints, so clear ones hide it while the
+        // button still takes the tap.
+        uiView.tintColor = hidesGlyph ? .clear : .label
+        uiView.activeTintColor = hidesGlyph ? .clear : .tintColor
+    }
 }
 
 struct PendingSwitch: Identifiable {

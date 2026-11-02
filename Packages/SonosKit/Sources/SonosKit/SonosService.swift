@@ -470,8 +470,19 @@ public final class SonosService {
     /// describes: the coordinator's stream survives a membership change. A
     /// room newly promoted to coordinator keeps the parse's empty track
     /// rather than showing the song it heard as a member of its old group.
-    private func adoptGroups(_ newGroups: [GroupRoom]) {
-        for newGroup in newGroups {
+    private func adoptGroups(_ parsedGroups: [GroupRoom]) {
+        // A group the refresh didn't touch keeps its instance. A new one is a
+        // change to every view holding it (GroupRoom is equal only to itself),
+        // so swapping in the parse's copy of an unchanged group would redraw
+        // them all, and restart anything keyed on it, for nothing.
+        let newGroups = parsedGroups.map { parsed in
+            groups.first {
+                $0.coordinatorID == parsed.coordinatorID && $0.id == parsed.id && $0.adoptionKey == parsed.adoptionKey
+            } ?? parsed
+        }
+        let replaced = newGroups.filter { new in !groups.contains { $0 === new } }
+
+        for newGroup in replaced {
             guard let current = groups.first(where: { $0.coordinatorID == newGroup.coordinatorID }) else { continue }
             newGroup.groupVolume = current.groupVolume
             newGroup.isMuted = current.isMuted
@@ -497,7 +508,7 @@ public final class SonosService {
         // Per-room state that `updateGroupsRooms` refreshes after the swap:
         // carry it by room ID so a regroup doesn't drop every slider to 0
         // until that read lands.
-        for room in newGroups.flatMap(\.rooms) {
+        for room in replaced.flatMap(\.rooms) {
             guard let current = rooms.first(where: { $0.id == room.id }) else { continue }
             room.volume = current.volume
             room.isMuted = current.isMuted
@@ -505,6 +516,12 @@ public final class SonosService {
         }
         groups = newGroups
         rooms = newGroups.flatMap(\.rooms)
+        // In the same step, so nothing reads the new groups against the old
+        // selected one (tvOS selects its tab by it).
+        if let selected = selectedGroup,
+           let live = newGroups.first(where: { $0.coordinatorID == selected.coordinatorID }) {
+            selectedGroup = live
+        }
     }
 
     @MainActor
@@ -1871,11 +1888,17 @@ public final class SonosService {
     }
 
     public func getTrack(ip: String) async -> Track? {
-        await api.getCurrentTrack(ipAddress: ip, prioritizedAlbumArtIP: prioritizedIP())
+        guard var track = await api.getCurrentTrack(ipAddress: ip, prioritizedAlbumArtIP: prioritizedIP()) else { return nil }
+        // Line-in has no artist, so the speaker the input comes from takes
+        // its place: "Line In", then "Kitchen".
+        if let sourceID = track.lineInSourceID, let name = await roomName(id: sourceID) {
+            track.artist = name
+        }
+        return track
     }
 
     public func getTrackDetails(ip: String) async -> Track? {
-        guard var track = await api.getCurrentTrack(ipAddress: ip, prioritizedAlbumArtIP: prioritizedIP()) else { return nil }
+        guard var track = await getTrack(ip: ip) else { return nil }
         guard let (trackMetadata, artworkURL) = await self.getTrackInformation(from: track) else {
             return track
         }
@@ -1885,6 +1908,12 @@ public final class SonosService {
             track.artist = trackMetadata?.artist ?? ""
         }
         return track
+    }
+
+    /// On the main actor, where the rooms change: the track is read off it.
+    @MainActor
+    private func roomName(id: String) -> String? {
+        rooms.first { $0.id == id }?.name
     }
     
     /// Points the on-screen listener at a group. Routed through the listener
@@ -1952,6 +1981,10 @@ public final class SonosService {
         case .subsonic:
             guard let track = await musicSearch.lookupSubsonicTrack(with: track.trackID) else { return nil }
             return track.artwork
+        case .audiobookshelf:
+            // A book's file: the book's cover.
+            guard let part = AudiobookshelfPartID(track.trackID) else { return nil }
+            return AudiobookshelfAPI.coverURL(itemID: part.itemID)
         case .tuneIn:
             return nil
         case .airplay, .unknown, .library, .sonosRadio, .pandora, .files:
@@ -2081,6 +2114,11 @@ public final class SonosService {
                 ),
                 subsonicTrack.artwork
             )
+        case .audiobookshelf:
+            // The speaker already has the book's title and author from the
+            // metadata it was queued with; only the cover is worth looking up.
+            guard let part = AudiobookshelfPartID(track.trackID) else { return (nil, nil) }
+            return (nil, AudiobookshelfAPI.coverURL(itemID: part.itemID))
         case .unknown:
             if track.metadata?.contentType != .track { return (nil, nil) }
             guard let artworkURL = await musicSearch.searchSpotifySong(song: track.name, artist: track.artist)?.tracks?.items.first else {
@@ -2364,8 +2402,15 @@ public final class SonosService {
         isEditing = false
     }
 
+    /// Runs before a group is told to play, by its coordinator's address:
+    /// Cue's Smart Resume moves a book paused there back a little first.
+    /// Every Play Cue sends a speaker comes through `play(ip:)`, so the
+    /// player, the Lock Screen and the mini player all get it.
+    @ObservationIgnored public var beforePlay: (@MainActor (String) async -> Void)?
+
     @MainActor
     public func play(ip: String) async {
+        await beforePlay?(ip)
         if let group = groups.first(where: { $0.coordinatorRoom.ip == ip }) {
             for room in group.rooms {
                 room.setPlaying(true, source: .localCommand)
@@ -2735,8 +2780,19 @@ public final class SonosService {
         await api.tvInput(IP: firstSoundBar.ip, ID: firstSoundBar.id)
     }
     
-    public func switchToLineIn(group: GroupRoom) async {
-        await api.switchToLineIn(IP: group.ip, ID: group.coordinatorRoom.id)
+    /// Every speaker in the household with a line-in, by name. Any group can
+    /// play any of them, not only the group that holds the speaker.
+    public var lineInSources: [Room] {
+        sortedRooms.filter { $0.state == .active && $0.supportsLineIn }
+    }
+
+    /// Plays `source`'s line-in on `group`. The stream is the source
+    /// speaker's (`x-rincon-stream:<its id>`), set on the group's coordinator.
+    ///
+    /// - Returns: Whether the group's coordinator took it.
+    @discardableResult
+    public func switchToLineIn(group: GroupRoom, from source: Room) async -> Bool {
+        await api.switchToLineIn(IP: group.ip, ID: source.id)
     }
     
     public func switchToQueueInput(group: GroupRoom) async {
@@ -2881,7 +2937,11 @@ public final class SonosService {
 
     public func getFavoriteList() async {
         guard let ip = prioritizedIP() else { return }
-        self.favorites = await api.getFavorites(for: ip)
+        let favorites = await api.getFavorites(for: ip)
+        // Usually unchanged. Writing anyway updated every view showing
+        // favorites, as Search opened.
+        guard !favorites.displaysSame(as: self.favorites) else { return }
+        self.favorites = favorites
     }
 
     public func deleteFavorite(on group: GroupRoom?, favoriteID: String) async {
@@ -2947,7 +3007,8 @@ public final class SonosService {
             return
         }
 
-        let count = await api.getQueueCount(IP: group.ip)
+        // Only Play Now needs it, to skip to the new track when the queue had others.
+        let count = position == .now ? await api.getQueueCount(IP: group.ip) : nil
         try await api.queuePlayable(playableContent: playable, IP: group.ip, position: position, shuffling: shuffling)
         
         if let index, index > 0, position == .now || position == .replace {
@@ -3000,9 +3061,43 @@ public final class SonosService {
             }
             return
         }
+        // An Apple Music artist has no container on Sonos: it plays as its
+        // albums, or a library artist without any as its songs.
+        if playable.content.type.isArtist, let contents = await musicSearch.artistContents(for: playable) {
+            guard !contents.isEmpty else { throw SonosServiceError.cantPlayContent(upnpCode: nil) }
+            switch position {
+            case .replace:
+                try await queue(contents: contents, group: group, position: .replace, startIndex: 0)
+            case .now where contents.allSatisfy(\.content.type.isTrack):
+                try await playNext(contents, on: group)
+            case .now:
+                // Not `playNext`: each album lands after the playing track,
+                // which by then is the first album's opening song, so the
+                // rest of that album would follow every other album. Queued
+                // in order after the playing track, then stepped onto; an
+                // empty queue starts on the first album by itself.
+                let count = await api.getQueueCount(IP: group.ip) ?? 0
+                try await queue(contents: contents, group: group, position: .next)
+                if count > 0 {
+                    await next(ip: group.ip)
+                }
+            default:
+                try await queue(contents: contents, group: group, position: position)
+            }
+            return
+        }
         try await queuePlayable(playable: playable, group: group, position: position, index: index)
-        try? await Task.sleep(for: .milliseconds(120))
-        try? await updateGroups(from: [group])
+        refreshAfterQueueEdit(group, settle: .milliseconds(120))
+    }
+
+    /// Reads the group back once the speaker has settled after a queue edit,
+    /// without holding up the caller: the add is done when the speaker
+    /// answers, and `QueueManager` can start the next one meanwhile.
+    private func refreshAfterQueueEdit(_ group: GroupRoom, settle: Duration) {
+        Task { [weak self] in
+            try? await Task.sleep(for: settle)
+            try? await self?.updateGroups(from: [group])
+        }
     }
     
     /// Expands containers from direct-HTTP services (no Sonos container URI)
@@ -3050,9 +3145,12 @@ public final class SonosService {
     ///
     /// Note: Sonos treats `.next` as LIFO, so remaining items are enqueued in reverse
     /// to preserve the caller’s order.
+    ///
+    /// `progress` hears how many items are in and of how many, as each lands.
     public func playNext(
         _ contents: [PlayableContent],
-        on group: GroupRoom
+        on group: GroupRoom,
+        progress: (@MainActor (Int, Int) -> Void)? = nil
     ) async throws {
         guard !contents.isEmpty else {
             assertionFailure("playNext called with empty contents")
@@ -3078,6 +3176,7 @@ public final class SonosService {
             shuffling: shuffling
         )
 
+        await progress?(1, contents.count)
         // Activate transport
         await next(ip: group.ip)
         await play(ip: group.ip)
@@ -3086,17 +3185,16 @@ public final class SonosService {
         try? await updateGroups(from: [group])
 
         // Queue remaining items (reverse to preserve order)
-        for content in remainder.reversed() {
+        for (index, content) in remainder.reversed().enumerated() {
             try await api.queuePlayable(
                 playableContent: content,
                 IP: group.ip,
                 position: .next,
                 shuffling: shuffling
             )
+            await progress?(index + 2, contents.count)
         }
-
-        try? await Task.sleep(for: .milliseconds(150))
-        try? await updateGroups(from: [group])
+        refreshAfterQueueEdit(group, settle: .milliseconds(150))
     }
     
     /// Queues items on a Sonos group at the requested position.
@@ -3107,11 +3205,14 @@ public final class SonosService {
     /// `startIndex` (with `.replace` only) starts playback at that 0-based
     /// position in the new queue as soon as the item lands, while the rest
     /// keeps filling in behind it.
+    ///
+    /// `progress` hears how many items are in and of how many, as each lands.
     public func queue(
         contents: [PlayableContent],
         group: GroupRoom,
         position: QueuePosition = .end,
-        startIndex: Int? = nil
+        startIndex: Int? = nil,
+        progress: (@MainActor (Int, Int) -> Void)? = nil
     ) async throws {
         guard !contents.isEmpty else {
             assertionFailure("queue called with empty contents")
@@ -3147,6 +3248,7 @@ public final class SonosService {
 
         for (index, content) in sequence.enumerated() {
             try await api.queuePlayable(playableContent: content, IP: group.ip, position: enqueuePosition, shuffling: shuffling)
+            await progress?(index + 1, sequence.count)
 
             // Start playback as soon as the first item is queued
             if position == .now && index == 0 {
@@ -3165,9 +3267,7 @@ public final class SonosService {
                 await play(ip: group.ip)
             }
         }
-
-        try? await Task.sleep(for: .milliseconds(150))
-        try? await updateGroups(from: [group])
+        refreshAfterQueueEdit(group, settle: .milliseconds(150))
     }
 
     /// Replaces the group's queue with one track and sets it `offset`

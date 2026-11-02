@@ -63,7 +63,9 @@ public final class PlexParser {
                     // The Part's key, signed the way library rows are. Without
                     // it a song from search had nothing for this device to
                     // play: the player turned it away as unplayable.
-                    streamURL: signedURL(for: track["Media"]["Part"].element?.attribute(by: "key")?.text)
+                    streamURL: signedURL(for: track["Media"]["Part"].element?.attribute(by: "key")?.text),
+                    index: (track.element?.attribute(by: "index")?.text).flatMap(Int.init),
+                    parentIndex: (track.element?.attribute(by: "parentIndex")?.text).flatMap(Int.init)
                 )
             }
         }

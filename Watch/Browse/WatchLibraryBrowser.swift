@@ -2,17 +2,18 @@ import Foundation
 import MusicSearchKit
 import WatchSync
 
-/// Browses and searches the Plex and Subsonic servers from the watch, with
-/// MusicSearchKit and the sign-ins the iPhone shared (`WatchAccounts`), and
-/// looks up the songs of a pick (`songs(for:)`) — whichever device picked
-/// it. No iPhone needed: the requests go from the watch to the server, over
-/// Wi‑Fi or cellular, or through the iPhone when it's connected over
-/// Bluetooth.
+/// Browses and searches the Plex and Subsonic servers from the watch, and
+/// the books on Plex and Audiobookshelf, with MusicSearchKit and the
+/// sign-ins the iPhone shared (`WatchAccounts`), and looks up the songs of
+/// a pick (`songs(for:)`) or a book's files (`book(for:)`) — whichever
+/// device picked it. No iPhone needed: the requests go from the watch to
+/// the server, over Wi‑Fi or cellular, or through the iPhone when it's
+/// connected over Bluetooth.
 ///
 /// Everything carries the ids the iPhone's library gives the same things (a
-/// Plex item's Sonos-style id, a Subsonic id), so keys match (`WatchKeys`):
-/// an album picked on either device is the same pick, and a song in it the
-/// same file.
+/// Plex item's Sonos-style id, a Subsonic id, an Audiobookshelf item's id),
+/// so keys match (`WatchKeys`): an album picked on either device is the
+/// same pick, and a song in it the same file.
 @MainActor
 final class WatchLibraryBrowser {
     static let shared = WatchLibraryBrowser()
@@ -26,6 +27,16 @@ final class WatchLibraryBrowser {
     /// afresh when it starts at the top.
     private var listings: [WatchBrowsePath: Listing] = [:]
 
+    /// Where a list of every Audiobookshelf book has read to: its book
+    /// libraries one after another, a page at a time.
+    private struct ShelfCursor {
+        var libraries: [String]?
+        var library = 0
+        var page = 0
+    }
+
+    private var shelfCursors: [WatchBrowsePath: ShelfCursor] = [:]
+
     private init() {}
 
     // MARK: - Pages
@@ -33,6 +44,7 @@ final class WatchLibraryBrowser {
     func page(_ path: WatchBrowsePath, offset: Int) async -> WatchBrowsePage {
         if offset == 0 {
             listings[path] = nil
+            shelfCursors[path] = nil
         }
         var listing = listings[path] ?? Listing()
         // Bounded: a source that ignored `offset` and kept answering
@@ -102,6 +114,8 @@ final class WatchLibraryBrowser {
             }
         case .section(.subsonic, .songs):
             return await subsonic.songs(size: size, offset: offset).compactMap(subsonicSong).map(songItem)
+        case .section(.audiobookshelf, _):
+            return []
 
         case let .artist(artist):
             guard offset == 0 else { return [] }
@@ -112,7 +126,147 @@ final class WatchLibraryBrowser {
             guard offset == 0 else { return [] }
             return await search(source, for: query)
 
+        case .books(.listening):
+            guard offset == 0 else { return [] }
+            return await booksInProgress()
+        case .books(.all(.plex)):
+            guard offset == 0 else { return [] }
+            return (await plex.audiobooks() ?? []).compactMap(plexBookItem)
+        case .books(.all(.audiobookshelf)):
+            return await shelfPage(path, size: size)
+        case .books(.all(.subsonic)):
+            return []
         }
+    }
+
+    // MARK: - Books
+
+    /// Books started and not finished on each server, the one listened to
+    /// last first: Audiobookshelf's own list, and the Plex books with a file
+    /// listened to and not every one played (Plex keeps no list of its own).
+    private func booksInProgress() async -> [WatchBrowseItem] {
+        let accounts = WatchAccounts.shared
+        var dated: [(item: WatchBrowseItem, at: Date)] = []
+        if accounts.hasAudiobookshelf {
+            accounts.renewTokenIfNeeded()
+            for book in await AudiobookshelfAPI.shared.itemsInProgress() ?? [] {
+                guard let row = shelfBookItem(book) else { continue }
+                let milliseconds = book.progressLastUpdate ?? book.userMediaProgress?.lastUpdate
+                dated.append((row, milliseconds.map { Date(timeIntervalSince1970: TimeInterval($0) / 1000) } ?? .distantPast))
+            }
+        }
+        if accounts.hasPlex, accounts.plexHasBooks {
+            for book in await PlexAPI.shared.audiobooks() ?? [] {
+                guard let viewedAt = book.lastViewedAt, (book.viewedLeafCount ?? 0) < (book.leafCount ?? 1),
+                      let row = plexBookItem(book) else { continue }
+                dated.append((row, Date(timeIntervalSince1970: TimeInterval(viewedAt))))
+            }
+        }
+        return dated.sorted { $0.at > $1.at }.prefix(25).map { $0.item }
+    }
+
+    /// The next page of every book on Audiobookshelf: the libraries one
+    /// after another, the one the server opens on first.
+    private func shelfPage(_ path: WatchBrowsePath, size: Int) async -> [WatchBrowseItem] {
+        let api = AudiobookshelfAPI.shared
+        WatchAccounts.shared.renewTokenIfNeeded()
+        var cursor = shelfCursors[path] ?? ShelfCursor()
+        if cursor.libraries == nil {
+            guard let libraries = await api.libraries() else { return [] }
+            let first = api.defaultLibraryID
+            cursor.libraries = (libraries.filter { $0.id == first } + libraries.filter { $0.id != first }).map(\.id)
+        }
+        let libraries = cursor.libraries ?? []
+        while cursor.library < libraries.count {
+            guard let page = await api.items(libraryID: libraries[cursor.library], page: cursor.page, limit: size) else {
+                shelfCursors[path] = cursor
+                return []
+            }
+            let read = (cursor.page + 1) * size
+            if page.results.count < size || page.total.map({ read >= $0 }) == true {
+                cursor.library += 1
+                cursor.page = 0
+            } else {
+                cursor.page += 1
+            }
+            shelfCursors[path] = cursor
+            let rows = page.results.filter(\.hasAudio).compactMap(shelfBookItem)
+            if !rows.isEmpty { return rows }
+        }
+        shelfCursors[path] = cursor
+        return []
+    }
+
+    private func plexBookItem(_ book: PlexAudiobookItem) -> WatchBrowseItem? {
+        item(.plex, .audiobook, id: book.sonosID, title: book.title, subtitle: book.parentTitle ?? "", artwork: plexThumbnail(book.thumbImageURL))
+    }
+
+    private func shelfBookItem(_ book: AudiobookshelfItem) -> WatchBrowseItem? {
+        let metadata = book.media?.metadata
+        return item(.audiobookshelf, .audiobook, id: book.id, title: metadata?.title ?? "", subtitle: metadata?.authorName ?? "", artwork: AudiobookshelfAPI.coverURL(itemID: book.id, width: Self.coverSize))
+    }
+
+    /// Covers are asked for at this size, as for Subsonic.
+    private static let coverSize = 300
+
+    /// A book's files in playing order, with its chapters (when
+    /// `withChapters`: Plex asks after each file's marks on its own) and
+    /// where its server has the listener. Nil when the server couldn't be
+    /// asked, or has a file Cue can't address — the book's timeline is laid
+    /// out from every file, and one missing would put each place after it
+    /// in the wrong one.
+    func book(for pick: WatchPick, withChapters: Bool = true) async -> WatchBookLookup? {
+        switch pick.source {
+        case .plex:
+            let plex = PlexAPI.shared
+            guard let key = ConvertedStream.plexRatingKey(contentID: pick.id),
+                  let parts = await plex.audiobookParts(ratingKey: key), !parts.isEmpty else { return nil }
+            let songs = parts.compactMap(plexSong)
+            guard songs.count == parts.count else { return nil }
+            let timeline = PlexAudiobook.timeline(parts: parts)
+            var chapters: [AudiobookChapter]?
+            if withChapters {
+                let marks = await plex.audiobookChapterMarks(parts: parts)
+                chapters = PlexAudiobook.chapters(parts: parts, marks: marks, timeline: timeline)
+            }
+            return WatchBookLookup(songs: songs, chapters: chapters, serverPlace: PlexAudiobook.progress(parts: parts, timeline: timeline))
+        case .audiobookshelf:
+            WatchAccounts.shared.renewTokenIfNeeded()
+            guard let item = await AudiobookshelfAPI.shared.item(id: pick.id), item.hasAudio else { return nil }
+            let tracks = item.media?.tracks ?? []
+            let songs = tracks.enumerated().compactMap { number, track in
+                shelfSong(track, number: number, of: item)
+            }
+            guard !songs.isEmpty, songs.count == tracks.count else { return nil }
+            return WatchBookLookup(songs: songs, chapters: item.chapters, serverPlace: item.progress)
+        case .subsonic:
+            return nil
+        }
+    }
+
+    /// A book's file as the watch keeps it: a song whose id names the item,
+    /// its place among the files and the file (`AudiobookshelfPartID`), the
+    /// way the iPhone names it.
+    private func shelfSong(_ track: AudiobookshelfTrack, number: Int, of item: AudiobookshelfItem) -> WatchSong? {
+        guard let fileID = track.fileID else { return nil }
+        let part = AudiobookshelfPartID(itemID: item.id, index: track.index, fileID: fileID)
+        let fileExtension = track.fileExtension
+        guard let url = AudiobookshelfAPI.fileURL(for: part.string, fileExtension: fileExtension) else { return nil }
+        let title = item.media?.metadata?.title ?? ""
+        let count = item.media?.tracks?.count ?? 1
+        return WatchSong(
+            source: .audiobookshelf,
+            contentID: part.string,
+            // Files are named for their file names ("01.m4b"); the book's
+            // title reads better.
+            title: count > 1 ? "\(title), Part \(number + 1)" : title,
+            artist: item.media?.metadata?.authorName ?? "",
+            album: title,
+            artworkURL: AudiobookshelfAPI.coverURL(itemID: item.id, width: Self.coverSize),
+            duration: track.duration,
+            sourceURL: url,
+            audioCodec: fileExtension
+        )
     }
 
     /// Artists, albums, playlists and songs matching `query`, in that order.
@@ -143,6 +297,8 @@ final class WatchLibraryBrowser {
             let albums = (results.album ?? []).compactMap(subsonicAlbumItem)
             let songs = (results.song ?? []).compactMap(subsonicSong).map(songItem)
             return artists + albums + songs
+        case .audiobookshelf:
+            return []
         }
     }
 
@@ -151,14 +307,23 @@ final class WatchLibraryBrowser {
         case let .section(_, section): section.title
         case let .artist(artist): artist.title
         case let .search(_, query): "“\(query)”"
+        case .books(.listening): "Continue Listening"
+        case .books(.all(.plex)): "Plex Books"
+        case let .books(.all(source)): source.title
         }
     }
 
     private func emptyMessage(for path: WatchBrowsePath) -> String {
-        if case .search = path {
-            return "No results, or the server can't be reached."
+        switch path {
+        case .search:
+            "No results, or the server can't be reached."
+        case .books(.listening):
+            "No books in progress, or the server can't be reached."
+        case .books:
+            "No books, or the server can't be reached."
+        default:
+            "Nothing here, or the server can't be reached."
         }
-        return "Nothing here, or the server can't be reached."
     }
 
     /// An artist's page offers the artist whole.
@@ -256,6 +421,11 @@ final class WatchLibraryBrowser {
         case (.subsonic, .playlist):
             guard let playlist = await subsonic.playlist(for: pick.id) else { return nil }
             songs = (playlist.entry ?? []).compactMap(subsonicSong)
+        case (_, .audiobook):
+            guard let book = await book(for: pick) else { return nil }
+            songs = book.songs
+        case (.audiobookshelf, _):
+            return nil
         case (_, .artist):
             // Every album, oldest first, fetched together and flattened —
             // bounded as on the iPhone (30 albums, 200 songs).
@@ -297,6 +467,8 @@ final class WatchLibraryBrowser {
                 guard let item = subsonicAlbumItem(album) else { continue }
                 albums.append((item, album.year ?? 0))
             }
+        case .audiobookshelf:
+            return nil
         }
         // Stable, so albums of one year keep the server's order.
         return albums.enumerated()

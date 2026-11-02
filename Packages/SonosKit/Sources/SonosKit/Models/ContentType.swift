@@ -18,7 +18,13 @@ public enum ContentType: Equatable, Codable, Hashable, Identifiable, Sendable {
     case libraryArtist
     case libraryImportedPlaylists
     case folder
-    
+    /// A whole audiobook (a Plex album kept as a book, an Audiobookshelf
+    /// item). Opens its own page — chapters, where it was left, Resume —
+    /// and plays as its files, from where the listener is. Its files are
+    /// `.track`s. Clic's Audible books use the same case, so the two apps'
+    /// shared code reads it the same.
+    case audiobook
+
     case unique
 
     public init?(_ type: String?) {
@@ -80,6 +86,8 @@ public enum ContentType: Equatable, Codable, Hashable, Identifiable, Sendable {
             "Radio"
         case .folder:
             "Folder"
+        case .audiobook:
+            "Audiobook"
         case .unique:
             "Unique"
         }
@@ -111,6 +119,8 @@ public enum ContentType: Equatable, Codable, Hashable, Identifiable, Sendable {
             "radio"
         case .folder:
             "folder"
+        case .audiobook:
+            "audiobook"
         case .unique:
             "Unique"
         }
@@ -132,6 +142,8 @@ public enum ContentType: Equatable, Codable, Hashable, Identifiable, Sendable {
             return "star.fill"
         case .folder:
             return "folder.fill"
+        case .audiobook:
+            return "book.fill"
         case .unique:
             return "play.circle.fill"
         }

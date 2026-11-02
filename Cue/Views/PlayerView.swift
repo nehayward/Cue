@@ -23,15 +23,27 @@ import VibesDS
 /// and the menu; below it the artwork, the album line,
 /// the title and the artist (each opening its detail), the scrubber with
 /// the audio-quality badge, the transport, the volume row with its
-/// steppers, and the bottom row: the route picker in the middle and the
-/// queue at the trailing edge.
+/// steppers, and the bottom row: lyrics at the leading edge, the route
+/// picker in the middle and the queue at the trailing edge. On the Mac
+/// they're in the navigation bar instead.
 struct PlayerView: View {
     @AppStorage(AppStorageKeys.showArtworkOnly) private var showArtworkOnly: Bool = false
     /// The same key the main window's panel uses, so showing the queue here
     /// shows it there too rather than the two disagreeing.
-    @AppStorage(AppStorageKeys.queueInspectorVisible) private var showQueue: Bool = false
+    /// The queue panel's flag, shared with the window's (`AppState`).
+    @State private var appState = AppState.shared
+    /// Lyrics in the artwork's place, held from song to song.
+    @AppStorage(AppStorageKeys.lyricsShown) private var showLyrics: Bool = false
     @Environment(\.dismiss) private var dismiss
+    /// The iPad's layout: the iPad, the Mac, and an iPhone Duo open, which
+    /// reports the phone idiom (`PadLayout`).
+    @Environment(\.usesPadLayout) private var usesPadLayout
+#if targetEnvironment(macCatalyst)
+    /// A regular-width Mac window puts the player's buttons in the
+    /// navigation bar (`PlayerToolbarButtons`); a compact one keeps the row
+    /// under the volume.
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+#endif
 
     /// The cover's own router. The main window's sheets hang off the tab
     /// content underneath this cover, so anything routed there would come
@@ -39,6 +51,10 @@ struct PlayerView: View {
     @State private var router = Router()
     @State private var isArtworkVisible: Bool = true
     @State private var showSleepTimerCancelConfirmation: Bool = false
+    /// Full-screen lyrics on a phone put the controls away while the song
+    /// plays (`lyricsChromeTask`); a touch brings them back.
+    @State private var lyricsControlsHidden: Bool = false
+    @State private var lyricsTouchedAt: Date = .now
     /// The Sonos artwork's crossfade window — see `GroupMediaControlsView`,
     /// which closes it around a skip so a deliberate change snaps.
     @State private var shouldFade: Bool = false
@@ -54,33 +70,30 @@ struct PlayerView: View {
     /// holds one.
     private var group: GroupRoom? { route.presentedGroup }
 
-    /// iPad at a regular width: the queue toggle is in the navigation bar.
-    private var showsQueueToolbarButton: Bool {
-#if targetEnvironment(macCatalyst)
-        false
-#else
-        UIDevice.current.userInterfaceIdiom == .pad && horizontalSizeClass == .regular
-#endif
-    }
-
-    /// Matches `LargePlayerView`: the wide layout is for anything that isn't a
-    /// phone, Catalyst included.
+    /// Matches `LargePlayerView`: the iPad's sizes, for the iPad, the Mac and
+    /// an iPhone Duo open. Vision keeps the iPhone's.
     private var isMacCatalystOrPad: Bool {
-        if UIDevice.current.userInterfaceIdiom == .pad {
-            return true
-        }
-#if targetEnvironment(macCatalyst)
-        return true
-#else
-        return false
-#endif
+        usesPadLayout && UIDevice.current.userInterfaceIdiom != .vision
     }
 
     /// The phone's layout, after the system's Now Playing: the artwork at
     /// the top and the title and controls spread down the rest of the
-    /// screen, with bigger transport. iPad and the Mac keep the tight stack.
+    /// screen, with bigger transport. Lyrics go full screen only here: an
+    /// iPhone, and an iPhone Duo folded.
     private var isPhoneLayout: Bool {
-        UIDevice.current.userInterfaceIdiom == .phone
+        !usesPadLayout
+    }
+
+    /// iPad, and an iPhone Duo open, lay the player out as the phone does
+    /// (`phoneContent`), in a bigger frame and with the lyrics in the
+    /// cover's place rather than full screen. Only the Mac keeps the tight
+    /// stack.
+    private var isPadLayout: Bool {
+#if targetEnvironment(macCatalyst)
+        false
+#else
+        usesPadLayout && UIDevice.current.userInterfaceIdiom != .vision
+#endif
     }
 
     /// Only on the Mac, where the player slides up instead of zooming. On
@@ -113,11 +126,40 @@ struct PlayerView: View {
         LiveTranscriptionService.shared.isEnabled && canTranscribe
     }
 
+    /// A book is playing: the lyrics button opens its transcript.
+    private var isBookPresented: Bool {
+        AudiobookPlayer.shared.isPlayingBook(on: controller)
+    }
+
+    /// Lyrics are on and the song has some, or may: they show while they
+    /// load, and the cover comes back for a song with none. For a book, its
+    /// transcript, where the device can transcribe.
+    private var showsLyrics: Bool {
+        guard showLyrics, !showsTranscription else { return false }
+        if isBookPresented { return true }
+        switch LyricsService.shared.state {
+        case .loaded, .loading, .failed: return true
+        case .none, .unavailable: return false
+        }
+    }
+
+    /// Whether the queue panel goes inside the navigation stack, between
+    /// the player and the bar: on a phone. An iPhone Duo open draws the bar
+    /// down the trailing edge beside the status bar, and with the panel
+    /// around the stack, as on iPad, the bar ran down the player column's
+    /// edge, mid-screen, with the panel past it; inside, the panel opens
+    /// between the player and the bar, which stays at the edge. iPad's and
+    /// the Mac's bar runs along the top of the player column, beside the
+    /// panel. The idiom never changes while the app runs, so neither place
+    /// ever swaps its view.
+    private static let queuePanelInStack = UIDevice.current.userInterfaceIdiom == .phone
+
     var body: some View {
-        // The stack sits inside the queue panel, so its bar spans the player
-        // column only, and the backdrop is drawn behind both from outside.
-        // An earlier stack here lost the zoom out of the mini player; if it
-        // goes again, that's where to look.
+        // On iPad and the Mac the stack sits inside the queue panel, so its
+        // bar spans the player column only; on a phone the panel is inside
+        // the stack (`queuePanelInStack`). The backdrop is drawn behind both
+        // from outside. An earlier stack here lost the zoom out of the mini
+        // player; if it goes again, that's where to look.
         NavigationStack {
             VStack(alignment: .center) {
                 // TV mode is the one screen of its own: a soundbar on TV
@@ -130,6 +172,9 @@ struct PlayerView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .animation(.interactiveSpring, value: showArtworkOnly)
+            // Full-screen lyrics put the controls away and back the way
+            // Hide Controls does, with the same transitions and spring.
+            .animation(.interactiveSpring, value: lyricsControlsHidden)
             // The next song's cover, decoded before Next is pressed, so a
             // skip shows it at once instead of a placeholder first.
             .onChange(of: playback.currentIndex, initial: true) {
@@ -148,9 +193,10 @@ struct PlayerView: View {
             .padding(.top, 8)
             // The stack already keeps clear of the home indicator; padding
             // by the inset again left the phone's bottom row floating a
-            // home indicator's height too high.
-            .safeAreaPadding(.bottom, isPhoneLayout ? 0 : nil)
+            // home indicator's height too high. iPad's row pads itself.
+            .safeAreaPadding(.bottom, isPhoneLayout || isPadLayout ? 0 : nil)
             .ignoresSafeArea(.keyboard)
+            .playerQueuePanel(if: Self.queuePanelInStack, isPresented: $appState.showsQueuePanel)
             .toolbar { toolbarContent }
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)
@@ -166,9 +212,7 @@ struct PlayerView: View {
         // it shows and hides in place, and the artwork reflows around it —
         // and a half-height sheet on a phone, where a side panel would only
         // squeeze both halves. `QueueNextUpView` follows the route too.
-        .queuePanel(isPresented: $showQueue) {
-            QueueNextUpView()
-        }
+        .playerQueuePanel(if: !Self.queuePanelInStack, isPresented: $appState.showsQueuePanel)
         .background { backdrop }
         // The speaker's socket, sleep timer and play mode, and a drop on the
         // screen, follow the route: a switch to a speaker opens its socket
@@ -180,6 +224,15 @@ struct PlayerView: View {
             volumeCoordinatorID: route.audibleGroup?.coordinatorID,
             shouldFade: $shouldFade
         ))
+        // The song on screen's lyrics, looked up while the player is open
+        // whether or not they're showing, so the button knows.
+        .modifier(LyricsRequestModifier())
+        // The switch to and from full-screen lyrics, whatever made it: the
+        // button, the header, or a song with or without lyrics coming on.
+        .animation(.lyricsSwitch, value: showsLyrics)
+        .task(id: LyricsChrome(isActive: isPhoneLayout && showsLyrics && controller.isPlaying, touchedAt: lyricsTouchedAt)) {
+            await lyricsChromeTask()
+        }
         .fontDesign(.rounded)
         .environment(router)
         .withEnvironments()
@@ -211,8 +264,176 @@ struct PlayerView: View {
     /// "Not Playing", the transport greyed out — so the route picker, the
     /// volume and the queue are where they always are, rather than a blank
     /// "Nothing Playing" screen with no way to do anything.
+    /// The song's lyrics, or a book's transcript in their place.
+    @ViewBuilder
+    private func lyricsOrTranscript(fullScreen: Bool) -> some View {
+        if isBookPresented {
+            BookTranscriptView(isFullScreen: fullScreen, onInteraction: fullScreen ? noteLyricsTouch : {})
+        } else if fullScreen {
+            LyricsView(style: .fullScreen, onInteraction: noteLyricsTouch)
+        } else {
+            LyricsView()
+        }
+    }
+
     @ViewBuilder
     private var playerContent: some View {
+        if isPhoneLayout || isPadLayout {
+            phoneContent
+        } else {
+            wideContent
+        }
+    }
+
+    /// Lyrics on a phone: full screen, the way Apple Music shows them.
+    private var isFullScreenLyrics: Bool {
+        isPhoneLayout && showsLyrics
+    }
+
+    /// The phone's player, one layout for the cover and for full-screen
+    /// lyrics so that switching moves the same views rather than swapping
+    /// them: the cover shrinks into the header's thumbnail as the title
+    /// lines fade for the header's, the lyrics take the space the cover and
+    /// the title lines had, and the controls slide down under them. In lyrics the controls
+    /// go away a few seconds into the song (`lyricsChromeTask`; not a book's
+    /// transcript's) or with the header's Full Screen, and a touch on the
+    /// lyrics brings them back.
+    ///
+    /// iPad's too: a bigger cover, wider gaps between the controls (their
+    /// least, as a landscape iPad's cover takes the height first), and the
+    /// lyrics in the cover's frame, never full screen.
+    @ViewBuilder
+    private var phoneContent: some View {
+        let isLyrics = isFullScreenLyrics
+        let hidesControls = isLyrics ? lyricsControlsHidden : showArtworkOnly
+        let cover = isPadLayout ? CGSize(width: 640, height: 640) : CGSize(width: 500, height: 400)
+        let gap: CGFloat = isPadLayout ? 20 : 4
+
+        HStack(spacing: 12) {
+            artwork
+                .frame(width: isLyrics ? 56 : nil, height: isLyrics ? 56 : nil)
+                .padding(.bottom, isLyrics || showArtworkOnly ? 0 : 12)
+                .frame(
+                    minWidth: 0,
+                    maxWidth: isLyrics ? 56 : (showArtworkOnly ? .infinity : cover.width),
+                    minHeight: 0,
+                    maxHeight: isLyrics ? 56 : (showArtworkOnly ? .infinity : cover.height)
+                )
+                .padding(.top, isLyrics ? 4 : (showArtworkOnly ? 100 : nil))
+                .onGeometryChange(for: Bool.self) { proxy in
+                    proxy.size.height >= 100
+                } action: { isArtworkVisible = $0 }
+                // Squeezed below 100 points by a short screen the cover
+                // hides; as the lyrics' thumbnail it's meant to be small.
+                .opacity(isArtworkVisible || isLyrics ? 1 : 0)
+                .animation(.interactiveSpring, value: isArtworkVisible)
+                .onTapGesture {
+                    if isLyrics { showLyrics = false }
+                }
+
+            if isLyrics {
+                LyricsHeaderTitles(
+                    item: controller.nowPlayingDisplay,
+                    isFullScreen: lyricsControlsHidden,
+                    onToggleFullScreen: toggleLyricsControls,
+                    onShowCover: { showLyrics = false },
+                    showsTextSettings: isBookPresented
+                )
+                .padding(.top, 4)
+                .transition(.lyricsSwitch)
+            }
+        }
+        .frame(maxWidth: isLyrics ? 500 : nil)
+        // Sized before the spacers below share out what's left; at an
+        // equal priority they split the height with it and the cover
+        // shrank to a thumbnail.
+        .layoutPriority(isLyrics ? 0 : 1)
+
+        if isLyrics {
+            lyricsOrTranscript(fullScreen: true)
+                .frame(maxWidth: 500, maxHeight: .infinity)
+                .contentShape(Rectangle())
+                .onTapGesture { noteLyricsTouch() }
+                .layoutPriority(1)
+                .transition(.lyricsBody)
+        } else {
+            Spacer(minLength: isPadLayout ? 24 : 12)
+            VStack {
+                titleLines
+            }
+            .transition(.lyricsSwitch)
+        }
+
+        if !hidesControls {
+            // The same controls in both: switching slides them rather than
+            // building them again.
+            Group {
+                PlayerScrubber()
+                    .padding(.top, 4)
+                Spacer(minLength: gap)
+                PlayerTransportView(shouldFade: $shouldFade, isProminent: true)
+                Spacer(minLength: gap)
+                volumeRow
+                    .padding(.horizontal, -12)
+                    .frame(maxWidth: 500)
+                PlayerBottomToolbarView(group: group, showQueue: $appState.showsQueuePanel)
+            }
+            // In lyrics a finger on the controls keeps them up; a drag on
+            // the volume or the scrubber tells the timer once a second.
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0).onChanged { _ in
+                    if Date.now.timeIntervalSince(lyricsTouchedAt) > 1 { noteLyricsTouch() }
+                },
+                including: isLyrics ? .all : .subviews
+            )
+            .transition(.opacity.combined(with: .push(from: .bottom)))
+        }
+    }
+
+    /// The header's switch: the controls away at once, or back.
+    private func toggleLyricsControls() {
+        HapticManager.shared.fireHaptic(.selection)
+        if lyricsControlsHidden {
+            noteLyricsTouch()
+        } else {
+            lyricsControlsHidden = true
+        }
+    }
+
+    private func noteLyricsTouch() {
+        lyricsTouchedAt = .now
+        if lyricsControlsHidden {
+            lyricsControlsHidden = false
+        }
+    }
+
+    /// When the full-screen lyrics' controls next go away: four seconds
+    /// after the last touch while the song plays; never while it's paused,
+    /// for a book's transcript, or outside full-screen lyrics.
+    private struct LyricsChrome: Equatable {
+        let isActive: Bool
+        let touchedAt: Date
+    }
+
+    private func lyricsChromeTask() async {
+        guard isFullScreenLyrics, controller.isPlaying else {
+            if lyricsControlsHidden {
+                lyricsControlsHidden = false
+            }
+            return
+        }
+        // A book's transcript goes full screen only from the header's Full
+        // Screen: it's read for long stretches, with the controls to hand.
+        guard !isBookPresented else { return }
+        try? await Task.sleep(for: .seconds(4))
+        guard !Task.isCancelled else { return }
+        lyricsControlsHidden = true
+    }
+
+    /// The Mac: the cover (or lyrics, or Live Transcription, in its place),
+    /// the title lines and the controls in a tight stack.
+    @ViewBuilder
+    private var wideContent: some View {
         artwork
             .padding(.bottom, showArtworkOnly ? 0 : 12)
             .frame(minWidth: 0, maxWidth: showArtworkOnly ? .infinity : (isMacCatalystOrPad ? 800 : 500), minHeight: 0, maxHeight: showArtworkOnly ? .infinity : (isMacCatalystOrPad ? .infinity : 400))
@@ -222,55 +443,31 @@ struct PlayerView: View {
             } action: { isArtworkVisible = $0 }
             .opacity(isArtworkVisible ? 1 : 0)
             .animation(.interactiveSpring, value: isArtworkVisible)
-            // Sized before the spacers below share out what's left; at an
-            // equal priority they split the height with it and the cover
-            // shrank to a thumbnail.
-            .layoutPriority(isPhoneLayout ? 1 : 0)
 
-        if isPhoneLayout {
-            Spacer(minLength: 12)
-            titleLines
+        titleLines
 
-            if !showArtworkOnly {
-                Group {
-                    PlayerScrubber()
-                        .padding(.top, 4)
-                    Spacer(minLength: 4)
-                    PlayerTransportView(shouldFade: $shouldFade, isProminent: true)
-                    Spacer(minLength: 4)
-                    volumeRow
-                        .padding(.horizontal, -12)
-                        .frame(maxWidth: 500)
-                    PlayerBottomToolbarView(group: group, showQueue: $showQueue)
-                }
-                .transition(.opacity.combined(with: .push(from: .bottom)))
+        if !showArtworkOnly {
+            VStack {
+                PlayerScrubber()
+                PlayerTransportView(shouldFade: $shouldFade)
             }
-        } else {
-            titleLines
+            .geometryGroup()
+            .transition(.opacity.combined(with: .push(from: .bottom)))
 
-            if !showArtworkOnly {
-                VStack {
-                    PlayerScrubber()
-                    PlayerTransportView(shouldFade: $shouldFade)
-                }
-                .geometryGroup()
-                .transition(.opacity.combined(with: .push(from: .bottom)))
+            VStack {
+                volumeRow
+                    .padding(.bottom, 20)
+                    .padding(.horizontal, -12)
+                    .frame(maxWidth: 500)
 
-                VStack {
-                    volumeRow
-                        .padding(.bottom, 20)
-                        .padding(.horizontal, -12)
-                        .frame(maxWidth: 500)
-
-                    PlayerBottomToolbarView(group: group, showQueue: $showQueue)
-                }
-                .transition(.opacity)
+                PlayerBottomToolbarView(group: group, showQueue: $appState.showsQueuePanel)
             }
+            .transition(.opacity)
         }
     }
 
-    /// The cover, or Live Transcription in its place — in the same frame, so
-    /// the controls below don't move when it's switched. A speaker's cover is
+    /// The cover, or Live Transcription or the lyrics in its place — in the
+    /// same frame, so the controls below don't move when it's switched. A speaker's cover is
     /// `ArtworkView`, which carries its mute and alarm badges and shares the
     /// Lock Screen's cache entry; a hand-off goes over to it only once that
     /// entry holds the carried song's cover (see `PlaybackRoute.hold`), so
@@ -280,11 +477,16 @@ struct PlayerView: View {
         if showsTranscription {
             LiveTranscriptionView()
                 .transition(.opacity)
+        } else if showsLyrics && !isPhoneLayout {
+            // A phone's lyrics fill the screen instead (`phoneContent`),
+            // with this cover as their thumbnail.
+            lyricsOrTranscript(fullScreen: false)
+                .transition(.opacity)
         } else if let group {
-            ArtworkView(group: group, isDraggable: isArtworkDraggable, showBadge: true, shouldFade: artworkShouldFade)
+            ArtworkView(group: group, isDraggable: isArtworkDraggable, showBadge: !isFullScreenLyrics, shouldFade: artworkShouldFade)
                 .transition(.opacity)
         } else if let item = playback.nowPlayingDisplay {
-            ContentArtworkView(content: item, showMusicSource: true, preferredSize: ContentArtworkView.playerPreferredSize, cornerRadius: 8, isDraggable: isArtworkDraggable)
+            ContentArtworkView(content: item, showMusicSource: !isFullScreenLyrics, preferredSize: ContentArtworkView.playerPreferredSize, cornerRadius: isFullScreenLyrics ? 6 : 8, isDraggable: isArtworkDraggable)
                 .shadow(radius: 2)
                 .transition(.opacity)
         } else {
@@ -304,7 +506,13 @@ struct PlayerView: View {
         // Music has it — named by the station or by Shazam.
         let target = group == nil ? (playback.onAirMatch ?? item) : item
 
-        originLine(item)
+        // A book's line is the chapter playing, and opens its chapters.
+        if AudiobookPlayer.shared.isPlayingBook(on: controller), (AudiobookPlayer.shared.current?.chapters.count ?? 0) > 1 {
+            AudiobookChapterLine()
+                .frame(height: 12)
+        } else {
+            originLine(item)
+        }
         PlayerSongTitleButton(
             title: item?.title ?? (controller.isActive ? "" : "Not Playing"),
             target: target,
@@ -368,7 +576,7 @@ struct PlayerView: View {
     @ViewBuilder
     private var volumeRow: some View {
         if let group {
-            VolumeControlView(group: group)
+            VolumeControlView(group: group, immediateDrag: true)
         } else {
             LocalVolumeControlView()
         }
@@ -414,12 +622,12 @@ struct PlayerView: View {
         .transition(.opacity)
 
         VStack {
-            VolumeControlView(group: group)
+            VolumeControlView(group: group, immediateDrag: true)
                 .padding(.bottom, 20)
                 .padding(.horizontal, -12)
                 .frame(maxWidth: 500)
 
-            PlayerBottomToolbarView(group: group, showQueue: $showQueue)
+            PlayerBottomToolbarView(group: group, showQueue: $appState.showsQueuePanel)
         }
         .transition(.opacity)
     }
@@ -443,7 +651,8 @@ struct PlayerView: View {
 
     /// No title (only a close chevron leading on the Mac), and trailing
     /// the sleep timer, the like button and the menu — up here on every size, so the bar below
-    /// is only ever about where to go.
+    /// is only ever about where to go. The Mac's bar has that row's buttons
+    /// too, ahead of them (`PlayerToolbarButtons`), and no row below.
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
 #if targetEnvironment(macCatalyst)
@@ -476,9 +685,28 @@ struct PlayerView: View {
 #endif
         }
 
+#if targetEnvironment(macCatalyst)
+        // A capsule of their own, ahead of the like button and the menu.
+        if horizontalSizeClass != .compact {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                PlayerToolbarButtons(group: group, showQueue: $appState.showsQueuePanel)
+            }
+            if #available(iOS 26.0, *) {
+                ToolbarSpacer(.fixed, placement: .topBarTrailing)
+            }
+        }
+#endif
+
         ToolbarItemGroup(placement: .topBarTrailing) {
             if canTranscribe {
                 LiveTranscriptionButton()
+                    .tint(.primary)
+            }
+            // iPad's Shazam, up here beside Live Transcription: its bottom
+            // row is the phone's, which has no place for it. The Mac's is
+            // in its wide row.
+            if isPadLayout, IdentifySongButton.isAvailable(for: group) {
+                IdentifySongButton(group: group)
                     .tint(.primary)
             }
             // A speaker's menu has its own extras — grouping, EQ, the TV —
@@ -493,24 +721,6 @@ struct PlayerView: View {
                     .disabled(route.isHolding)
             } else if let item = playback.nowPlaying {
                 localNavigationButtons(item)
-            }
-            // iPad's queue toggle, up here with the other controls rather
-            // than in the glass row under the volume, where it reflowed with
-            // the artwork as the panel slid in. The phone keeps it in its
-            // bar (the queue is a sheet there); the Mac has the window
-            // toolbar's.
-            if showsQueueToolbarButton {
-                Button {
-                    HapticManager.shared.fireHaptic(.selection)
-                    withAnimation(.snappy) {
-                        showQueue.toggle()
-                    }
-                } label: {
-                    Label(showQueue ? "Hide Up Next" : "Show Up Next", systemImage: "list.bullet")
-                        .labelStyle(.iconOnly)
-                }
-                .tint(showQueue ? Color("Accent") : .primary)
-                .accessibilityAddTraits(showQueue ? .isSelected : [])
             }
         }
     }
@@ -841,11 +1051,14 @@ private struct EmptyPlayerArtwork: View {
 /// quality / remaining, monospaced, redrawn from the running clock once per
 /// pixel of progress (see `PlaybackTimeline`). Reads
 /// `PlaybackRoute.presented`, in seconds whichever it is, so a route switch
-/// changes what it reads and nothing else.
+/// changes what it reads and nothing else. While a book with chapters
+/// plays, it spans the chapter playing, its times the chapter's
+/// (`AudiobookPlayer.chapterSpan`).
 private struct PlayerScrubber: View {
     private var route: PlaybackRoute { .shared }
 
     @Environment(\.displayScale) private var displayScale
+    @Environment(\.usesPadLayout) private var usesPadLayout
 
     /// Held only while dragging, so the thumb stays under the finger rather
     /// than running on with the clock — and until the seek has been sent,
@@ -879,17 +1092,19 @@ private struct PlayerScrubber: View {
         // way out, and the bar follows what's heard (`HeldPlaybackController`).
         let controller = route.presented
         let duration = range(of: controller)
+        // A book's chapter, in the file's time; else the whole file.
+        let span = AudiobookPlayer.shared.chapterSpan(on: controller).flatMap { $0.upperBound <= duration ? $0 : nil } ?? 0...duration
         // Paused under a finger, while nothing plays, and off screen (see
         // `PlaybackTimeline`). A seek or a new song lands at once rather than
         // sweeping, hence no value animation.
         PlaybackTimeline(
             isRunning: controller.isClockRunning && scrubPosition == nil,
             minimumInterval: ProgressRedraw.interval(
-                forDuration: duration * 1000,
+                forDuration: (span.upperBound - span.lowerBound) * 1000,
                 length: barWidth,
                 scale: displayScale
             ),
-            position: { clamped(scrubPosition ?? controller.position(), to: duration) }
+            position: { min(max(clamped(scrubPosition ?? controller.position(), to: duration), span.lowerBound), span.upperBound) }
         ) { position in
             VStack(spacing: 0) {
                 VibeSlider(
@@ -897,10 +1112,11 @@ private struct PlayerScrubber: View {
                         get: { position },
                         set: { scrubPosition = $0 }
                     ),
-                    in: 0...duration,
+                    in: span,
                     step: 1,
-                    baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24,
+                    baseHeight: usesPadLayout ? 24 : 16,
                     delayDrag: false,
+                    immediateDrag: true,
                     valueAnimation: nil
                 ) { isEditing in
                     scrubbingChanged(isEditing, on: controller)
@@ -909,27 +1125,38 @@ private struct PlayerScrubber: View {
                 .frame(height: 40)
                 .foregroundStyle(.primary)
                 .accessibilityLabel("Playback Position")
-                .accessibilityValue(Duration.seconds(position).formatted(.time(pattern: .minuteSecond)))
+                .accessibilityValue(Duration.seconds(position - span.lowerBound).formatted(.time(pattern: .minuteSecond)))
                 // Nothing to seek on a live stream, or while a hand-off holds
                 // the player on its source.
                 .disabled(!controller.canScrub)
                 .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { barWidth = $0 }
+                // Its whole height takes a touch first: drawn after it, the
+                // time line's tap (a book's time left) reached into it and
+                // took touches meant for the scrubber.
+                .zIndex(1)
 
                 HStack {
-                    let elapsed = Duration.seconds(position)
-                    let remaining = Duration.seconds(max(0, duration - position))
+                    let elapsed = Duration.seconds(max(0, position - span.lowerBound))
+                    let remaining = Duration.seconds(max(0, span.upperBound - position))
                     let pattern: Duration.TimeFormatStyle.Pattern =
-                        duration > 3600 ? .hourMinuteSecond : .minuteSecond
+                        span.upperBound - span.lowerBound > 3600 ? .hourMinuteSecond : .minuteSecond
 
                     Text(elapsed.formatted(.time(pattern: pattern)))
                         .contentTransition(.identity)
                     Spacer()
-                    // Lossless / Atmos / bit depth, as far as the backend or
-                    // the speaker says.
-                    AudioInfoView(quality: controller.audioQuality)
-                        .frame(height: 12)
-                        .contentTransition(.identity)
-                        .animation(.spring, value: controller.audioQuality)
+                    // A book: what's left of the chapter, or of the book (a
+                    // tap switches them). Anything else: lossless
+                    // / Atmos / bit depth, as far as the backend or the speaker
+                    // says.
+                    if AudiobookPlayer.shared.isPlayingBook(on: controller) {
+                        AudiobookTimeLeft()
+                            .frame(height: 12)
+                    } else {
+                        AudioInfoView(quality: controller.audioQuality)
+                            .frame(height: 12)
+                            .contentTransition(.identity)
+                            .animation(.spring, value: controller.audioQuality)
+                    }
                     Spacer()
                     Text("-\(remaining.formatted(.time(pattern: pattern)))")
                         .contentTransition(.identity)
@@ -1029,23 +1256,33 @@ private struct PlayerTransportView: View {
         // A load that's over in a moment doesn't pulse; one that keeps the
         // song waiting does (see `sustainedPulse`).
         let isLoading = controller.isLoading
+        // A book's chapters run far too long to move through by file:
+        // Previous and Next skip back and forward instead.
+        let isBook = AudiobookPlayer.shared.isPlayingBook(on: controller)
+        let showsPrevious = isBook || controller.showsPrevious
+        let showsNext = isBook || controller.showsNext
 
         HStack {
-            if controller.showsPrevious {
+            if showsPrevious {
                 Button {
-                    skip(.previous)
+                    if isBook {
+                        skipBook(by: -AudiobookPlayer.skipBackInterval)
+                    } else {
+                        skip(.previous)
+                    }
                 } label: {
-                    Image(systemName: "backward.fill")
+                    Image(systemName: isBook ? "gobackward.\(Int(AudiobookPlayer.skipBackInterval))" : "backward.fill")
                         .resizable()
                         .scaledToFit()
+                        .fontWeight(isBook ? .regular : nil)
                         .frame(width: skipSize, height: skipSize)
                 }
                 .buttonStyle(.liveActivity)
-                .accessibilityLabel("Previous")
-                .disabled(!controller.canGoBack)
+                .accessibilityLabel(isBook ? "Back \(Int(AudiobookPlayer.skipBackInterval)) Seconds" : "Previous")
+                .disabled(!isBook && !controller.canGoBack)
 
                 Spacer()
-            } else if controller.showsNext {
+            } else if showsNext {
                 // Holds Previous's place so Play stays centred.
                 Color.clear
                     .frame(width: skipSize, height: skipSize)
@@ -1071,27 +1308,38 @@ private struct PlayerTransportView: View {
             .keyboardShortcut(.space, modifiers: [])
             #endif
 
-            if controller.showsNext {
+            if showsNext {
                 Spacer()
 
                 Button {
-                    skip(.next)
+                    if isBook {
+                        skipBook(by: AudiobookPlayer.skipForwardInterval)
+                    } else {
+                        skip(.next)
+                    }
                 } label: {
-                    Image(systemName: "forward.fill")
+                    Image(systemName: isBook ? "goforward.\(Int(AudiobookPlayer.skipForwardInterval))" : "forward.fill")
                         .resizable()
                         .scaledToFit()
+                        .fontWeight(isBook ? .regular : nil)
                         .frame(width: skipSize, height: skipSize)
                 }
                 .buttonStyle(.liveActivity)
-                .accessibilityLabel("Next")
-                .disabled(!controller.hasNext)
+                .accessibilityLabel(isBook ? "Forward \(Int(AudiobookPlayer.skipForwardInterval)) Seconds" : "Next")
+                .disabled(!isBook && !controller.hasNext)
             }
         }
-        .frame(maxWidth: controller.showsNext ? (isProminent ? 320 : 300) : nil)
+        .frame(maxWidth: showsNext ? (isProminent ? 320 : 300) : nil)
         .padding(.horizontal, isProminent ? 36 : 60)
         // Nothing loaded, or a hand-off holding the player: there, so the
         // player keeps its shape, but nothing to press.
         .disabled(!controller.isActive)
+    }
+
+    /// Skips through the book, across its files.
+    private func skipBook(by seconds: TimeInterval) {
+        HapticManager.shared.fireHaptic(.selection)
+        Task { await AudiobookPlayer.shared.skip(by: seconds) }
     }
 
     /// Skips on whatever is on screen. Instant on both: this device moves at
@@ -1128,7 +1376,11 @@ private struct LocalVolumeControlView: View {
     /// instead of the system's stepped echo.
     @State private var dragging: Double?
 
-    @ScaledMetric(relativeTo: .caption) private var sliderHeight: CGFloat = UIDevice.current.userInterfaceIdiom == .phone ? 20 : 24
+    @Environment(\.usesPadLayout) private var usesPadLayout
+    @ScaledMetric(relativeTo: .caption) private var phoneSliderHeight: CGFloat = 20
+    @ScaledMetric(relativeTo: .caption) private var padSliderHeight: CGFloat = 24
+
+    private var sliderHeight: CGFloat { usesPadLayout ? padSliderHeight : phoneSliderHeight }
 
     /// One notch of the hardware buttons.
     private static let step: Double = 1.0 / 16.0
@@ -1160,6 +1412,7 @@ private struct LocalVolumeControlView: View {
                 step: 1,
                 baseHeight: sliderHeight,
                 delayDrag: false,
+                immediateDrag: true,
                 showValue: true
             ) { editing in
                 if !editing { dragging = nil }
@@ -1220,19 +1473,18 @@ private struct HiddenSystemVolumeView: UIViewRepresentable {
 
 // MARK: - Bottom toolbar
 
-/// The row under the volume. On a phone it has no glass: the route picker
-/// in the middle — on a speaker its menu is the regroup menu too — and the
-/// queue on the trailing edge, with the leading slot empty for now. The
-/// wide row adds the room volume for a group of more than one and Identify
-/// Song. No search
-/// or browse: the window's tabs are a dismiss away on every size, and the
-/// cover's sheets only doubled them. The wide row has no queue: iPad's is
-/// in the navigation bar, the Mac's in the window toolbar. The
-/// like button and the menu live in the navigation bar on every size, so this row
-/// is only ever about where to go next.
+/// The row under the volume, with no glass: the route picker in the middle
+/// — on a speaker its menu is the regroup menu too — and the queue on the
+/// trailing edge, and lyrics on the leading edge. No search or browse: the
+/// window's tabs are a dismiss away on every size, and the cover's sheets
+/// only doubled them. The like button and the menu live in the navigation
+/// bar on every size, so this row is only ever about where to go next. A
+/// regular-width Mac window has no row: its buttons, the queue's too, are
+/// in the navigation bar (`PlayerToolbarButtons`).
 private struct PlayerBottomToolbarView: View {
     @Environment(Router.self) private var router: Router
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.usesPadLayout) private var usesPadLayout
 
     /// The group on screen, or `nil` for this device.
     let group: GroupRoom?
@@ -1244,26 +1496,45 @@ private struct PlayerBottomToolbarView: View {
 
     private var route: PlaybackRoute { .shared }
 
-    /// The group the route picker plays on, or `nil` on this device. The
-    /// group on screen first, then the route's, so a solo room reads too.
-    /// While a hand-off holds the player on its source, where it's going.
+    /// The group the route picker plays on. The group on screen first, then
+    /// the route's, so a solo room reads too. On this device, the AirPods,
+    /// car or AirPlay receiver it plays through, so it's plain that
+    /// Bluetooth is on; nothing on the phone's own speaker. While a hand-off
+    /// holds the player on its source, where it's going.
     private var routeName: String? {
         if route.isHolding {
             return "Moving to \(route.group?.nameWithCount ?? "This Device")…"
         }
-        return (group ?? route.group)?.nameWithCount
+        return (group ?? route.group)?.nameWithCount ?? AudioOutputName.shared.name
+    }
+
+    /// The row everywhere but a regular-width Mac window.
+    private var isFlatRow: Bool {
+#if targetEnvironment(macCatalyst)
+        horizontalSizeClass == .compact
+#else
+        true
+#endif
+    }
+
+    /// Where the queue is a side panel rather than a sheet. A book's chapters
+    /// are in the panel there (`QueueNextUpView`), so its bookmark shows and
+    /// hides the panel as the queue's gauge does, rather than opening a sheet
+    /// of the same list beside it.
+    private var isQueuePanelAtSide: Bool {
+        horizontalSizeClass == .regular
     }
 
     var body: some View {
-        @Bindable var router = router
-
-        if UIDevice.current.userInterfaceIdiom == .phone || horizontalSizeClass == .compact {
-            // No glass: the route picker centred and the queue trailing,
-            // with the leading slot left empty for now.
+        if isFlatRow {
+            // No glass: lyrics leading, the route picker centred and the
+            // queue trailing.
             VStack(spacing: 6) {
                 HStack(spacing: 0) {
-                    Color.clear
-                        .frame(maxWidth: .infinity, maxHeight: 1)
+                    LyricsButton()
+                        .buttonStyle(.plain)
+                        .imageScale(.large)
+                        .frame(maxWidth: .infinity)
 
                     PlaybackRouteButton()
                         .buttonStyle(.plain)
@@ -1276,12 +1547,12 @@ private struct PlayerBottomToolbarView: View {
                         .frame(maxWidth: .infinity)
                 }
 
-                // The speaker it plays on, on its own line under the route
-                // picker. Laid out here rather than in the picker's label:
-                // iOS flattens a Menu's label, and an overlay on the Menu
-                // gets clipped by the button behind it. The whole row's width,
-                // centred under the button: nothing else is on this line, and
-                // a third of it cut most group names short.
+                // The speaker or headphones it plays on, on its own line
+                // under the route picker. Laid out here rather than in the
+                // picker's label: iOS flattens a Menu's label, and an overlay
+                // on the Menu gets clipped by the button behind it. The whole
+                // row's width, centred under the button: nothing else is on
+                // this line, and a third of it cut most group names short.
                 Text(routeName ?? " ")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -1293,62 +1564,42 @@ private struct PlayerBottomToolbarView: View {
                     .accessibilityHidden(true)
             }
             .padding(.top, 14)
-            .padding(.bottom, UIDevice.current.userInterfaceIdiom == .phone ? 0 : 14)
+            .padding(.bottom, usesPadLayout ? 14 : 0)
             .padding(.horizontal, 28)
             .frame(maxWidth: 500)
-        } else {
-            // No queue button: at this width it's in the navigation bar on
-            // iPad, and the window toolbar's on the Mac.
-            HStack {
-                PlaybackRouteButton()
-                    .buttonBorderShape(.roundedRectangle)
-                    .glassButton()
-                    .help("Play On")
-
-                if let group, group.rooms.count > 1 {
-                    roomVolumeButton(group)
-                        .buttonBorderShape(.roundedRectangle)
-                        .glassButton()
-                        .withPopoverDestinations(popoverDestination: $router.volumePopover)
-                        .help("Speaker Control")
-                }
-
-                if IdentifySongButton.isAvailable(for: group) {
-                    IdentifySongButton(group: group)
-                        .buttonBorderShape(.roundedRectangle)
-                        .glassButton()
-                }
-            }
-        }
-    }
-
-    private func roomVolumeButton(_ group: GroupRoom) -> some View {
-        Button {
-            router.volumePopover = .volumeControlsScreen(groupID: group.coordinatorID)
-        } label: {
-            Label("Room Volume", systemImage: "speaker.wave.2.fill")
-                .symbolRenderingMode(.hierarchical)
-                .frame(width: 24, height: 24)
-                .labelStyle(.iconOnly)
-                .fontDesign(.rounded)
         }
     }
 
     /// The queue toggle with its gauge — the device's or the group's — and
     /// the play mode badge over it. A drop on it plays next wherever the
     /// route points.
+    /// A book's files aren't a queue: for one, it's the chapters sheet the
+    /// chapter line opens, under a bookmark with the chapter's number (or
+    /// the panel, where it's at the side and holds them).
     @ViewBuilder
     private var queueButton: some View {
+        let isBook = AudiobookPlayer.shared.isPlayingBook(on: route.presented)
+        let togglesPanel = !isBook || isQueuePanelAtSide
         let button = Button {
             HapticManager.shared.fireHaptic(.selection)
+            if !togglesPanel {
+                router.sheet(to: .audiobookChapters)
+                return
+            }
             withAnimation {
                 showQueue.toggle()
             }
         } label: {
-            PresentedQueueIconView()
+            Group {
+                if isBook {
+                    AudiobookChapterIconView()
+                } else {
+                    PresentedQueueIconView()
+                }
+            }
                 .fontDesign(.rounded)
                 .font(.title3)
-                .foregroundStyle(isHoveringOnQueueList || showQueue ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.primary))
+                .foregroundStyle(isHoveringOnQueueList || (showQueue && togglesPanel) ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.primary))
                 .overlay(alignment: .topTrailing) {
                     if isHoveringOnQueueList {
                         Image(systemName: "plus.circle.fill")
@@ -1358,10 +1609,12 @@ private struct PlayerBottomToolbarView: View {
                     }
                 }
         }
-        .accessibilityLabel("Up Next")
-        .accessibilityAddTraits(showQueue ? .isSelected : [])
+        .accessibilityLabel(isBook ? "Chapters" : "Up Next")
+        .accessibilityAddTraits(showQueue && togglesPanel ? .isSelected : [])
         .overlay(alignment: .topTrailing) {
-            playModeBadge
+            if !isBook {
+                playModeBadge
+            }
         }
 
         // One button whichever way the route points, so it keeps its place
@@ -1403,6 +1656,73 @@ private struct PlayerBottomToolbarView: View {
     }
 }
 
+#if targetEnvironment(macCatalyst)
+/// The Mac's player buttons, in the navigation bar beside the like button
+/// and the menu, as Music keeps Lyrics, Up Next and AirPlay in its toolbar:
+/// Play On, lyrics (a book's transcript), the room volume for a group of
+/// more than one, Identify Song and the queue panel's show and hide. They
+/// were a glass row under the volume, which took height from the cover and
+/// the transcript, and the queue's was in a window toolbar of its own. Each
+/// its own bar item: no stack round them.
+private struct PlayerToolbarButtons: View {
+    @Environment(Router.self) private var router: Router
+
+    /// The group on screen, or `nil` for this device.
+    let group: GroupRoom?
+    @Binding var showQueue: Bool
+
+    var body: some View {
+        @Bindable var router = router
+
+        PlaybackRouteButton()
+            .help("Play On")
+            .tint(.primary)
+
+        LyricsButton()
+            .tint(.primary)
+
+        if let group, group.rooms.count > 1 {
+            Button {
+                router.volumePopover = .volumeControlsScreen(groupID: group.coordinatorID)
+            } label: {
+                Label("Room Volume", systemImage: "speaker.wave.2.fill")
+                    .symbolRenderingMode(.hierarchical)
+                    .labelStyle(.iconOnly)
+            }
+            .tint(.primary)
+            .withPopoverDestinations(popoverDestination: $router.volumePopover)
+            .help("Speaker Control")
+        }
+
+        if IdentifySongButton.isAvailable(for: group) {
+            IdentifySongButton(group: group)
+                .tint(.primary)
+        }
+
+        // The queue gauge, or for a book the bookmark with its chapter's
+        // number, whose chapters take the panel (`QueueNextUpView`).
+        let isBook = AudiobookPlayer.shared.isPlayingBook(on: PlaybackRoute.shared.presented)
+        Button {
+            withAnimation {
+                showQueue.toggle()
+            }
+        } label: {
+            Group {
+                if isBook {
+                    AudiobookChapterIconView()
+                } else {
+                    PresentedQueueIconView()
+                }
+            }
+            .foregroundStyle(showQueue ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.primary))
+        }
+        .accessibilityLabel(isBook ? (showQueue ? "Hide Chapters" : "Show Chapters") : (showQueue ? "Hide Queue" : "Show Queue"))
+        .accessibilityAddTraits(showQueue ? .isSelected : [])
+        .help(showQueue ? "Hide Queue (⌥⌘0)" : "Show Queue (⌥⌘0)")
+    }
+}
+#endif
+
 /// The queue gauge for what's on screen: this device's queue, or the
 /// speaker's while it plays from its queue. Also the mini player's queue
 /// toggle on iPad.
@@ -1412,6 +1732,32 @@ struct PresentedQueueIconView: View {
     var body: some View {
         let controller = route.presented
         QueueIconView(position: controller.queuePosition, total: controller.queueCount)
+    }
+}
+
+/// A book's in place of the queue gauge: a bookmark, as the chapter rows
+/// have, with the number of the chapter playing in it. Its own view, read
+/// only when the chapter changes.
+struct AudiobookChapterIconView: View {
+    @State private var player = AudiobookPlayer.shared
+
+    var body: some View {
+        Image(systemName: "bookmark")
+            .overlay {
+                if let chapter = player.currentChapter {
+                    // In the bookmark's top, above its notch.
+                    Text("\(chapter.id + 1)")
+                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .minimumScaleFactor(0.5)
+                        .lineLimit(1)
+                        .padding(.horizontal, 3)
+                        .offset(y: -2)
+                }
+            }
+            // As the queue gauge: the number stays in the bookmark while
+            // its row slides.
+            .geometryGroup()
     }
 }
 
@@ -1435,9 +1781,23 @@ private struct LocalPlayerMenuView: View {
     private var song: PlayableContent { playback.onAirMatch ?? item }
 
     var body: some View {
+        // A book's file: chapters and speed rather than album, artist,
+        // playlists, shuffle and repeat, none of which mean much for one.
+        let isBook = AudiobookPlayer.shared.contains(item)
         Menu {
+            if isBook {
+                AudiobookPlayerMenuItems(isOnDevice: true)
+            }
+            // A book and the music it was started over, each one tap from
+            // the other.
+            Section {
+                BookMusicSwitchMenuItems(isBook: isBook)
+            }
+            if isBook {
+                Divider()
+            }
             OpenInServiceView(item: song)
-            if song.content.service.supportsViewArtistAlbum {
+            if song.content.service.supportsViewArtistAlbum, !isBook {
                 Button {
                     router.sheet(to: .mediaDetail(content: song, group: nil))
                 } label: {
@@ -1452,7 +1812,7 @@ private struct LocalPlayerMenuView: View {
             }
 
             // A station itself can't go in a playlist; the song on it can.
-            if !song.content.type.isRadio {
+            if !song.content.type.isRadio, !isBook {
                 Divider()
                 AddToLastPlaylistButton(itemToAdd: song)
                 Button {
@@ -1470,32 +1830,41 @@ private struct LocalPlayerMenuView: View {
             LocalDownloadMenuSection(item: item)
 
             ControlGroup {
-                Button {
-                    HapticManager.shared.fireHaptic(.selection)
-                    playback.setShuffle(!playback.isShuffled)
-                } label: {
-                    Label(playback.isShuffled ? "Shuffle On" : "Shuffle Off", systemImage: "shuffle")
-                }
-                .menuActionDismissBehavior(.disabled)
-                .tint(playback.isShuffled ? .accent : .secondary)
-                .disabled(!playback.isShuffled && playback.upNextCount < 2)
+                if !isBook {
+                    Button {
+                        HapticManager.shared.fireHaptic(.selection)
+                        playback.setShuffle(!playback.isShuffled)
+                    } label: {
+                        Label(playback.isShuffled ? "Shuffle On" : "Shuffle Off", systemImage: "shuffle")
+                    }
+                    .menuActionDismissBehavior(.disabled)
+                    .tint(playback.isShuffled ? .accent : .secondary)
+                    .disabled(!playback.isShuffled && playback.upNextCount < 2)
 
-                Button {
-                    HapticManager.shared.fireHaptic(.selection)
-                    playback.setRepeatMode(playback.repeatMode.next)
-                } label: {
-                    Label(playback.repeatMode.title, systemImage: playback.repeatMode.systemImage)
+                    Button {
+                        HapticManager.shared.fireHaptic(.selection)
+                        playback.setRepeatMode(playback.repeatMode.next)
+                    } label: {
+                        Label(playback.repeatMode.title, systemImage: playback.repeatMode.systemImage)
+                    }
+                    .menuActionDismissBehavior(.disabled)
+                    .tint(playback.repeatMode == .off ? .secondary : .accent)
                 }
-                .menuActionDismissBehavior(.disabled)
-                .tint(playback.repeatMode == .off ? .secondary : .accent)
 
+                // Any other choice puts End of Chapter away, or it would
+                // move the new timer back to the chapter's end.
                 TimerMenuView(sheetRouter: router, onSelect: {
+                    AudiobookPlayer.shared.forgetChapterSleep()
                     await playback.sleepTimer($0)
                 }, onClear: {
+                    AudiobookPlayer.shared.forgetChapterSleep()
                     await playback.cancelSleepTimer()
                 }, onSleepAtEndOfTrack: {
+                    AudiobookPlayer.shared.forgetChapterSleep()
                     await playback.sleepAtEndOfTrack()
-                }) {
+                }, onSleepAtEndOfChapter: isBook ? {
+                    await AudiobookPlayer.shared.sleepAtEndOfChapter()
+                } : nil, sleepsAtEndOfChapter: AudiobookPlayer.shared.sleepsAt != nil) {
                     Label("Sleep Timer", systemImage: "deskclock.fill")
                 }
             }
@@ -1565,4 +1934,44 @@ private struct PlayerBackdrop: View {
         .allowsHitTesting(false)
         .ignoresSafeArea()
     }
+}
+
+private extension View {
+    /// The player's queue panel, here only when `applies`: inside the
+    /// navigation stack or around it (`PlayerView.queuePanelInStack`), one
+    /// place or the other for as long as the app runs.
+    @ViewBuilder
+    func playerQueuePanel(if applies: Bool, isPresented: Binding<Bool>) -> some View {
+        if applies {
+            queuePanel(isPresented: isPresented) {
+                QueueNextUpView()
+            }
+        } else {
+            self
+        }
+    }
+}
+
+private extension Animation {
+    /// Lyrics on and off, whatever switched them: quick and settled, with
+    /// no overshoot.
+    static let lyricsSwitch: Animation = .snappy(duration: 0.3)
+}
+
+private extension AnyTransition {
+    /// Text that swaps as lyrics go on or off — the title lines under the
+    /// cover, the title beside the thumbnail. What leaves is gone in a
+    /// tenth of a second; what comes waits until the cover has mostly
+    /// moved, so the two never cross and the cover never passes over words.
+    static let lyricsSwitch: AnyTransition = .asymmetric(
+        insertion: .opacity.animation(.easeOut(duration: 0.18).delay(0.15)),
+        removal: .opacity.animation(.easeIn(duration: 0.1))
+    )
+
+    /// The full-screen lyrics themselves: the same timing, rising a little
+    /// into place as they come.
+    static let lyricsBody: AnyTransition = .asymmetric(
+        insertion: .opacity.combined(with: .offset(y: 24)).animation(.easeOut(duration: 0.22).delay(0.15)),
+        removal: .opacity.animation(.easeIn(duration: 0.1))
+    )
 }

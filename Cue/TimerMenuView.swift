@@ -1,7 +1,7 @@
 import SwiftUI
 import SonosKit
 
-struct TimerMenuView<Label: View>: View {
+struct TimerMenuView<MenuLabel: View>: View {
     @State var router = Router()
 
     var recentTimers: Storage<Duration> = Storage("sleep")
@@ -16,8 +16,12 @@ struct TimerMenuView<Label: View>: View {
     /// When set, shows an "End of Song" item that sleeps at the end of the
     /// current track. Omitted where there's no live playback (e.g. Scenes).
     var onSleepAtEndOfTrack: (() async -> Void)? = nil
+    /// When set, shows an "End of Chapter" item in its place, for a book.
+    var onSleepAtEndOfChapter: (() async -> Void)? = nil
+    /// End of Chapter is the timer running: its item is checked.
+    var sleepsAtEndOfChapter = false
 
-    @ViewBuilder var label: Label
+    @ViewBuilder var label: MenuLabel
 
     var body: some View {
         Menu {
@@ -33,7 +37,17 @@ struct TimerMenuView<Label: View>: View {
                 }.controlGroupStyle(.compactMenu)
             }
 
-            if let onSleepAtEndOfTrack {
+            if let onSleepAtEndOfChapter {
+                Button {
+                    Task { await onSleepAtEndOfChapter() }
+                } label: {
+                    if sleepsAtEndOfChapter {
+                        Label("End of Chapter", systemImage: "checkmark")
+                    } else {
+                        Text("End of Chapter")
+                    }
+                }
+            } else if let onSleepAtEndOfTrack {
                 Button("End of Song") {
                     Task { await onSleepAtEndOfTrack() }
                 }

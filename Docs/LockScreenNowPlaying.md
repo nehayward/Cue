@@ -662,6 +662,43 @@ preference, rule 2 is about where the phone is, rule 3 is about what a human
 hand can physically do — and the reported failure would have had to beat all
 three.
 
+**4. A group playing AirPlay is never mirrored.** Rule 2 assumes the phone's
+own session can see where the phone's audio is going, and AirPlay 2 breaks that
+assumption: Apple Music's in-app picker routes *only Apple Music*, so while it
+streams to a Sonos group our inactive session still reports the built-in speaker
+and `canMirror` passes. Clic hit it first, from a beta report on the iOS public
+beta: AirPlaying from Apple Music to a group, opening the app stopped the
+stream, pressing play in it failed, and every grouped speaker dropped to 0.
+
+All three symptoms are this feature with the sender on the same phone:
+
+- **Opening stopped the stream.** The playing group won the card and the
+  session was claimed. Claiming interrupts whatever the device is playing — and
+  the device was playing the Sonos.
+- **Play fails.** Sonos forwards play to its AirPlay sender; Apple Music resumes
+  and interrupts us; the socket reports playing; `setPlaying(true)` restarts the
+  silent loop, which re-activates our session and interrupts Apple Music again.
+- **Volume to 0.** With the stream live, the phone's system volume *is* the
+  group's volume, and the bridge writes that volume: the mirror, the
+  `savedVolume` restore on stop, the post-settle re-seed. Each handoff above is
+  a route change, so those writes fire repeatedly and one of them lands a level
+  that belonged to the phone's speaker on every grouped speaker.
+
+So `isMirrorable` excludes `GroupRoom.isAirPlay` the way it excludes TV mode,
+and `HardwareVolumeControlModifier` stands down for the same group. The signal
+comes from the speaker, not from iOS routing, so it holds whatever a beta does to
+`currentRoute`. `isAirPlay` reads both the transport's `playbackService` and the
+current track's `musicService`: the track lands with the first position poll and
+the media info a round trip later, and the session must not be claimed in that
+window. The sender device already has its own Now Playing card, so no surface is
+lost.
+
+Known gap, chosen deliberately as the smaller fix: the gate is per group. AirPlay
+to Living Room while the card follows the Kitchen still claims the session for
+the Kitchen and cuts the Living Room stream, because the sender is the same
+phone either way. The stricter version — stand down whenever *any* group is on
+AirPlay — is the next step if that case is reported.
+
 ## Volume
 
 While the session is held the phone's own volume is inaudible, so the hardware

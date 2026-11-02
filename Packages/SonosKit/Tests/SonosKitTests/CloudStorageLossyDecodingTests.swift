@@ -16,12 +16,13 @@ final class CloudStorageLossyDecodingTests: XCTestCase {
     }
 
     /// Play history written by a build with a `ContentType` case this one
-    /// doesn't have (the Audible branch's `audiobook`).
+    /// doesn't have. It was the Audible branch's `audiobook` until Cue
+    /// took that case itself; `podcastEpisode` stands in for the next one.
     private func historyWithUnknownType() throws -> Data {
         let data = try JSONEncoder().encode(OrderedSet([item("First"), item("Book"), item("Last")]))
         var json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [[String: Any]])
         var content = try XCTUnwrap(json[1]["content"] as? [String: Any])
-        content["type"] = ["audiobook": [String: Any]()]
+        content["type"] = ["podcastEpisode": [String: Any]()]
         json[1]["content"] = content
         return try JSONSerialization.data(withJSONObject: json)
     }

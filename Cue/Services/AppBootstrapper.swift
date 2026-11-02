@@ -1,5 +1,5 @@
-import Analytics
 import Defaults
+import MusicSearchKit
 import Nuke
 import SubscriptionKit
 import UIKit
@@ -10,15 +10,18 @@ final class AppBootstrapper {
 
     func bootstrap() {
         UITextField.appearance().clearButtonMode = .whileEditing
-        SubscriptionService.shared.initialize(key: CloudKeys.hasSubscription)
-        Analytics.shared.configure(token: "343f1efbe07acecdefdcd6f71f351673", userID: SubscriptionService.shared.userID)
+        // No Apple Music alert until onboarding has asked which services
+        // are in use: Browse opens on the Apple library, and its first read
+        // put the alert over the welcome screen. Onboarding lets it go as
+        // it closes, and asks itself when Apple Music is chosen.
+        let hasOnboarded = GroupStorageKeys.storage?.bool(forKey: GroupStorageKeys.hasOnboarded) ?? false
+        AppleMusicPermission.isHeld = !hasOnboarded || OnboardingDebug.forceShow
+        // The last answer stands in for one until RevenueCat or StoreKit gives
+        // it, so Super doesn't flash the free tier at launch (the Lock Screen
+        // card, the volume buttons, every room past the first).
+        SubscriptionService.shared.resume(activeUntil: GroupStorageKeys.defaults.superUntil)
+        SubscriptionService.shared.initialize()
         RemoteFeatureFlags.shared.fetch()
-
-        // First entry of the ordered selection list is the primary service.
-        if let stored = UserDefaults.standard.string(forKey: AppStorageKeys.selectedSearchServices),
-           let primary = stored.split(separator: ",").first {
-            Analytics.shared.setSelection(metadata: ["MusicService": String(primary)])
-        }
 
         configureNuke()
     }
@@ -58,6 +61,11 @@ final class AppBootstrapper {
             // cover is 36 MB) and downsampling was silently a no-op app-wide.
             // The registry's default decoder is the same class, built with
             // the context, so the thumbnail path works.
+            #if DEBUG
+            if ScreenshotArtwork.blurs {
+                $0.makeImageDecoder = ScreenshotArtwork.decoder(for:)
+            }
+            #endif
         }
 
         ImagePipeline.shared = pipeline

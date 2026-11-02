@@ -9,9 +9,9 @@ import SwiftUI
 /// switch it on, or open it. The phone has no Home tab; Browse takes its
 /// place there, and providers are set up in Settings › Services.
 ///
-/// With no network — or Offline Mode switched on — the providers give way
-/// to what's on this device (`OfflineSections`); the phone's Browse does
-/// the same with `OfflineBrowseScreen`.
+/// With no network the providers give way to what's on this device
+/// (`OfflineSections`); on the tab bar Browse leaves and the Downloads tab
+/// takes its place instead.
 struct HomeScreen: View {
     @Environment(CoreFeatures.self) private var coreFeatures
     @Environment(MusicSearchService.self) private var musicSearchService
@@ -40,7 +40,7 @@ struct HomeScreen: View {
                 moreSection
             }
             .contentMargins(.top, EdgeInsets(), for: .scrollContent)
-            .contentMargins(.horizontal, 16)
+            .librarySideMargins()
             .fontDesign(.rounded)
             .navigationTitle("Home")
             .withAppRouter()
@@ -99,29 +99,12 @@ struct HomeScreen: View {
                         Text("Downloads")
                         Text(downloads.hasActiveDownloads
                              ? (downloads.active.count == 1 ? "1 downloading" : "\(downloads.active.count) downloading")
-                             : (downloads.completed.isEmpty ? "Nothing kept yet" : "\(downloads.completed.count) songs on this device"))
+                             : (downloads.completedSongs.isEmpty ? "Nothing kept yet" : "\(downloads.completedSongs.count) songs on this device"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                 } icon: {
                     Image(systemName: "arrow.down.circle.fill")
-                }
-            }
-            // Only a choice while there's a network to leave; without one the
-            // banner above already says why the providers are gone.
-            if offline.hasNetwork {
-                @Bindable var offline = offline
-                Toggle(isOn: $offline.isOn.animation(.spring(response: 0.3))) {
-                    Label {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Offline Mode")
-                            Text("Only what's on this device")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    } icon: {
-                        Image(systemName: "airplane")
-                    }
                 }
             }
             Button {

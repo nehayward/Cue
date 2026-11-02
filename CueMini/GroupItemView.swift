@@ -1,6 +1,6 @@
 import SwiftUI
 import SonosKitMini
-import Kingfisher
+import NukeUI
 
 struct GroupItemView: View {
     @Binding var isVisible: Bool
@@ -31,16 +31,16 @@ struct GroupItemView: View {
                 ZStack {
                     HStack(spacing: 0) {
                         Link(destination: URL(string: "cue://device?id=\(device.id)")!) {
-                            KFImage.url(device.track.sonosAlbumArtURL, cacheKey: device.track.album)
-                                .placeholder {
+                            LazyImage(request: .cover(device.track.sonosAlbumArtURL, album: device.track.album), transaction: Transaction(animation: .easeInOut(duration: 0.2))) { state in
+                                if let image = state.image {
+                                    image
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                } else {
                                     RoundedRectangle(cornerRadius: 4)
                                         .foregroundStyle(.thinMaterial)
                                 }
-                                .loadDiskFileSynchronously()
-                                .diskCacheExpiration(.days(1))
-                                .fade(duration: 0.2)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
+                            }
                                 .frame(width: 48, height: 48)
                                 .clipShape(RoundedRectangle(cornerRadius: 4))
                                 .overlay(alignment: .bottomTrailing) {

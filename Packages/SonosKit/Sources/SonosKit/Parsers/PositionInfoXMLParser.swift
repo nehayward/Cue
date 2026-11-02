@@ -13,7 +13,11 @@ final class SonosTrackParser {
         if let track = checkForTV(uri: trackURI) {
             return track
         }
-        
+
+        if let track = checkForLineIn(uri: trackURI) {
+            return track
+        }
+
         if let track = checkForRadio(body: bodyContent, trackURI: trackURI) {
             return track
         }
@@ -81,10 +85,6 @@ final class SonosTrackParser {
                         sonosAlbumArtURL = upscaledURL
                     }
                 }
-            }
-            
-            if trackURI.contains("x-rincon-stream") {
-                title = "Line In"
             }
             
             if trackURI.contains("sonos"), musicServiceType != .spotify {
@@ -204,6 +204,13 @@ final class SonosTrackParser {
     
     private static func checkForTV(uri: String) -> Track? {
         uri.contains("x-sonos-htastream") ? .tv : nil
+    }
+
+    /// Line-in has no song: what it has is the speaker the input comes from,
+    /// which `SonosService` names as the artist.
+    private static func checkForLineIn(uri: String) -> Track? {
+        guard let start = uri.range(of: "x-rincon-stream:")?.lowerBound else { return nil }
+        return Track.lineIn(uri: String(uri[start...]).trimmingCharacters(in: .whitespacesAndNewlines))
     }
     
     private static func checkForRadio(body: String, trackURI: String) -> Track? {

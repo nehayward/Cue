@@ -319,6 +319,60 @@ final class TagReaderTests: XCTestCase {
         XCTAssertEqual(tags.duration, 10)
     }
 
+    // MARK: - Lyrics
+
+    func testID3USLTInEachEncoding() throws {
+        let lrc = "[00:01.00]First line\n[00:02.00]Second line"
+        let latin = frame("USLT", [0] + ascii("eng") + ascii("Description") + [0] + latin1(lrc))
+        XCTAssertEqual(try read(tag(major: 3, body: latin) + mp3Frames(4)).lyrics, lrc)
+
+        let utf16: [UInt8] = [1] + ascii("eng")
+            + [0xFF, 0xFE] + Array("Desc".utf16).flatMap { le16(Int($0)) } + [0, 0]
+            + [0xFF, 0xFE] + Array("Ünïcode words\nline two".utf16).flatMap { le16(Int($0)) }
+        XCTAssertEqual(try read(tag(major: 4, body: frame("USLT", utf16, major: 4)) + mp3Frames(4)).lyrics, "Ünïcode words\nline two")
+
+        // 2.2's three-letter frame, an empty description.
+        let ult = ascii("ULT") + [0, 0, UInt8(4 + 1 + 5)] + [3] + ascii("eng") + [0] + ascii("Words")
+        XCTAssertEqual(try read(tag(major: 2, body: ult) + mp3Frames(4)).lyrics, "Words")
+    }
+
+    func testFLACLyricsComment() throws {
+        let streamInfo: [UInt8] = [0x10, 0x00, 0x10, 0x00, 0, 0, 0, 0, 0, 0, 0x0A, 0xC4, 0x42, 0xF0, 0x00, 0x06, 0xBA, 0xA8] + Array(repeating: 0, count: 16)
+        let file = ascii("fLaC")
+            + flacBlock(type: 0, last: false, streamInfo)
+            + flacBlock(type: 4, last: true, vorbisComments(["TITLE=Song", "LYRICS=[00:01.00]One\n[00:02.00]Two"]))
+        XCTAssertEqual(try read(file).lyrics, "[00:01.00]One\n[00:02.00]Two")
+    }
+
+    func testMP4LyricsAtom() throws {
+        let c: UInt8 = 0xA9
+        let ilst = atom([c] + ascii("nam"), dataAtom(type: 1, ascii("Song")))
+            + atom([c] + ascii("lyr"), dataAtom(type: 1, ascii("Line one\nLine two")))
+        let meta = atom("meta", be32(0) + atom("ilst", ilst))
+        let tags = try read(atom("ftyp", ascii("M4A ")) + atom("moov", atom("udta", meta)))
+        XCTAssertEqual(tags.lyrics, "Line one\nLine two")
+    }
+
+    func testSidecarIsReadBeforeTheTagsInAnyEncoding() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+
+        let song = folder.appendingPathComponent("01 Song.mp3")
+        let embedded = frame("USLT", [3] + ascii("eng") + [0] + ascii("From the tags"))
+        try Data(tag(major: 3, body: embedded) + mp3Frames(4)).write(to: song)
+        let tagged = await FilesLyrics.read(at: song)
+        XCTAssertEqual(tagged, "From the tags")
+
+        try Data([0xEF, 0xBB, 0xBF] + Array("[00:01.00]From the sidecar".utf8)).write(to: folder.appendingPathComponent("01 Song.lrc"))
+        let sidecar = await FilesLyrics.read(at: song)
+        XCTAssertEqual(sidecar, "[00:01.00]From the sidecar")
+
+        let latin = folder.appendingPathComponent("latin.txt")
+        try Data(latin1("Café\nLine")).write(to: latin)
+        XCTAssertEqual(FilesLyrics.sidecar(at: latin), "Café\nLine")
+    }
+
     // MARK: - WAV
 
     private func chunk(_ id: String, _ payload: [UInt8], bigEndian: Bool = false) -> [UInt8] {

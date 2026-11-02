@@ -42,11 +42,15 @@ struct ShockwaveLogo: View {
         // announces "Cue" as a single element. Hide everything else from
         // VoiceOver so it doesn't tab through a ring per row.
         .accessibilityElement(children: .contain)
+        // One ring's worth of taps, fading, as the logo lands: kept up for
+        // as long as the page was open, a tap every 0.65 s was a buzz in
+        // the hand rather than a welcome.
         .task(id: pulseHaptics) {
             guard pulseHaptics else { return }
             let interval = cycleDuration / Double(ringCount)
-            while !Task.isCancelled {
-                HapticManager.shared.fireHaptic(.dataRefresh(intensity: 0.35))
+            for pulse in 0..<ringCount {
+                guard !Task.isCancelled else { return }
+                HapticManager.shared.fireHaptic(.dataRefresh(intensity: 0.5 - CGFloat(pulse) * 0.1))
                 try? await Task.sleep(for: .seconds(interval))
             }
         }

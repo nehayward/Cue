@@ -1,5 +1,6 @@
 import AppIntents
 import CloudStorage
+import Defaults
 import SonosKit
 import SwiftUI
 
@@ -21,8 +22,8 @@ struct RunSceneIntent: AppIntent {
     init() { }
 
     func perform() async throws -> some ShowsSnippetView {
-        guard CloudStorageSync.shared.bool(for: "com.cue.subscriptions") ?? false else {
-            throw IntentError.message("Subscribe to Super in Cue")
+        guard GroupStorageKeys.defaults.hasSuper else {
+            throw IntentError.superRequired
         }
 
         let resolvedScene: SceneEntity

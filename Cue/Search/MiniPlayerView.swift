@@ -49,9 +49,9 @@ struct MiniPlayerView: View {
     private func groupInfoButton(for group: GroupRoom) -> some View {
         Button {
             HapticManager.shared.fireHaptic(.buttonPress)
-            // The same rule as the speaker list: the first room is free.
-            guard featureGate.isRoomUnlocked(group, in: sonosService.sorted) else {
-                featureGate.presentPaywall()
+            // The free tier's one group, as in Play On.
+            guard featureGate.isGroupUnlocked(group.coordinatorID) else {
+                featureGate.presentPaywall(PaywallReason(feature: .allRooms))
                 return
             }
             Router.main.inspectorSheet = nil
@@ -258,32 +258,6 @@ extension SonosService {
             await pause(ip: group.coordinatorRoom.ip)
         } else {
             await play(ip: group.coordinatorRoom.ip)
-        }
-    }
-}
-
-
-extension View {
-    @ViewBuilder
-    func miniPlayerOnScrollHandler() -> some View {
-        if #available(iOS 18.0, *) {
-            self
-//            self.onScrollGeometryChange(for: CGFloat.self, of: { geo in
-//                return geo.contentOffset.y + geo.contentInsets.top
-//            }, action: { new, old in
-//                let delta = new - old
-//                guard new >= 0 else { return }
-//
-//                withAnimation(.interactiveSpring()) {
-//                    if delta < 0 {  // Scrolling up
-//                        MiniPlayerManger.shared.offset = min(abs(new), 300)  // Show view
-//                    } else if delta > 0 {  // Scrolling down
-//                        MiniPlayerManger.shared.offset = 0    // Hide view
-//                    }
-//                }
-//            })
-        } else {
-            self // fallback behavior for earlier versions
         }
     }
 }

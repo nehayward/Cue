@@ -120,9 +120,7 @@ public final class SonosStreamingService {
     // Connection refresh timer management
     private var refreshTask: Task<Void, Never>?
     private var playerConfigs: [String: SonosPlayerConfig] = [:]
-    // Increased to 10 minutes to reduce refresh churn and memory pressure on watch.
-    // Each refresh cycle creates new URLSession instances, and on watchOS the old ones
-    // may not be fully released before new ones are created, causing memory growth.
+    // Increased to 10 minutes to reduce refresh churn on watch.
     private let connectionRefreshInterval: Duration = .seconds(60 * 10)
     private var isRefreshing: Bool = false
     
@@ -265,10 +263,10 @@ public final class SonosStreamingService {
         // This allows AsyncStreams and continuations to properly terminate
         try? await Task.sleep(for: .milliseconds(200))
 
-        // Close connection gracefully - this invalidates URLSession and all resources
+        // Close connection gracefully: cancels its task and finishes its streams
         // Must happen AFTER removing from dictionaries so our reference is the last one
         if let socket = socket {
-            socket.close() // Finishes continuations, invalidates URLSession, clears references
+            socket.close() // Finishes continuations, cancels the task, clears references
         }
 
         // Clear group monitoring if this player was monitoring groups
@@ -276,12 +274,6 @@ public final class SonosStreamingService {
             currentGroupMonitoringPlayerId = nil
         }
         // Note: Don't remove playerConfigs during graceful disconnect - we need them for reconnection
-
-        // Wait for URLSession invalidation to fully complete
-        // URLSession.invalidateAndCancel() is asynchronous - the session isn't freed
-        // until the invalidation callback fires. Without this wait, new sessions are
-        // created while old ones still exist, causing memory accumulation over days.
-        try? await Task.sleep(for: .milliseconds(300))
 
         // Notify connection status change
         await notifyConnectionStatusChanged()
@@ -308,7 +300,7 @@ public final class SonosStreamingService {
         // Wait for task cancellation to propagate
         try? await Task.sleep(for: .milliseconds(200))
 
-        // Close connection and invalidate URLSession
+        // Close connection
         if let socket = socket {
             socket.close()
         }
@@ -322,9 +314,6 @@ public final class SonosStreamingService {
         if connections.isEmpty {
             stopConnectionRefreshTimer()
         }
-
-        // Wait for URLSession invalidation
-        try? await Task.sleep(for: .milliseconds(300))
 
         // Notify connection status change
         await notifyConnectionStatusChanged()
@@ -713,7 +702,7 @@ public final class SonosStreamingService {
         }
         connectionTasks.removeAll()
         
-        // Close all sockets synchronously to release URLSession resources
+        // Close all sockets synchronously
         for socket in connections.values {
             socket.close()
         }

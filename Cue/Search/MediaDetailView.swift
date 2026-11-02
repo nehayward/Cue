@@ -8,10 +8,11 @@ import MusicKit
 import Nuke
 import NukeUI
 import VibesDS
-import Glur
 
 struct MediaDetailView: View {
     @Environment(Router.self) private var router
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.usesPadLayout) private var usesPadLayout
     @Environment(PlaylistContainer.self) private var playlistsContainer: PlaylistContainer
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
     @Environment(SelectedGroupService.self) private var selectedGroupService
@@ -42,6 +43,15 @@ struct MediaDetailView: View {
     @State private var selection: Set<Int> = []
     @State private var nextCursor: String?
     @State private var showNavigationTitle: Bool = false
+    /// The order the songs are listed in. Only a Plex playlist offers
+    /// another (`sortsSongs`); the choice is remembered per playlist.
+    @State private var songSort: PlaylistSongSort = .playlistOrder
+    @State private var songSortReversed = false
+    /// The indices of `tracks` in `songSort`'s order, once every song is in
+    /// to sort; nil while the songs are in the playlist's own order.
+    @State private var sortedOrder: [Int]?
+    /// The rest of the playlist is loading so it can be sorted.
+    @State private var isLoadingAllSongs = false
 
     /// Proxies the view's existing `tracks` usage onto the coordinator (the source of truth),
     /// so native undo/redo mutations are reflected in the UI.
@@ -51,7 +61,7 @@ struct MediaDetailView: View {
     }
 
     var maxHeight: Double {
-        UIDevice.current.userInterfaceIdiom == .phone ? 340 : 400
+        usesPadLayout ? 400 : 340
     }
 
     /// For a non-Sonos service playlist, whether the user can actually edit it (owns it or it's
@@ -67,21 +77,80 @@ struct MediaDetailView: View {
     private var canReorderTracks: Bool {
         playableContent.isReorderablePlaylist && serviceEditable
     }
-    
+
+    /// A downloaded album or playlist from the on-device library
+    /// (`OnDeviceLibrary`): its songs are the ones here, read from the
+    /// device, so the page opens with no network and keeps up as downloads
+    /// come and go. It has no server's album or playlist behind it to
+    /// download, open a menu on, edit, or go to the artist of.
+    private var isOnDevice: Bool {
+        OnDeviceLibrary.isContainer(playableContent)
+    }
+
+    /// Plex keeps a playlist in its own order and won't sort its items, but
+    /// says how many there are, so every page can be loaded and the songs
+    /// sorted here.
+    private var sortsSongs: Bool {
+        playableContent.content.service == .plex && playableContent.content.type == .playlist && !isOnDevice
+    }
+
+    /// One row of the song list: the song, where it sits in the playlist
+    /// (what edits, selection and paging address) and the number it shows.
+    private struct SongRow: Identifiable {
+        let number: Int
+        let index: Int
+        let song: PlayableContent
+        var id: String { song.trackID }
+    }
+
+    /// The songs as listed: the playlist's order, or `sortedOrder`'s.
+    private var songRows: [SongRow] {
+        let tracks = tracks
+        let order = sortedOrder ?? Array(tracks.indices)
+        return order.enumerated().compactMap { offset, index in
+            // An order a step behind an edit is put right by `onChange`.
+            guard tracks.indices.contains(index) else { return nil }
+            return SongRow(number: offset + 1, index: index, song: tracks[index])
+        }
+    }
+
+    /// The book's page for an album page opened on a book or one of its
+    /// files (the player's title on a book), not an album of its files. It
+    /// stays the book's while the book is the one loaded or the one last
+    /// left (`AudiobookPlayer.book(containing:)`).
     var body: some View {
+        if let book = AudiobookPlayer.shared.book(containing: playableContent) {
+            AudiobookDetailView(book: book)
+        } else {
+            albumPage
+        }
+    }
+
+    @ViewBuilder
+    private var albumPage: some View {
         @Bindable var router = router
+        // Read as `body` runs, so a pick runs it again: what only the
+        // toolbar's builder reads doesn't, and the sort menu's checkmarks
+        // and spinner would lag behind.
+        let _ = (songSort, songSortReversed, isLoadingAllSongs)
         List(selection: $selection) {
             artworkSection
-            ForEach(Array(tracks.enumerated()), id: \.element.trackID) { index, item in
+            ForEach(songRows) { row in
+                let index = row.index
+                let item = row.song
                 VStack {
                     PlayableContentView(item: item,
                                         parent: content ?? playableContent,
                                         hideArtwork: content?.content.type == .album,
                                         hideContentType: true,
-                                        index: index + 1,
+                                        index: row.number,
+                                        // Only some of a downloaded album may be
+                                        // here: each shows its place on the album.
+                                        number: isOnDevice && playableContent.content.type == .album ? item.metadata?.position : nil,
                                         dismissOnComplete: true,
                                         total: totalSongs ?? tracks.count,
-                                        onRemoveFromPlaylist: isEditablePlaylist ? { removeTrack(at: index) } : nil)
+                                        onRemoveFromPlaylist: isEditablePlaylist ? { removeTrack(at: index) } : nil,
+                                        playAction: sortedOrder == nil ? nil : { playListed(from: row.number - 1) })
                 }
                 .tag(index)
                 .swipeActions(edge: .trailing) {
@@ -105,7 +174,7 @@ struct MediaDetailView: View {
                     }
 
                     let hasMore = totalSongs.map { loadedItemCount < $0 } ?? true
-                    let nearEnd = index >= tracks.count - Self.prefetchThreshold
+                    let nearEnd = row.number - 1 >= tracks.count - Self.prefetchThreshold
                     if nearEnd && isLoadingMore && hasMore {
                         await updateTracks(offset: loadedItemCount)
                     }
@@ -114,7 +183,8 @@ struct MediaDetailView: View {
                 .listRowSeparator(.hidden)
                 .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
             }
-            .onMove(perform: canReorderTracks ? move : nil)
+            // Moving a song means something only in the playlist's own order.
+            .onMove(perform: canReorderTracks && sortedOrder == nil ? move : nil)
             if tracks.isEmpty {
                 if !isLoaded {
                     ProgressView()
@@ -173,8 +243,21 @@ struct MediaDetailView: View {
             PlaylistUndoMenuBridge.shared.editor = editor
             // Resolve edit permission independently so the Edit affordance isn't gated on track
             // loading (instant for Sonos, an ownership lookup for streaming).
-            Task { serviceEditable = await confirmServiceEditable() }
+            Task { serviceEditable = isOnDevice ? false : await confirmServiceEditable() }
             await updateTracks(offset: loadedItemCount)
+            restoreSongSort()
+            if songSort != .playlistOrder {
+                await applySongSort()
+            }
+        }
+        .onChange(of: isOnDevice ? OnDeviceLibrary.changeToken : 0) {
+            loadOnDeviceTracks()
+        }
+        .onChange(of: tracks) { _, tracks in
+            // A song removed (or put back by Undo) while sorted: sort again
+            // rather than point at rows that have moved.
+            guard sortedOrder != nil, songSort != .playlistOrder else { return }
+            sortedOrder = songSort.order(of: tracks, reversed: songSortReversed)
         }
         .contentMargins(.bottom, 120, for: .scrollContent)
         .navigationTitle(content?.title ?? "")
@@ -198,6 +281,9 @@ struct MediaDetailView: View {
             }
             
             ToolbarItemGroup(placement: .topBarTrailing) {
+                if sortsSongs {
+                    songSortMenu
+                }
                 if isEditablePlaylist {
                     Button {
                         withAnimation {
@@ -229,28 +315,21 @@ struct MediaDetailView: View {
     @ViewBuilder
     private var artworkSection: some View {
         Color.clear.overlay {
-            ZStack {
-                LazyImage(request: heroRequest) { phase in
-                    if let image = phase.image {
+            // One image for the glow and the cover, so both land in the same
+            // frame. A plain request for the glow beside the blurred one
+            // showed the glow alone until the blur was worked out, then the
+            // cover popped in, and kept two copies of the cover in the caches.
+            LazyImage(request: heroRequest.withBlurredFoot) { phase in
+                if let image = phase.image {
+                    ZStack {
                         image
                             .resizable()
                             .scaledToFit()
                             .blur(radius: 100)
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: maxHeight)
-                LazyImage(request: heroRequest) { phase in
-                    if let image = phase.image {
+                            .frame(maxWidth: .infinity, maxHeight: maxHeight)
                         image
                             .resizable()
                             .scaledToFill()
-                            .glur(radius: 30, // The total radius of the blur effect when fully applied.
-                                  offset: 0.6, // The distance from the view's edge to where the effect begins, relative to the view's size.
-                                  interpolation: 0.4, // The distance from the offset to where the effect is fully applied, relative to the view's size.
-                                  direction: .down, // The direction in which the effect is applied.
-                                  noise: 0.1, // The amount of noise that should be applied to the view.
-                                  drawingGroup: false // Whether or not to pre-render the modified view with `drawingGroup()`.
-                            )
                             .frame(maxWidth: 400, maxHeight: maxHeight)
                             .clipped()
                     }
@@ -304,16 +383,22 @@ struct MediaDetailView: View {
                 .allowsTightening(true)
                 .lineLimit(1)
             HStack(spacing: 0) {
-                Button {
-                    HapticManager.shared.fireHaptic(.buttonPress)
-                    router.navigate(to: .artistDetail(content: content ?? playableContent, group: selectedGroupService.group))
-                } label: {
+                if isOnDevice {
                     Text(content?.metadata?.artist ?? "")
                         .bold()
                         .lineLimit(1)
-                        .underline()
+                } else {
+                    Button {
+                        HapticManager.shared.fireHaptic(.buttonPress)
+                        router.navigate(to: .artistDetail(content: content ?? playableContent, group: selectedGroupService.group))
+                    } label: {
+                        Text(content?.metadata?.artist ?? "")
+                            .bold()
+                            .lineLimit(1)
+                            .underline()
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
                 
                 let yearText = content?.metadata?.albumYear?.formatted(.dateTime.year())
                 let songsCount = totalSongs ?? (tracks.isEmpty ? nil : tracks.count)
@@ -358,7 +443,7 @@ struct MediaDetailView: View {
                 .glassButton()
                 .foregroundStyle(.primary)
                 
-                if let content {
+                if let content, !isOnDevice {
                     // Keep the whole album or playlist on this device — the
                     // same action as the ellipsis menu's This Device ›
                     // Download, one tap from the header.
@@ -374,16 +459,28 @@ struct MediaDetailView: View {
                     .buttonBorderShape(.circle)
                     .contentShape(.rect)
                     .glassButton()
+                } else if isOnDevice {
+                    // All here: the button says so, with Remove behind it.
+                    OnDeviceDownloadButton(container: playableContent)
                 }
             }
             .bold()
             .fontDesign(.rounded)
+            // Dark glass in Light Mode too: the buttons sit on the cover,
+            // under the header's dark fade, where light glass washed out.
+            .environment(\.colorScheme, .dark)
         }
         .fontDesign(.rounded)
         .foregroundStyle(.white)
     }
     
     private func play(_ playMode: PlayMode = .normal) {
+        // Sorted, Play plays the songs as listed; Shuffle shuffles the
+        // playlist, where the order doesn't matter.
+        if playMode == .normal, sortedOrder != nil {
+            playListed(from: 0)
+            return
+        }
         Task { @MainActor in
             let currentContent = content ?? playableContent
             let defaultPosition = QueuePosition.defaultPosition(
@@ -416,6 +513,148 @@ struct MediaDetailView: View {
         }
     }
     
+    /// Sort By and, for an order that has one, its direction — the same
+    /// menu as the library's lists.
+    private var songSortMenu: some View {
+        Menu {
+            Picker("Sort By", selection: Binding(
+                get: { songSort },
+                set: { sort in
+                    guard sort != songSort else { return }
+                    songSort = sort
+                    // Each order starts in its own natural direction; the
+                    // Order picker is there to flip it.
+                    songSortReversed = false
+                    rememberSongSort()
+                    Task { await applySongSort() }
+                }
+            )) {
+                ForEach(PlaylistSongSort.allCases) { sort in
+                    Text(sort.label).tag(sort)
+                }
+            }
+            .pickerStyle(.inline)
+
+            if songSort.isReversible {
+                Picker("Order", selection: Binding(
+                    get: { songSortReversed },
+                    set: { reversed in
+                        guard reversed != songSortReversed else { return }
+                        songSortReversed = reversed
+                        rememberSongSort()
+                        Task { await applySongSort() }
+                    }
+                )) {
+                    Text(songSort.ascendingLabel).tag(false)
+                    Text(songSort.descendingLabel).tag(true)
+                }
+                .pickerStyle(.inline)
+            }
+        } label: {
+            if isLoadingAllSongs {
+                ProgressView()
+            } else {
+                Label("Sort", systemImage: "arrow.up.arrow.down")
+                    .labelStyle(.iconOnly)
+            }
+        }
+        .accessibilityLabel("Sort")
+    }
+
+    /// Lists the songs in `songSort`'s order, loading the pages still to
+    /// come first: sorting only the pages in hand would move songs about as
+    /// the rest arrived, so the playlist's order stays until every song is
+    /// in.
+    private func applySongSort() async {
+        guard songSort != .playlistOrder else {
+            sortedOrder = nil
+            return
+        }
+        isLoadingAllSongs = true
+        await loadAllTracks()
+        isLoadingAllSongs = false
+        // Back to the playlist's order while the songs were loading.
+        guard !Task.isCancelled, songSort != .playlistOrder else { return }
+        sortedOrder = songSort.order(of: tracks, reversed: songSortReversed)
+    }
+
+    /// Every page still to come, one after another.
+    private func loadAllTracks() async {
+        while let total = totalSongs, loadedItemCount < total, !Task.isCancelled {
+            // The list's own paging may have a page on its way: wait it out
+            // rather than skip it.
+            if isFetchingPage {
+                try? await Task.sleep(for: .milliseconds(100))
+                continue
+            }
+            let loaded = loadedItemCount
+            await updateTracks(offset: loadedItemCount)
+            // A page that failed or came back empty: stop, rather than ask
+            // for it again for ever.
+            guard loadedItemCount > loaded else { break }
+        }
+    }
+
+    private var songSortKey: String { "playlistSongSort.\(playableContent.id)" }
+
+    private func restoreSongSort() {
+        guard sortsSongs,
+              let raw = UserDefaults.standard.string(forKey: songSortKey),
+              let sort = PlaylistSongSort(rawValue: raw) else { return }
+        songSort = sort
+        songSortReversed = UserDefaults.standard.bool(forKey: songSortKey + ".reversed")
+    }
+
+    private func rememberSongSort() {
+        // The playlist's own order is the default, so it needs no entry.
+        guard songSort != .playlistOrder else {
+            UserDefaults.standard.removeObject(forKey: songSortKey)
+            UserDefaults.standard.removeObject(forKey: songSortKey + ".reversed")
+            return
+        }
+        UserDefaults.standard.set(songSort.rawValue, forKey: songSortKey)
+        UserDefaults.standard.set(songSortReversed, forKey: songSortKey + ".reversed")
+    }
+
+    /// Plays the songs as they're listed, from the `start`th on. A sorted
+    /// playlist isn't the playlist's own order, so a speaker gets the songs
+    /// rather than the playlist, and this device the list.
+    private func playListed(from start: Int) {
+        let listed = songRows.map(\.song)
+        guard listed.indices.contains(start) else { return }
+        let songs = listed[start...].filter(\.isPlayable)
+        guard !songs.isEmpty else { return }
+        Task { @MainActor in
+            let currentContent = content ?? playableContent
+            let defaultPosition = QueuePosition.defaultPosition(
+                for: currentContent.content.type,
+                replaceQueueByDefault: replaceQueueByDefault
+            )
+            let queue: ((GroupRoom, QueuePosition) async throws -> Void) = { [songs, currentContent] group, selectedPosition in
+                // In the order shown, so not shuffled.
+                await SonosService.shared.setPlayMode(group.ip, mode: .normal)
+                group.playMode = .normal
+                switch selectedPosition {
+                case .replace:
+                    try await SonosService.shared.queue(contents: songs, group: group, position: .replace, startIndex: 0)
+                case .now:
+                    try await SonosService.shared.playNext(songs, on: group)
+                default:
+                    try await SonosService.shared.queue(contents: songs, group: group, position: selectedPosition)
+                }
+                playHistoryService.record(currentContent)
+                Router.main.show(destination: .player(groupID: group.coordinatorID))
+            }
+
+            guard let group = selectedGroupService.group else {
+                await PlayDestinationRouter.play(songs, position: defaultPosition, from: currentContent, queue: queue)
+                return
+            }
+
+            try await queue(group, defaultPosition)
+        }
+    }
+
     private var totalDuration: Duration {
         Duration.seconds(tracks.compactMap(\.metadata?.duration?.components.seconds).reduce(Int64.zero, +))
     }
@@ -441,6 +680,11 @@ struct MediaDetailView: View {
         }
 
         if offset > 0, !playableContent.content.type.isPlaylist {
+            return
+        }
+
+        if isOnDevice {
+            loadOnDeviceTracks()
             return
         }
 
@@ -631,6 +875,21 @@ struct MediaDetailView: View {
         }
     }
     
+    /// The songs of a downloaded album that are on the device, in track
+    /// order.
+    private func loadOnDeviceTracks() {
+        guard isOnDevice else { return }
+        let hadTracks = !tracks.isEmpty
+        tracks = OnDeviceLibrary.tracks(inContainer: playableContent) ?? []
+        loadedItemCount = tracks.count
+        isLoadingMore = false
+        // Its last song removed, from the header's button or a row's menu:
+        // there's no album or playlist here any more to show.
+        if hadTracks, tracks.isEmpty {
+            dismiss()
+        }
+    }
+
     func appendTracksAvoidingDuplicates(newTracks: [PlayableContent], to tracks: inout [PlayableContent]) {
         // Seed counts from the already-loaded tracks in a single pass, then update as we
         // append. Avoids re-scanning the whole (growing) tracks array for every new row,
@@ -638,16 +897,25 @@ struct MediaDetailView: View {
         var idCounts: [String: Int] = tracks.reduce(into: [:]) { counts, track in
             counts[track.id, default: 0] += 1
         }
+        var rowIDs = Set(tracks.map(\.trackID))
 
         for var newTrack in newTracks {
             let originalID = newTrack.id
             let existingCount = idCounts[originalID, default: 0]
 
             if existingCount > 0 {
-                newTrack.metadata?.position = existingCount + 1
+                // A library song's position is its track number, which the
+                // copy's count can land on: step past a row id in use.
+                var position = existingCount + 1
+                newTrack.metadata?.position = position
+                while newTrack.metadata != nil, rowIDs.contains(newTrack.trackID) {
+                    position += 1
+                    newTrack.metadata?.position = position
+                }
             }
 
             idCounts[originalID] = existingCount + 1
+            rowIDs.insert(newTrack.trackID)
             tracks.append(newTrack)
         }
     }

@@ -1,4 +1,6 @@
 import { site } from './config.js';
+import { audiobooksPage } from './pages/audiobooks.js';
+import { betaPage } from './pages/beta.js';
 import { helpPage } from './pages/help.js';
 import { homePage } from './pages/home.js';
 import { privacyPage, termsPage } from './pages/legal.js';
@@ -44,12 +46,17 @@ const REDIRECTS = {
 	'/plex': () => '/self-hosted',
 	'/navidrome': () => '/self-hosted',
 	'/subsonic': () => '/self-hosted',
+	'/testflight': () => '/beta',
+	'/books': () => '/audiobooks',
+	'/audiobookshelf': () => '/audiobooks',
 };
 
 // Exact paths → page. `query` is the request's URLSearchParams.
 const PAGES = {
 	'/': () => homePage(),
 	'/help': (query) => helpPage({ embed: query.has('embed') }),
+	'/audiobooks': () => audiobooksPage(),
+	'/beta': () => betaPage(),
 	'/self-hosted': () => selfHostedPage(),
 	'/releases': () => releasesIndexPage(),
 	'/press': () => pressPage(),
@@ -57,15 +64,52 @@ const PAGES = {
 	'/terms': () => termsPage(),
 };
 
+// Pages that work for anyone with the link but aren't listed anywhere: no
+// link on the site, not in the sitemap, and noindex on the page itself.
+// Not in robots.txt either, which would only advertise them.
+const UNLISTED = new Set(['/beta']);
+
 const sitemap = () => {
-	const paths = [...Object.keys(PAGES), ...releases.map((r) => `/releases/${r.version}`)];
+	const paths = [...Object.keys(PAGES).filter((p) => !UNLISTED.has(p)), ...releases.map((r) => `/releases/${r.version}`)];
 	return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${paths
 		.map((p) => `\t<url><loc>${site.origin}${p === '/' ? '' : p}</loc></url>`)
 		.join('\n')}\n</urlset>\n`;
 };
 
-export const route = async (request) => {
+/**
+ * A film from public/video/, in the byte range asked for. The static asset
+ * edge always answers 200 with the whole file, and Safari (iPhone and Mac)
+ * won't play a video until it gets 206 Partial Content.
+ */
+export const film = async (request, assets) => {
+	const asset = await assets.fetch(new Request(request.url, { method: 'GET' }));
+	if (!asset.ok) return asset;
+	const headers = new Headers(asset.headers);
+	headers.set('accept-ranges', 'bytes');
+	headers.set('cache-control', 'public, max-age=3600');
+	const range = request.headers.get('range')?.match(/^bytes=(\d*)-(\d*)$/);
+	if (!range) return new Response(request.method === 'HEAD' ? null : asset.body, { status: 200, headers });
+
+	const body = await asset.arrayBuffer();
+	const size = body.byteLength;
+	// "bytes=-500" is the last 500 bytes; "bytes=500-" runs to the end.
+	const start = range[1] === '' ? Math.max(0, size - Number(range[2])) : Number(range[1]);
+	const end = range[1] === '' || range[2] === '' ? size - 1 : Math.min(Number(range[2]), size - 1);
+	if (start > end || start >= size) {
+		return new Response(null, { status: 416, headers: { 'content-range': `bytes */${size}`, 'accept-ranges': 'bytes' } });
+	}
+	headers.set('content-range', `bytes ${start}-${end}/${size}`);
+	headers.set('content-length', String(end - start + 1));
+	return new Response(request.method === 'HEAD' ? null : body.slice(start, end + 1), { status: 206, headers });
+};
+
+export const route = async (request, env) => {
 	const url = new URL(request.url);
+	if (url.pathname.startsWith('/video/') && env?.ASSETS) return film(request, env.ASSETS);
+	// testflight.cue.dance is this Worker's too, and every path on it goes to
+	// the beta's invite. A 302, so a new invite link isn't cached as the old.
+	if (url.hostname === site.testFlightHost) return Response.redirect(site.testFlight, 302);
+
 	// One canonical form per page: /help/ → /help.
 	const path = url.pathname.replace(/\/+$/, '') || '/';
 	if (path !== url.pathname) return Response.redirect(`${url.origin}${path}${url.search}`, 301);

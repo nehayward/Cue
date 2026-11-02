@@ -1,4 +1,3 @@
-import Analytics
 import CloudStorage
 import MusicSearchKit
 import Defaults
@@ -114,7 +113,6 @@ struct SpotifyPlaylistScreen: View {
                     }
                 }
             }
-            .miniPlayerOnScrollHandler()
             .listStyle(.plain)
             .searchable(text: $query, isPresented: $isSearching)  // Bind search query to the searchable modifier
             .fontDesign(.rounded)

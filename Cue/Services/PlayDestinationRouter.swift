@@ -53,12 +53,23 @@ enum PlayDestinationRouter {
         queue: @escaping (GroupRoom, QueuePosition) async throws -> Void
     ) async {
         guard let first = contents.first else { return }
+        // A Play that takes over ends a switch still carrying the last queue
+        // across, which would otherwise go on filling the queue under it.
+        if [.now, .replace].contains(position) {
+            await PlaybackRoute.shared.endHandOff()
+        }
+        // A book plays from where it was left, as its files, never into the
+        // queue's positions.
+        if first.content.type == .audiobook {
+            await AudiobookPlayer.shared.play(first)
+            return
+        }
         // A speaker remembered from before Sonos was switched off, or from
         // before the phone left Wi‑Fi, is not a destination now.
         let destination = SonosService.shared.isAvailable ? (PlayDestination.remembered ?? .device) : .device
         log.notice("play \(String(describing: first.content.service), privacy: .public)/\(String(describing: first.content.type), privacy: .public) id=\(first.content.id, privacy: .public) count=\(contents.count) position=\(position.linkValue, privacy: .public) destination=\(String(describing: destination), privacy: .public)")
 
-        // No network, or Offline Mode: there is no speaker to reach, so
+        // No network: there is no speaker to reach, so
         // this device it is — whatever the route says. The picker would
         // only offer speakers that can't answer. The remembered group is
         // left alone for when the network is back.
@@ -93,9 +104,17 @@ enum PlayDestinationRouter {
                 log.notice("device-only content played on the device")
                 return
             }
+            await loadSpeakersIfNeeded()
             guard let group = SonosService.shared.groups.first(where: { $0.coordinatorID == id }) else {
                 log.error("remembered group \(id, privacy: .public) is gone")
                 askForSpeaker(contents, position: position, queue: queue)
+                return
+            }
+            // Remembered from when it was the free tier's one group, or
+            // from a lapsed Super: playing there is Super's now.
+            guard FeatureGate.shared.isGroupUnlocked(id) else {
+                log.notice("remembered group \(id, privacy: .public) needs Super")
+                FeatureGate.shared.presentPaywall(PaywallReason(feature: .allRooms))
                 return
             }
             // Playing on the speaker takes over from this device; adding to
@@ -125,6 +144,11 @@ enum PlayDestinationRouter {
     /// the picker when none is remembered.
     static func playRadio(from seed: PlayableContent, onGroup: @escaping (GroupRoom) async throws -> Void) async {
         if !OfflineMode.shared.isActive, let group = rememberedGroup {
+            guard FeatureGate.shared.isGroupUnlocked(group.coordinatorID) else {
+                FeatureGate.shared.presentPaywall(PaywallReason(feature: .allRooms))
+                return
+            }
+            await PlaybackRoute.shared.endHandOff()
             do {
                 try await onGroup(group)
             } catch {
@@ -139,6 +163,40 @@ enum PlayDestinationRouter {
             return
         }
         await play(station, position: .now, from: seed) { group, _ in try await onGroup(group) }
+    }
+
+    /// Looks for the speakers first when none are loaded yet and a group is
+    /// remembered, a few seconds at most. A Play from outside Cue (a
+    /// widget's) can launch it in the background before its first look for
+    /// them, and the group read as gone: the Play asked which speaker, with
+    /// no screen to ask on, or a book played on this device instead. Not
+    /// once the speakers are in: a remembered group missing from them then
+    /// is gone (unplugged, regrouped), and every Play waited out the 5 s.
+    static func loadSpeakersIfNeeded() async {
+        let sonos = SonosService.shared
+        guard sonos.isAvailable, sonos.groups.isEmpty, let id = PlayDestination.remembered?.groupID else { return }
+        log.notice("remembered group \(id, privacy: .public) not loaded yet: looking for the speakers first")
+        // Left to finish whatever happens: a group that comes late still
+        // serves the next Play.
+        Task { try? await sonos.updateGroups() }
+        for _ in 0..<20 {
+            // The household's groups come in together, from one speaker's
+            // view of them: in, the remembered group is there or gone.
+            if !sonos.groups.isEmpty {
+                let found = sonos.groups.contains { $0.coordinatorID == id }
+                log.notice("speakers loaded: remembered group \(id, privacy: .public) \(found ? "found" : "gone", privacy: .public)")
+                return
+            }
+            // Launched on cellular or in a car: Sonos reads available until
+            // the network's first path is read, a moment in. No speaker to
+            // wait for then.
+            guard sonos.isAvailable else {
+                log.notice("no speakers from here after all: not waiting for \(id, privacy: .public)")
+                return
+            }
+            try? await Task.sleep(for: .milliseconds(250))
+        }
+        log.error("remembered group \(id, privacy: .public) not found within 5 s")
     }
 
     /// The remembered group, for the Sonos-only actions — song and artist
@@ -230,9 +288,11 @@ enum PlayDestinationRouter {
     /// count instead, since there's no single piece of art that stands for it.
     private static func announce(_ contents: [PlayableContent], position: QueuePosition) {
         guard contents.count > 1 else {
+            // A station plays now at any position (`LocalPlaybackService.enqueue`).
+            let shown: QueuePosition = contents[0].content.type.isRadio ? .now : position
             AlertService.shared.showAlertContent(
                 with: contents[0],
-                subtitle: subtitle(for: position),
+                subtitle: subtitle(for: shown),
                 symbolName: "iphone.radiowaves.left.and.right"
             )
             return

@@ -24,6 +24,13 @@ final class PlayHistoryService: ObservableObject {
 
     @ObservationIgnored @CloudStorage(CloudKeys.playHistory) private var _playHistory: OrderedSet<PlayableContent> = []
 
+    /// The history to show as plays: all of it but the books, which the
+    /// Audiobooks tab lists (Continue Listening, Finished). They stay in
+    /// `history`, which that tab reads them from.
+    var plays: LazyFilterSequence<OrderedSet<PlayableContent>> {
+        history.lazy.filter { $0.content.type != .audiobook }
+    }
+
     /// The most plays kept. The history syncs through iCloud key-value
     /// storage, which takes at most 1 MB a key (a play is about 1 KB
     /// encoded), and every read compares the whole stored list and every

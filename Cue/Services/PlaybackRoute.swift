@@ -58,9 +58,10 @@ final class PlaybackRoute {
     /// and nothing is disabled by it — a second choice cancels the first.
     private(set) var isSwitching = false
 
-    /// The hand-off in flight. A new choice cancels it: the URLSession calls
-    /// under `SonosService` throw on cancellation, so a queue still filling in
-    /// stops where it is rather than racing the next switch.
+    /// The hand-off in flight, nil once it's done. A new choice cancels it,
+    /// and so does a new Play (`endHandOff()`): the URLSession calls under
+    /// `SonosService` throw on cancellation, so a queue still filling in
+    /// stops where it is rather than racing what comes next.
     @ObservationIgnored private var handoffTask: Task<Void, Never>?
     /// Bumped per switch, so a superseded hand-off's clean-up can't clear
     /// `isSwitching` for the one that replaced it.
@@ -218,6 +219,28 @@ final class PlaybackRoute {
         hold != nil
     }
 
+    /// Whether `item` is the song the player shows, so a list can mark its
+    /// row: the track a speaker reports, or what this device is on (its
+    /// station, else the row its queue is at). Paused counts, as it does in
+    /// the player. Follows `presented`, so
+    /// through a hand-off the mark stays on the song being carried rather
+    /// than jumping to what the target last played.
+    func isPresenting(_ item: PlayableContent) -> Bool {
+        if let group = presentedGroup {
+            let trackID = group.coordinatorRoom.track.trackID
+            guard !trackID.isEmpty else { return false }
+            // Compare both IDs decoded. The now-playing trackID is percent-encoded for some
+            // services (e.g. Plex, whose ID is `clientID%3A3%3AratingKey` — the parser re-encodes
+            // the colons via `.urlPathAllowed`), while `content.id` is already decoded here, so an
+            // encoded-vs-decoded compare never matched and the Plex row never highlighted.
+            return trackID.removingPercentEncoding == item.content.id.removingPercentEncoding
+        }
+        // The device keeps the rows as they were played, so the ids match
+        // as they are; the service keeps two services' ids apart.
+        guard let current = LocalPlaybackService.shared.nowPlaying else { return false }
+        return current.content.id == item.content.id && current.content.service == item.content.service
+    }
+
     /// The group being heard, where the hardware volume buttons go: the held
     /// source until the hand-off stops it, the route's from then on. Nil
     /// for this device.
@@ -313,6 +336,7 @@ final class PlaybackRoute {
             guard let self else { return }
             defer {
                 if self.switchToken == token {
+                    self.handoffTask = nil
                     self.isSwitching = false
                     // Nothing came across — nothing to carry, or a failure
                     // put the route back — so the player shows the route as
@@ -328,6 +352,36 @@ final class PlaybackRoute {
             } else {
                 await self.handOffToDevice(from: source)
             }
+        }
+    }
+
+    /// Ends a hand-off still under way, for a Play that takes over from it
+    /// (an album, Play Now, a book, radio): the new play is what the route
+    /// should be playing. Left running, the hand-off went on adding the
+    /// carried queue to the speaker one row at a time, a row landed between
+    /// the new play clearing the queue and adding its album, and the speaker
+    /// started that carried song in place of the album's first. A source the
+    /// hand-off hadn't stopped yet is stopped, and the player follows the
+    /// route at once rather than holding on the source.
+    func endHandOff() async {
+        let task = handoffTask
+        guard task != nil || hold != nil else { return }
+        handoffTask = nil
+        switchToken += 1
+        isSwitching = false
+        let stillPlaying = hold.flatMap { $0.sourceStopped ? nil : $0.source }
+        endHold()
+        if let task {
+            task.cancel()
+            // A request already on its way (a row being added) lands before
+            // the new play's own; one that won't stop isn't waited on long.
+            _ = await task.value(within: .seconds(1))
+            Self.log.notice("route: hand-off ended by a new play")
+        }
+        // The phone is parked by the play itself when it goes to a speaker.
+        if case let .group(id) = stillPlaying, PlayDestination.group(id) != destination,
+           let source = SonosService.shared.groups.first(where: { $0.coordinatorID == id }) {
+            await SonosService.shared.pause(ip: source.ip)
         }
     }
 
@@ -603,7 +657,10 @@ final class PlaybackRoute {
     private func localSnapshot() -> Snapshot? {
         let playback = LocalPlaybackService.shared
         guard playback.isActive, let current = playback.nowPlaying else { return nil }
-        return Snapshot(items: [current] + playback.upNext, position: playback.progress, isPlaying: playback.isPlaying)
+        // A station goes alone: the queue waiting behind it stays on the
+        // phone, as it is, and isn't what's being listened to.
+        let items = playback.isPlayingStation ? [current] : [current] + playback.upNext
+        return Snapshot(items: items, position: playback.progress, isPlaying: playback.isPlaying)
     }
 
     /// Only a queue can be carried across — radio, TV and a line-in have
@@ -675,6 +732,10 @@ final class PlaybackRoute {
             print("[handoff] \(Int(Self.seconds(ContinuousClock.now - began) * 1000))ms \(what)")
         }
         step("snapshot at \(String(format: "%.1f", snapshot.position))s, playing: \(snapshot.isPlaying)")
+
+        // A book's Audiobookshelf files reach a speaker through a listening
+        // session, opened now if the book holds none.
+        await AudiobookPlayer.shared.prepareForSpeaker(snapshot.items)
 
         // Files live in a folder on this device; no speaker can fetch them.
         let items = snapshot.items.filter { !$0.content.service.playsOnDeviceOnly }
@@ -1049,6 +1110,11 @@ final class PlaybackRoute {
     private func localItem(_ item: PlayableContent) async -> PlayableContent? {
         let playback = LocalPlaybackService.shared
         if playback.canPlayLocally(item) { return item }
+        // A file of the book playing: the book has it ready, stream URL and
+        // all, whatever the speaker's row kept of its id.
+        if let book = AudiobookPlayer.shared.current, let part = book.partIndex(of: item) {
+            return book.parts[part]
+        }
         guard item.content.type == .track, [.plex, .subsonic].contains(item.content.service) else { return nil }
         guard let resolved = await SonosService.shared.contentLookup(id: item.content.id, type: .track, service: item.content.service) else {
             return nil

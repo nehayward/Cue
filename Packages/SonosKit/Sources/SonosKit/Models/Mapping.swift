@@ -100,6 +100,7 @@ extension Song {
                 album: albumTitle,
                 isrc: isrc,
                 position: trackNumber,
+                discNumber: discNumber,
                 isPlayable: playParameters != nil,
                 isExplicit: contentRating == .explicit
             )
@@ -692,6 +693,8 @@ extension PlexTrack {
                 album: album,
                 albumID: parentRatingKey,
                 albumYear: nil,
+                position: index,
+                discNumber: parentIndex,
                 audioCodec: audioCodec,
                 librarySectionID: librarySectionID.map(String.init),
                 userRating: userRating
@@ -733,6 +736,27 @@ extension PlexAlbum {
                 albumYear: nil,
                 librarySectionID: librarySectionID.map(String.init),
                 userRating: userRating
+            )
+        )
+    }
+
+    /// The album as a book, for one found in a library kept for books:
+    /// the author under the title, as `PlexAudiobookItem` maps a shelf's.
+    public var toAudiobookPlayable: PlayableContent {
+        PlayableContent(
+            title: title,
+            subtitle: artist,
+            thumbnail: imageURL,
+            artwork: imageURL,
+            content: .init(service: .plex, id: id, type: .audiobook, location: nil),
+            metadata: .init(
+                popularity: nil,
+                artist: artist,
+                artistID: parentRatingKey,
+                album: title,
+                albumID: ratingKey,
+                albumYear: bookYear(Int(year)),
+                librarySectionID: librarySectionID.map(String.init)
             )
         )
     }
@@ -807,6 +831,11 @@ extension PlexMetadata {
         var album: String?
         var albumID: String?
         var audioCodec: String?
+        var trackNumber: Int?
+        var discNumber: Int?
+        // A track's `parentYear` is its album's year; an album carries its
+        // own as `year`.
+        var releaseYear = parentYear
 
         switch type {
         case "track":
@@ -815,6 +844,10 @@ extension PlexMetadata {
             album = parentTitle
             albumID = parentRatingKey
             audioCodec = media?.first?.audioCodec
+            // Its place on the album, which a download keeps for the
+            // on-device library to put the album in order.
+            trackNumber = index
+            discNumber = parentIndex
         case "album":
             artist = parentTitle
             artistID = parentRatingKey
@@ -823,6 +856,7 @@ extension PlexMetadata {
             // editions of the same album showed one edition's art — the exact
             // bug the per-edition imageKey fixed in search.
             albumID = ratingKey
+            releaseYear = year
         case "playlist":
             break
         case "artist":
@@ -833,7 +867,7 @@ extension PlexMetadata {
        
         return PlayableContent(
             title: title,
-            subtitle: [artist, parentYear?.description, audioCodec?.uppercased()].compactMap{ $0 }.joined(separator: " • "),
+            subtitle: [artist, releaseYear?.description, audioCodec?.uppercased()].compactMap{ $0 }.joined(separator: " • "),
             thumbnail: thumbImageURL?.plexResized(to: PlexImageSize.thumbnail),
             artwork: thumbImageURL?.plexResized(to: PlexImageSize.artwork),
             content: .init(
@@ -852,6 +886,11 @@ extension PlexMetadata {
                 artistID: artistID,
                 album: album,
                 albumID: albumID,
+                // An album's year, for lists newest first (an artist's
+                // albums, the discography widget).
+                albumYear: type == "album" ? releaseYear.flatMap { Calendar(identifier: .gregorian).date(from: DateComponents(year: $0, month: 1, day: 1)) } : nil,
+                position: trackNumber,
+                discNumber: discNumber,
                 audioCodec: audioCodec,
                 userRating: userRating,
                 playlistItemID: playlistItemID.map(String.init)
@@ -860,6 +899,36 @@ extension PlexMetadata {
     }
 }
 
+
+extension PlexAudiobookItem {
+    /// A Plex album kept as a book: the author under the title. Its
+    /// `albumID` is its own key, as an album's is, so the book and its
+    /// files share an artwork cache entry.
+    public var toPlayable: PlayableContent? {
+        guard let sonosID else { return nil }
+        return PlayableContent(
+            title: title,
+            subtitle: parentTitle ?? "",
+            thumbnail: thumbImageURL?.plexResized(to: PlexImageSize.thumbnail),
+            artwork: thumbImageURL?.plexResized(to: PlexImageSize.artwork),
+            content: .init(service: .plex, id: sonosID, type: .audiobook, location: nil),
+            metadata: .init(
+                popularity: nil,
+                artist: parentTitle,
+                artistID: parentRatingKey,
+                album: title,
+                albumID: ratingKey,
+                albumYear: bookYear(year),
+                librarySectionID: librarySectionID.map(String.init)
+            )
+        )
+    }
+}
+
+/// A book's year as albums carry theirs: its first day.
+private func bookYear(_ year: Int?) -> Date? {
+    year.flatMap { DateComponents(calendar: Calendar(identifier: .gregorian), year: $0, month: 1, day: 1).date }
+}
 
 extension PlexUserPlaylist {
     public var toPlayable: PlayableContent {
@@ -872,6 +941,25 @@ extension PlexUserPlaylist {
                 service: .plex,
                 id: sonosID!,
                 type: .playlist,
+                location: nil
+            )
+        )
+    }
+}
+
+extension PlexCollection {
+    /// A collection as a folder: opened rather than queued, since Sonos has no
+    /// URI for a Plex collection. Its items are what play.
+    public var toPlayable: PlayableContent {
+        PlayableContent(
+            title: title,
+            subtitle: itemCountLabel ?? "",
+            thumbnail: thumbImageURL?.plexResized(to: PlexImageSize.thumbnail),
+            artwork: thumbImageURL?.plexResized(to: PlexImageSize.artwork),
+            content: .init(
+                service: .plex,
+                id: sonosID ?? ratingKey,
+                type: .folder,
                 location: nil
             )
         )
@@ -1057,6 +1145,66 @@ extension TuneInStation {
 }
 
 // MARK: Subsonic
+// MARK: Audiobookshelf
+extension AudiobookshelfItem {
+    var bookTitle: String { media?.metadata?.title ?? "" }
+    var bookAuthor: String { media?.metadata?.authorName ?? "" }
+
+    /// The book, as a shelf or search lists it: the author under the
+    /// title, and its length.
+    public var toPlayable: PlayableContent {
+        PlayableContent(
+            title: bookTitle,
+            subtitle: bookAuthor,
+            thumbnail: AudiobookshelfAPI.coverURL(itemID: id, width: PlexImageSize.thumbnail),
+            artwork: AudiobookshelfAPI.coverURL(itemID: id),
+            content: .init(service: .audiobookshelf, id: id, type: .audiobook, location: nil),
+            metadata: .init(
+                duration: media?.duration.map { Duration.milliseconds(Int64($0 * 1000)) },
+                popularity: nil,
+                artist: bookAuthor,
+                album: bookTitle,
+                albumID: id,
+                albumYear: bookYear(media?.metadata?.publishedYear.flatMap { Int($0) })
+            )
+        )
+    }
+
+    /// The book's files as the tracks the player plays, each with its
+    /// stream URL: through the book's listening session once one is open,
+    /// else signed in (see `AudiobookshelfAPI.streamURL`). The file's
+    /// extension rides as `audioCodec`, as for Subsonic, for the speaker's
+    /// extension hint and MIME type.
+    public func partsToPlayable(tracks: [AudiobookshelfTrack]? = nil) -> [PlayableContent] {
+        let cover = AudiobookshelfAPI.coverURL(itemID: id)
+        let thumbnail = AudiobookshelfAPI.coverURL(itemID: id, width: PlexImageSize.thumbnail)
+        let files = tracks ?? media?.tracks ?? []
+        return files.enumerated().compactMap { number, track in
+            guard let fileID = track.fileID else { return nil }
+            let part = AudiobookshelfPartID(itemID: id, index: track.index, fileID: fileID)
+            let ext = track.fileExtension
+            return PlayableContent(
+                // Audiobookshelf names a file by its file name ("01.m4b"):
+                // the book's title reads better in the player.
+                title: files.count > 1 ? "\(bookTitle), Part \(number + 1)" : bookTitle,
+                subtitle: bookAuthor,
+                thumbnail: thumbnail,
+                artwork: cover,
+                content: .init(service: .audiobookshelf, id: part.string, type: .track, location: nil),
+                previewURL: AudiobookshelfAPI.streamURL(for: part.string, fileExtension: ext, destination: .device),
+                metadata: .init(
+                    duration: Duration.milliseconds(Int64(track.duration * 1000)),
+                    popularity: nil,
+                    artist: bookAuthor,
+                    album: bookTitle,
+                    albumID: id,
+                    audioCodec: ext
+                )
+            )
+        }
+    }
+}
+
 extension SubsonicSong {
     public var toPlayable: PlayableContent {
         PlayableContent(
@@ -1081,6 +1229,8 @@ extension SubsonicSong {
                 artistID: artistId,
                 album: album,
                 albumID: albumId,
+                position: track,
+                discNumber: discNumber,
                 audioCodec: suffix,
                 // 0 rather than nil: "not starred" is an answer, and nil
                 // sends FavoriteMenuButton to the network for every row.

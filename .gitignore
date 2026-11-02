@@ -39,3 +39,7 @@ xcuserdata/
 # Local iPhone picked by Scripts/claude-remote.sh
 .cue-device
 __pycache__/
+
+# App Store Connect API keys and other local secrets, never committed
+.secrets/
+*.p8

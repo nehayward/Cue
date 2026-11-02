@@ -1,4 +1,3 @@
-import Analytics
 import CloudStorage
 import MusicSearchKit
 import Defaults
@@ -13,7 +12,7 @@ struct SearchScreen: View {
         case search
     }
 
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.usesPadLayout) private var usesPadLayout
 
     @Environment(SonosService.self) private var sonosService: SonosService
     @Environment(MusicSearchService.self) var musicSearchService
@@ -24,18 +23,38 @@ struct SearchScreen: View {
     @Environment(AppleMusicBrowseService.self) private var appleMusicBrowseService
     @Environment(MiniPlayerManger.self) private var miniPlayerManager
 
-    @AppStorage(AppStorageKeys.selectedSearchServices) private var searchSelection = SelectedSearchServices()
-    @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
-    @AppStorage(AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
+    // No `@AppStorage` and no `dismiss` held here: either made the whole
+    // screen rebuild, hidden or not, on every UserDefaults write, every tab
+    // switch and return to Cue (`CueApp` re-running), and every frame of
+    // the keyboard coming back. Settings are observed (`SearchSelectionStore`)
+    // or read when used, and `dismiss` only in `DismissesSearch`.
+    @State private var selectionStore = SearchSelectionStore.shared
+
+    private var searchSelection: SelectedSearchServices {
+        get { selectionStore.selection }
+        nonmutating set { selectionStore.selection = newValue }
+    }
+
+    /// Asked of MusicKit, which answers at once; the search service's
+    /// status is read too, so a grant made here shows at once.
+    private var isAppleMusicAuthorized: Bool {
+        musicSearchService.appleMusicAuthorizationStatus == .authorized
+            || MusicAuthorization.currentStatus == .authorized
+    }
     var favorites: Bool = false
     var closeInspector: (() -> Void)? = nil
 
     var isAlarmSearch: Bool = false
+    /// The Search tab's own screen, which alone answers the tab bar's
+    /// requests for the field (`SearchActivator`); the same screen in a
+    /// sheet (Sonos Favorites, an alarm's) opens without the keyboard.
+    var isTab: Bool = false
     @State private var coreFeatures = CoreFeatures.shared
     @State private var alertService = AlertService.shared
     /// Offline, the field searches what's on this device instead of the
     /// services (`OfflineSearchView`); the services menu and filters go.
     @State private var offline = OfflineMode.shared
+    @State private var offlineSearch = OfflineSearch()
     @State private var searchCompletionTapped: Bool = false
     @State private var suggestion: String? = nil
     @State private var searchFieldIsPresented: Bool = true
@@ -46,6 +65,10 @@ struct SearchScreen: View {
     @State private var plexLibrariesFilters: [GenericFilter<PlexLibrarySection>] = []
 
     @FocusState private var focusedField: SearchFocusFields?
+    /// The last focus request answered (`SearchActivator.requestCount`). The
+    /// first switch to Search asks before this screen exists to see the
+    /// change, so it's caught on appear by comparing.
+    @State private var answeredFocusRequest = 0
     #if targetEnvironment(macCatalyst)
     @State private var searchBarFocused: Bool = false
     #endif
@@ -56,6 +79,10 @@ struct SearchScreen: View {
     /// `.task` below skip an identical re-search when it re-fires on
     /// navigation back from a detail.
     @State private var lastCompletedSearchKey: String?
+    /// The search key the shown results answer, partial answers included.
+    /// "No Results" waits for it to match: between a keystroke and its
+    /// search starting, the old results and `isLoading` are both stale.
+    @State private var answeredSearchKey: String?
     @State private var isLoading: Bool = false
     @State private var keyboardSelectedIndex: Int?
 
@@ -63,7 +90,8 @@ struct SearchScreen: View {
 #if targetEnvironment(macCatalyst)
         return false
 #else
-        return UIDevice.current.userInterfaceIdiom == .phone
+        // The window draws them in the iPad's layout (`WindowToasts`).
+        return !usesPadLayout
 #endif
     }
 
@@ -96,7 +124,7 @@ struct SearchScreen: View {
     private var showsApplePermissionsPrompt: Bool {
         searchSelection.primary == .apple
             && selectedSearchServices.count == 1
-            && appleMusicAuthorized != .authorized
+            && !isAppleMusicAuthorized
     }
 
     /// The rows actually on screen. Must apply the SAME filters the results
@@ -142,12 +170,13 @@ struct SearchScreen: View {
         @Bindable var router = router
         @Bindable var musicSearchService = musicSearchService
         @Bindable var sonosService = sonosService
+        let _ = ScrollStopLog.note("body search")
 
         NavigationStack(path: $router.path) {
             ScrollViewReader { proxy in
                 List(selection: .constant(selectedItemID)) {
                     if offline.isActive {
-                        OfflineSearchView(query: musicSearchService.query)
+                        OfflineSearchView(query: musicSearchService.query, search: offlineSearch)
                     } else {
                         SearchFilterRow(
                             primary: searchSelection.primary,
@@ -181,7 +210,7 @@ struct SearchScreen: View {
                                 plexLibrariesFilters: $plexLibrariesFilters
                             )
 
-                            if !isLoading, currentFilteredResults.isEmpty, !showsApplePermissionsPrompt {
+                            if !isLoading, answeredSearchKey == searchTaskKey, currentFilteredResults.isEmpty, !showsApplePermissionsPrompt {
                                 ContentUnavailableView.search(text: musicSearchService.query)
                                     .listRowSeparator(.hidden)
                                     .listRowBackground(Color.clear)
@@ -218,6 +247,14 @@ struct SearchScreen: View {
                         return
                     }
                 }
+                // Offline, the on-device library searched as the query
+                // settles and as the songs here change.
+                .task(id: offline.isActive
+                      ? OfflineSearch.Key(query: musicSearchService.query.trimmingCharacters(in: .whitespacesAndNewlines), changeToken: OnDeviceLibrary.changeToken)
+                      : nil) {
+                    guard offline.isActive else { return }
+                    await offlineSearch.run(musicSearchService.query)
+                }
                 .ignoresSafeArea(.keyboard)
                 .contentMargins(.bottom, 120, for: .scrollContent)
 #if !os(visionOS)
@@ -229,10 +266,9 @@ struct SearchScreen: View {
                     }
                 }
 #if targetEnvironment(macCatalyst)
-                // The field and the services menu are the content column's
-                // header (`searchHeader`), not a navigation bar: hidden here
-                // on the root only, so a pushed detail still gets its bar and
-                // back button.
+                // The field is the content column's header (`searchHeader`),
+                // not a navigation bar: hidden here on the root only, so a
+                // pushed detail still gets its bar and back button.
                 .toolbar(.hidden, for: .navigationBar)
                 .safeAreaInset(edge: .top, spacing: 0) {
                     searchHeader
@@ -240,8 +276,13 @@ struct SearchScreen: View {
 #endif
                 .toolbar {
 #if !targetEnvironment(macCatalyst)
-                    ToolbarItemGroup(placement: .principal) {
-                        searchField
+                    // In the bar, which draws the blur under it as the list
+                    // scrolls. One item, the field and the services menu
+                    // beside it: as a trailing item of its own, sized apart
+                    // from the field, two or three services' icons pushed the
+                    // row off the screen.
+                    ToolbarItem(placement: .principal) {
+                        searchBar
                             .frame(idealWidth: 800)
                     }
 #endif
@@ -266,13 +307,6 @@ struct SearchScreen: View {
                     }
                     #endif
 
-#if !targetEnvironment(macCatalyst)
-                    if !offline.isActive {
-                        ToolbarItem(placement: .topBarTrailing) {
-                            MediaServiceMenu(selection: $searchSelection, filters: $filters)
-                        }
-                    }
-#endif
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -286,13 +320,15 @@ struct SearchScreen: View {
                 // which a detail screen may have changed.
                 // Offline, the rows come from the on-device library as the
                 // query changes; there's no service to ask.
+                let searchedKey = searchTaskKey
                 guard !offline.isActive else {
                     isLoading = false
+                    answeredSearchKey = searchedKey
                     return
                 }
-                let searchedKey = searchTaskKey
                 if searchedKey == lastCompletedSearchKey, !musicSearchService.results.isEmpty {
                     isLoading = false
+                    answeredSearchKey = searchedKey
                     return
                 }
                 isLoading = true
@@ -313,15 +349,16 @@ struct SearchScreen: View {
                 // memoized as done — the next re-fire retries the search so
                 // the missing service's rows can appear.
                 lastCompletedSearchKey = allProvidersAnswered ? searchedKey : nil
+                answeredSearchKey = searchedKey
                 suggestion = nil
                 isLoading = false
             }
-            .animation(.snappy, value: musicSearchService.results)
+            // No animation for a new result set: animating one made the List
+            // diff and resize every changed row inside a single frame, 100 ms
+            // on an iPhone SE each time a search answered while typing.
             .animation(.snappy, value: filters)
             .animation(.snappy, value: searchCompletionTapped)
-            .addDismiss(override: contentToAdd != nil) {
-                dismiss()
-            }
+            .modifier(DismissesSearch(showsButton: contentToAdd != nil))
             .withAppRouter()
         }
         .withAlert(enabled: showAlert)
@@ -362,9 +399,7 @@ struct SearchScreen: View {
         .environment(router)
         .environment(musicSearchService)
         .environment(alertService)
-        .onChange(of: contentToAdd?.content) {
-            dismiss()
-        }
+        .modifier(DismissesSearch(added: contentToAdd?.content))
         .onChange(of: musicSearchService.query) {
             keyboardSelectedIndex = nil
             if !musicSearchService.query.isEmpty {
@@ -407,20 +442,33 @@ struct SearchScreen: View {
 #endif
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .onAppear {
+            ScrollStopLog.note("search appeared", logNow: true)
             searchFieldIsPresented = true
             lastNonEmptyQuery = ""
             musicSearchService.query = ""
+            answerFocusRequest()
         }
         .onDisappear {
+            ScrollStopLog.note("search went", logNow: true)
             if !lastNonEmptyQuery.isEmpty {
                 recentQueries.addOrMoveToFront(lastNonEmptyQuery)
             }
         }
+        // Debug: the keyboard going down and up again while typing is the
+        // field losing focus and getting it back; each is logged with what
+        // came just before (`ScrollStopLog`).
+        .onChange(of: focusedField) { old, new in
+            if old == .search, new == nil {
+                ScrollStopLog.reportRecent("search field lost focus")
+            } else if new == .search {
+                ScrollStopLog.note("search field focused", logNow: true)
+            }
+        }
         .animation(.interactiveSpring, value: focusedField)
-        // Re-tapping the Search tab asks for the field. A counter, so a second
-        // request still counts as a change.
+        // Switching to the Search tab, or tapping it again, asks for the
+        // field. A counter, so a second request still counts as a change.
         .onChange(of: SearchActivator.shared.requestCount) {
-            focusedField = .search
+            answerFocusRequest()
         }
         .animation(.interactiveSpring, value: musicSearchService.suggestions)
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)
@@ -444,6 +492,23 @@ struct SearchScreen: View {
         )
     }
 
+    /// The field and, beside it in a glass capsule of its own, the services
+    /// it searches, their chips overlapping as Clic's services row has them
+    /// (`ServiceAvatarStack`). Offline the field searches what's here, with
+    /// no services to choose.
+    private var searchBar: some View {
+        HStack(spacing: 8) {
+            searchField
+            if !offline.isActive {
+                MediaServiceMenu(selection: $selectionStore.selection, filters: $filters)
+                    .serviceMenuGlass()
+            }
+        }
+        // One height: the menu's capsule takes the field's, whatever the
+        // text's line height makes that, rather than its chips' own.
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
     /// The search field: a glass capsule, with a ring in the accent while
     /// it has focus on the Mac, where there is no keyboard to say so.
     private var searchField: some View {
@@ -452,7 +517,8 @@ struct SearchScreen: View {
         return HStack {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
-            TextField("Search", text: $musicSearchService.query)
+            // Offline it searches only what's here, and says so.
+            TextField(offline.isActive ? "Search Downloads" : "Search", text: $musicSearchService.query)
                 .textFieldStyle(.plain)
                 .focused($focusedField, equals: .search)
                 .onSubmit {
@@ -480,39 +546,51 @@ struct SearchScreen: View {
     /// started as far from the leading edge as the services menu sat from the
     /// trailing one — a gap the width of the menu, with nothing in it. As a
     /// row of its own the field starts at the same inset as the headers
-    /// beside it and runs up to the menu.
+    /// beside it.
     private var searchHeader: some View {
-        HStack(spacing: 12) {
-            searchField
-                .frame(maxWidth: .infinity)
-            if !offline.isActive {
-                MediaServiceMenu(selection: $searchSelection, filters: $filters)
-                    .toolbarBackground(with: true, in: .capsule)
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.top, 10)
-        .padding(.bottom, 6)
+        searchBar
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
+            .padding(.bottom, 6)
     }
 #endif
 
-    @MainActor
-    private func showKeyboard() {
-        UIView.setAnimationsEnabled(false)
-        Task {
-            try await Task.sleep(for: .milliseconds(300))
-            UIView.setAnimationsEnabled(true)
+    /// Focuses the field for a request not answered yet: a switch to the
+    /// Search tab, or a tap on it while it shows. Only the tab's screen
+    /// (`isTab`): the tab and the Sonos Favorites sheet are both built with
+    /// `favorites`, so that can't tell them apart. A beat late: focus set as
+    /// the tab is still coming up doesn't take.
+    private func answerFocusRequest() {
+        let request = SearchActivator.shared.requestCount
+        guard request != answeredFocusRequest else { return }
+        answeredFocusRequest = request
+        guard isTab else { return }
+        ScrollStopLog.note("search focus requested", logNow: true)
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(100))
+            focusedField = .search
         }
     }
 
     /// Drops services the user disabled in Settings from the stored
     /// selection, falling back to the first enabled service so the selection
     /// is never empty.
+    ///
+    /// Stored only when something was dropped. A mutating call on the
+    /// `@AppStorage` value saved it every time, and any UserDefaults write
+    /// re-runs every `@AppStorage` view, this one included, which ran this
+    /// again: on an iPhone the selection was written about 35 times a
+    /// second, and Radio's list, redrawn with each write, couldn't scroll.
     private func validateSelectedServices() {
-        searchSelection.prune(
+        var pruned = searchSelection
+        pruned.prune(
             isEnabled: { coreFeatures.isEnabled($0) },
             fallback: settingsEnabledServices.first ?? .apple
         )
+        if pruned != searchSelection {
+            searchSelection = pruned
+        }
     }
 
     private func activateSelectedItem(at index: Int) {
@@ -540,6 +618,11 @@ struct SearchScreen: View {
             router.path.append(RouterDestination.artistDetail(content: item, group: selectedGroupService.group))
         case .folder:
             router.path.append(RouterDestination.folderBrowse(item: item, title: item.title))
+        case .audiobook:
+            // Its page, as a tap opens; never an alarm's or a scene's music,
+            // nor queued on a speaker as a song.
+            guard contentToAdd?.add != true else { return }
+            router.path.append(RouterDestination.audiobookDetail(content: item))
         default:
             playItem(item)
         }
@@ -551,7 +634,7 @@ struct SearchScreen: View {
             return
         }
         Task { @MainActor in
-            let position = QueuePosition.defaultPosition(for: item.content.type, replaceQueueByDefault: replaceQueueByDefault)
+            let position = QueuePosition.defaultPosition(for: item.content.type, replaceQueueByDefault: UserDefaults.standard.bool(forKey: AppStorageKeys.defaultPlayAction))
             let queueSong: ((GroupRoom, QueuePosition) async throws -> Void) = { group, selectedPosition in
                 QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: selectedPosition, title: selectedPosition.title))
                 Router.main.show(destination: .player(groupID: group.coordinatorID))
@@ -583,9 +666,17 @@ private struct SearchFilterRow: View {
     var body: some View {
         Group {
             if primary != .tuneIn {
-                VStack(spacing: 0) {
-                    HStack {
-                        FilterView(services: selectedServices, filters: $filters)
+                HStack(spacing: 8) {
+                    FilterView(services: selectedServices, filters: $filters)
+                    // Beside the chips, not laid over their trailing edge:
+                    // there its glass, larger than the 24-point frame it was
+                    // given, ran off the screen and covered the last chip.
+                    if searchesPlex {
+                        PlexLibraryFilterView(plexLibrariesFilters: $plexLibrariesFilters)
+                            .task {
+                                let libraries = await musicSearchService.getPlexLibraries()
+                                plexLibrariesFilters = libraries.map { GenericFilter(filter: $0) }
+                            }
                     }
                 }
                 .listRowSeparator(.hidden)
@@ -593,25 +684,6 @@ private struct SearchFilterRow: View {
             }
         }
         .listRowInsets(EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 12))
-        .overlay(alignment: .trailing) {
-            if searchesPlex {
-                ZStack(alignment: .trailing) {
-                    // Transparent hit area to block taps below. No
-                    // ignoresSafeArea here: safe-area-ignoring content inside
-                    // a self-sizing List cell can trigger UIKit's layout
-                    // feedback-loop trap (EXC_BREAKPOINT in
-                    // _UICollectionViewFeedbackLoopDebugger on iOS 26).
-                    Color.black.opacity(0.001)
-                        .allowsHitTesting(true)
-                    PlexLibraryFilterView(plexLibrariesFilters: $plexLibrariesFilters)
-                }
-                .frame(width: 24, height: 24)
-                .task {
-                    let libraries = await musicSearchService.getPlexLibraries()
-                    plexLibrariesFilters = libraries.map { GenericFilter(filter: $0) }
-                }
-            }
-        }
     }
 }
 
@@ -631,7 +703,7 @@ private struct SearchEmptyStateView: View {
                 .listRowSeparator(.hidden)
         }
 
-        if !playHistoryService.history.isEmpty {
+        if !playHistoryService.plays.isEmpty {
             PlayHistoryView(filters: $filters)
         }
 
@@ -779,7 +851,17 @@ private struct MediaServiceMenu: View {
                 Label("Settings…", systemImage: "gear")
             }
         } label: {
-            ServiceIconRow(services: displayedServices)
+            // At the field's height. The chips change without animating: a
+            // chip's cutout for the one beside it comes and goes at once,
+            // and with the chips sliding it took a bite out of thin air.
+            ServiceAvatarStack(services: displayedServices, size: 22)
+                .animation(nil, value: displayedServices)
+                // The capsule's padding, in the label so a tap anywhere on
+                // the capsule opens the menu, and as tall as the field
+                // beside it (`searchBar`).
+                .padding(8)
+                .frame(maxHeight: .infinity)
+                .contentShape(.capsule)
         }
         .accessibilityLabel("Search Services")
         .accessibilityValue(displayedServices.map(\.title).joined(separator: ", "))
@@ -802,31 +884,23 @@ private struct MediaServiceMenu: View {
             // Type filters don't apply to a radio directory.
             for filter in filters { filter.isFiltered = false }
         }
-        if selection.primary != previousPrimary {
-            Analytics.shared.track(.selectedMusicService, with: ["MusicService": selection.primary.rawValue])
-            Analytics.shared.setSelection(metadata: ["MusicService": selection.primary.rawValue])
-        }
     }
 }
 
-/// Up to three brand-colored service icons in a row — the search menu's
-/// toolbar button. Deliberately plain: earlier overlapping/masked-seam
-/// variants glitched and clipped while the row animated between selection
-/// sizes, so the icons just sit side by side.
-private struct ServiceIconRow: View {
-    let services: [MediaSearchService]
-    var diameter: CGFloat = 26
-
-    private var shown: [MediaSearchService] { Array(services.prefix(3)) }
-
-    var body: some View {
-        HStack(spacing: 0) {
-            ForEach(shown, id: \.self) { service in
-                service.iconForMusicService
-                    .foregroundStyle(service.brandColor.gradient)
-                    .frame(width: diameter, height: diameter)
-            }
+private extension View {
+    /// The field's glass for the services menu, without the field's padding,
+    /// which the menu's label carries (`toolbarBackground(with:in:)`).
+    @ViewBuilder
+    func serviceMenuGlass() -> some View {
+#if !os(visionOS)
+        if #available(iOS 26.0, *) {
+            glassEffect(.regular.interactive(), in: .capsule)
+        } else {
+            background(.thickMaterial, in: .capsule)
         }
+#else
+        background(.thickMaterial, in: .capsule)
+#endif
     }
 }
 
@@ -951,4 +1025,29 @@ private struct SearchSuggestionsBar: View {
     SearchScreen()
         .environment(Router.search)
         .forPreview()
+}
+
+/// Search's way out when it's presented to pick something to add: the
+/// close button, and closing once something's picked. `dismiss` is read
+/// here rather than in `SearchScreen`, so a new one (a navigation stack
+/// hands its views one whenever it's drawn) redraws this, not the screen.
+private struct DismissesSearch: ViewModifier {
+    /// The close button, inside the navigation stack.
+    var showsButton: Bool?
+    /// What was picked to add; a change closes Search.
+    var added: PlayableContent?
+
+    @Environment(\.dismiss) private var dismiss
+
+    func body(content: Content) -> some View {
+        if let showsButton {
+            content.addDismiss(override: showsButton) {
+                dismiss()
+            }
+        } else {
+            content.onChange(of: added) {
+                dismiss()
+            }
+        }
+    }
 }

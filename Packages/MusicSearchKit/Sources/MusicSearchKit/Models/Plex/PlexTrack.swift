@@ -24,4 +24,7 @@ public struct PlexTrack {
     /// The token-signed URL of the track's media file, as library rows
     /// carry it (`PlexMetadata.streamURL`): what this device plays.
     public var streamURL: URL? = nil
+    /// Its track number on the album, and which disc it's on.
+    public var index: Int? = nil
+    public var parentIndex: Int? = nil
 }

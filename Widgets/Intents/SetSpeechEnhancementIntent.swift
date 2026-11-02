@@ -1,5 +1,5 @@
 import AppIntents
-import CloudStorage
+import Defaults
 import SonosKit
 
 struct SetSpeechEnhancementIntent: LiveActivityIntent {
@@ -35,8 +35,8 @@ struct SetSpeechEnhancementIntent: LiveActivityIntent {
     init() { }
 
     func perform() async throws -> some IntentResult & ReturnsValue<Bool> {
-        guard CloudStorageSync.shared.bool(for: "com.cue.subscriptions") ?? false else {
-            throw IntentError.message("Subscribe to Super in App")
+        guard GroupStorageKeys.defaults.hasSuper else {
+            throw IntentError.superRequired
         }
 
         let result: Bool

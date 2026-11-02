@@ -35,11 +35,18 @@ private struct HardwareVolumeControlModifier: ViewModifier {
     /// their volume buttons pointed at a Sonos group with the only switch for it
     /// greyed out or absent. Scoping the behaviour to where the switch is
     /// reachable is what closes that.
+    ///
+    /// Not for a group playing AirPlay. The sender may be this phone, and while
+    /// its stream is live the phone's system volume *is* the group's volume —
+    /// every write the bridge makes to the hidden slider lands on the speakers.
+    /// Same exclusion as `NowPlayingSessionService.isMirrorable`, for the same
+    /// reason; see there.
     private var enabled: Bool {
         // Now Playing is always the Lock Screen surface now (the setting that
         // chose it is gone), so the switch and Super are the conditions left.
         useHardwareVolumeButtons
             && featureGate.isAvailable(.hardwareVolumeButtons)
+            && !(group?.isAirPlay ?? false)
     }
 
     /// This modifier holds the bridge. Only then does it let go: with no

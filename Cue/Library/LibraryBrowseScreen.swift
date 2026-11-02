@@ -1,4 +1,3 @@
-import Analytics
 import CloudStorage
 import MusicSearchKit
 import Defaults
@@ -30,6 +29,8 @@ struct LibraryBrowseScreen: View {
 
         NavigationStack(path: $router.path) {
             List {
+                // Above the library, a section of its own.
+                MusicLeftOffSection()
                 NavigationLink(value: RouterDestination.playableContentList(group: selectedGroupService.group, contentType: .artist)) {
                     Label("Artists", systemImage: "music.mic")
                 }
@@ -97,7 +98,7 @@ struct LibraryBrowseScreen: View {
                     }
                 }
             }
-            .miniPlayerOnScrollHandler()
+            .musicLeftOffRoom()
             .foregroundStyle(.primary)
             .navigationTitle("Music Library")
             .navigationBarTitleDisplayMode(.inline)

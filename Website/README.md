@@ -20,6 +20,7 @@ make deploy    # tests, then publishes to cue.dance
 | Home page copy: hero, features, services, FAQ | `src/content/home.js` |
 | Help questions | `src/content/help.js` |
 | Plex & Subsonic page | `src/content/self-hosted.js` |
+| Audiobooks page | `src/content/audiobooks.js` (its two drawn pictures are in `src/pages/audiobooks.js`) |
 | Press kit (copy, facts, screenshots) | `src/content/press.js`, files in `public/press/` |
 | Hero phones, hand-off picture, spotlights | `src/content/home.js` (`screens`, `handoff`, `spotlights`) |
 | Social preview card | `scripts/og-card.html`, then `make og` → `public/og.jpg` |
@@ -44,7 +45,20 @@ touch them.
   text.
 - **Screenshots**: web copies are JPEGs in `public/shots/` (about 1150px
   tall); full-resolution ones for the press kit are in `public/press/`.
-  `iphone()` in `layout.js` draws the frame around them in CSS.
+  `iphone()` and `watch()` in `layout.js` draw the frames around them in CSS.
+  To refresh them, capture each screen from the simulators with StoreShots and
+  the site's own project, which leaves covers unblurred (the App Store's blurs
+  them): `swift run -c release --package-path Tools/StoreShots storeshots shoot
+  Marketing/Website/storeshots.json iphone <name>` (the names are in that file),
+  then `make shots` writes both sets of JPEGs.
+- **Film**: `public/video/cue-promo.mp4` (720 × 1280, no sound, with a
+  `.jpg` poster) plays under the hero (`promo` in `src/content/home.js`). It's
+  StoreShots' `cue-promo` preview made smaller: `ffmpeg -i
+  build/app-store/output/previews/cue-promo.mp4 -vf scale=720:1280 -c:v libx264
+  -crf 24 -preset slow -movflags +faststart -an public/video/cue-promo.mp4`.
+  `/video/*` runs the Worker first (`run_worker_first` in `wrangler.toml`),
+  which answers byte ranges with 206 (`film()` in `worker.js`): the static
+  edge sends the whole file to a Range request, and Safari won't play that.
 - **`public/`**: served by Cloudflare before the Worker runs. Static file
   cache headers are in `public/_headers`. When a styles change mustn't mix
   with a cached copy, bump `ASSET_VERSION` in `layout.js`.

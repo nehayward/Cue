@@ -1,5 +1,5 @@
 import { site } from '../config.js';
-import { about, downloads, facts, highlights, screenshots } from '../content/press.js';
+import { about, downloads, facts, highlights, screenshots, watchScreenshots } from '../content/press.js';
 import { html, icon } from '../lib/html.js';
 import { page } from '../lib/layout.js';
 
@@ -31,6 +31,10 @@ export const pressPage = () =>
 				${screenshots.length > 0 && html`
 					<div class="shots">
 						${screenshots.map((s) => html`<a href="/${s.file}"><img src="/${s.file}" alt="${s.alt}" loading="lazy"></a>`)}
+					</div>`}
+				${watchScreenshots.length > 0 && html`
+					<div class="shots watch-shots">
+						${watchScreenshots.map((s) => html`<a href="/${s.file}"><img src="/${s.file}" alt="${s.alt}" loading="lazy"></a>`)}
 					</div>`}
 				<ul class="downloads">
 					${downloads.map(

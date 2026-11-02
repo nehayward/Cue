@@ -112,7 +112,6 @@ struct DeezerBrowseScreen: View {
             .animation(.default, value: deezerBrowseService.userPlaylists)
             .animation(hasLoadedOnce ? .default : nil, value: deezerBrowseService.recentlyPlayed)
             .contentMargins(.top, EdgeInsets(), for: .scrollContent)
-            .miniPlayerOnScrollHandler()
             .fontDesign(.rounded)
             .foregroundStyle(.primary)
             .navigationTitle("Deezer")

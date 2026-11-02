@@ -10,6 +10,7 @@ struct GroupScreen: View {
     @Environment(SubscriptionService.self) var subscriptionService: SubscriptionService
     @Environment(FeatureGate.self) var featureGate
     @Environment(\.dismiss) var dismiss
+    @Environment(\.usesPadLayout) private var usesPadLayout
 
     @CloudStorage("com.cue.scenes") var scenes: [SonosScene] = []
 
@@ -65,6 +66,7 @@ struct GroupScreen: View {
         NavigationStack(path: $path) {
             List {
                 Button {
+                    guard FeatureGate.shared.unlock(.allRooms) else { return }
                     HapticManager.shared.fireHaptic(.buttonPress)
                     Task {
                         _ = await sonosService.speedGroup(rooms: activeRooms)
@@ -105,7 +107,8 @@ struct GroupScreen: View {
                                     }
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                                Image(systemName: selections.contains(room.id) ? "checkmark.circle.fill" : "circle")
+                                // A room the free tier can't bring in wears a lock.
+                                Image(systemName: selections.contains(room.id) ? "checkmark.circle.fill" : FeatureGate.shared.isRoomUnlocked(room.id) ? "circle" : "lock.fill")
                                     .contentTransition(.symbolEffect(.replace))
                                     .font(.title2)
                                     .opacity(isSelected(room) ? 1 : 0.8)
@@ -150,7 +153,7 @@ struct GroupScreen: View {
                         .buttonRepeatBehavior(.enabled)
                         .accessibilityLabel("Volume Down")
 
-                        VibeSlider(value: $groupVolume, in: 0...100, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 12 : 20)
+                        VibeSlider(value: $groupVolume, in: 0...100, baseHeight: usesPadLayout ? 20 : 12)
                             .accessibilityLabel("All Speakers Volume")
                             .accessibilityValue("\(Int(groupVolume.rounded())) percent")
 
@@ -278,6 +281,12 @@ struct GroupScreen: View {
 
     private func addGroup(id: String) {
         if selections.contains(id), selections.count == 1 { return }
+        // Bringing in a room other than the free one is Super's; letting
+        // one go never is.
+        if !selections.contains(id), !FeatureGate.shared.isRoomUnlocked(id) {
+            FeatureGate.shared.presentPaywall(PaywallReason(feature: .allRooms))
+            return
+        }
         let oldRooms = sonosService.sortedRooms.filter { room in selections.contains(room.id) }
 
         selections.formSymmetricDifference([id])

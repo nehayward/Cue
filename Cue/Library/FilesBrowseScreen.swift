@@ -14,20 +14,19 @@ struct FilesBrowseScreen: View {
     var body: some View {
         NavigationStack(path: $router.path) {
             List {
+                // Above the library, a section of its own.
+                MusicLeftOffSection()
                 if !library.isConfigured {
                     // No folder yet: the one way in is from here.
-                    ContentUnavailableView {
-                        Label("No Folder Chosen", systemImage: "folder.badge.questionmark")
-                    } description: {
-                        Text("Pick a folder of music on this device or in iCloud Drive to browse it here.")
-                    } actions: {
-                        Button {
-                            router.presentedSheet = .filesManagement
-                        } label: {
-                            Text("Choose Folder")
-                        }
-                        .buttonStyle(.borderedProminent)
+                    ServiceSetupPrompt(
+                        service: .files,
+                        title: "No Folder Chosen",
+                        message: "Pick a folder of music or audiobooks on this device or in iCloud Drive to browse it here.",
+                        actionTitle: "Choose Folder"
+                    ) {
+                        router.presentedSheet = .filesManagement
                     }
+                    .padding(.vertical, 48)
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                 } else if !library.isScanning, library.songs.isEmpty {
@@ -96,9 +95,9 @@ struct FilesBrowseScreen: View {
                     }
                 }
             }
+            .musicLeftOffRoom()
             .contentMargins(.top, EdgeInsets(), for: .scrollContent)
-            .contentMargins(.horizontal, 16)
-            .miniPlayerOnScrollHandler()
+            .librarySideMargins()
             .fontDesign(.rounded)
             .foregroundStyle(.primary)
             .navigationTitle("Files")

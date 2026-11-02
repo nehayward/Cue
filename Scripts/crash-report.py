@@ -1,15 +1,19 @@
 #!/usr/bin/python3
-"""Pull Cue crash reports off an iPhone and print them symbolicated.
+"""Pull Cue crash reports off an iPhone (or this Mac) and print them symbolicated.
 
     crash-report.py <udid> [--since EPOCH] [--count N] [--process Cue] [--app PATH]
+    crash-report.py --mac --app PATH [--since EPOCH] [--count N] [--process Cue]
 
 Copies the newest crash reports for the process into build/crashes and
 prints a summary of each: exception, crash message, and the crashed
 thread's backtrace. Frames in Cue's own binaries are symbolicated against
 the app in build/DeviceDerivedData with atos, so the build must be the one
-that crashed (the UUID is checked and a mismatch is reported).
+that crashed (the UUID is checked and a mismatch is reported). With --mac
+the reports come from ~/Library/Logs/DiagnosticReports instead, and --app
+should be the Mac build.
 """
 import argparse
+import glob
 import json
 import os
 import re
@@ -21,6 +25,7 @@ import time
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CRASH_DIR = os.path.join(ROOT, "build", "crashes")
 DEFAULT_APP = os.path.join(ROOT, "build", "DeviceDerivedData", "Build", "Products", "Debug-iphoneos", "Cue.app")
+MAC_REPORTS = os.path.expanduser("~/Library/Logs/DiagnosticReports")
 STAMP = re.compile(r"-(\d{4}-\d{2}-\d{2}-\d{6})(?:\.\d+)?\.ips$")
 
 
@@ -67,10 +72,22 @@ def find_crashes(udid, process, since, count):
     return crashes[:count]
 
 
+def find_mac_crashes(process, since, count):
+    paths = glob.glob(os.path.join(MAC_REPORTS, f"{glob.escape(process)}-*.ips"))
+    paths += glob.glob(os.path.join(MAC_REPORTS, "Retired", f"{glob.escape(process)}-*.ips"))
+    crashes = sorted(paths, key=crash_time, reverse=True)
+    if since:
+        crashes = [c for c in crashes if crash_time(c) >= since - 60]
+    return crashes[:count]
+
+
 def copy_crash(udid, source):
     os.makedirs(CRASH_DIR, exist_ok=True)
     destination = os.path.join(CRASH_DIR, os.path.basename(source))
-    if not os.path.exists(destination):
+    if udid is None:
+        if not os.path.exists(destination):
+            subprocess.run(["cp", source, destination], check=True)
+    elif not os.path.exists(destination):
         devicectl("device", "copy", "from", "--device", udid, "--domain-type", "systemCrashLogs",
                   "--source", source, "--destination", destination)
     return destination
@@ -116,7 +133,7 @@ def symbolicate(frames_list, images, app):
         offsets = sorted(offsets)
         base = image["base"]
         out = subprocess.run(
-            ["xcrun", "atos", "-arch", "arm64", "-o", binary, "-l", hex(base),
+            ["xcrun", "atos", "-arch", image.get("arch", "arm64"), "-o", binary, "-l", hex(base),
              *[hex(base + offset) for offset in offsets]],
             capture_output=True, text=True,
         ).stdout.splitlines()
@@ -172,7 +189,7 @@ def report(path, app):
         for message in messages:
             print(f"  Message: {message}")
     if stale:
-        print(f"  Note: {', '.join(stale)} on the phone is not the local build, so Cue frames"
+        print(f"  Note: {', '.join(stale)} on the device is not the local build, so Cue frames"
               " are not symbolicated. Re-deploy and reproduce to get symbols.")
 
     if exception_bt:
@@ -186,16 +203,26 @@ def report(path, app):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("udid")
+    parser.add_argument("udid", nargs="?")
+    parser.add_argument("--mac", action="store_true", help="read crash reports from this Mac")
     parser.add_argument("--since", type=float, default=0)
     parser.add_argument("--count", type=int, default=1)
     parser.add_argument("--process", default="Cue")
     parser.add_argument("--app", default=DEFAULT_APP)
     args = parser.parse_args()
 
-    crashes = find_crashes(args.udid, args.process, args.since, args.count)
+    if args.mac:
+        args.udid = None
+        crashes = find_mac_crashes(args.process, args.since, args.count)
+    elif args.udid:
+        crashes = find_crashes(args.udid, args.process, args.since, args.count)
+    else:
+        parser.error("pass an iPhone UDID or --mac")
     if not crashes:
-        print(f"No {args.process} crash reports" + (" since the launch." if args.since else " on the phone."))
+        where = "on this Mac" if args.mac else "on the phone"
+        print(f"No {args.process} crash reports" + (" since the launch." if args.since else f" {where}."))
+        if args.mac:
+            return
         print("Some crashes (watchdog kills, out of memory) show up a minute later, or only in"
               " Settings ▸ Privacy & Security ▸ Analytics & Improvements ▸ Analytics Data.")
         return

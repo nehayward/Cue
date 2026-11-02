@@ -23,6 +23,7 @@
 //
 
 import AppKit
+import CoreServices
 import ServiceManagement
 
 final class MacBridge: NSObject, MacBridgeable, @unchecked Sendable {
@@ -190,5 +191,14 @@ final class MacBridge: NSObject, MacBridgeable, @unchecked Sendable {
 
     func runningUpdate(handler: @escaping (Bool) -> Void) {
         self.handler = handler
+    }
+
+    // MARK: - Dictionary
+
+    func definition(of term: String) -> String? {
+        let text = term as CFString
+        let range = CFRange(location: 0, length: CFStringGetLength(text))
+        guard range.length > 0, let definition = DCSCopyTextDefinition(nil, text, range) else { return nil }
+        return definition.takeRetainedValue() as String
     }
 }

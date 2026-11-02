@@ -2,14 +2,15 @@ import Foundation
 import MusicSearchKit
 import WatchSync
 
-/// A song as the watch keeps it: what it shows, and where it comes from on
-/// its server. Its stream is built from that when it's fetched, at whatever
+/// A song as the watch keeps it — or one of a book's files: what it shows,
+/// and where it comes from on its server. Its stream is built from that when it's fetched, at whatever
 /// quality the watch is set to (`stream(at:)`), so changing the quality
 /// needs nothing from the server but the songs again.
 struct WatchSong: Codable, Hashable, Identifiable, Sendable {
     let source: WatchSource
     /// The id the server's library gives it: a Plex item's Sonos-style id,
-    /// a Subsonic id — the same the iPhone uses.
+    /// a Subsonic id, an Audiobookshelf file's `<item>|<index>|<file>` —
+    /// the same the iPhone uses.
     let contentID: String
     let title: String
     let artist: String
@@ -27,11 +28,20 @@ struct WatchSong: Codable, Hashable, Identifiable, Sendable {
 
     /// The stream at `quality`: converted to MP3 by the server, or the
     /// original file, with the suffix it arrives under. A Plex conversion
-    /// runs as `plexClient`.
+    /// runs as `plexClient`. A book's files come as the server keeps them
+    /// (the store fetches them at `.original`); an Audiobookshelf one,
+    /// signed with the token held now, as the one it was looked up with
+    /// lasts an hour.
     func stream(at quality: WatchDownloadQuality, plexClient: String = "Cue-Watch") -> (url: URL, fileExtension: String) {
-        let service: ConvertedStream.Service = switch source {
-        case .plex: .plex
-        case .subsonic: .subsonic
+        let service: ConvertedStream.Service
+        switch source {
+        case .plex:
+            service = .plex
+        case .subsonic:
+            service = .subsonic
+        case .audiobookshelf:
+            let fileExtension = audioCodec ?? "m4a"
+            return (AudiobookshelfAPI.fileURL(for: contentID, fileExtension: fileExtension) ?? sourceURL, fileExtension)
         }
         return ConvertedStream.stream(
             service: service,

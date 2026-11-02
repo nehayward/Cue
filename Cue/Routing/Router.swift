@@ -1,3 +1,4 @@
+import Defaults
 import Foundation
 import SwiftUI
 import Observation
@@ -6,7 +7,7 @@ import MusicSearchKit
 
 
 /// Which tab the window is showing.
-enum AppTab: Hashable {
+enum AppTab: Hashable, Codable {
     /// Where the library is set up and reached from — the first tab.
     case home
     case search
@@ -15,6 +16,14 @@ enum AppTab: Hashable {
     /// stations near the user and TuneIn's directory, Apple Music's, and
     /// Sonos Radio's. Shown while any of those providers is switched on.
     case radio
+    /// Books: the one listened to last, ready to resume, what else is
+    /// partway through, and every book on Plex and Audiobookshelf. Shown
+    /// while either has books.
+    case audiobooks
+    /// The music on this device, every provider's, with what's still
+    /// coming down. Shown while there's any downloaded or on its way, its
+    /// icon a ring filling while they come down (a badge off the phone).
+    case downloads
     /// A provider the user added to the tab view, as one tab: its library's
     /// front page (Artists, Albums, … as rows). This is the tab bar's entry
     /// on iPhone, where a section's worth of tabs would overflow the bar.
@@ -27,7 +36,7 @@ enum AppTab: Hashable {
     /// take its selection with it.
     var provider: MediaSearchService? {
         switch self {
-        case .home, .search, .browse, .radio: nil
+        case .home, .search, .browse, .radio, .audiobooks, .downloads: nil
         case let .provider(service): service
         case let .providerCollection(service, _): service
         }
@@ -35,22 +44,73 @@ enum AppTab: Hashable {
 }
 
 @Observable public final class Router {
-    static var main = Router()
+    static var main: Router = {
+        let router = Router()
+        router.selectedTab = lastTab
+        router.savedTab = router.selectedTab
+        router.keepsTab = true
+        return router
+    }()
     static var search = Router()
     static var secondary = Router()
     static var browse = Router()
+    /// The Audiobooks tab's own stack, here so a book's page can be pushed
+    /// on it from outside the tab (`showAudiobooks(_:)`). Bound by that tab
+    /// alone: two stacks bound to one path push each other.
+    static var audiobooks = Router()
 
     var selectedID: String?
     /// The selected tab. On `Router.main` only — the per-screen routers
     /// (`search`, `browse`) navigate within a tab and have no say over which
-    /// one is showing.
+    /// one is showing. The main router's is kept across launches: the app
+    /// opens on the tab it was left on (one that's gone since shows the
+    /// fallback, `CueApp.resolvedTab`). Kept as Cue leaves the foreground
+    /// (`saveSelectedTab()`), not on every switch: any UserDefaults write
+    /// re-runs every view holding `@AppStorage`, the tab being shown
+    /// among them, just as it appears.
     var selectedTab: AppTab = .home
+
+    /// The tab last kept, so leaving on the same one writes nothing.
+    @ObservationIgnored private var savedTab: AppTab?
+
+    /// Keeps the selected tab for the next launch.
+    func saveSelectedTab() {
+        guard keepsTab, selectedTab != savedTab else { return }
+        savedTab = selectedTab
+        UserDefaults.standard.set(try? JSONEncoder().encode(selectedTab), forKey: AppStorageKeys.selectedTab)
+    }
+
+    /// Whether `selectedTab` is kept across launches: the main router's.
+    private var keepsTab = false
+
+    /// The tab the app was last on, or Home.
+    private static var lastTab: AppTab {
+        UserDefaults.standard.data(forKey: AppStorageKeys.selectedTab)
+            .flatMap { try? JSONDecoder().decode(AppTab.self, from: $0) } ?? .home
+    }
     /// Drives the local player's `fullScreenCover`. Presentation state, so it
     /// belongs beside `presentedSheet` rather than in the tab bar accessory
     /// that happens to open it — the accessory is re-hosted by the system, and
     /// state living there went down with it.
     var isPlayerPresented = false
-    var path: [RouterDestination] = []
+    /// The pushed screens. A write that changes nothing is dropped: an
+    /// observed property reports every write, and the navigation stacks
+    /// write their path back unchanged as a scene returns to the
+    /// foreground, which re-ran each tab's screen right as it was being
+    /// scrolled.
+    var path: [RouterDestination] {
+        get {
+            access(keyPath: \.path)
+            return storedPath
+        }
+        set {
+            guard newValue != storedPath else { return }
+            withMutation(keyPath: \.path) {
+                storedPath = newValue
+            }
+        }
+    }
+    @ObservationIgnored private var storedPath: [RouterDestination] = []
     var presentedSheet: SheetDestination?
     /// Destinations presented as `fullScreenCover` rather than `.sheet`.
     /// Currently used for `.paywall` and `.onboard` — moments where we want
@@ -79,7 +139,29 @@ enum AppTab: Hashable {
     func handleReselection(of tab: AppTab) {
         switch tab {
         case .search: SearchActivator.shared.requestFocus()
-        case .home, .browse, .radio, .provider, .providerCollection: break
+        case .home, .browse, .radio, .audiobooks, .downloads, .provider, .providerCollection: break
+        }
+    }
+
+    /// The Audiobooks tab, the player and any page presented over the tabs
+    /// put away; with `book`, its page on the tab's own stack, so Back goes
+    /// to the tab (the book shelf widget's Open Book, a `cue://audiobook`
+    /// link), rather than a page presented over everything, which each tap
+    /// stacked another of. The tab's stack is bound to `audiobooks`, so the
+    /// page shows even when the tab is only now made. While the tab is
+    /// hidden (Settings ▸ Appearance), the book's page over whatever is on
+    /// screen.
+    @MainActor
+    static func showAudiobooks(_ book: PlayableContent? = nil) {
+        if let book, !AppState.shared.showsAudiobooksTab {
+            MediaDetailPresenter.present(book)
+            return
+        }
+        main.isPlayerPresented = false
+        MediaDetailPresenter.dismissPresented()
+        main.selectedTab = .audiobooks
+        if let book {
+            audiobooks.path = [.audiobookDetail(content: book)]
         }
     }
 

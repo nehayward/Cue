@@ -1,0 +1,38 @@
+{
+  "app": "Cue (cue.dance)",
+  "bundleID": "dance.cue",
+  "launch": [],
+  "raw": "../../build/website/raw",
+  "clips": "../../build/website/clips",
+  "output": "../../build/website/output",
+  "theme": {
+    "base": "#050706",
+    "palette": ["#059669"],
+    "accent": "#34D399"
+  },
+  "devices": {
+    "iphone": {
+      "model": "iphone-6.3",
+      "simulator": "iPhone 18 Pro"
+    },
+    "watch": {
+      "model": "watch-46",
+      "simulator": "Apple Watch Series 12 (46mm)",
+      "bare": true,
+      "statusBar": false
+    }
+  },
+  "shots": [
+    { "name": "now-playing", "title": "Now Playing" },
+    { "name": "plex-library", "title": "A Plex library" },
+    { "name": "albums", "title": "Albums" },
+    { "name": "radio", "title": "Radio", "launch": ["-dance.cue.selectedTab", "<7b22726164696f223a7b7d7d>"], "wait": 9 },
+    { "name": "audiobooks", "title": "Audiobooks", "launch": ["-dance.cue.selectedTab", "<7b22617564696f626f6f6b73223a7b7d7d>"], "wait": 9 },
+    { "name": "book-page", "title": "A book's page" },
+    { "name": "book-player", "title": "A book playing" },
+    { "name": "book-chapters", "title": "A book's chapters" },
+    { "name": "book-history", "title": "A book's history" },
+    { "name": "watch-home", "devices": ["watch"], "title": "Cue on Apple Watch" },
+    { "name": "watch-now-playing", "devices": ["watch"], "title": "Now Playing on Apple Watch" }
+  ]
+}

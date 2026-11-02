@@ -1,5 +1,5 @@
 import AppIntents
-import CloudStorage
+import Defaults
 import SonosKit
 
 #if canImport(WidgetKit)
@@ -36,14 +36,14 @@ struct StopSleepTimerIntent: LiveActivityIntent {
     init() { }
 
     func perform() async throws -> some IntentResult {
-        guard CloudStorageSync.shared.bool(for: "com.cue.subscriptions") ?? false else {
+        guard GroupStorageKeys.defaults.hasSuper else {
             #if canImport(UIKit) && !os(watchOS)
             if let url = URL(string: "cue://subscribe"),
                let application = UIApplication.value(forKeyPath: #keyPath(UIApplication.shared)) as? UIApplication {
                 await application.open(url)
             }
             #endif
-            throw IntentError.message("Subscribe to Super in Cue")
+            throw IntentError.superRequired
         }
 
         let resolvedRoom: SonosDeviceEntity

@@ -26,6 +26,9 @@ public enum AppStorageKeys {
     /// Whether the download manager may fetch over cellular data. Off when
     /// unset: a whole album on a phone plan is a surprise nobody asked for.
     public static let downloadsOverCellular = "\(Prefix.id).downloadsOverCellular"
+    /// Whether the download manager has looked for Plex conversions an
+    /// earlier build kept cut short — done once (`repairCutShortDownloads`).
+    public static let downloadsCutShortRepaired = "\(Prefix.id).downloadsCutShortRepaired"
     /// How Plex and Subsonic hand audio over — the original file, or
     /// transcoded on the server to MP3 or Opus (`"original"`, `"mp3"`,
     /// `"opus"`) — and the bitrate cap in kbit/s for a transcode. Read by
@@ -49,13 +52,29 @@ public enum AppStorageKeys {
     /// The iCloud songs the cache fetched to play, oldest first, so a
     /// relaunch still knows which ones are its to evict.
     public static let playbackCacheCloudIDs = "\(Prefix.id).playbackCacheCloudIDs"
-    /// The user's Offline Mode switch: only what's on this device shows on
-    /// Home, and everything plays here. Off when unset; no network at all
-    /// puts the app in the same state on its own.
-    public static let offlineMode = "\(Prefix.id).offlineMode"
+    /// Whether the Downloads tab shows while there's a network. On when
+    /// unset; the tab also needs something downloaded, and shows offline
+    /// whatever this says, in Browse's place.
+    public static let showDownloadsTab = "\(Prefix.id).showDownloadsTab"
     /// Whether the Radio tab shows at all. On when unset; the tab also
     /// needs a radio provider switched on, and hides itself offline.
     public static let showRadioTab = "\(Prefix.id).showRadioTab"
+    /// Whether the Audiobooks tab shows at all. On when unset; the tab also
+    /// needs books on Plex or an Audiobookshelf sign-in, and hides itself
+    /// offline.
+    public static let showAudiobooksTab = "\(Prefix.id).showAudiobooksTab"
+    /// The selected Plex server had books the last time it was asked
+    /// (`PlexAPI.hasAudiobooks()`), so the Audiobooks tab shows at launch
+    /// without waiting on the server.
+    public static let hasPlexAudiobooks = "\(Prefix.id).hasPlexAudiobooks"
+    /// Books taken out of Continue Listening — `[progress key: when]` —
+    /// until they're listened to again (`ContinueListeningRemovals`).
+    public static let continueListeningRemovals = "\(Prefix.id).continueListeningRemovals"
+    /// Whether a book's time left is the whole book's ("14h 24m left in
+    /// book") rather than the chapter's, in the player and the mini player.
+    /// A tap on the player's time left switches it. The chapter's when
+    /// unset.
+    public static let audiobookTimeLeftShowsBook = "\(Prefix.id).audiobookTimeLeftShowsBook"
     /// How the library's album lists are laid out — `"list"` (rows) or
     /// `"grid"` (artwork tiles). One setting for every provider's Albums
     /// page, so a choice made on Plex holds on Subsonic. Rows when unset.
@@ -66,6 +85,10 @@ public enum AppStorageKeys {
     public static let queueMode = "\(Prefix.id).queueMode"
     public static let showArtworkOnly = "\(Prefix.id).showArtworkOnly"
     public static let queueInspectorVisible = "\(Prefix.id).queueInspectorVisible"
+    /// The tab the app was last on, JSON-encoded, so a launch opens there.
+    /// Read and written with `UserDefaults` directly, never `@AppStorage`:
+    /// every view holding the key would redraw on each tab switch.
+    public static let selectedTab = "\(Prefix.id).selectedTab"
     /// Width in points of the trailing queue panel, so a drag-to-resize
     /// survives relaunch.
     public static let queuePanelWidth = "\(Prefix.id).queuePanelWidth"
@@ -88,6 +111,27 @@ public enum AppStorageKeys {
     /// locale identifier]` — with `LiveTranscriptionService.anyStationKey`
     /// holding the last pick, the guess for a station not heard before.
     public static let liveTranscriptionLocales = "\(Prefix.id).liveTranscriptionLocales"
+    /// The book transcript's look: its typeface (`BookTranscriptFont`'s raw
+    /// value), its text size in points and its line spacing.
+    public static let bookTranscriptFont = "\(Prefix.id).bookTranscriptFont"
+    public static let bookTranscriptSize = "\(Prefix.id).bookTranscriptSize"
+    public static let bookTranscriptSpacing = "\(Prefix.id).bookTranscriptSpacing"
+    /// Whether the word being said in a book's transcript is underlined as
+    /// well as brightest; on until turned off.
+    public static let bookTranscriptUnderline = "\(Prefix.id).bookTranscriptUnderline"
+    /// When the day's Read Along preview, without Cue Super, ends or ended.
+    public static let bookTranscriptPreviewEnd = "\(Prefix.id).bookTranscriptPreviewEnd"
+    /// The transcription language picked per book — `[book key: locale
+    /// identifier]` — with "*" holding the last pick, the guess for a book
+    /// not transcribed before.
+    public static let bookTranscriptLocales = "\(Prefix.id).bookTranscriptLocales"
+    /// Whether the player shows the song's lyrics in the artwork's place,
+    /// so the toggle holds from song to song and across launches.
+    public static let lyricsShown = "\(Prefix.id).lyricsShown"
+    /// Whether a song whose own service has no timed lyrics is looked up
+    /// on LRCLIB (sending its title, artist, album and length). Off unless
+    /// turned on.
+    public static let lyricsOnlineLookup = "\(Prefix.id).lyricsOnlineLookup"
     public static let savedGroupID = "\(Prefix.id).queueInspectorGroupID"
     public static let defaultPlayAction = "\(Prefix.id).defaultPlayAction"
     /// What switching the route (This Device ↔ a speaker) does with what's
@@ -98,10 +142,23 @@ public enum AppStorageKeys {
     /// points]` — so it opens at its height rather than growing to it once
     /// the rows are measured.
     public static let playOnSheetHeights = "\(Prefix.id).playOnSheetHeights"
+    /// Whether the car shows iOS 27's MiniPlayer for Cue: when unset, off in
+    /// Debug builds and on in release ones. A Debug switch for now: whether
+    /// the car's Now Playing follows Cue's own player after Apple Music
+    /// without it (FB24840951).
+    public static let carPlayMiniPlayer = "\(Prefix.id).carPlayMiniPlayer"
+    /// Whether the stream player's Now Playing card goes through an
+    /// `MPNowPlayingSession` of its player (`LocalNowPlayingPresenter`). A
+    /// Debug switch, off by default, while it's tried on the Lock Screen
+    /// and in the car.
+    public static let nowPlayingSession = "\(Prefix.id).nowPlayingSession"
     public static let lastPlaylistID = "\(Prefix.id).lastPlaylistID"
     public static let lastPlaylistTitle = "\(Prefix.id).lastPlaylistTitle"
     public static let lastPlaylistService = "\(Prefix.id).lastPlaylistService"
     public static let recentPlaylistIDs = "\(Prefix.id).recentPlaylistIDs"
+    /// Plex collections most recently added to, most recent first, for the
+    /// Add to Collection sheet.
+    public static let recentPlexCollectionIDs = "\(Prefix.id).recentPlexCollectionIDs"
     public static let addToPlaylistSegment = "\(Prefix.id).addToPlaylistSegment"
     public static let recentlyViewed = "\(Prefix.id).recentlyViewed"
     public static let recentQueries = "\(Prefix.id).recentQueries"
@@ -145,6 +202,10 @@ public enum AppStorageKeys {
     /// requires an active subscription, so an unsubscribed user with the default
     /// keeps Live Activities and nothing takes over their audio.
     public static let lockScreenNowPlaying = "\(Prefix.id).lockScreenNowPlaying"
+    /// The Plex collections screen's layout (`PlayableListLayout` raw value).
+    public static let plexCollectionsLayout = "\(Prefix.id).plexCollectionsLayout"
+    /// The layout inside a Plex collection (`PlayableListLayout` raw value).
+    public static let plexCollectionLayout = "\(Prefix.id).plexCollectionLayout"
 }
 
 public extension UserDefaults {

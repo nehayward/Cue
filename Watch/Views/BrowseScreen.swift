@@ -1,16 +1,21 @@
+import MusicSearchKit
 import SwiftUI
 import WatchKit
 import WatchSync
 
-/// A page of the Plex and Subsonic libraries, fetched by the watch itself
-/// (`WatchLibraryBrowser`) a page at a time: a list, an artist's albums or
-/// search results. A song goes on the watch with a tap; an album or
-/// playlist opens on its songs.
+/// A page of the Plex and Subsonic libraries, or of the books on Plex and
+/// Audiobookshelf, fetched by the watch itself (`WatchLibraryBrowser`) a
+/// page at a time: a list, an artist's albums, search results or a shelf of
+/// books. A song goes on the watch with a tap; an album or playlist opens
+/// on its songs, a book on its page.
 struct BrowseScreen: View {
     let path: WatchBrowsePath
 
     @Environment(\.zoomNamespace) private var zoom
     @Environment(WatchDownloadStore.self) private var store
+    @Environment(WatchPlayer.self) private var player
+    @Environment(PhoneNowPlaying.self) private var phone
+    @State private var playRequest: PlayRequest?
     @State private var title = ""
     @State private var items: [WatchBrowseItem] = []
     @State private var container: WatchBrowseItem?
@@ -47,26 +52,48 @@ struct BrowseScreen: View {
                     .frame(maxWidth: .infinity)
                     .listRowBackground(Color.clear)
             } else if let message, items.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(message)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                    Button("Try Again") {
-                        Task { await load(offset: 0) }
+                let here = onWatch
+                if here.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(message)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        Button("Try Again") {
+                            Task { await load(offset: 0) }
+                        }
+                    }
+                    .listRowBackground(Color.clear)
+                } else {
+                    // The server out of reach (no Wi‑Fi, no iPhone): the
+                    // same list of what's on the watch, to play from.
+                    Section {
+                        ForEach(here, id: \.key) { pick in
+                            NavigationLink(value: LibraryRoute.pick(pick.key)) {
+                                PickRow(pick: pick)
+                            }
+                        }
+                        Button("Try Again") {
+                            Task { await load(offset: 0) }
+                        }
+                    } header: {
+                        Text("On This Watch")
+                    } footer: {
+                        Text("Can't reach \(source?.title ?? "the server"). These are on this watch.")
                     }
                 }
-                .listRowBackground(Color.clear)
             }
         }
         .navigationTitle(title)
+        .askingWhereToPlay($playRequest)
         .task {
             guard !hasLoaded else { return }
             await load(offset: 0)
         }
     }
 
-    /// An artist opens on its albums; a song goes on the watch with a tap;
-    /// an album or playlist opens on its songs.
+    /// An artist opens on its albums; a song goes on the watch with a tap,
+    /// and plays (on the iPhone, or here once it's here) with a swipe; an
+    /// album or playlist opens on its songs.
     @ViewBuilder
     private func row(for item: WatchBrowseItem) -> some View {
         if let destination = item.destination {
@@ -82,12 +109,44 @@ struct BrowseScreen: View {
                 BrowseRow(item: item)
             }
             .disabled(store.isOnWatch(pick))
+            .swipeActions(edge: .leading) {
+                if phone.isPhoneInReach {
+                    Button {
+                        let here = item.song.flatMap { song in store.isPlayable(song.key) ? song : nil }
+                        playRequest = PlayChoice.play(pick, playHere: here.map { song in { player.play([song]) } })
+                    } label: {
+                        Label("Play", systemImage: "play.fill")
+                    }
+                    .tint(.accentColor)
+                }
+            }
         } else {
             NavigationLink(value: BrowseRoute.item(item)) {
                 BrowseRow(item: item)
             }
             .zoomSource(BrowseRoute.item(item), in: zoom)
         }
+    }
+
+    /// The server this list is of, for a library section.
+    private var source: WatchSource? {
+        guard case let .section(source, _) = path else { return nil }
+        return source
+    }
+
+    /// What's on the watch of this list's kind and server: shown in its
+    /// place when the server can't be reached, so Playlists still lists the
+    /// playlists here. Songs added one at a time are in Downloads' Songs.
+    private var onWatch: [WatchPick] {
+        guard case let .section(source, section) = path else { return [] }
+        let kind: WatchPick.Kind? = switch section {
+        case .playlists: .playlist
+        case .albums, .recentlyAdded: .album
+        case .artists: .artist
+        case .songs: nil
+        }
+        guard let kind else { return [] }
+        return store.musicPicks.filter { $0.source == source && $0.kind == kind }
     }
 
     private func load(offset: Int) async {
@@ -112,7 +171,7 @@ private struct BrowseRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            ArtworkView(url: item.artworkURL)
+            ArtworkView(url: item.artworkURL, symbol: item.pick?.kind == .audiobook ? "book.closed" : "music.note")
                 .frame(width: 32, height: 32)
             VStack(alignment: .leading) {
                 Text(item.title)
@@ -139,11 +198,17 @@ private struct BrowseRow: View {
     }
 }
 
-/// An album, playlist or artist from a server, with its songs: put it on
-/// the watch whole, take it off, or put on single songs.
+/// An album, playlist or artist from a server, with its songs: play it on
+/// the iPhone (with the iPhone in reach; here too once it's here), put it
+/// on the watch whole, take it off, or put on single songs — a swipe plays
+/// from that song.
 struct BrowseItemScreen: View {
     @Environment(WatchDownloadStore.self) private var store
+    @Environment(WatchPlayer.self) private var player
+    @Environment(PhoneNowPlaying.self) private var phone
     let item: WatchBrowseItem
+
+    @State private var playRequest: PlayRequest?
 
     @State private var songs: [WatchSong] = []
     @State private var isLoading = false
@@ -170,6 +235,29 @@ struct BrowseItemScreen: View {
                 .frame(maxWidth: .infinity)
                 .listRowBackground(Color.clear)
 
+                if let pick = item.pick, phone.isPhoneInReach {
+                    HStack {
+                        Button {
+                            play(pick, from: nil)
+                        } label: {
+                            Image(systemName: "play.fill")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .accessibilityLabel("Play")
+                        .primaryHandGesture()
+                        Button {
+                            play(pick, from: nil, shuffled: true)
+                        } label: {
+                            Image(systemName: "shuffle")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .accessibilityLabel("Shuffle")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(songs.isEmpty)
+                    .listRowBackground(Color.clear)
+                }
+
                 if let pick = item.pick {
                     if store.picks.contains(key: pick.key) {
                         Label("On This Watch", systemImage: "checkmark.circle.fill")
@@ -190,9 +278,9 @@ struct BrowseItemScreen: View {
                                 ? "Downloading 1 song. Fast Download gets it here sooner."
                                 : "Downloading \(songs.count) songs. Fast Download gets them here sooner."
                         } label: {
-                            Label(songs.isEmpty ? "Download" : "Download \(songs.count) Songs", systemImage: "arrow.down.circle.fill")
-                                .frame(maxWidth: .infinity)
+                            DownloadLabel(title: songs.isEmpty ? "Download" : songs.count == 1 ? "1 Song" : "\(songs.count) Songs")
                         }
+                        .accessibilityLabel(songs.isEmpty ? "Download" : "Download \(songs.count) songs")
                         .buttonStyle(.borderedProminent)
                         .disabled(songs.isEmpty)
                         .listRowBackground(Color.clear)
@@ -240,13 +328,26 @@ struct BrowseItemScreen: View {
                         }
                     }
                     .disabled(isHere)
+                    .swipeActions(edge: .leading) {
+                        if let pick = item.pick, phone.isPhoneInReach {
+                            Button {
+                                play(pick, from: song)
+                            } label: {
+                                Label("Play", systemImage: "play.fill")
+                            }
+                            .tint(.accentColor)
+                        }
+                    }
                 }
             } footer: {
                 if !songs.isEmpty {
-                    Text("Tap a song to put just that one on your watch.")
+                    Text(phone.isPhoneInReach
+                        ? "Tap a song to put just that one on your watch, or swipe it to play from there."
+                        : "Tap a song to put just that one on your watch.")
                 }
             }
         }
+        .askingWhereToPlay($playRequest)
         .task {
             guard !hasLoaded, let pick = item.pick else { return }
             isLoading = true
@@ -254,5 +355,150 @@ struct BrowseItemScreen: View {
             isLoading = false
             hasLoaded = true
         }
+    }
+}
+
+extension BrowseItemScreen {
+    /// Plays it on the iPhone, or here too where its songs are here: from
+    /// `song`, or shuffled.
+    private func play(_ pick: WatchPick, from song: WatchSong?, shuffled: Bool = false) {
+        let here = songs.filter { store.isPlayable($0.key) }
+        let canPlayHere = song.map { store.isPlayable($0.key) } ?? !here.isEmpty
+        var playHere: (@MainActor () -> Void)?
+        if canPlayHere {
+            playHere = { player.play(here, startingAt: song?.key, shuffled: shuffled) }
+        }
+        playRequest = PlayChoice.play(pick, from: song?.contentID, shuffled: shuffled, playHere: playHere)
+    }
+}
+
+/// A book from a server: how long it is and where the server has the
+/// listener, and Download Book to put it on the watch — or, once it's
+/// here, the way to its page.
+struct BrowseBookScreen: View {
+    @Environment(WatchDownloadStore.self) private var store
+    @Environment(\.zoomNamespace) private var zoom
+    let item: WatchBrowseItem
+
+    @State private var book: WatchBookLookup?
+    @State private var isLoading = false
+    @State private var hasLoaded = false
+    @State private var note: String?
+
+    var body: some View {
+        List {
+            Section {
+                VStack(spacing: 6) {
+                    ArtworkView(url: item.artworkURL, symbol: "book.closed")
+                        .frame(width: 80, height: 80)
+                    Text(item.title)
+                        .font(.headline)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(3)
+                    if !item.subtitle.isEmpty {
+                        Text(item.subtitle)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    if let book {
+                        Text(detail(of: book))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .monospacedDigit()
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .listRowBackground(Color.clear)
+
+                if let pick = item.pick {
+                    if store.picks.contains(key: pick.key) {
+                        let route = BookRoute(key: pick.key)
+                        NavigationLink(value: route) {
+                            Label("On This Watch", systemImage: "checkmark.circle.fill")
+                                .foregroundStyle(.tint)
+                        }
+                        .zoomSource(route, in: zoom)
+                    } else {
+                        Button {
+                            add(pick)
+                        } label: {
+                            DownloadLabel(title: "Download Book")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(book == nil)
+                        .listRowBackground(Color.clear)
+                    }
+                }
+
+                if let note {
+                    Text(note)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .listRowBackground(Color.clear)
+                }
+            }
+
+            if isLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+                    .listRowBackground(Color.clear)
+            } else if hasLoaded, book == nil {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Couldn't read this book, or the server can't be reached.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    Button("Try Again") {
+                        Task { await load() }
+                    }
+                }
+                .listRowBackground(Color.clear)
+            }
+        }
+        .task {
+            guard !hasLoaded else { return }
+            await load()
+        }
+    }
+
+    /// Its length, and where the server has the listener when they've
+    /// started it.
+    private func detail(of book: WatchBookLookup) -> String {
+        let length = WatchBookFormat.length(book.duration)
+        guard let place = book.serverPlace, place.isStarted || place.isFinished else { return length }
+        return "\(length) • \(WatchBookFormat.status(place, duration: book.duration))"
+    }
+
+    private func load() async {
+        guard let pick = item.pick, !isLoading else { return }
+        isLoading = true
+        book = await WatchLibraryBrowser.shared.book(for: pick)
+        isLoading = false
+        hasLoaded = true
+    }
+
+    /// Puts the book on the watch with the files and chapters just read.
+    private func add(_ pick: WatchPick) {
+        guard let book else { return }
+        store.add(pick, songs: book.songs)
+        WatchBookStore.shared.noteLookedUp(book, for: pick)
+        WKInterfaceDevice.current().play(.success)
+        note = "Downloading. Fast Download gets it here sooner."
+    }
+}
+
+/// A download button's label: the arrow and a few words on one line,
+/// centered, dark on the green so it reads at a glance.
+private struct DownloadLabel: View {
+    let title: String
+
+    var body: some View {
+        Label(title, systemImage: "arrow.down.circle.fill")
+            .font(.body.weight(.semibold))
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .foregroundStyle(.black)
+            .frame(maxWidth: .infinity)
     }
 }

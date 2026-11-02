@@ -24,10 +24,13 @@ enum SheetDestination: Identifiable, Equatable {
     case renamePlaylist(content: PlayableContent)
     case confirmDeletePlaylist(content: PlayableContent)
     case addToPlaylist(content: PlayableContent)
+    case addToPlexCollection(content: PlayableContent)
     case speakerSettings(room: Room)
     case selectGroup(selectedGroupService: SelectedGroupService, onSelection: ((GroupRoom) async throws -> Void)? = nil, onQueueSelection: ((GroupRoom, QueuePosition) async throws -> Void)? = nil, defaultPosition: QueuePosition = .now, content: PlayableContent? = nil)
     case plexManagement
     case subsonicManagement
+    /// The Audiobookshelf server: sign in, or out.
+    case audiobookshelfManagement
     /// The Files provider's folder: pick one, rescan it, or forget it.
     case filesManagement
     case volumeControlsScreen(groupID: String)
@@ -38,6 +41,8 @@ enum SheetDestination: Identifiable, Equatable {
     case reorderSpotifyLibrarySections
     case reorderSoundCloudLibrarySections
     case shareToWatch
+    /// The book playing's chapters, opened on the one playing.
+    case audiobookChapters
 
     var id: String {
         switch self {
@@ -81,6 +86,8 @@ enum SheetDestination: Identifiable, Equatable {
             content.id + "confirmDelete"
         case let .addToPlaylist(content):
             content.id + "addToPlaylist"
+        case let .addToPlexCollection(content):
+            content.id + "addToPlexCollection"
         case .speakerSettings:
             "speaker.configuration"
         case .selectGroup:
@@ -89,6 +96,8 @@ enum SheetDestination: Identifiable, Equatable {
             "plexManagement"
         case .subsonicManagement:
             "subsonicManagement"
+        case .audiobookshelfManagement:
+            "audiobookshelfManagement"
         case .filesManagement:
             "filesManagement"
         case .volumeControlsScreen:
@@ -97,6 +106,8 @@ enum SheetDestination: Identifiable, Equatable {
             "favorites"
         case .shareToWatch:
             "shareToWatch"
+        case .audiobookChapters:
+            "audiobookChapters"
         default:
             "\(self)"
         }

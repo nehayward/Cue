@@ -17,4 +17,9 @@ protocol MacBridgeable: NSObjectProtocol {
     /// Dock menu renderer. Lazily created on first access; safe to call
     /// repeatedly — returns the same instance.
     var dockMenu: DockMenuRenderable { get }
+
+    /// The system dictionary's entry for `term` as plain text, or nil when
+    /// no dictionary has one. UIKit's dictionary page only opens Dictionary
+    /// on the Mac, so Cue lays this out itself (`DictionaryDefinitionView`).
+    func definition(of term: String) -> String?
 }

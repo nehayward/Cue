@@ -30,13 +30,17 @@ struct RouterDestinationView: View {
                 // opens from rows, search and sheets, where there is no
                 // source on screen to grow out of.
                 if let zoomSource, let zoomNamespace {
-                    MediaDetailView(playableContent: content)
+                    MediaDetailDestination(content: content)
                         .zoomTransition(from: zoomSource, in: zoomNamespace)
                 } else {
-                    MediaDetailView(playableContent: content)
+                    MediaDetailDestination(content: content)
                 }
             case let .artistDetail(content, _):
                 ArtistDetailView(playableContent: content)
+            case let .audiobookDetail(content):
+                AudiobookDetailView(book: content)
+            case let .audiobookSeries(name, books):
+                AudiobookSeriesView(name: name, books: books)
             case let .createScene(content):
                 NavigationStack {
                     SceneBuilderScreen(contentToAdd: ContentToAdd(add: true, content: content))
@@ -90,8 +94,8 @@ struct RouterDestinationView: View {
                     action: action
                 )
                 .navigationTitle(title)
-            case let .playableGridScreen(title: title, items: items, action: action):
-                PlayableGridScreen(items: items, action: action)
+            case let .playableGridScreen(title: title, items: items, sort: sort, action: action):
+                PlayableGridScreen(items: items, sort: sort, action: action)
                     .navigationTitle(title)
             case .houseHold:
                 HouseholdScreen()
@@ -99,6 +103,12 @@ struct RouterDestinationView: View {
                 ServicePreferenceScreen()
             case .downloads:
                 DownloadsScreen()
+            case .bookDownloads:
+                DownloadsScreen(page: .books)
+            case let .storagePage(page):
+                DownloadsScreen(page: page)
+            case .bookWords:
+                BookWordsScreen()
             case let .downloaded(service):
                 DownloadedScreen(service: service)
             case let .onDeviceCollection(collection, service):
@@ -111,12 +121,42 @@ struct RouterDestinationView: View {
             case .genreList:
                 GenreListView()
             case let .folderBrowse(item: item, title: title):
-                FolderBrowseView(item: item, title: title)
+                if item.content.service == .plex {
+                    // Plex's folders are its collections.
+                    PlexCollectionScreen(collection: item)
+                } else {
+                    FolderBrowseView(item: item, title: title)
+                }
             case let .tuneInBrowse(title: title, url: url):
                 TuneInBrowseScreen(title: title, url: url)
+            case .plexCollections:
+                PlexCollectionsScreen()
             case .connectByIP:
                 ConnectByIPScreen()
+            case let .settingsPage(page):
+                switch page {
+                case .playback: PlaybackSettingsScreen()
+                case .sonos: SonosSettingsScreen()
+                case .appearance: AppearanceSettingsScreen()
+                case .about: AboutSettingsScreen()
+                case .storage: DownloadsScreen()
+                }
             }
+        }
+    }
+}
+
+/// What `.mediaDetail` opens: an album's or playlist's page, or for a Plex
+/// collection (a Plex `.folder`, as in `.folderBrowse`), the collection's —
+/// so a link to one, like the banner after Add to Collection, lands there.
+struct MediaDetailDestination: View {
+    let content: PlayableContent
+
+    var body: some View {
+        if content.content.service == .plex, content.content.type == .folder {
+            PlexCollectionScreen(collection: content)
+        } else {
+            MediaDetailView(playableContent: content)
         }
     }
 }

@@ -185,4 +185,32 @@ final class FilesLibraryIndexTests: XCTestCase {
         XCTAssertEqual(library.artists.map(\.title), ["Unknown Artist"])
         XCTAssertEqual(library.songs.first?.subtitle, "Unknown Artist • MP3")
     }
+
+    // MARK: Books
+
+    func testAnM4BOrAnAudiobookGenreMakesItsAlbumABook() {
+        var tagged = track("Books/Hobbit/02.mp3", title: "Part 2", artist: "J. R. R. Tolkien", album: "The Hobbit", trackNumber: 2, duration: 1800)
+        tagged.genre = "Audiobook"
+        var first = track("Books/Hobbit/01.mp3", title: "Part 1", artist: "J. R. R. Tolkien", album: "The Hobbit", trackNumber: 1, duration: 1200)
+        first.genre = "Audiobook"
+        let library = FilesLibraryService(tracks: [
+            track("R/OK/01.mp3", title: "Airbag", artist: "Radiohead", album: "OK Computer", trackNumber: 1, duration: 284),
+            track("Books/Martian.m4b", title: "The Martian", artist: "Andy Weir", album: "The Martian", duration: 39_000),
+            tagged,
+            first,
+        ], playlists: [], folderURL: root)
+
+        XCTAssertEqual(library.books.map(\.title), ["The Hobbit", "The Martian"])
+        XCTAssertTrue(library.books.allSatisfy { $0.content.type == .audiobook && $0.content.service == .files })
+        // Out of the music: neither its files nor its author.
+        XCTAssertEqual(library.albums.map(\.title), ["OK Computer"])
+        XCTAssertEqual(library.songs.map(\.title), ["Airbag"])
+        XCTAssertEqual(library.artists.map(\.title), ["Radiohead"])
+        // Its files play it, in order, and are found by id.
+        let hobbit = library.books.first { $0.title == "The Hobbit" }!
+        XCTAssertEqual(library.albumTracks(albumID: hobbit.content.id).map(\.title), ["Part 1", "Part 2"])
+        XCTAssertEqual(hobbit.metadata?.duration, .seconds(3000))
+        XCTAssertNotNil(library.book(id: hobbit.content.id))
+        XCTAssertEqual(library.search(query: "Martian").map(\.content.type), [.audiobook])
+    }
 }

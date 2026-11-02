@@ -1,0 +1,114 @@
+# Port to Clic: the Play On sheet and its volume sliders
+
+Cue rebuilt Play On as an AirPlay-style sheet on `claude/speaker-volume-picker`
+(PR #5, 2026-10-05): every room its own volume slider, groups that collapse
+and open out, a group bar, and a sideways pan that finally made dragging
+volume in a list feel right. Clic (`~/Developer/Clic-deezer`, `origin/main`)
+has none of it. Its group and volume UI is still `GroupScreen`,
+`GroupMenuButton`, `GroupVolumeControlView`, `VolumeMultiControlView` and
+`VolumeControlRoomView`.
+
+**Status: not started.** Tested in Cue on an iPhone against seven rooms.
+
+## What Clic is missing that Cue's sheet assumes
+
+- **No `PlaybackRoute` and no This Device.** Clic only plays on speakers. Drop
+  `DeviceRow`, `PlaybackRoute.isSwitching`, the transfer prompt
+  (`RouteTransferPrompt`) and `select(.device)`. The sheet becomes a speaker
+  and group picker for the selected group. In Cue, `expandedGroup` is
+  `route.isSwitching ? nil : route.group`; in Clic it's the selected group.
+  Collapsed `GroupRow`s still make sense for the other groups, and so does
+  opening one out when it's chosen.
+- **Deployment target is iOS 17** (Cue's app target is 26). `SidewaysPan` is
+  a `UIGestureRecognizerRepresentable`, which needs iOS 18. Either raise
+  Clic's target or put the pan behind `if #available(iOS 18, *)` with the old
+  `DragGesture` as the fallback. The glass, `safeAreaBar` and
+  `scrollEdgeEffectStyle` bits already have pre-26 fallbacks.
+- **`GroupMembership`** (in Cue's `GroupMenuButton.swift`) is the shared regroup
+  logic: toggle, Everywhere, Ungroup All, Play Only Here, and following the
+  promoted coordinator. Clic's `GroupMenuButton.swift` is the older version.
+  Bring Cue's over whole, then swap `follow(from:to:)`'s `PlaybackRoute`
+  branch for Clic's router.
+
+## Port these as they are
+
+1. **`Packages/SonosKit`: hold a mute against the poll** (`0931e512`, the
+   SonosKit part). `Room.holdMute(_:)` and `GroupRoom.holdMute(_:)` show the
+   mute at once and set `muteHeldUntil` 2.5 s out. The poll in
+   `SonosService` skips a room or group while `isMuteHeld`. Without it, a
+   read that left before the speaker took the change puts the old state back,
+   so the slash or icon flickers. Clic's `setRoomMute(room:)` (around
+   `SonosService.swift:1243`) is the same code as Cue's was.
+2. **`SidewaysPan`** (in `PlayOnSheet.swift`). See below; worth putting in
+   VibesDS rather than the sheet.
+3. **`SpeakerVolumeWriter`** (in `PlayOnSheet.swift`). It sends a room's or a
+   group's level to the model at once and to the speaker at most every
+   `interval`, always the latest and never a repeat. It holds
+   `isEditingVolume` until a moment after the last write, then rereads what
+   the change moved. This is what keeps the fill under the finger.
+4. **`VolumeHaptics`** with `VolumeRouteRow.adjust`. Tick per percent from the
+   drag itself, firmer bump at 0 and 100.
+5. **`AppStorageKeys.playOnSheetHeights`** (Defaults) for the fitted heights.
+
+## The sideways pan, and why it's the real improvement
+
+SwiftUI's `DragGesture` takes the touch first and decides later. In a
+`ScrollView` or a sheet, a slider row either swallows vertical drags (the
+list won't scroll, the sheet won't pull down) or needs a dead zone
+(`VibeSlider`'s `delayDrag`, 16 pt) that makes it feel late.
+`.simultaneousGesture` and `.highPriorityGesture` choose who wins. Neither
+lets a gesture decline to start because of its direction.
+
+`SidewaysPan` is a `UIPanGestureRecognizer` brought into SwiftUI with
+`UIGestureRecognizerRepresentable` (iOS 18):
+
+- `gestureRecognizerShouldBegin` returns true only when the motion so far is
+  more sideways than vertical. An up or down drag fails it at once.
+- `shouldBeRequiredToFailBy` makes every other pan (the scroll view's, the
+  sheet's dismiss) wait for it. So a sideways drag is never also a scroll, and
+  a vertical one goes straight to the list.
+- On `.began` it resets the translation to zero, so the few points it took to
+  tell the direction don't jump the level.
+- The level is `startLevel + translation / rowWidth`, relative to where the
+  drag began, not where the finger is. A tap never jumps the volume.
+
+Other places to use it, in Cue and Clic: `VibeSlider` (VibesDS) is used by
+`GroupScreen`, `VolumeControlView`, `VolumeControlRoomView`, `RoomVolumeView`,
+the player's volume, alarms and scenes. Moving `SidewaysPan` into VibesDS and
+using it there on iOS would retire `delayDrag`. The Mac and TV keep
+`DragGesture`.
+
+## Lessons that apply to anything on the glass sheet
+
+- **Don't dim with `.opacity` on glass.** A white icon at `.opacity(0.35)`
+  still showed full white on the iPhone (the same code rendered faded in a
+  Mac `ImageRenderer`). `.foregroundStyle(.tertiary)` dims properly.
+- **Cut-outs need masks, not `destinationOut`.** Blends only erase what shares
+  their compositing group, and overlays and offsets quietly start a new one.
+  The badge's hole is an even-odd `BadgeCut` mask on the speaker. The count is
+  a `luminanceToAlpha` mask on the badge. The mute gap is a `SlashCut` mask.
+- **Size the sheet from its parts, never from its own height.** Measure the
+  header, rows, bar and bottom inset with `onGeometryChange` (it reports the
+  first value, unlike `onScrollGeometryChange`) and add them up (`refit()`).
+  Using the sheet's current height fails while it's still zooming in, and it
+  opened full height.
+- **Fire haptics from the gesture, not from watching the value.**
+  `sensoryFeedback(trigger:)` waits for the redraw and skips steps on a fast
+  drag.
+- **Keep the bar out of the list.** Put it in the `VStack` under the
+  `ScrollView`, not in a `safeAreaBar`, or the rows show through its circles
+  and cut-outs. Fade the list's foot with a mask instead.
+
+## Commits on Cue's branch, oldest first
+
+`9eafb13f` AirPlay-style sheet with a volume per room · `57ff1f2c` fit to
+rooms · `d4a57bd6` zoom from the button, All Speakers volume · `10739f53`
+pull down to close · `e9b1ee5b` Sync · `0d8ed135` room count on the icon ·
+`282a6aee` slide at zero, strike muted icons · `299fa2cf` mute and Play Only
+Here per room · `2873a045` redraw only the changed row · `40f6b798` back in a
+sheet · `d9c80c40` refit from the first measure · `8c99c443` masks, not
+blends · `0931e512` group rows, group bar, haptics, mute hold, final sizing.
+
+The sheet changed shape several times on the way. Copy the final
+`PlayOnSheet.swift`, `GroupMenuButton.swift` and the SonosKit changes rather
+than replaying the commits. Then cut out the device-route parts listed above.

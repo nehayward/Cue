@@ -6,7 +6,11 @@ import MusicSearchKit
 @MainActor
 @Observable
 public final class AppleMusicBrowseService {
-    public static var shared = AppleMusicBrowseService()
+    public static var shared: AppleMusicBrowseService = {
+        let service = AppleMusicBrowseService()
+        service.restoreStations()
+        return service
+    }()
     public var appleMusicAuthorizationStatus: AppleMusicAuthorization = .denied
 
     @ObservationIgnored private let appleMusicSearchAPI = AppleMusicSearchAPI()
@@ -91,9 +95,15 @@ public final class AppleMusicBrowseService {
         let offset = Int(container.next?.components(separatedBy: "=").last ?? "0") ?? 0
         offsets["updateUsersApplePlaylists"] = offset
         let newUserPlaylists = container.data.compactMap(\.toPlayable)
+        // One write, and only for a change: each `updateOrAppend` on the
+        // observed set counted as a write, so every open of Search updated
+        // the Apple Playlists row for nothing.
+        var updated = userPlaylists
         for newUserPlaylist in newUserPlaylists {
-            userPlaylists.updateOrAppend(newUserPlaylist)
+            updated.updateOrAppend(newUserPlaylist)
         }
+        guard !updated.displaysSame(as: userPlaylists) else { return }
+        userPlaylists = updated
     }
     
     public func updateUsersApplePlaylistFolders(offset: Int = 0) async {
@@ -152,17 +162,25 @@ public final class AppleMusicBrowseService {
         }
     }
     
+    /// The user's personal stations, then the ones played lately. A first
+    /// page read whole replaces the list, so a station no longer played
+    /// lately goes rather than staying on from the list kept at the last
+    /// launch (`restoreStations`); later pages add to it.
     public func updateRadioStations(offset: Int = 0, limit: Int? = nil) async {
-        guard let container = try? await apple.lookupAppleRadioStations(offset: offset) else { return }
-        let newUsersRecentsTracks = container.data.compactMap(\.toPlayable)
-        for newUsersRecentsTracks in newUsersRecentsTracks {
-            userStations.updateOrAppend(newUsersRecentsTracks)
-        }
-        
-        guard let container = try? await apple.lookupUsersRecentRadioStations(offset: offset) else { return }
-        let newUsersRecentRadioStations = container.data.compactMap(\.toPlayable)
-        for newUsersRecentRadioStation in newUsersRecentRadioStations {
-            userStations.updateOrAppend(newUsersRecentRadioStation)
+        guard let personal = try? await apple.lookupAppleRadioStations(offset: offset) else { return }
+        let recent = try? await apple.lookupUsersRecentRadioStations(offset: offset)
+        let read = (personal.data + (recent?.data ?? [])).compactMap(\.toPlayable)
+        if offset == 0, recent != nil {
+            // Asked each time the Radio tab shows: the same stations again
+            // aren't written, which would redraw every row of the tab.
+            let fresh = OrderedSet(read)
+            guard fresh != userStations else { return }
+            userStations = fresh
+            keepStations()
+        } else {
+            for station in read {
+                userStations.updateOrAppend(station)
+            }
         }
     }
 
@@ -172,9 +190,36 @@ public final class AppleMusicBrowseService {
 
     public func updateLiveRadioStations() async {
         guard let container = try? await apple.lookupAppleLiveRadioStations() else { return }
-        for station in container.data.compactMap(\.toPlayable) {
-            liveStations.updateOrAppend(station)
-        }
+        // Replaced whole: one Apple drops from the lineup goes. Only when
+        // it changed, as with the personal ones.
+        let fresh = OrderedSet(container.data.compactMap(\.toPlayable))
+        guard fresh != liveStations else { return }
+        liveStations = fresh
+        keepStations()
+    }
+
+    // MARK: - Kept stations
+
+    /// The stations as last read (`ShelfCache`), so the Radio tab and the
+    /// library's Personal Stations draw them at once while Apple is read
+    /// behind them. A station is its id, name and artwork, so a kept one
+    /// plays as a fresh one does.
+    private struct KeptStations: Codable, Sendable {
+        var live: [PlayableContent]
+        var personal: [PlayableContent]
+    }
+
+    private static let keptStationsName = "AppleRadio"
+
+    /// Only for `shared`: a service made for one screen reads its own.
+    private func restoreStations() {
+        guard let kept = ShelfCache.load(KeptStations.self, named: Self.keptStationsName) else { return }
+        liveStations = OrderedSet(kept.live)
+        userStations = OrderedSet(kept.personal)
+    }
+
+    private func keepStations() {
+        ShelfCache.save(KeptStations(live: Array(liveStations), personal: Array(userStations)), named: Self.keptStationsName)
     }
 
     /// Everything the Radio tab lists for Apple Music: the live stations

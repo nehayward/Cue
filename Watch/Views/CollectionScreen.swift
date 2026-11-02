@@ -7,8 +7,18 @@ import WatchSync
 struct CollectionScreen: View {
     @Environment(WatchDownloadStore.self) private var store
     @Environment(WatchPlayer.self) private var player
+    @Environment(PhoneNowPlaying.self) private var phone
     @Environment(\.dismiss) private var dismiss
     let route: LibraryRoute
+
+    @State private var playRequest: PlayRequest?
+
+    /// The album or playlist this is, which the iPhone can play whole; none
+    /// for the songs added one at a time.
+    private var collection: WatchPick? {
+        guard case let .pick(key) = route else { return nil }
+        return store.picks.pick(key: key)
+    }
 
     private var picks: [WatchPick] {
         switch route {
@@ -33,7 +43,7 @@ struct CollectionScreen: View {
 
                     HStack {
                         Button {
-                            player.play(playable)
+                            play(playable, startingAt: nil)
                         } label: {
                             Image(systemName: "play.fill")
                                 .frame(maxWidth: .infinity)
@@ -41,7 +51,7 @@ struct CollectionScreen: View {
                         .accessibilityLabel("Play")
                         .primaryHandGesture()
                         Button {
-                            player.play(playable, shuffled: true)
+                            play(playable, startingAt: nil, shuffled: true)
                         } label: {
                             Image(systemName: "shuffle")
                                 .frame(maxWidth: .infinity)
@@ -49,18 +59,18 @@ struct CollectionScreen: View {
                         .accessibilityLabel("Shuffle")
                     }
                     .buttonStyle(.bordered)
-                    .disabled(playable.isEmpty)
+                    .disabled(playable.isEmpty && (collection == nil || !phone.isPhoneInReach))
                     .listRowBackground(Color.clear)
                 }
 
                 Section {
                     ForEach(songs) { song in
                         Button {
-                            player.play(playable, startingAt: song.key)
+                            play(playable, startingAt: song)
                         } label: {
                             SongStateRow(song: song, item: store.item(for: song.key), isCurrent: player.current?.key == song.key)
                         }
-                        .disabled(!store.isPlayable(song.key))
+                        .disabled(!store.isPlayable(song.key) && !phone.isPhoneInReach)
                         .swipeActions {
                             if route == .songs {
                                 Button(role: .destructive) {
@@ -88,7 +98,24 @@ struct CollectionScreen: View {
                 }
             }
             .navigationTitle(route == .songs ? "Songs" : picks[0].title)
+            .askingWhereToPlay($playRequest)
         }
+    }
+
+    /// Plays here, or, with the iPhone in reach, where it's asked: the
+    /// iPhone plays the album or playlist (a song added by itself, alone).
+    /// The songs added one at a time play here, all together.
+    private func play(_ playable: [WatchSong], startingAt song: WatchSong?, shuffled: Bool = false) {
+        let canPlayHere = song.map { store.isPlayable($0.key) } ?? !playable.isEmpty
+        var playHere: (@MainActor () -> Void)?
+        if canPlayHere {
+            playHere = { player.play(playable, startingAt: song?.key, shuffled: shuffled) }
+        }
+        guard let pick = collection ?? song?.pick else {
+            playHere?()
+            return
+        }
+        playRequest = PlayChoice.play(pick, from: song?.contentID, shuffled: shuffled, playHere: playHere)
     }
 
     @ViewBuilder

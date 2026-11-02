@@ -46,18 +46,23 @@ struct ArtworkMeshBackground: View {
     nonisolated private static let bitmapSize = 48
 
     var body: some View {
-        ZStack {
-            if let image {
-                Image(uiImage: image)
-                    .resizable()
-                    .interpolation(.high)
-                    .id(imageKey)
-                    .transition(.opacity)
+        // Full size with or without a gradient. An empty ZStack had no
+        // size and sat in the middle, so the first gradient, put in with an
+        // animation, rode the container's growth out to the corner: it came
+        // in sliding from the bottom right instead of fading.
+        Color.clear
+            .overlay {
+                if let image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .interpolation(.high)
+                        .id(imageKey)
+                        .transition(.opacity)
+                }
             }
-        }
-        .task(id: "\(sourceID)|\(artworkKey)|\(artworkURL?.absoluteString ?? "")") {
-            await load()
-        }
+            .task(id: "\(sourceID)|\(artworkKey)|\(artworkURL?.absoluteString ?? "")") {
+                await load()
+            }
     }
 
     private func load() async {
@@ -224,7 +229,8 @@ extension ArtworkMeshBackground {
             sourceID: group.coordinatorID,
             artworkURL: track.artworkURL,
             artworkKey: track.playerArtworkCacheKey,
-            isEmpty: track.isEmpty
+            // Line-in never gets a cover, so there's none to hold out for.
+            isEmpty: track.isEmpty || track.lineInSourceID != nil
         )
     }
 
@@ -243,4 +249,44 @@ extension ArtworkMeshBackground {
     }
 
     private static let deviceSourceID = "this-device"
+}
+
+/// A cover's colours as the player background's soft gradient, drawn small,
+/// for carrying a cover on past its own edge — as under the title on a
+/// collection's album cards.
+struct ArtworkMesh {
+    let image: UIImage
+    /// Whether the bottom of the gradient, where text sits under a cover,
+    /// is light enough to want dark text.
+    let isLight: Bool
+
+    /// The gradient for `url`, made once per `key` (an item's `imageKey`)
+    /// and kept. Nil when the cover couldn't load.
+    @MainActor
+    static func load(from url: URL?, key: String) async -> ArtworkMesh? {
+        if let cached = cache[key] { return cached }
+        guard let url else { return nil }
+        var request = ImageRequest(url: url)
+        // Its own entry: this is a 32 px decode, not the card's artwork.
+        request.imageID = key + "#mesh"
+        request.thumbnail = ImageRequest.ThumbnailOptions(maxPixelSize: 32)
+        guard let cover = try? await ImagePipeline.shared.image(for: request) else { return nil }
+        let mesh = await Task.detached(priority: .utility) { () -> ArtworkMesh? in
+            guard let colors = ArtworkMeshBackground.sampleColors(from: cover),
+                  let image = ArtworkMeshBackground.renderGradient(colors) else { return nil }
+            // The bottom row of the grid is what sits behind the text.
+            let bottom = colors.suffix(4)
+            let luminance = bottom
+                .map { 0.2126 * $0.x + 0.7152 * $0.y + 0.0722 * $0.z }
+                .reduce(0, +) / Float(bottom.count)
+            return ArtworkMesh(image: image, isLight: luminance > 0.6)
+        }.value
+        guard let mesh else { return nil }
+        // ~9 KB a cover; capped like the player's.
+        if cache.count >= 200 { cache.removeAll(keepingCapacity: true) }
+        cache[key] = mesh
+        return mesh
+    }
+
+    @MainActor private static var cache: [String: ArtworkMesh] = [:]
 }

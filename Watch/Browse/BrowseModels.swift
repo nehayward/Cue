@@ -1,4 +1,5 @@
 import Foundation
+import MusicSearchKit
 import WatchSync
 
 /// The lists a server offers, as on the iPhone's library screens.
@@ -26,13 +27,23 @@ enum WatchBrowseSection: String, CaseIterable, Hashable {
     }
 }
 
+/// A list of books, under Audiobooks on the home screen.
+enum WatchBookShelf: Hashable {
+    /// Books started and not finished on each server, the one listened to
+    /// last first.
+    case listening
+    /// Every book on one server.
+    case all(WatchSource)
+}
+
 /// Where in a server's library a page comes from. The server's lists and
-/// its search are on the home screen.
+/// its search are on the home screen, and so are the shelves of books.
 enum WatchBrowsePath: Hashable {
     case section(WatchSource, WatchBrowseSection)
     /// An artist's albums.
     case artist(WatchPick)
     case search(WatchSource, String)
+    case books(WatchBookShelf)
 }
 
 /// A row: an artist to open on its albums, an album or playlist to open on
@@ -63,8 +74,22 @@ struct WatchBrowsePage {
     var message: String?
 }
 
-/// Where a browse row goes: another page, or an album, playlist or artist's
-/// songs.
+/// A book as its server has it: its files in playing order, its chapters
+/// (nil when they weren't asked for), and where the server has the
+/// listener.
+struct WatchBookLookup {
+    var songs: [WatchSong]
+    var chapters: [AudiobookChapter]?
+    var serverPlace: AudiobookProgress?
+
+    /// The book's length, from its files'.
+    var duration: TimeInterval {
+        songs.reduce(0) { $0 + ($1.duration ?? 0) }
+    }
+}
+
+/// Where a browse row goes: another page, an album, playlist or artist's
+/// songs, or a book.
 enum BrowseRoute: Hashable {
     case path(WatchBrowsePath)
     case item(WatchBrowseItem)

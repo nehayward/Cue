@@ -1,5 +1,5 @@
 import AppIntents
-import CloudStorage
+import Defaults
 import SonosKit
 
 #if canImport(WidgetKit)
@@ -48,8 +48,8 @@ struct SetRelativeGroupVolumeIntent: SetValueIntent, LiveActivityIntent {
     init() { }
 
     func perform() async throws -> some IntentResult {
-        guard CloudStorageSync.shared.bool(for: "com.cue.subscriptions") ?? false else {
-            throw IntentError.message("Subscribe to Super in App")
+        guard GroupStorageKeys.defaults.hasSuper else {
+            throw IntentError.superRequired
         }
         
         guard !roomOnly else {

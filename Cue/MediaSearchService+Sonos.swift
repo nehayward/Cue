@@ -24,6 +24,7 @@ extension MediaSearchService {
         case .sonosRadio: .sonosRadio
         case .pandora: .pandora
         case .subsonic: nil
+        case .audiobookshelf: nil
         case .files: nil
         }
     }
@@ -39,6 +40,7 @@ extension MediaSearchService {
     var isConfiguredInCue: Bool? {
         switch self {
         case .subsonic: SubsonicAPI.shared.isConfigured
+        case .audiobookshelf: AudiobookshelfAPI.shared.isConfigured
         case .files: FilesLibraryService.shared.isConfigured
         default: nil
         }
@@ -80,6 +82,7 @@ extension MediaSearchService {
         switch self {
         case .plex: .plexManagement
         case .subsonic: .subsonicManagement
+        case .audiobookshelf: .audiobookshelfManagement
         case .files: .filesManagement
         default: nil
         }

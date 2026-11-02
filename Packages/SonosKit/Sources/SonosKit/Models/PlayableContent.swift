@@ -182,6 +182,9 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
             return ""
         case (.unique, _):
             return id
+        // A book has no URI of its own: `AudiobookPlayer` queues its files.
+        case (.audiobook, _):
+            return ""
         default:
             assertionFailure("Failed")
             return ""
@@ -460,7 +463,10 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
     /// carried as `audioCodec`, or the transcode target) identifies one,
     /// wildcard otherwise.
     private var directStreamProtocolInfo: String {
-        let suffix = StreamTranscoding.fileExtension(for: .speaker, original: metadata?.audioCodec)
+        // A book's file goes to the speaker as it is on the server.
+        let suffix = content.service == .audiobookshelf
+            ? metadata?.audioCodec
+            : StreamTranscoding.fileExtension(for: .speaker, original: metadata?.audioCodec)
         return "http-get:*:\(AudioMIMEType.forSuffix(suffix) ?? "*"):*"
     }
 
@@ -603,6 +609,28 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
         hasher.combine(content)
         hasher.combine(title)
         hasher.combine(metadata?.position ?? 0)
+    }
+
+    /// Whether `other` would draw the same on screen. `==` only compares
+    /// what identifies an item (content, title, position), so it misses a
+    /// new cover, subtitle or duration.
+    public func displaysSame(as other: PlayableContent) -> Bool {
+        self == other
+            && subtitle == other.subtitle
+            && artwork == other.artwork
+            && thumbnail == other.thumbnail
+            && previewURL == other.previewURL
+            && metadata == other.metadata
+    }
+}
+
+extension Sequence where Element == PlayableContent {
+    /// Whether two lists would draw the same: the same items in the same
+    /// order, each looking the same. A refresh that fetched nothing new
+    /// skips its write with this, so the views reading the list don't
+    /// update for nothing.
+    public func displaysSame<Other: Sequence>(as other: Other) -> Bool where Other.Element == PlayableContent {
+        elementsEqual(other) { $0.displaysSame(as: $1) }
     }
 }
 

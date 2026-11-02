@@ -21,8 +21,8 @@ struct PlayHistoryView: View {
     /// The five rows shown, taken without copying or filtering the rest of
     /// the history.
     private var recentHistory: [PlayableContent] {
-        guard let activeTypes else { return Array(playHistoryService.history.prefix(5)) }
-        return Array(playHistoryService.history.lazy.filter { activeTypes.contains($0.content.type) }.prefix(5))
+        guard let activeTypes else { return Array(playHistoryService.plays.prefix(5)) }
+        return Array(playHistoryService.plays.filter { activeTypes.contains($0.content.type) }.prefix(5))
     }
 
     var body: some View {

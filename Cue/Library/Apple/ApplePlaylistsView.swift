@@ -1,4 +1,3 @@
-import Analytics
 import CloudStorage
 import MusicSearchKit
 import Defaults
@@ -23,7 +22,8 @@ struct ApplePlaylistsView: View {
                     .fontDesign(.rounded)
                     .fontWeight(.semibold)
             }
-            .tag(UUID().uuidString)
+            // Stable: a fresh UUID re-tagged the row on every pass.
+            .tag("applePlaylistsHeader")
             if !appleMusicBrowseService.userPlaylists.isEmpty {
                 VStack(spacing: 16) {
                     HStack(spacing: 12) {

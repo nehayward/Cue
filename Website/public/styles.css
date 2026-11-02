@@ -75,8 +75,9 @@ body::before {
 		url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.05 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
 }
 
-h1, h2, h3 { margin: 0; line-height: 1.1; letter-spacing: -0.025em; font-weight: 700; }
-p { margin: 0; }
+/* Headings break into even lines, and paragraphs avoid a lone last word. */
+h1, h2, h3 { margin: 0; line-height: 1.1; letter-spacing: -0.025em; font-weight: 700; text-wrap: balance; }
+p { margin: 0; text-wrap: pretty; }
 a { color: inherit; }
 img, svg, video { display: block; max-width: 100%; }
 ul, ol { margin: 0; padding: 0; list-style: none; }
@@ -165,6 +166,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .btn-soon { cursor: default; color: var(--accent); background: var(--accent-soft); border-color: rgb(52 211 153 / 0.3); }
 .btn-soon:hover { transform: none; }
 
+
 .actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 2rem; }
 .actions.center { justify-content: center; }
 
@@ -182,14 +184,15 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 }
 .header-inner { height: 100%; display: flex; align-items: center; gap: 1.5rem; }
 
-.brand { display: inline-flex; align-items: center; gap: 0.6rem; font-weight: 700; font-size: 1.1rem; text-decoration: none; }
+/* The brand takes the spare width, so the nav, button and menu sit at the
+   right edge whichever of them a page has. */
+.brand { display: inline-flex; align-items: center; gap: 0.6rem; margin-right: auto; font-weight: 700; font-size: 1.1rem; text-decoration: none; }
 .brand img { border-radius: 7px; }
 
-.nav { display: none; gap: 1.75rem; margin-left: auto; }
+.nav { display: none; gap: 1.75rem; }
 .nav a { color: var(--muted); text-decoration: none; font-size: 0.92rem; font-weight: 500; transition: color 0.2s; }
 .nav a:hover, .nav a[aria-current] { color: var(--text); }
 
-.header .btn { margin-left: auto; }
 
 /* Mobile menu: a <details>, so it opens without JavaScript. */
 .menu summary { list-style: none; cursor: pointer; padding: 0.4rem; display: flex; }
@@ -212,7 +215,6 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 
 @media (min-width: 820px) {
 	.nav { display: flex; }
-	.header .btn { margin-left: 0; }
 	.menu { display: none; }
 }
 @media (max-width: 420px) {
@@ -259,8 +261,8 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 	opacity: 0.55;
 	pointer-events: none;
 }
-.hero-phones .iphone:nth-child(2) { transform: translateX(-47%) rotate(-8deg) scale(0.86); filter: brightness(0.6) saturate(0.85); }
-.hero-phones .iphone:nth-child(3) { transform: translateX(47%) rotate(8deg) scale(0.86); filter: brightness(0.6) saturate(0.85); }
+.hero-phones .iphone:nth-child(2) { transform: translateX(-52%) scale(0.86); filter: brightness(0.6) saturate(0.85); }
+.hero-phones .iphone:nth-child(3) { transform: translateX(52%) scale(0.86); filter: brightness(0.6) saturate(0.85); }
 @media (max-width: 520px) {
 	.hero-phones .iphone:not(:first-child) { display: none; }
 }
@@ -302,6 +304,97 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 	border-radius: inherit;
 	background: linear-gradient(115deg, rgb(255 255 255 / 0.09) 0%, rgb(255 255 255 / 0.02) 35%, transparent 36%);
 	pointer-events: none;
+}
+
+/* ── Apple Watch frame ──────────────────────────────────────────────────── */
+
+/* A 46 mm watch round a 416 × 496 screenshot. Every size is in `cqw`, a
+   hundredth of the watch's width, so the display (radius 20), the black
+   glass round it (23.4) and the case (26) stay concentric at any size. The
+   sport band runs out above and below, fading, and the Digital Crown and
+   side button sit on the right. */
+.watch {
+	container-type: inline-size;
+	position: relative;
+}
+.watch-case {
+	position: relative;
+	z-index: 1;
+	padding: 2.6cqw;
+	border-radius: 26cqw;
+	background:
+		linear-gradient(90deg, rgb(255 255 255 / 0.2), transparent 5%, transparent 95%, rgb(255 255 255 / 0.14)),
+		linear-gradient(160deg, #73777b 0%, #3a3d40 20%, #222426 50%, #3d4043 80%, #64686c 100%);
+	box-shadow:
+		inset 0 0 0 1px rgb(255 255 255 / 0.2),
+		inset 0 0 0 0.9cqw rgb(0 0 0 / 0.18),
+		0 8cqw 16cqw -6cqw rgb(0 0 0 / 0.85);
+}
+.watch-screen {
+	position: relative;
+	padding: 3.4cqw;
+	border-radius: 23.4cqw;
+	background: #000;
+	overflow: hidden;
+}
+.watch-screen img { display: block; width: 100%; height: auto; border-radius: 20cqw; }
+/* A faint sheen across the glass. */
+.watch-screen::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+	background: linear-gradient(120deg, rgb(255 255 255 / 0.1) 0%, rgb(255 255 255 / 0.02) 34%, transparent 35%);
+	pointer-events: none;
+}
+.watch-band {
+	position: absolute;
+	left: 15cqw;
+	right: 15cqw;
+	height: 34cqw;
+	background:
+		linear-gradient(90deg, #0b0c0d, #26282a 14%, #3a3d40 40%, #2c2e30 68%, #1a1b1c 88%, #0b0c0d);
+}
+.watch-band.top {
+	top: -26cqw;
+	border-radius: 6cqw 6cqw 0 0;
+	mask-image: linear-gradient(to top, #000 45%, transparent);
+}
+.watch-band.bottom {
+	bottom: -26cqw;
+	border-radius: 0 0 6cqw 6cqw;
+	mask-image: linear-gradient(to bottom, #000 45%, transparent);
+}
+/* The case's shadow where the band goes under it. */
+.watch-band::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(var(--tuck, to top), rgb(0 0 0 / 0.6), transparent 40%);
+}
+.watch-band.bottom::after { --tuck: to bottom; }
+.watch-crown {
+	position: absolute;
+	z-index: 0;
+	right: -4.6cqw;
+	top: 23cqw;
+	width: 8cqw;
+	height: 19cqw;
+	border-radius: 2cqw;
+	background:
+		repeating-linear-gradient(180deg, rgb(0 0 0 / 0.38) 0 0.55cqw, transparent 0.55cqw 1.5cqw),
+		linear-gradient(90deg, #2a2c2e, #8c9094 45%, #50545a 70%, #2a2c2e);
+	box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.35);
+}
+.watch-button {
+	position: absolute;
+	z-index: 0;
+	right: -1.9cqw;
+	top: 55cqw;
+	width: 4cqw;
+	height: 23cqw;
+	border-radius: 0 1.8cqw 1.8cqw 0;
+	background: linear-gradient(90deg, #2a2c2e, #6f7377 50%, #3a3d40);
 }
 .iphone-island {
 	position: absolute;
@@ -456,6 +549,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .spotlight-copy ul { margin-top: 1.5rem; display: grid; gap: 0.7rem; }
 .spotlight-copy li { display: flex; gap: 0.65rem; align-items: flex-start; }
 .spotlight-copy li .icon { margin-top: 0.2em; color: var(--accent); }
+.spotlight-copy .more-link { text-align: inherit; }
 .spotlight-visual { position: relative; display: grid; place-items: center; padding-block: 1rem; }
 .spotlight-visual .iphone { width: min(64vw, 16rem); }
 @media (max-width: 899px) {
@@ -502,7 +596,10 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 
 /* ── Services ───────────────────────────────────────────────── */
 
-.services { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12.5rem), 1fr)); }
+/* Six services: three rows of two, or two of three, never a lone card. */
+.services { display: grid; gap: 0.75rem; }
+@media (min-width: 520px) { .services { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 900px) { .services { grid-template-columns: repeat(3, 1fr); } }
 .services li { display: grid; align-content: start; gap: 0.25rem; padding: 1.25rem 1.35rem; border-top: 2px solid var(--brand, var(--accent)); }
 .services strong { font-size: 1.1rem; }
 .services span { color: var(--muted); font-size: 0.9rem; }
@@ -606,6 +703,29 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .old-release { margin-top: 1.5rem; padding: 0.75rem 1.1rem; border-radius: var(--radius-small); background: var(--accent-soft); color: var(--muted); font-size: 0.92rem; }
 .old-release a { display: inline-flex; align-items: center; gap: 0.3rem; font-weight: 600; }
 
+/* The promo film under the hero: its own dark backdrop, so it sits in a
+   rounded card with a soft green glow behind it. */
+.promo { position: relative; width: min(100%, 22rem); margin: 0 auto; }
+.promo::before {
+	content: '';
+	position: absolute;
+	inset: 10% -20%;
+	border-radius: 50%;
+	background: radial-gradient(closest-side, rgb(5 150 105 / 0.45), transparent);
+	filter: blur(40px);
+	pointer-events: none;
+}
+.promo video {
+	position: relative;
+	width: 100%;
+	height: auto;
+	aspect-ratio: 9 / 16;
+	border-radius: 28px;
+	border: 1px solid var(--border);
+	background: #050706;
+	box-shadow: 0 40px 80px -40px rgb(0 0 0 / 0.9);
+}
+
 .reels { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); margin-bottom: 2rem; }
 .reel { position: relative; margin: 0; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); aspect-ratio: 9 / 16; background: #000; }
 .reel video { width: 100%; height: 100%; object-fit: cover; }
@@ -653,6 +773,10 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .server li, .platform li { display: flex; gap: 0.6rem; align-items: flex-start; font-size: 0.95rem; }
 .server li .icon, .platform li .icon { margin-top: 0.2em; color: var(--accent); }
 
+/* The watch screens under the Apple Watch card's points. */
+.platform-screens { display: flex; justify-content: center; gap: 2.25rem; margin-top: 3.5rem; padding-bottom: 2.25rem; }
+.platform-screens .watch { flex: 1; max-width: 11.5rem; }
+
 @media (min-width: 1024px) { .feature-grid.two { grid-template-columns: repeat(2, 1fr); } }
 
 .setup { display: grid; gap: 1rem; }
@@ -661,6 +785,118 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .setup h3 { font-size: 1.15rem; }
 .setup ol { margin-top: 1rem; padding-left: 1.2rem; list-style: decimal; display: grid; gap: 0.5rem; color: var(--muted); }
 .setup strong { color: var(--text); }
+
+/* ── Audiobooks ─────────────────────────────────────────────────────────── */
+
+/* CarPlay, Apple Watch and Sonos: three cards in a row on wide screens. */
+@media (min-width: 760px) { .platforms.three { grid-template-columns: 1fr; } }
+@media (min-width: 960px) { .platforms.three { grid-template-columns: repeat(3, 1fr); } }
+
+/* Drawn illustrations that stand in for a phone in a spotlight. */
+.spotlight-visual.demo::before { background: radial-gradient(closest-side, rgb(52 211 153 / 0.5), transparent); opacity: 0.35; }
+.vignette {
+	position: relative;
+	width: min(100%, 27rem);
+	margin: 0;
+	padding: 1.5rem;
+	border-radius: 28px;
+	background: linear-gradient(160deg, rgb(255 255 255 / 0.07), rgb(255 255 255 / 0.025));
+	border: 1px solid var(--border-strong);
+	box-shadow: 0 40px 80px -40px rgb(0 0 0 / 0.8), inset 0 1px 0 rgb(255 255 255 / 0.06);
+}
+.vignette figcaption { margin-top: 1.25rem; color: var(--faint); font-size: 0.85rem; text-align: center; }
+.vignette-head { display: flex; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; }
+.chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	padding: 0.3rem 0.7rem;
+	border-radius: 999px;
+	background: rgb(255 255 255 / 0.06);
+	color: var(--muted);
+	font-size: 0.8rem;
+	font-weight: 600;
+}
+.chip .icon { width: 0.95em; height: 0.95em; }
+.chip-accent { background: var(--accent-soft); color: var(--accent); }
+
+/* Smart Resume: one loop of --resume. Paused, the playhead glides back to
+   the sentence's silence, the silence lights, then playback carries on. */
+.resume-demo { --resume: 7s; }
+.wave { position: relative; display: flex; align-items: center; gap: 3px; height: 7.5rem; margin-top: 1.5rem; }
+.wave > span:not([class^='wave-']) { flex: 1; height: calc(var(--h) * 100%); border-radius: 99px; background: rgb(255 255 255 / 0.14); }
+.wave > span.heard { background: rgb(255 255 255 / 0.42); }
+.wave-paused, .wave-head { position: absolute; top: -0.4rem; bottom: -0.4rem; width: 2px; margin-left: -1px; border-radius: 2px; }
+.wave-paused { left: var(--paused); background: repeating-linear-gradient(to bottom, var(--faint) 0 4px, transparent 4px 8px); }
+.wave-head { left: var(--paused); background: var(--text); box-shadow: 0 0 12px rgb(255 255 255 / 0.6); animation: resume-head var(--resume) var(--ease) infinite; }
+.wave-head::before { content: ''; position: absolute; top: -5px; left: 50%; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: inherit; }
+.wave-land { position: absolute; top: 8%; bottom: 8%; left: var(--land); width: 9%; margin-left: -4.5%; border-radius: 10px; background: var(--accent-soft); box-shadow: inset 0 0 0 1px rgb(52 211 153 / 0.5); opacity: 0; animation: resume-land var(--resume) var(--ease) infinite; }
+.resume-result { opacity: 0; animation: resume-land var(--resume) var(--ease) infinite; }
+.resume-words { margin-top: 1.25rem; color: var(--muted); font-family: ui-serif, 'New York', Georgia, serif; font-size: 0.98rem; line-height: 1.5; }
+.resume-words .caret { display: inline-block; width: 2px; height: 1.1em; margin: 0 0.15em -0.2em; border-radius: 2px; background: var(--accent); animation: resume-land var(--resume) var(--ease) infinite; opacity: 0; }
+
+@keyframes resume-head {
+	0%, 18% { left: var(--paused); opacity: 1; }
+	46% { left: var(--land); }
+	58% { left: var(--land); }
+	92% { left: calc(var(--land) + 14%); opacity: 1; }
+	97%, 100% { left: calc(var(--land) + 15%); opacity: 0; }
+}
+@keyframes resume-land {
+	0%, 44% { opacity: 0; }
+	52%, 92% { opacity: 1; }
+	100% { opacity: 0; }
+}
+
+/* Read Along: the line being read lights word by word (keyframes per word
+   are in pages/audiobooks.js, so every word resets together). */
+.read-demo { padding-bottom: 1.25rem; }
+.read-text { font-family: ui-serif, 'New York', Georgia, serif; font-size: clamp(1.1rem, 2vw, 1.3rem); line-height: 1.45; letter-spacing: -0.005em; }
+.read-text p + p { margin-top: 0.55rem; }
+.read-past { opacity: 0.8; }
+.read-next { opacity: 0.5; }
+.read-now span {
+	opacity: 0.5;
+	text-decoration: underline 2px transparent;
+	text-underline-offset: 5px;
+	animation-duration: var(--loop);
+	animation-timing-function: ease-out;
+	animation-iteration-count: infinite;
+}
+.read-text mark { padding: 0 0.12em; margin: 0 -0.12em; border-radius: 4px; background: rgb(250 204 21 / 0.32); color: inherit; }
+.read-card {
+	position: relative;
+	margin: 1.4rem -0.5rem 0;
+	padding: 1.1rem 1.25rem 1.2rem;
+	border-radius: 20px;
+	background: rgb(30 34 33 / 0.92);
+	border: 1px solid var(--border-strong);
+	box-shadow: 0 -12px 40px -16px rgb(0 0 0 / 0.7);
+}
+.read-grabber { position: absolute; top: 0.45rem; left: 50%; width: 2.25rem; height: 4px; margin-left: -1.125rem; border-radius: 4px; background: rgb(255 255 255 / 0.22); }
+.read-word { font-family: ui-serif, 'New York', Georgia, serif; font-size: 1.35rem; font-weight: 700; }
+.read-kind { margin-top: 0.1rem; color: var(--faint); font-size: 0.82rem; font-style: italic; }
+.read-def { margin-top: 0.4rem; color: var(--muted); font-size: 0.95rem; line-height: 1.45; }
+
+/* Cue against the usual setup: stacked cards on phones, a table on wider
+   screens. The row labels are read out on phones and to screen readers. */
+.compare { display: grid; gap: 0.6rem; max-width: 62rem; margin-inline: auto; }
+.compare-head { display: none; }
+.compare-row { display: grid; gap: 0.6rem; padding: 1.15rem 1.35rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-small); }
+.compare-row h3 { font-size: 1.05rem; letter-spacing: -0.01em; }
+.compare-row p { display: flex; gap: 0.6rem; align-items: flex-start; font-size: 0.95rem; line-height: 1.45; }
+.compare-row .icon { margin-top: 0.15em; }
+.compare-before { color: var(--faint); }
+.compare-after { color: var(--text); }
+.compare-after .icon { color: var(--accent); }
+.compare-tag { display: block; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; }
+.compare-after .compare-tag { color: var(--accent); }
+@media (min-width: 760px) {
+	.compare-head, .compare-row { grid-template-columns: 11rem 1fr 1fr; gap: 1.75rem; align-items: center; }
+	.compare-head { display: grid; padding: 0 1.35rem 0.25rem; color: var(--faint); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; }
+	.compare-head .after { color: var(--accent); }
+	.compare-tag { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
 
 /* ── Press ──────────────────────────────────────────────────────────────── */
 
@@ -675,6 +911,8 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .facts dd { margin: 0; }
 .shots { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); margin-bottom: 1rem; }
 .shots img { border-radius: 18px; border: 1px solid var(--border); }
+.shots.watch-shots { grid-template-columns: repeat(auto-fill, minmax(8rem, 10rem)); }
+.shots.watch-shots img { border-radius: 26%  / 22%; }
 .downloads { display: grid; gap: 0.5rem; }
 .downloads a { display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1.1rem 0.75rem 0.75rem; border-radius: var(--radius-small); background: var(--surface); border: 1px solid var(--border); text-decoration: none; transition: background 0.2s, border-color 0.2s; }
 .downloads a:hover { background: var(--surface-hover); border-color: var(--border-strong); }
@@ -714,4 +952,10 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 	.room { color: var(--text); border-color: rgb(52 211 153 / 0.6); background: rgb(52 211 153 / 0.14); }
 	.handoff-caption .c4 { opacity: 1; }
 	.handoff-phone .iphone-screen img { filter: brightness(0.4) saturate(0.6); }
+	/* Smart Resume shows where it lands; Read Along, a word mid-line. */
+	.wave-head { left: var(--land); }
+	.wave-land, .resume-result, .resume-words .caret { opacity: 1; }
+	.read-now span { opacity: 0.8; }
+	.read-now span:nth-child(3) { opacity: 1; text-decoration-color: var(--accent); }
+	.read-now span:nth-child(n + 4) { opacity: 0.5; }
 }

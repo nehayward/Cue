@@ -1,47 +1,86 @@
 import SwiftUI
 import WatchSync
 
-/// What's on the watch: Fast Download while songs are still to come, the
-/// songs added one at a time, then each album, playlist and artist with
-/// how far it's got and the room it takes.
+/// What's on the watch: Fast Download while songs are still to come, then
+/// the music (the songs added one at a time, each album, playlist and
+/// artist with how far it's got and the room it takes) and the books,
+/// each under its own heading. A swipe takes one off, as its page's Remove
+/// from Watch does.
 struct DownloadsScreen: View {
     @Environment(WatchDownloadStore.self) private var store
     @Environment(\.zoomNamespace) private var zoom
     @State private var isShowingFastDownload = false
 
     var body: some View {
-        let collections = store.picks.items.filter { $0.kind != .song }
+        let collections = store.musicPicks.filter { $0.kind != .song }
         let songPicks = store.picks.items.filter { $0.kind == .song }
         List {
-            Section {
-                if store.remainingCount > 0 || store.fastPhase != .off {
+            if store.remainingCount > 0 || store.fastPhase != .off {
+                Section {
                     Button {
                         isShowingFastDownload = true
                     } label: {
                         FastDownloadRow()
                     }
                 }
-                if !songPicks.isEmpty {
-                    NavigationLink(value: LibraryRoute.songs) {
-                        SongsRow(count: songPicks.count, bytes: store.bytesUsed(by: store.songs(in: songPicks.map(\.key))))
+            }
+
+            if !songPicks.isEmpty || !collections.isEmpty {
+                Section {
+                    if !songPicks.isEmpty {
+                        NavigationLink(value: LibraryRoute.songs) {
+                            SongsRow(count: songPicks.count, bytes: store.bytesUsed(by: store.songs(in: songPicks.map(\.key))))
+                        }
+                        .zoomSource(LibraryRoute.songs, in: zoom)
                     }
-                    .zoomSource(LibraryRoute.songs, in: zoom)
-                }
-                ForEach(collections, id: \.key) { pick in
-                    NavigationLink(value: LibraryRoute.pick(pick.key)) {
-                        PickRow(pick: pick)
+                    ForEach(collections, id: \.key) { pick in
+                        NavigationLink(value: LibraryRoute.pick(pick.key)) {
+                            PickRow(pick: pick)
+                        }
+                        .zoomSource(LibraryRoute.pick(pick.key), in: zoom)
+                        .swipeActions {
+                            removeButton(pick)
+                        }
                     }
-                    .zoomSource(LibraryRoute.pick(pick.key), in: zoom)
+                } header: {
+                    Text("Music")
                 }
-                if store.picks.items.isEmpty {
-                    Text("Nothing here yet. Browse your library, or choose Add to Apple Watch in Cue on your iPhone.")
+            }
+
+            if !store.books.isEmpty {
+                Section {
+                    ForEach(store.books, id: \.key) { pick in
+                        let route = BookRoute(key: pick.key)
+                        NavigationLink(value: route) {
+                            BookRow(pick: pick, showsSize: true)
+                        }
+                        .zoomSource(route, in: zoom)
+                        .swipeActions {
+                            removeButton(pick)
+                        }
+                    }
+                } header: {
+                    Text("Books")
+                }
+            }
+
+            if store.picks.items.isEmpty {
+                Text("Nothing here yet. Browse your library, or choose Add to Apple Watch in Cue on your iPhone.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .listRowBackground(Color.clear)
+            } else {
+                Section {
+                } footer: {
+                    Text(storageSummary)
+                }
+            }
+            if let heldBackText {
+                Section {
+                    Label(heldBackText, systemImage: "lock.fill")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .listRowBackground(Color.clear)
-                }
-            } footer: {
-                if !store.picks.items.isEmpty {
-                    Text(storageSummary)
                 }
             }
         }
@@ -51,15 +90,40 @@ struct DownloadsScreen: View {
         }
     }
 
+    /// What the free tier's share holds back, and the way past it.
+    private var heldBackText: String? {
+        guard !store.heldBack.isEmpty else { return nil }
+        var lines: [String] = []
+        let songs = store.heldBackSongCount
+        if songs > 0 {
+            let waiting = songs == 1 ? "1 song waits" : "\(songs) songs wait"
+            lines.append("\(waiting) for room: the free songs are shared with your iPhone.")
+        }
+        if store.books.contains(where: { store.isHeldBack(book: $0.key) }) {
+            lines.append("Books download with Cue Super.")
+        }
+        lines.append("Get Cue Super in Cue on your iPhone.")
+        return lines.joined(separator: " ")
+    }
+
+    /// Takes a pick off the watch and the iPhone's list; it stays on its
+    /// server, and a book's place is kept.
+    private func removeButton(_ pick: WatchPick) -> some View {
+        Button(role: .destructive) {
+            store.remove(key: pick.key)
+        } label: {
+            Label("Remove", systemImage: "trash")
+        }
+    }
+
     private var storageSummary: String {
         let size = ByteCountFormatter.string(fromByteCount: store.bytesUsed, countStyle: .file)
-        let songs = store.downloadedCount == 1 ? "1 song" : "\(store.downloadedCount) songs"
-        return "\(songs) on this watch • \(size)"
+        return "\(store.contentsText) on this watch • \(size)"
     }
 }
 
-/// The home screen's way in: the count of songs here in the title, and
-/// what's going on below it.
+/// The home screen's way in: the count of songs and books here in the
+/// title, and what's going on below it.
 struct DownloadsRow: View {
     @Environment(WatchDownloadStore.self) private var store
 
@@ -68,7 +132,7 @@ struct DownloadsRow: View {
             VStack(alignment: .leading) {
                 HStack(spacing: 4) {
                     Text("Downloads")
-                    Text("\(store.downloadedCount)")
+                    Text("\(store.downloadedCount + store.downloadedBookCount)")
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                 }
@@ -90,7 +154,7 @@ struct DownloadsRow: View {
         if store.remainingCount > 0 {
             return "\(store.remainingCount) to download"
         }
-        if store.downloadedCount == 0 {
+        if store.downloadedCount == 0, store.downloadedBookCount == 0 {
             return "Nothing yet"
         }
         return ByteCountFormatter.string(fromByteCount: store.bytesUsed, countStyle: .file)
@@ -124,8 +188,7 @@ private struct FastDownloadRow: View {
         case .finished:
             return store.failedCount > 0 ? "\(store.failedCount) couldn't download" : "Done"
         case .off:
-            let count = store.remainingCount
-            return count == 1 ? "1 song to download" : "\(count) songs to download"
+            return "\(WatchDownloadStore.countText(store.remainingCount, files: store.remainingIncludesBooks)) to download"
         }
     }
 }
@@ -151,8 +214,9 @@ private struct SongsRow: View {
     }
 }
 
-/// An album, playlist or artist on the watch, with how far it's got.
-private struct PickRow: View {
+/// An album, playlist or artist on the watch, with how far it's got: on
+/// Downloads, and in a library list when its server can't be reached.
+struct PickRow: View {
     @Environment(WatchDownloadStore.self) private var store
     let pick: WatchPick
 
@@ -162,11 +226,11 @@ private struct PickRow: View {
                 .frame(width: 36, height: 36)
             VStack(alignment: .leading) {
                 Text(pick.title)
-                    .lineLimit(1)
+                    .lineLimit(2)
                 Text(detail)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                    .lineLimit(2)
                     .monospacedDigit()
             }
         }

@@ -32,13 +32,24 @@ enum AudioOutputRoute {
     /// re-asks on every route change, and a route we can't see isn't one that
     /// can take a command from us either.
     static var isExternal: Bool {
-        AVAudioSession.sharedInstance().currentRoute.outputs.contains { output in
-            switch output.portType {
-            case .builtInSpeaker, .builtInReceiver:
-                return false
-            default:
-                return true
-            }
+        AVAudioSession.sharedInstance().currentRoute.outputs.contains(where: isExternalPort)
+    }
+
+    /// The names of the outputs that make the route external, as the
+    /// session lists them: "Nick's AirPods", the car, an AirPlay receiver,
+    /// "Headphones". Empty on the built-in speaker or earpiece.
+    static var externalNames: [String] {
+        AVAudioSession.sharedInstance().currentRoute.outputs
+            .filter(isExternalPort)
+            .map(\.portName)
+    }
+
+    private static func isExternalPort(_ output: AVAudioSessionPortDescription) -> Bool {
+        switch output.portType {
+        case .builtInSpeaker, .builtInReceiver:
+            return false
+        default:
+            return true
         }
     }
 }

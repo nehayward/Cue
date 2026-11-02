@@ -28,6 +28,12 @@ struct FastDownloadScreen: View {
                         finished
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if store.fastPhase == .running {
+                    overallProgress
+                }
             }
             .navigationTitle("Fast Download")
         }
@@ -37,7 +43,7 @@ struct FastDownloadScreen: View {
 
     private var intro: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(store.remainingCount == 1 ? "1 song to download" : "\(store.remainingCount) songs to download")
+            Text("\(WatchDownloadStore.countText(store.remainingCount, files: store.remainingIncludesBooks)) to download")
                 .font(.headline)
             Text("Through your iPhone it's slow. Turn off your iPhone's Bluetooth and your watch downloads over its own Wi‑Fi instead.")
                 .font(.footnote)
@@ -70,14 +76,23 @@ struct FastDownloadScreen: View {
 
     // MARK: - While it runs
 
-    private var running: some View {
-        VStack(alignment: .leading, spacing: 10) {
+    /// The run as a whole, pinned over the list so it stays in sight while
+    /// the list scrolls under it.
+    private var overallProgress: some View {
+        VStack(alignment: .leading, spacing: 4) {
             ProgressView(value: Double(store.fastCompleted), total: Double(max(store.fastTotal, 1)))
                 .tint(.accentColor)
-            Text("\(store.fastCompleted) of \(store.fastTotal) songs")
+            Text("\(store.fastCompleted) of \(WatchDownloadStore.countText(store.fastTotal, files: store.fastIncludesBooks))")
                 .font(.headline)
                 .monospacedDigit()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.bottom, 8)
+        .background(.background)
+    }
 
+    private var running: some View {
+        VStack(alignment: .leading, spacing: 10) {
             routeRow
 
             if store.isWaitingForNetwork {
@@ -107,12 +122,15 @@ struct FastDownloadScreen: View {
                 }
             }
 
+            // Centred whatever width the button style gives it.
             Button(role: .destructive) {
                 store.stopFastDownload()
             } label: {
                 Text("Stop")
                     .frame(maxWidth: .infinity)
             }
+            .buttonStyle(.bordered)
+            .frame(maxWidth: .infinity)
         }
     }
 
@@ -148,9 +166,9 @@ struct FastDownloadScreen: View {
             Label(store.failedCount == 0 ? "All Done" : "Done", systemImage: store.failedCount == 0 ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
                 .font(.headline)
                 .foregroundStyle(store.failedCount == 0 ? Color.green : Color.orange)
-            Text(store.fastCompleted == 1 ? "1 song downloaded." : "\(store.fastCompleted) songs downloaded.")
+            Text("\(WatchDownloadStore.countText(store.fastCompleted, files: store.fastIncludesBooks)) downloaded.")
             if store.failedCount > 0 {
-                Text(store.failedCount == 1 ? "1 song couldn't download." : "\(store.failedCount) songs couldn't download.")
+                Text("\(WatchDownloadStore.countText(store.failedCount, files: store.fastIncludesBooks)) couldn't download.")
                     .foregroundStyle(.secondary)
                 Button {
                     store.startFastDownload()

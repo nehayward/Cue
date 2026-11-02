@@ -1,5 +1,5 @@
 import SwiftUI
-import Kingfisher
+import NukeUI
 
 struct MediaIndicatorView: View {
     let speakerName: String
@@ -91,15 +91,16 @@ struct MediaIndicatorView: View {
 
             HStack(spacing: 12) {
                 ZStack {
-                    KFImage.url(imageURL, cacheKey: albumName)
-                        .placeholder {
+                    LazyImage(request: .cover(imageURL, album: albumName), transaction: Transaction(animation: .easeInOut(duration: 0.2))) { state in
+                        if let image = state.image {
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        } else {
                             RoundedRectangle(cornerRadius: 6)
                                 .foregroundStyle(.thinMaterial)
                         }
-                        .diskCacheExpiration(.days(1))
-                        .fade(duration: 0.2)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
+                    }
                         .frame(width: 48, height: 48)
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                         .opacity(loading ? 0.6 : 1)
