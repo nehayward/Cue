@@ -110,7 +110,7 @@ struct PaywallReasonCard: View {
         case .unlimitedDownloads, .downloads: "arrow.down.circle.fill"
         case .largePlaybackCache: "clock.arrow.circlepath"
         case .bookDownloads: "books.vertical.fill"
-        case .bookTranscript: "text.quote"
+        case .bookTranscript: "captions.bubble.fill"
         case .allRooms: "hifispeaker.2.fill"
         case .scenes: "sparkles"
         default: "lock.fill"

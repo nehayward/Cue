@@ -105,6 +105,12 @@ export const film = async (request, assets) => {
 
 export const route = async (request, env) => {
 	const url = new URL(request.url);
+	// One address for the site: www.cue.dance and plain http go to
+	// https://cue.dance, keeping the path.
+	const origin = new URL(site.origin);
+	if (url.hostname === site.wwwHost || (url.hostname === origin.hostname && url.protocol !== origin.protocol)) {
+		return Response.redirect(`${site.origin}${url.pathname}${url.search}`, 301);
+	}
 	if (url.pathname.startsWith('/video/') && env?.ASSETS) return film(request, env.ASSETS);
 	// testflight.cue.dance is this Worker's too, and every path on it goes to
 	// the beta's invite. A 302, so a new invite link isn't cached as the old.

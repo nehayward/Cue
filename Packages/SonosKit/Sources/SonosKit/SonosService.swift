@@ -3018,8 +3018,28 @@ public final class SonosService {
         }
 
         if position == .now, queueActive, playable.content.type != .playlist, let count, count > 0 {
-            await next(ip: group.ip)
+            await skipToInserted(on: group)
         }
+    }
+
+    /// Steps onto the songs a Play Now just put in after the one playing.
+    ///
+    /// The speaker's own Next, not `next(ip:)`'s skip: that jumps to the
+    /// model's song plus one, held to the model's queue length, and both
+    /// can be behind the insert until the poll reads them again. On the
+    /// queue's last song the old length made Next go nowhere, so the song
+    /// went on and the album only joined the queue (under Repeat All it
+    /// went round to the top), and a song that had just changed made it a
+    /// jump to the wrong one. The insert went in after the speaker's own
+    /// song, so its Next lands on it, with nothing to read first. A skip
+    /// still landing would hold the player on its target, so it's let go.
+    @MainActor
+    private func skipToInserted(on group: GroupRoom) async {
+        if let burst = skipBursts[group.coordinatorID] {
+            endSkipBurst(burst, on: group)
+        }
+        group.coordinatorRoom.beginSkip()
+        await api.next(ipAddress: group.ip)
     }
         
     public func getQueueTotal(group: GroupRoom) async throws -> Int? {
@@ -3079,7 +3099,7 @@ public final class SonosService {
                 let count = await api.getQueueCount(IP: group.ip) ?? 0
                 try await queue(contents: contents, group: group, position: .next)
                 if count > 0 {
-                    await next(ip: group.ip)
+                    await skipToInserted(on: group)
                 }
             default:
                 try await queue(contents: contents, group: group, position: position)
@@ -3178,7 +3198,7 @@ public final class SonosService {
 
         await progress?(1, contents.count)
         // Activate transport
-        await next(ip: group.ip)
+        await skipToInserted(on: group)
         await play(ip: group.ip)
 
         try? await Task.sleep(for: .milliseconds(150))
@@ -3218,6 +3238,12 @@ public final class SonosService {
             assertionFailure("queue called with empty contents")
             return
         }
+        // Play Now is the first played at once and the rest after it, in
+        // order. Each put in after the song playing, the rest went in one
+        // by one behind the first, so they played last to first.
+        if position == .now {
+            return try await playNext(contents, on: group, progress: progress)
+        }
         let contents = await expandingContainersAsTracks(contents)
         guard !contents.isEmpty else { throw SonosServiceError.cantPlayContent(upnpCode: nil) }
         // Clamped so an out-of-range start (a container that shrank
@@ -3249,12 +3275,6 @@ public final class SonosService {
         for (index, content) in sequence.enumerated() {
             try await api.queuePlayable(playableContent: content, IP: group.ip, position: enqueuePosition, shuffling: shuffling)
             await progress?(index + 1, sequence.count)
-
-            // Start playback as soon as the first item is queued
-            if position == .now && index == 0 {
-                await next(ip: group.ip)
-                await play(ip: group.ip)
-            }
 
             // Replace-and-play: start once the requested track is in place.
             if position == .replace, let startIndex, index == startIndex {

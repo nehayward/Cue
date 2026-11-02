@@ -13,8 +13,15 @@ is in `Website/README.md`; this note is the to-do list.
 - [ ] **Review the legal pages** in `Website/src/pages/legal.js`. They were
   drafted from the code: Mixpanel (anonymous ID, no songs or searches),
   RevenueCat, Cloudflare logs, no cookies on the site.
-- [ ] **Confirm `hi@cue.dance` receives mail.** It's the only contact on the
-  site, in Help, the press kit and the footer.
+- [x] **Confirm `hi@cue.dance` receives mail.** It's the only contact on the
+  site, in Help, the press kit and the footer. Email Routing forwards it to
+  the verified `nehayward+9@gmail.com`; a test message arrived on
+  2026-11-02. The catch-all is off, so any other address bounces.
+- [x] **DMARC for cue.dance.** Added 2026-11-02 through DMARC Management
+  (Email ▸ DMARC Management), so its reports show in the dashboard.
+- [x] **www and plain http.** Both redirect to https://cue.dance from the
+  Worker (`site.wwwHost`, the `www.cue.dance` route in `wrangler.toml`),
+  live since 2026-11-02.
 - [ ] **Check the logo rules.** The services section shows the Apple Music
   and Plex marks (Simple Icons, `Website/src/lib/brand-marks.js`). Apple's
   identity guidelines are strict; if in doubt, swap the mark for an icon.

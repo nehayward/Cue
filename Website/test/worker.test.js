@@ -65,6 +65,16 @@ test('testflight.cue.dance sends every path to the beta invite', async () => {
 	assert.equal((await get('/')).status, 200);
 });
 
+test('www.cue.dance and plain http go to https://cue.dance, path and all', async () => {
+	for (const from of ['https://www.cue.dance/help?x=1', 'http://www.cue.dance/help?x=1', 'http://cue.dance/help?x=1']) {
+		const response = await route(new Request(from));
+		assert.equal(response.status, 301, from);
+		assert.equal(response.headers.get('location'), 'https://cue.dance/help?x=1', from);
+	}
+	// `wrangler dev` serves plain http on localhost.
+	assert.equal((await route(new Request('http://localhost:8787/'))).status, 200);
+});
+
 test('until the App Store, the calls to action say coming soon, and only the unlisted /beta mentions the beta', async () => {
 	const home = await (await get('/')).text();
 	assert.match(home, /Coming soon to the App Store/);
