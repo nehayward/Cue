@@ -1054,7 +1054,11 @@ private struct EmptyPlayerArtwork: View {
 /// changes what it reads and nothing else. While a book with chapters
 /// plays, it spans the chapter playing, its times the chapter's
 /// (`AudiobookPlayer.chapterSpan`).
-private struct PlayerScrubber: View {
+struct PlayerScrubber: View {
+    /// One row, the times either side of the bar, as the Mac window's
+    /// player card has it (`DesktopPlayerBar`); else the bar over its times.
+    var isInline = false
+
     private var route: PlaybackRoute { .shared }
 
     @Environment(\.displayScale) private var displayScale
@@ -1106,41 +1110,29 @@ private struct PlayerScrubber: View {
             ),
             position: { min(max(clamped(scrubPosition ?? controller.position(), to: duration), span.lowerBound), span.upperBound) }
         ) { position in
-            VStack(spacing: 0) {
-                VibeSlider(
-                    value: Binding(
-                        get: { position },
-                        set: { scrubPosition = $0 }
-                    ),
-                    in: span,
-                    step: 1,
-                    baseHeight: usesPadLayout ? 24 : 16,
-                    delayDrag: false,
-                    immediateDrag: true,
-                    valueAnimation: nil
-                ) { isEditing in
-                    scrubbingChanged(isEditing, on: controller)
+            let elapsed = Duration.seconds(max(0, position - span.lowerBound))
+            let remaining = Duration.seconds(max(0, span.upperBound - position))
+            let pattern: Duration.TimeFormatStyle.Pattern =
+                span.upperBound - span.lowerBound > 3600 ? .hourMinuteSecond : .minuteSecond
+
+            if isInline {
+                HStack(spacing: 12) {
+                    Text(elapsed.formatted(.time(pattern: pattern)))
+                        .contentTransition(.identity)
+                    slider(position: position, span: span, controller: controller)
+                    Text("-\(remaining.formatted(.time(pattern: pattern)))")
+                        .contentTransition(.identity)
                 }
-                .frame(maxWidth: 500)
-                .frame(height: 40)
-                .foregroundStyle(.primary)
-                .accessibilityLabel("Playback Position")
-                .accessibilityValue(Duration.seconds(position - span.lowerBound).formatted(.time(pattern: .minuteSecond)))
-                // Nothing to seek on a live stream, or while a hand-off holds
-                // the player on its source.
-                .disabled(!controller.canScrub)
-                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { barWidth = $0 }
-                // Its whole height takes a touch first: drawn after it, the
-                // time line's tap (a book's time left) reached into it and
-                // took touches meant for the scrubber.
-                .zIndex(1)
+                .monospacedDigit()
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            } else {
+            VStack(spacing: 0) {
+                slider(position: position, span: span, controller: controller)
+                    .frame(maxWidth: 500)
+                    .frame(height: 40)
 
                 HStack {
-                    let elapsed = Duration.seconds(max(0, position - span.lowerBound))
-                    let remaining = Duration.seconds(max(0, span.upperBound - position))
-                    let pattern: Duration.TimeFormatStyle.Pattern =
-                        span.upperBound - span.lowerBound > 3600 ? .hourMinuteSecond : .minuteSecond
-
                     Text(elapsed.formatted(.time(pattern: pattern)))
                         .contentTransition(.identity)
                     Spacer()
@@ -1165,9 +1157,10 @@ private struct PlayerScrubber: View {
                 .monospacedDigit()
                 .font(.caption)
             }
+            }
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 60)
+        .frame(height: isInline ? nil : 60)
         .opacity(controller.duration.isZero ? 0 : 1)
         // A new source under the finger, or a hand-off taking the bar away
         // (it disables, and the slider may never report the drag's end).
@@ -1179,6 +1172,35 @@ private struct PlayerScrubber: View {
                 cancelScrubbing()
             }
         }
+    }
+
+    /// The bar itself, which holds the position under a drag.
+    private func slider(position: TimeInterval, span: ClosedRange<TimeInterval>, controller: any PlaybackController) -> some View {
+        VibeSlider(
+            value: Binding(
+                get: { position },
+                set: { scrubPosition = $0 }
+            ),
+            in: span,
+            step: 1,
+            baseHeight: isInline ? 10 : (usesPadLayout ? 24 : 16),
+            delayDrag: false,
+            immediateDrag: true,
+            valueAnimation: nil
+        ) { isEditing in
+            scrubbingChanged(isEditing, on: controller)
+        }
+        .foregroundStyle(.primary)
+        .accessibilityLabel("Playback Position")
+        .accessibilityValue(Duration.seconds(position - span.lowerBound).formatted(.time(pattern: .minuteSecond)))
+        // Nothing to seek on a live stream, or while a hand-off holds
+        // the player on its source.
+        .disabled(!controller.canScrub)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { barWidth = $0 }
+        // Its whole height takes a touch first: drawn after it, the
+        // time line's tap (a book's time left) reached into it and
+        // took touches meant for the scrubber.
+        .zIndex(1)
     }
 
     private func scrubbingChanged(_ isEditing: Bool, on controller: any PlaybackController) {

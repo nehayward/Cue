@@ -20,4 +20,18 @@ final class SearchActivator {
     func requestFocus() {
         requestCount += 1
     }
+
+    /// A key the Mac window's search field passes on to the results
+    /// (`DesktopSearchField`): it's above `SearchScreen` rather than in it,
+    /// so its key presses never reach the screen's own `onKeyPress`.
+    enum RelayedKey {
+        case down, up, select, cancel
+    }
+
+    /// The last key passed on, numbered so the same key twice is two.
+    private(set) var relayedKey: (key: RelayedKey, count: Int)?
+
+    func relay(_ key: RelayedKey) {
+        relayedKey = (key, (relayedKey?.count ?? 0) + 1)
+    }
 }

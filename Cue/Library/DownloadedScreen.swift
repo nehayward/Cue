@@ -142,9 +142,10 @@ struct DownloadingProgress: View {
 /// (`CueApp.showsDownloadsTab`): every provider's songs on this device,
 /// with what's still to come on top.
 struct DownloadsTabScreen: View {
-    /// This tab's own stack, never a shared router: two stacks bound to one
-    /// path push each other.
-    @State private var router = Router()
+    /// This tab's own stack, never shared with another: two stacks bound to
+    /// one path push each other. Static so the Mac window's Back and
+    /// Forward reach it (`Router.forTab(_:)`).
+    @State private var router = Router.downloads
 
     var body: some View {
         NavigationStack(path: $router.path) {

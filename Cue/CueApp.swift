@@ -560,62 +560,130 @@ struct CueApp: App {
         }
     }
 
+    /// The window's tabs, on iPhone and iPad: the tab bar (iPad's
+    /// sidebar too) with the mini player as its accessory, and the queue
+    /// panel beside it. The Mac's window is `DesktopShell` instead.
+    @ViewBuilder
+    private var tabView: some View {
+        @Bindable var router = router
+        TabView(selection: tabSelection) {
+            if !appState.showsLibrarySections {
+                // The phone's three on every device, Browse first in
+                // Home's place: providers are browsed from Browse's menu
+                // and set up in Settings › Services. No provider tabs, so
+                // the bar never overflows into More. Browse is the home
+                // here, so it's named Home and has the house. Offline it
+                // goes, and Downloads leads in its place.
+                if appState.showsBrowseTab {
+                    Tab("Home", image: "home.fill", value: AppTab.browse) {
+                        Screens.browse
+                    }
+                }
+                searchTab
+                radioTab
+                audiobooksTab
+                downloadsTab
+            } else {
+                Tab("Home", image: "home.fill", value: AppTab.home) {
+                    Screens.home
+                }
+                searchTab
+                Tab("Browse", systemImage: "square.grid.2x2", value: AppTab.browse) {
+                    Screens.browse
+                }
+                radioTab
+                audiobooksTab
+                downloadsTab
+
+                // The providers twice over, both driven by the switched-on
+                // set: once as tabs in one section, which is how the
+                // sidebar lets them be reordered and hidden, and then a
+                // collection section per provider. One turned off in
+                // Services drops out of both; its sidebar edits stay in
+                // the customization for when it comes back.
+                providersSection
+                ForEach(appState.tabProviders, id: \.self) { service in
+                    collectionSection(for: service)
+                }
+            }
+        }
+        // Built afresh when the network comes or goes, which takes Browse
+        // and Radio out or puts them back. The tab bar matches its items
+        // to tabs by place, so a tab put back in front of others came
+        // back with another's icon (Browse with the Audiobooks book after
+        // Airplane Mode). Hiding them with `.hidden(_:)` instead kept the
+        // items but caught every scroll on Radio and Audiobooks, and
+        // left a tab's page showing another's for seconds after a switch.
+        .id(offline.isActive)
+        // Customization only with the library sections: it holds the
+        // sidebar's edits, and with three fixed tabs there's no Edit.
+        .tabViewCustomization(appState.showsLibrarySections ? $appState.tabCustomization : nil)
+        // The queue panel is inside each tab (`Screens`), not out here:
+        // wrapped around the whole `TabView` it took its width from the
+        // sidebar's, which then had to overlay the content instead of
+        // sitting beside it.
+        .tabBarMinimizeBehavior(appState.tabBarMinimizes ? .onScrollDown : .never)
+        .tabViewBottomAccessory {
+            MusicPlaybackView(showPlayer: $router.isPlayerPresented, zoomNamespace: zoomNamespace)
+        }
+//            // Above the tabs, not in one of them: a toolbar belongs to the
+//            // navigation stack of whichever tab is on screen, so the only way
+//            // to keep one field in every tab is to host it out here.
+//            .safeAreaInset(edge: .top) {
+//                GlobalSearchField(selectedTab: $selectedTab)
+//            }
+        .tabViewSidebarHeader {
+            HStack(spacing: 10) {
+                Image("CueIconGlass")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 32, height: 32)
+                Text("Cue")
+                    .font(.title3.bold())
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, 4)
+        }
+        // The speaker-group count footer is off for now; the slot is
+        // still the place for it when it comes back.
+//            .tabViewSidebarFooter {
+//                let count = sonosService.sorted.count
+//                Label(
+//                    count == 1 ? "1 Speaker Group" : "\(count) Speaker Groups",
+//                    systemImage: count == 0 ? "hifispeaker.slash" : "hifispeaker.2"
+//                )
+//                .font(.footnote)
+//                .foregroundStyle(.secondary)
+//                .padding(.vertical, 4)
+//            }
+        // No bottom bar: the queue toggle is in the sidebar header.
+        // The sidebar's selection highlight is drawn in the tint, so this
+        // is what takes it off accent-teal. A TabView sidebar has no way to
+        // colour the row's label separately from its fill, so this gets the
+        // subtle neutral capsule but not Music.app's accent-coloured label.
+        // The tint reaches the whole TabView, which is why the tab content
+        // and the bottom bar put the real accent back — `Color("Accent")`
+        // by name, since `.accentColor` now resolves to this tint.
+//            .tint(Color.primary.opacity(0.12))
+        // The queue panel, beside the whole `TabView` on iPad; on a phone
+        // each tab has its own (`Screens`), so an iPhone Duo open keeps its
+        // tab bar at the trailing edge. Inside `withEnvironments()`, which
+        // the panel's view reads from.
+        .modifier(WindowQueuePanel())
+        .modifier(AdaptiveTabViewStyle())
+    }
+
     var body: some Scene {
         WindowGroup {
             @Bindable var router = router
             let _ = ScrollStopLog.note("body CueApp")
-            TabView(selection: tabSelection) {
-                if !appState.showsLibrarySections {
-                    // The phone's three on every device, Browse first in
-                    // Home's place: providers are browsed from Browse's menu
-                    // and set up in Settings › Services. No provider tabs, so
-                    // the bar never overflows into More. Browse is the home
-                    // here, so it's named Home and has the house. Offline it
-                    // goes, and Downloads leads in its place.
-                    if appState.showsBrowseTab {
-                        Tab("Home", image: "home.fill", value: AppTab.browse) {
-                            Screens.browse
-                        }
-                    }
-                    searchTab
-                    radioTab
-                    audiobooksTab
-                    downloadsTab
+            Group {
+                if AppState.usesDesktopShell {
+                    DesktopShell()
                 } else {
-                    Tab("Home", image: "home.fill", value: AppTab.home) {
-                        Screens.home
-                    }
-                    searchTab
-                    Tab("Browse", systemImage: "square.grid.2x2", value: AppTab.browse) {
-                        Screens.browse
-                    }
-                    radioTab
-                    audiobooksTab
-                    downloadsTab
-
-                    // The providers twice over, both driven by the switched-on
-                    // set: once as tabs in one section, which is how the
-                    // sidebar lets them be reordered and hidden, and then a
-                    // collection section per provider. One turned off in
-                    // Services drops out of both; its sidebar edits stay in
-                    // the customization for when it comes back.
-                    providersSection
-                    ForEach(appState.tabProviders, id: \.self) { service in
-                        collectionSection(for: service)
-                    }
+                    tabView
                 }
             }
-            // Built afresh when the network comes or goes, which takes Browse
-            // and Radio out or puts them back. The tab bar matches its items
-            // to tabs by place, so a tab put back in front of others came
-            // back with another's icon (Browse with the Audiobooks book after
-            // Airplane Mode). Hiding them with `.hidden(_:)` instead kept the
-            // items but caught every scroll on Radio and Audiobooks, and
-            // left a tab's page showing another's for seconds after a switch.
-            .id(offline.isActive)
-            // Customization only with the library sections: it holds the
-            // sidebar's edits, and with three fixed tabs there's no Edit.
-            .tabViewCustomization(appState.showsLibrarySections ? $appState.tabCustomization : nil)
             // UIKit's animations back on once the tab bar has drawn on the
             // tab the app opened on (held off at launch, `AppDelegate`).
             .task {
@@ -632,64 +700,12 @@ struct CueApp: App {
                     router.selectedTab = appState.fallbackTab
                 }
             }
-            // The queue panel is inside each tab (`Screens`), not out here:
-            // wrapped around the whole `TabView` it took its width from the
-            // sidebar's, which then had to overlay the content instead of
-            // sitting beside it.
-            .tabBarMinimizeBehavior(appState.tabBarMinimizes ? .onScrollDown : .never)
-            .tabViewBottomAccessory {
-                MusicPlaybackView(showPlayer: $router.isPlayerPresented, zoomNamespace: zoomNamespace)
-            }
-//            // Above the tabs, not in one of them: a toolbar belongs to the
-//            // navigation stack of whichever tab is on screen, so the only way
-//            // to keep one field in every tab is to host it out here.
-//            .safeAreaInset(edge: .top) {
-//                GlobalSearchField(selectedTab: $selectedTab)
-//            }
-            .tabViewSidebarHeader {
-                HStack(spacing: 10) {
-                    Image("CueIconGlass")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 32, height: 32)
-                    Text("Cue")
-                        .font(.title3.bold())
-                    Spacer(minLength: 0)
-                }
-                .padding(.vertical, 4)
-            }
-            // The speaker-group count footer is off for now; the slot is
-            // still the place for it when it comes back.
-//            .tabViewSidebarFooter {
-//                let count = sonosService.sorted.count
-//                Label(
-//                    count == 1 ? "1 Speaker Group" : "\(count) Speaker Groups",
-//                    systemImage: count == 0 ? "hifispeaker.slash" : "hifispeaker.2"
-//                )
-//                .font(.footnote)
-//                .foregroundStyle(.secondary)
-//                .padding(.vertical, 4)
-//            }
-            // No bottom bar: the queue toggle is in the sidebar header.
-            // The sidebar's selection highlight is drawn in the tint, so this
-            // is what takes it off accent-teal. A TabView sidebar has no way to
-            // colour the row's label separately from its fill, so this gets the
-            // subtle neutral capsule but not Music.app's accent-coloured label.
-            // The tint reaches the whole TabView, which is why the tab content
-            // and the bottom bar put the real accent back — `Color("Accent")`
-            // by name, since `.accentColor` now resolves to this tint.
-//            .tint(Color.primary.opacity(0.12))
             // The toasts ("Added to …") on iPad, the Mac and an iPhone Duo
             // open, over the content column. The tab screens draw them only
             // in the iPhone's layout, so on those the menu bar's playlist
             // commands, and every other toast outside the player and the
             // sheets, showed nothing.
             .modifier(WindowToasts())
-            // The queue panel, beside the whole `TabView` on iPad and the
-            // Mac; on a phone each tab has its own (`Screens`), so an iPhone
-            // Duo open keeps its tab bar at the trailing edge. Inside
-            // `withEnvironments()`, which the panel's view reads from.
-            .modifier(WindowQueuePanel())
             .withEnvironments()
             .environment(\.zoomNamespace, zoomNamespace)
             // Presented from the `TabView`, not from inside the tab bar
@@ -720,7 +736,6 @@ struct CueApp: App {
                 WelcomeScreen()
                     .withEnvironments()
             }
-            .modifier(AdaptiveTabViewStyle())
             // The iPad's layout or the iPhone's, from the window's size
             // classes (`PadLayout`): out here, around the toasts, the queue
             // panel and the player's cover, which all read it. An iPhone Duo
@@ -2132,7 +2147,106 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 UIMenu(title: "", options: .displayInline, children: [undoCommand, redoCommand])
             ])
             builder.insertSibling(playlistMenu, afterMenu: .file)
+
+            // Controls, after Music's, in the Mac's window: the player's
+            // transport, shuffle and repeat, a speaker's volume, and the
+            // search field. Space, ⌘← and ⌘→ leave a text field's typing
+            // and caret alone (`wantsPriorityOverSystemBehavior` is off).
+            if AppState.usesDesktopShell {
+                let controlsMenu = UIMenu(title: "Controls", identifier: UIMenu.Identifier("com.cue.controlsMenu"), children: [
+                    UIMenu(title: "", options: .displayInline, children: [
+                        UIKeyCommand(title: "Play/Pause", action: #selector(controlsTogglePlayback), input: " ", modifierFlags: []),
+                        UIKeyCommand(title: "Next", action: #selector(controlsNext), input: UIKeyCommand.inputRightArrow, modifierFlags: .command),
+                        UIKeyCommand(title: "Previous", action: #selector(controlsPrevious), input: UIKeyCommand.inputLeftArrow, modifierFlags: .command),
+                    ]),
+                    UIMenu(title: "", options: .displayInline, children: [
+                        UICommand(title: "Shuffle", action: #selector(controlsToggleShuffle)),
+                        UICommand(title: "Repeat", action: #selector(controlsCycleRepeat)),
+                    ]),
+                    UIMenu(title: "", options: .displayInline, children: [
+                        UIKeyCommand(title: "Speaker Volume Up", action: #selector(controlsVolumeUp), input: UIKeyCommand.inputUpArrow, modifierFlags: .command),
+                        UIKeyCommand(title: "Speaker Volume Down", action: #selector(controlsVolumeDown), input: UIKeyCommand.inputDownArrow, modifierFlags: .command),
+                    ]),
+                    UIMenu(title: "", options: .displayInline, children: [
+                        UIKeyCommand(title: "Search", action: #selector(controlsSearch), input: "f", modifierFlags: .command),
+                        UIKeyCommand(title: "Show Player", action: #selector(controlsShowPlayer), input: "p", modifierFlags: [.command, .shift]),
+                    ]),
+                ])
+                builder.insertSibling(controlsMenu, afterMenu: .view)
+            }
         }
+    }
+
+    // MARK: - Controls menu
+
+    @objc func controlsTogglePlayback() {
+        Task { @MainActor in await PlaybackRoute.shared.presented.togglePlayback() }
+    }
+
+    /// Next, or a book's 30 s forward, as the player's button.
+    @objc func controlsNext() {
+        Task { @MainActor in
+            let controller = PlaybackRoute.shared.presented
+            if AudiobookPlayer.shared.isPlayingBook(on: controller) {
+                await AudiobookPlayer.shared.skip(by: AudiobookPlayer.skipForwardInterval)
+            } else if controller.showsNext, controller.hasNext {
+                await controller.next()
+            }
+        }
+    }
+
+    /// Previous, or a book's 15 s back.
+    @objc func controlsPrevious() {
+        Task { @MainActor in
+            let controller = PlaybackRoute.shared.presented
+            if AudiobookPlayer.shared.isPlayingBook(on: controller) {
+                await AudiobookPlayer.shared.skip(by: -AudiobookPlayer.skipBackInterval)
+            } else if controller.showsPrevious, controller.canGoBack {
+                await controller.previous()
+            }
+        }
+    }
+
+    @objc func controlsToggleShuffle() {
+        Task { @MainActor in
+            let controller = PlaybackRoute.shared.presented
+            await controller.setShuffle(!controller.isShuffled)
+        }
+    }
+
+    @objc func controlsCycleRepeat() {
+        Task { @MainActor in
+            let controller = PlaybackRoute.shared.presented
+            await controller.setRepeatMode(controller.repeatMode.next)
+        }
+    }
+
+    /// A Sonos group's volume by 5. On this Mac the volume is macOS's own.
+    @objc func controlsVolumeUp() {
+        Task { @MainActor in await Self.nudgeSpeakerVolume(by: 5) }
+    }
+
+    @objc func controlsVolumeDown() {
+        Task { @MainActor in await Self.nudgeSpeakerVolume(by: -5) }
+    }
+
+    @MainActor
+    private static func nudgeSpeakerVolume(by step: Int) async {
+        guard let group = PlaybackRoute.shared.presented.group else { return }
+        await SonosService.shared.setRelativeGroupVolume(ip: group.ip, volume: step)
+        group.groupVolume = min(max(group.groupVolume + Double(step), 0), 100)
+    }
+
+    /// The window's search field, with Search showing.
+    @objc func controlsSearch() {
+        Task { @MainActor in
+            DesktopState.shared.select(.search)
+            SearchActivator.shared.requestFocus()
+        }
+    }
+
+    @objc func controlsShowPlayer() {
+        Task { @MainActor in Router.main.isPlayerPresented = true }
     }
 
     /// Drives the foreground playlist editor's undo, routed from the Playlist menu / ⌘Z.

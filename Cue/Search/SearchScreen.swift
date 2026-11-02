@@ -365,33 +365,22 @@ struct SearchScreen: View {
         .keyboardType(.asciiCapable)
         .autocorrectionDisabled()
         .onKeyPress(.downArrow, phases: [.down, .repeat]) { _ in
-            let count = navigableCount
-            guard count > 0 else { return .ignored }
-            if let idx = keyboardSelectedIndex {
-                keyboardSelectedIndex = min(idx + 1, count - 1)
-            } else {
-                keyboardSelectedIndex = 0
-            }
-            return .handled
+            handle(.down) ? .handled : .ignored
         }
         .onKeyPress(.upArrow, phases: [.down, .repeat]) { _ in
-            guard keyboardSelectedIndex != nil else { return .ignored }
-            if let idx = keyboardSelectedIndex, idx > 0 {
-                keyboardSelectedIndex = idx - 1
-            } else {
-                keyboardSelectedIndex = nil
-            }
-            return .handled
+            handle(.up) ? .handled : .ignored
         }
         .onKeyPress(.return) {
-            guard let idx = keyboardSelectedIndex else { return .ignored }
-            activateSelectedItem(at: idx)
-            return .handled
+            handle(.select) ? .handled : .ignored
         }
         .onKeyPress(.escape) {
-            guard keyboardSelectedIndex != nil else { return .ignored }
-            keyboardSelectedIndex = nil
-            return .handled
+            handle(.cancel) ? .handled : .ignored
+        }
+        // The same keys from the Mac window's field, which is outside this
+        // screen (`DesktopSearchField`).
+        .onChange(of: SearchActivator.shared.relayedKey?.count) {
+            guard !hostsOwnField, let key = SearchActivator.shared.relayedKey?.key else { return }
+            _ = handle(key)
         }
         .presentationDragIndicator(.hidden)
         .listStyle(.plain)
@@ -445,7 +434,11 @@ struct SearchScreen: View {
             ScrollStopLog.note("search appeared", logNow: true)
             searchFieldIsPresented = true
             lastNonEmptyQuery = ""
-            musicSearchService.query = ""
+            // The Mac window's field typed the query that brought this
+            // screen up: it stays.
+            if hostsOwnField {
+                musicSearchService.query = ""
+            }
             answerFocusRequest()
         }
         .onDisappear {
@@ -498,7 +491,11 @@ struct SearchScreen: View {
     /// no services to choose.
     private var searchBar: some View {
         HStack(spacing: 8) {
-            searchField
+            if hostsOwnField {
+                searchField
+            } else {
+                Spacer(minLength: 0)
+            }
             if !offline.isActive {
                 MediaServiceMenu(selection: $selectionStore.selection, filters: $filters)
                     .serviceMenuGlass()
@@ -556,6 +553,46 @@ struct SearchScreen: View {
     }
 #endif
 
+    /// Whether this screen draws the search field. The Mac window's Search
+    /// tab doesn't: its field is the window's, above every tab
+    /// (`DesktopSearchField`), which passes its keys on through
+    /// `SearchActivator`.
+    private var hostsOwnField: Bool {
+        !(AppState.usesDesktopShell && isTab)
+    }
+
+    /// The arrow keys move through the results, Return plays the one
+    /// chosen and Escape lets go of it. False when the key had nothing to do.
+    private func handle(_ key: SearchActivator.RelayedKey) -> Bool {
+        switch key {
+        case .down:
+            let count = navigableCount
+            guard count > 0 else { return false }
+            if let idx = keyboardSelectedIndex {
+                keyboardSelectedIndex = min(idx + 1, count - 1)
+            } else {
+                keyboardSelectedIndex = 0
+            }
+            return true
+        case .up:
+            guard keyboardSelectedIndex != nil else { return false }
+            if let idx = keyboardSelectedIndex, idx > 0 {
+                keyboardSelectedIndex = idx - 1
+            } else {
+                keyboardSelectedIndex = nil
+            }
+            return true
+        case .select:
+            guard let idx = keyboardSelectedIndex else { return false }
+            activateSelectedItem(at: idx)
+            return true
+        case .cancel:
+            guard keyboardSelectedIndex != nil else { return false }
+            keyboardSelectedIndex = nil
+            return true
+        }
+    }
+
     /// Focuses the field for a request not answered yet: a switch to the
     /// Search tab, or a tap on it while it shows. Only the tab's screen
     /// (`isTab`): the tab and the Sonos Favorites sheet are both built with
@@ -565,7 +602,7 @@ struct SearchScreen: View {
         let request = SearchActivator.shared.requestCount
         guard request != answeredFocusRequest else { return }
         answeredFocusRequest = request
-        guard isTab else { return }
+        guard isTab, hostsOwnField else { return }
         ScrollStopLog.note("search focus requested", logNow: true)
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(100))

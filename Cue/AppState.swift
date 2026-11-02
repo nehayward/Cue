@@ -118,6 +118,19 @@ final class AppState {
     /// the sections come back.
     var showsLibrarySections: Bool { false }
 
+    /// The Mac's window (`DesktopShell`): a sidebar of cards beside the
+    /// content, the search field above it, the queue on the trailing side
+    /// and a bar of player cards along the bottom, in place of the
+    /// `TabView`. Its sidebar opens a provider's collections (Artists,
+    /// Albums, …) as tabs of their own.
+    static var usesDesktopShell: Bool {
+#if targetEnvironment(macCatalyst)
+        true
+#else
+        false
+#endif
+    }
+
     /// The providers with a section in the sidebar: every one that browses
     /// by collection and is switched on in Services, in the order the app
     /// lists services. Nothing is added or removed by hand any more — a
@@ -218,6 +231,13 @@ final class AppState {
         }
         if showsDownloadsTab {
             tabs.insert(.downloads)
+        }
+        if Self.usesDesktopShell {
+            for service in tabProviders {
+                for collection in service.tabCollections {
+                    tabs.insert(.providerCollection(service, collection))
+                }
+            }
         }
         if showsLibrarySections {
             tabs.insert(.home)
