@@ -1839,6 +1839,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Before the tab view is built: SwiftUI's tabs handed over again
         // unchanged took Search's keyboard and stopped scrolls.
         SameTabsFilter.install()
+        // An iPhone Duo opening left the tab bar over the whole screen, and
+        // every page's bottom safe area that tall.
+        FullScreenTabBarFix.install()
         // Sonos is opt-in here. This runs before any view body or `.task` can
         // call `monitor()`, which is what would put up the Local Network
         // prompt on a device that has never seen a speaker.

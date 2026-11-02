@@ -38,12 +38,6 @@ struct AudiobooksScreen: View {
     /// resized) and starts again from its own inset (`bottomInsetWidth`).
     @State private var fullBottomInset: CGFloat = 0
     @State private var bottomInsetWidth: CGFloat = 0
-    /// Where the page is scrolled, to put it back within its content
-    /// (`settleIfPastEnd`).
-    @State private var scrollPosition = ScrollPosition(edge: .top)
-    @State private var scrollPhase: ScrollPhase = .idle
-    /// Scrolled further than the content reaches.
-    @State private var isPastEnd = false
 
     /// Whether Plex had books when last asked: the shelf's copy, not
     /// `@AppStorage`, which rebuilt the tab with every UserDefaults write.
@@ -125,28 +119,6 @@ struct AudiobooksScreen: View {
                 // nothing wide.
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            // Put back within its content when it comes to rest past it.
-            // An iPhone Duo opened or folded left the page where it was in
-            // the other layout, which the new width lays out a different
-            // height: opened, it stayed scrolled past the end of a page now
-            // shorter than the screen, shelves at the top and black under
-            // them, until the phone was turned. Only at rest: a pull past
-            // the end bounces back by itself.
-            .scrollPosition($scrollPosition)
-            .onScrollPhaseChange { _, phase in
-                scrollPhase = phase
-                settleIfPastEnd()
-            }
-            .onScrollGeometryChange(for: Bool.self) { geometry in
-                let end = max(
-                    -geometry.contentInsets.top,
-                    geometry.contentSize.height + geometry.contentInsets.bottom - geometry.containerSize.height
-                )
-                return geometry.contentOffset.y > end + 1
-            } action: { _, pastEnd in
-                isPastEnd = pastEnd
-                settleIfPastEnd()
-            }
             .overlay {
                 if needsServer {
                     // Centred above the tab bar: the scroll view runs under it.
@@ -177,8 +149,13 @@ struct AudiobooksScreen: View {
             .withAppRouter()
         }
         .onGeometryChange(for: BottomInset.self) { proxy in
-            BottomInset(width: proxy.size.width, inset: proxy.safeAreaInsets.bottom)
+            BottomInset(width: proxy.size.width, height: proxy.size.height, inset: proxy.safeAreaInsets.bottom)
         } action: { measured in
+            // No room at all above the inset is UIKit partway through a
+            // switch of display (`FullScreenTabBarFix`), its tab bar over
+            // the whole screen: kept as the tallest, a Duo opened carried a
+            // margin the screen's height, black past the page's end.
+            guard measured.height > 0 else { return }
             fullBottomInset = measured.width == bottomInsetWidth ? max(fullBottomInset, measured.inset) : measured.inset
             bottomInsetWidth = measured.width
         }
@@ -189,16 +166,10 @@ struct AudiobooksScreen: View {
 
     private static let recentCount = 10
 
-    /// Scrolls to the end of the page, the top of one that fits the screen,
-    /// when it rests further than its content reaches (`isPastEnd`).
-    private func settleIfPastEnd() {
-        guard isPastEnd, scrollPhase == .idle else { return }
-        scrollPosition.scrollTo(edge: .bottom)
-    }
-
-    /// The screen's width with its bottom safe area, for `fullBottomInset`.
+    /// The screen's size with its bottom safe area, for `fullBottomInset`.
     private struct BottomInset: Equatable {
         let width: CGFloat
+        let height: CGFloat
         let inset: CGFloat
     }
 
