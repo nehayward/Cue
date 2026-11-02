@@ -143,7 +143,8 @@ public final class PlexAuthenticator: NSObject {
     private func createPin() async throws -> PinResponse {
         var request = pinRequest(url: URL(string: "https://plex.tv/api/v2/pins?strong=1")!)
         request.httpMethod = "POST"
-        request.setValue("https://assets.cue.dance/Icon.png", forHTTPHeaderField: "X-Plex-Device-Icon")
+        // The site's copy of the app icon; assets.cue.dance doesn't exist.
+        request.setValue("https://cue.dance/icon-512.png", forHTTPHeaderField: "X-Plex-Device-Icon")
         return try await send(request)
     }
 
