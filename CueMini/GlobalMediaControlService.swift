@@ -220,6 +220,14 @@ final class GlobalMediaControlService {
     /// HUD updates immediately each tap, and a generation token ensures only the
     /// latest tap's resolved track is shown.
     private func skip(forward: Bool) async {
+        // Cue's player, unless a speaker is pinned: on this Mac or the group
+        // Cue plays on, a book's skips included. Its HUD comes with the new
+        // song (`CueLink.onTrackChanged`), or the speaker's own.
+        if pinnedDevice() == nil, let state = CueLink.shared.state, state.item != nil, state.isActive {
+            CueLink.shared.skip(forward: forward)
+            return
+        }
+
         // getPlayingGroup is instant for a pinned speaker and TTL-cached otherwise,
         // so this stays snappy without going stale.
         guard let group = await getPlayingGroup() else { return }
@@ -262,13 +270,29 @@ final class GlobalMediaControlService {
         }
     }
 
+    /// The pinned speaker, when there is one and it's here.
+    private func pinnedDevice() -> SonosDevice? {
+        guard let pinnedId = MiniSettingsService.shared.pinnedSpeakerId else { return nil }
+        return SonosMiniService.shared.devices.first(where: { $0.id == pinnedId })
+    }
+
     private func getPlayingGroup() async -> SonosDevice? {
         // Pinned speaker: a local lookup that's always current, so a pin change is
         // honored immediately. Not cached.
-        if let pinnedId = MiniSettingsService.shared.pinnedSpeakerId,
-           let pinnedDevice = SonosMiniService.shared.devices.first(where: { $0.id == pinnedId }) {
+        if let pinnedDevice = pinnedDevice() {
             return pinnedDevice
         }
+
+        // The group Cue's player is on, by its coordinator or a room in it.
+        if let id = CueLink.shared.speakerGroupID,
+           let group = SonosMiniService.shared.devices.first(where: { device in
+               device.id == id || device.rooms.contains { $0.id == id }
+           }) {
+            return group
+        }
+
+        // Cue has Sonos switched off: no speakers to look for.
+        guard CueLink.shared.showsSpeakers else { return nil }
 
         // Unpinned: getNowPlayingID is networked, so reuse a recent result while it
         // is still fresh. We re-read the live device by id each time so its track

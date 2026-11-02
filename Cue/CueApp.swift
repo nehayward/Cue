@@ -773,6 +773,8 @@ struct CueApp: App {
                 // was lost with the rest of the old launch block below, and
                 // without it the card never appeared for speaker playback.
                 NowPlayingSessionService.shared.activate()
+#elseif targetEnvironment(macCatalyst)
+                CueMiniLink.shared.start() // Cue Mini follows the player from here on.
 #endif
             }
             //            .withAlert()

@@ -31,6 +31,7 @@ struct CueMiniApp: App {
 
     init() {
         // Initialize global services to ensure they're set up
+        _ = CueLink.shared
         _ = GlobalMediaControlService.shared
         _ = SonosMiniService.shared
         _ = MiniSettingsService.shared
@@ -58,6 +59,22 @@ struct CueMiniApp: App {
             }
         }
         
+        // The HUD for a new song in Cue's player on this Mac. A speaker's
+        // has the speaker's own, below.
+        CueLink.shared.onTrackChanged = { state in
+            guard let item = state.item,
+                  MiniSettingsService.shared.showTrackChangeHUD,
+                  !MenuVisibilityService.shared.isMenuVisible else { return }
+            HudWindowManager.shared.extendVisibility()
+            HudWindowManager.shared.showMediaIndicator(
+                speakerName: state.route.name,
+                action: .track(direction: nil, title: item.title, artist: item.subtitle,
+                               albumName: item.artworkKey ?? "", imageURL: CueLink.shared.coverURL, loading: false),
+                isPlaying: true,
+                displayDuration: 5
+            )
+        }
+
         // Set up track change callback to show HUD
         // Access service directly and use unowned to avoid retain cycles
         SonosMiniService.shared.onTrackChanged = { group, track in
@@ -96,8 +113,11 @@ struct CueMiniApp: App {
         }
         SonosMiniService.shared.startPeriodicCleanup()
 
+        // Not while Cue has Sonos switched off: no speakers, and no Local
+        // Network prompt for them.
         Task {
             try? await Task.sleep(for: .milliseconds(200))
+            guard CueLink.shared.showsSpeakers else { return }
             try? await SonosMiniService.shared.loadWatch(useCache: true)
         }
     }
@@ -154,6 +174,13 @@ struct CueMiniApp: App {
 struct MenuBarLabelView: View {
     private var settings = MiniSettingsService.shared
     private var sonosService = SonosMiniService.shared
+    private var link = CueLink.shared
+
+    /// The pinned speaker, when there is one.
+    private var pinnedDevice: SonosDevice? {
+        guard let pinnedId = settings.pinnedSpeakerId else { return nil }
+        return sonosService.devices.first { $0.id == pinnedId }
+    }
 
     /// Pinned speaker if there is one, otherwise whatever is playing.
     ///
@@ -165,17 +192,23 @@ struct MenuBarLabelView: View {
     /// bare while music is playing in another room, so skip the ones with no
     /// title to show.
     private var device: SonosDevice? {
-        if let pinnedId = settings.pinnedSpeakerId,
-           let pinned = sonosService.devices.first(where: { $0.id == pinnedId }) {
-            return pinned
+        if let pinnedDevice {
+            return pinnedDevice
         }
         return sonosService.devices.first { $0.isPlaying && !$0.isTVMode && !$0.track.song.isEmpty }
     }
 
+    /// A pinned speaker's song, else Cue's while it plays (on this Mac or a
+    /// speaker), else a playing speaker's.
+    ///
     /// `song`, not `name` — it prefers the stream metadata title and falls back
     /// to `name`, which is what the menu's own rows render.
     private var title: String? {
-        guard settings.showSongTitleInMenuBar, let device, !device.isTVMode else { return nil }
+        guard settings.showSongTitleInMenuBar else { return nil }
+        if pinnedDevice == nil, let state = link.state, state.isPlaying, let item = state.item {
+            return item.title
+        }
+        guard let device, !device.isTVMode else { return nil }
         let song = device.track.song
         return song.isEmpty ? nil : song
     }
