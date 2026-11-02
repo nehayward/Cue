@@ -14,7 +14,14 @@ is in `Website/README.md`; this note is the to-do list.
   drafted from the code: Mixpanel (anonymous ID, no songs or searches),
   RevenueCat, Cloudflare logs, no cookies on the site.
 - [ ] **Confirm `hi@cue.dance` receives mail.** It's the only contact on the
-  site, in Help, the press kit and the footer.
+  site, in Help, the press kit and the footer. Email Routing forwards it to
+  the verified `nehayward+9@gmail.com` (checked 2026-11-02; the catch-all is
+  off, so any other address bounces); a test message hasn't been sent.
+- [ ] **DMARC for cue.dance.** Missing (clic.dance has one). Add it from
+  the DNS page's recommendation, which sets Cloudflare's report address.
+- [x] **www and plain http.** Both redirect to https://cue.dance from the
+  Worker (`site.wwwHost`, the `www.cue.dance` route in `wrangler.toml`),
+  live from the next deploy.
 - [ ] **Check the logo rules.** The services section shows the Apple Music
   and Plex marks (Simple Icons, `Website/src/lib/brand-marks.js`). Apple's
   identity guidelines are strict; if in doubt, swap the mark for an icon.

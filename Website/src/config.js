@@ -22,6 +22,9 @@ export const site = {
 	testFlight: 'https://testflight.apple.com/join/6B7QHpsd',
 	testFlightHost: 'testflight.cue.dance',
 
+	// Also this Worker's; it redirects to `origin`, path and all.
+	wwwHost: 'www.cue.dance',
+
 };
 
 export const appStoreUrl = site.appStoreId ? `https://apps.apple.com/app/id${site.appStoreId}` : null;
