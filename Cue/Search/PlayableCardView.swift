@@ -45,7 +45,7 @@ struct PlayableCardView: View {
         VStack {
             if let add = adding?.add, add {
                 content
-            } else if artworkOnly || tileWidth != nil {
+            } else if usesContextMenu {
                 // A button with a context menu, not a `Menu` with a primary
                 // action: a grid lays out dozens of tiles at once, and the
                 // menu's content — nested menus, a download index refresh —
@@ -116,6 +116,18 @@ struct PlayableCardView: View {
         }
     }
 
+    /// A shelf's tile on the phone keeps the card's held `Menu`, as the
+    /// Recent row's tiles do: a context menu in a list row lifts the whole
+    /// row, which for a shelf was every tile on it. The Mac keeps the
+    /// right-click.
+    private var usesContextMenu: Bool {
+#if targetEnvironment(macCatalyst)
+        artworkOnly || tileWidth != nil
+#else
+        artworkOnly
+#endif
+    }
+
     private func tile(width: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             ContentArtworkView(content: item, showMusicSource: false, preferredSize: width, cornerRadius: 6)
@@ -129,6 +141,8 @@ struct PlayableCardView: View {
             }
             .font(.subheadline)
             .lineLimit(1)
+            // A menu's label takes the accent otherwise.
+            .tint(.primary)
         }
         .frame(width: width, alignment: .leading)
         .contentShape(.rect)
