@@ -78,19 +78,28 @@ struct PlayOnSheet: View {
     @ViewBuilder
     private var content: some View {
         VStack(spacing: 0) {
-            // Outside the list, so a pull down on it is always the sheet's.
-            PlayOnHeader(isPopover: isPopover)
-                .padding(.horizontal, 24)
-                // Clear of the sheet's grabber; a popover has none.
-                .padding(.top, isPopover ? 20 : 28)
-                .padding(.bottom, 8)
-                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
-                    headerHeight = $0
-                    refit()
+            // In a popover the Move prompt takes the rooms' place: a sheet
+            // presented from a popover opened as a large window on the Mac,
+            // whatever size it asked for.
+            if isPopover, let pending {
+                RouteTransferPrompt(target: pending.target) { carrying in
+                    choose(pending, carrying: carrying)
                 }
+            } else {
+                // Outside the list, so a pull down on it is always the sheet's.
+                PlayOnHeader(isPopover: isPopover)
+                    .padding(.horizontal, 24)
+                    // Clear of the sheet's grabber; a popover has none.
+                    .padding(.top, isPopover ? 20 : 28)
+                    .padding(.bottom, 8)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
+                        headerHeight = $0
+                        refit()
+                    }
 
-            roomList
-            groupBar
+                roomList
+                groupBar
+            }
         }
         .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: {
             bottomInset = $0
@@ -100,7 +109,7 @@ struct PlayOnSheet: View {
         // height a sheet would be fitted to.
         .frame(
             idealWidth: isPopover ? 400 : nil,
-            idealHeight: isPopover ? (sheetHeight ?? openingSheetHeight) : nil
+            idealHeight: isPopover && pending == nil ? (sheetHeight ?? openingSheetHeight) : nil
         )
         // Opens fitted to the rooms, as the system's picker does, and a swipe
         // up still takes it to full height. The binding keeps it fitted as
@@ -110,10 +119,9 @@ struct PlayOnSheet: View {
             set: { isFullHeight = $0 == .large }
         ))
         .presentationDragIndicator(.visible)
-        .sheet(item: $pending) { pending in
+        .sheet(item: isPopover ? .constant(nil) : $pending) { pending in
             RouteTransferPrompt(target: pending.target) { carrying in
-                self.pending = nil
-                route.switchTo(pending.target, carrying: carrying)
+                choose(pending, carrying: carrying)
             }
         }
         .task { await refreshRoomVolumes() }
@@ -124,6 +132,12 @@ struct PlayOnSheet: View {
                 route.prefetchTargets()
             }
         }
+    }
+
+    /// The Move prompt's answer: the switch, moving what plays or not.
+    private func choose(_ pending: PendingSwitch, carrying: Bool) {
+        self.pending = nil
+        route.switchTo(pending.target, carrying: carrying)
     }
 
     private var roomList: some View {

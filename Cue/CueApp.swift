@@ -1767,6 +1767,21 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // In a car, speakers are put away and not looked for; known before
         // the first `monitor()` for the same reason.
         CarConnection.start()
+        // In the background, which playing on this device keeps Cue running
+        // in, the speakers are read less, as on the Mac with its window
+        // hidden (`SonosService.isOutOfSight`): the group playing keeps up
+        // through its live events, which the Lock Screen card reads. From
+        // launch too, for a launch into the background (a widget's Play).
+        // Every 2 s rather than the Mac's 10: a widget's Play waits up to
+        // 3 s for the speaker to say it's playing.
+        SonosService.shared.outOfSightPace = .seconds(2)
+        SonosService.shared.isOutOfSight = application.applicationState == .background
+        NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { _ in
+            SonosService.shared.isOutOfSight = true
+        }
+        NotificationCenter.default.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { _ in
+            SonosService.shared.isOutOfSight = false
+        }
         #endif
         // RevenueCat, analytics, remote flags and the image pipeline. Before
         // any view body: `Purchases.shared` is a fatal error until

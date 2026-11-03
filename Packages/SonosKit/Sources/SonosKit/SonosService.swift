@@ -263,12 +263,18 @@ public final class SonosService {
     @ObservationIgnored public var isEditing: Bool = false
     @ObservationIgnored public var isGrouping: Bool = false
     /// Whether nothing of Cue is on screen (the Mac's window hidden or
-    /// minimised; set by the app). Then the other groups go unread and the
-    /// topology is read every 10 s rather than twice a second: the group
-    /// playing keeps up through its live events, and those reads, about
-    /// eight requests a group a second, ran on for as long as Cue did.
-    /// Back on screen, the loops wake at once.
+    /// minimised, the iPhone's app in the background; set by the app).
+    /// Then the other groups go unread and the topology is read every
+    /// `outOfSightPace` rather than twice a second: the group playing keeps
+    /// up through its live events, and those reads, about eight requests a
+    /// group a second, ran on for as long as Cue did. Back on screen, the
+    /// loops wake at once.
     @ObservationIgnored public var isOutOfSight: Bool = false
+    /// How often the topology, and the group playing, are read while out
+    /// of sight. The app sets it shorter on the iPhone, where a widget's
+    /// Play wakes Cue in the background and waits a few seconds for the
+    /// speaker to say it's playing.
+    @ObservationIgnored public var outOfSightPace: Duration = .seconds(10)
     /// How many screens show the other groups' songs and levels (Play On,
     /// the speaker picker; `beginShowingOtherGroups`). Only while one does
     /// are the other groups read every second: read with nothing to show
@@ -552,7 +558,7 @@ public final class SonosService {
                     continue
                 }
                 if isOutOfSight || otherGroupViewers == 0 {
-                    await rest(upTo: .seconds(10)) { $0.isOutOfSight || $0.otherGroupViewers == 0 }
+                    await rest(upTo: outOfSightPace) { $0.isOutOfSight || $0.otherGroupViewers == 0 }
                     continue
                 }
                 // MARK: Update room volumes
@@ -589,7 +595,7 @@ public final class SonosService {
                     // MARK: Update room volumes
                     try await load(useCache: useCache)
                     if isOutOfSight {
-                        await rest(upTo: .seconds(10)) { $0.isOutOfSight }
+                        await rest(upTo: outOfSightPace) { $0.isOutOfSight }
                     } else {
                         try? await Task.sleep(for: .milliseconds(selectedGroup != nil ? 500 : 800))
                     }
