@@ -119,6 +119,14 @@ final class AppState {
                 }
             }
         }, "dance.cue.debug.queue" as CFString, nil, .deliverImmediately)
+        // `notifyutil -p dance.cue.debug.closeWindow` does what the main
+        // window's close button and ⌘W do (hides Cue), to test what
+        // reopening keeps.
+        CFNotificationCenterAddObserver(center, nil, { _, _, _, _, _ in
+            Task { @MainActor in
+                MenuAppLaunchAtLoginManager.shared.bridge?.hideApp()
+            }
+        }, "dance.cue.debug.closeWindow" as CFString, nil, .deliverImmediately)
     }
     #endif
 

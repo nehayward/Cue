@@ -67,7 +67,7 @@ final class DesktopState {
 /// tabs with Search, the library's collections, its playlists), the queue
 /// the same down the trailing side, and the page between them. Both
 /// panels are clear over macOS's own sidebar material, which sits behind
-/// the whole window (`WindowMaterial`), so the desktop shows through them
+/// the whole window (`MainWindowChrome`), so the desktop shows through them
 /// as through Music's; the page draws its own background over it.
 struct DesktopShell: View {
     @State private var appState = AppState.shared
@@ -111,7 +111,7 @@ struct DesktopShell: View {
             // How Settings opens its window from outside a view (the menu
             // bar, the routers).
             SettingsWindow.shared.openWindow = openWindow
-            WindowMaterial.install()
+            MainWindowChrome.install()
         }
 #endif
     }
@@ -268,7 +268,7 @@ private struct KeptPageFrame: ViewModifier {
 
 /// Next Up, or a book's chapters, down the window's trailing side, up to
 /// the window's top as Music's queue is: no traffic lights sit over it.
-/// Clear, over the window's material (`WindowMaterial`).
+/// Clear, over the window's material (`MainWindowChrome`).
 struct DesktopQueuePanel: View {
     var body: some View {
         QueueNextUpView()

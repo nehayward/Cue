@@ -1947,6 +1947,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             builder.replace(menu: .about, with: UIMenu(title: "", identifier: .about, options: .displayInline, children: [
                 UICommand(title: "About Cue", action: #selector(showAbout))
             ]))
+            // File ▸ Close (⌘W): from the main window it hides Cue, as the
+            // window's close button does (`MainWindowChrome`), so the window
+            // comes back as it was; Settings closes.
+            let close = UIMenu(title: "", identifier: .close, options: .displayInline, children: [
+                UIKeyCommand(title: "Close", action: #selector(closeWindow), input: "w", modifierFlags: .command)
+            ])
+            if builder.menu(for: .close) != nil {
+                builder.replace(menu: .close, with: close)
+            } else {
+                builder.insertChild(close, atEndOfMenu: .file)
+            }
             builder.replace(menu: .help, with: UIMenu(title: "Help", identifier: .help, children: [
                 UICommand(title: "Cue Help", action: #selector(showHelp)),
                 UICommand(title: "What's New in Cue", action: #selector(showWhatsNew)),
@@ -2132,6 +2143,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 #if targetEnvironment(macCatalyst)
     @objc func showSettings() {
         SettingsWindow.shared.open()
+    }
+
+    /// File ▸ Close: Settings closes; the main window hides Cue.
+    @objc func closeWindow() {
+        let key = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first { $0.windows.contains(where: \.isKeyWindow) }
+        if let key, SettingsWindow.isMarked(key.session) {
+            UIApplication.shared.requestSceneSessionDestruction(key.session, options: nil)
+        } else {
+            MenuAppLaunchAtLoginManager.shared.bridge?.hideApp()
+        }
     }
 
     @objc func showAbout() {

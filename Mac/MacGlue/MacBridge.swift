@@ -251,6 +251,19 @@ final class MacBridge: NSObject, MacBridgeable, @unchecked Sendable {
         }
     }
 
+    func hideOnClose(windowsTitled title: String) {
+        for window in NSApp.windows where window.title == title {
+            guard let button = window.standardWindowButton(.closeButton),
+                  button.action != #selector(hideApp) else { continue }
+            button.target = self
+            button.action = #selector(hideApp)
+        }
+    }
+
+    @objc func hideApp() {
+        NSApp.hide(nil)
+    }
+
     // MARK: - Distributed notifications
 
     /// The handler for each name observed.

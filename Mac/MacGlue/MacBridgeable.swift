@@ -45,4 +45,15 @@ protocol MacBridgeable: NSObjectProtocol {
     /// window titled `title`, beneath Cue's own content, so what Cue leaves
     /// clear shows it. Once a window; again is a no-op.
     func installSidebarMaterial(inWindowsTitled title: String)
+
+    /// Makes the close button of each window titled `title` hide Cue rather
+    /// than close the window, as a music app's does: Cue plays on, and a
+    /// click on its Dock icon brings the same window back with everything
+    /// where it was. A closed window came back built anew, every page
+    /// loading again. Again is harmless.
+    func hideOnClose(windowsTitled title: String)
+
+    /// Hides Cue, as Cue ▸ Hide Cue does: what the main window's close
+    /// button and ⌘W do (`hideOnClose`).
+    func hideApp()
 }

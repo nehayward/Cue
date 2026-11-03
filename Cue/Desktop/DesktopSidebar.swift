@@ -29,7 +29,7 @@ struct DesktopSidebar: View {
         // The window's full height, as macOS 27's sidebars run: the rows
         // start below the title bar, the traffic lights in the corner above
         // them. No background: on the Mac it's clear over the window's
-        // sidebar material (`WindowMaterial`).
+        // sidebar material (`MainWindowChrome`).
         .belowTitleBar()
     }
 

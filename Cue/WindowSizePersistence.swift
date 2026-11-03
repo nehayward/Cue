@@ -29,14 +29,25 @@ final class WindowSizeObserver: NSObject {
     @objc private var observedScene: UIWindowScene?
     private var observation: NSKeyValueObservation?
     private var debounceWork: DispatchWorkItem?
+    private let store: WindowFrameStore
+    /// The last frame seen, for a quit within the second a save waits:
+    /// written then, else a window resized just before ⌘Q came back at its
+    /// old size.
+    private var latestFrame: CGRect?
+    private var terminationObserver: NSObjectProtocol?
 
     init(windowScene: UIWindowScene, store: WindowFrameStore) {
         self.observedScene = windowScene
+        self.store = store
         super.init()
+        terminationObserver = NotificationCenter.default.addObserver(forName: UIApplication.willTerminateNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.saveNow()
+        }
         observation = observe(\.observedScene?.effectiveGeometry, options: [.new]) { [weak self] _, change in
             guard let self,
                   let frame = change.newValue??.systemFrame,
                   frame.size != .zero else { return }
+            self.latestFrame = frame
             self.debounceWork?.cancel()
             let work = DispatchWorkItem {
                 store.save(frame)
@@ -49,8 +60,19 @@ final class WindowSizeObserver: NSObject {
         }
     }
 
+    /// Writes the last frame seen at once, rather than after the pause.
+    func saveNow() {
+        debounceWork?.cancel()
+        if let latestFrame {
+            store.save(latestFrame)
+        }
+    }
+
     deinit {
         debounceWork?.cancel()
+        if let terminationObserver {
+            NotificationCenter.default.removeObserver(terminationObserver)
+        }
     }
 }
 #endif
