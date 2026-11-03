@@ -1055,8 +1055,9 @@ private struct EmptyPlayerArtwork: View {
 /// plays, it spans the chapter playing, its times the chapter's
 /// (`AudiobookPlayer.chapterSpan`).
 struct PlayerScrubber: View {
-    /// One row, the times either side of the bar, as the Mac window's
-    /// player card has it (`DesktopPlayerBar`); else the bar over its times.
+    /// One slim row under the song, the times either side of the bar, as the
+    /// Mac window's player bar has it (`DesktopPlayerBar`); else the bar
+    /// over its times.
     var isInline = false
 
     private var route: PlaybackRoute { .shared }
@@ -1116,7 +1117,7 @@ struct PlayerScrubber: View {
                 span.upperBound - span.lowerBound > 3600 ? .hourMinuteSecond : .minuteSecond
 
             if isInline {
-                HStack(spacing: 12) {
+                HStack(spacing: 8) {
                     Text(elapsed.formatted(.time(pattern: pattern)))
                         .contentTransition(.identity)
                     slider(position: position, span: span, controller: controller)
@@ -1124,7 +1125,7 @@ struct PlayerScrubber: View {
                         .contentTransition(.identity)
                 }
                 .monospacedDigit()
-                .font(.callout)
+                .font(.caption2)
                 .foregroundStyle(.secondary)
             } else {
             VStack(spacing: 0) {
@@ -1183,7 +1184,7 @@ struct PlayerScrubber: View {
             ),
             in: span,
             step: 1,
-            baseHeight: isInline ? 10 : (usesPadLayout ? 24 : 16),
+            baseHeight: isInline ? 6 : (usesPadLayout ? 24 : 16),
             delayDrag: false,
             immediateDrag: true,
             valueAnimation: nil

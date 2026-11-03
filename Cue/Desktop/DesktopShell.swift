@@ -14,15 +14,16 @@ final class DesktopState {
 
     private init() {}
 
-    /// The stack on screen, which the toolbar's Back and Forward step
-    /// through.
+    /// The stack on screen, where a sidebar playlist's menu presents its
+    /// sheets.
     var currentRouter: Router {
         if playlist != nil { return .desktopPlaylist }
         return Router.forTab(AppState.shared.resolvedTab(Router.main.selectedTab))
     }
 
     /// Shows a tab. Chosen again while it shows, it goes back to its first
-    /// page, as a tab bar's tab does; Search's asks for the field.
+    /// page, as a tab bar's tab does. Search puts the cursor in its field
+    /// either way.
     func select(_ tab: AppTab) {
         let wasShowing = playlist == nil && AppState.shared.resolvedTab(Router.main.selectedTab) == tab
         if playlist != nil {
@@ -31,8 +32,13 @@ final class DesktopState {
         if wasShowing {
             Router.main.handleReselection(of: tab)
             Router.forTab(tab).path.removeAll()
-        } else if Router.main.selectedTab != tab {
-            Router.main.selectedTab = tab
+        } else {
+            if Router.main.selectedTab != tab {
+                Router.main.selectedTab = tab
+            }
+            if tab == .search {
+                SearchActivator.shared.requestFocus()
+            }
         }
     }
 
@@ -55,13 +61,12 @@ final class DesktopState {
     }
 }
 
-/// The Mac's window, in place of the `TabView` (`AppState.usesDesktopShell`),
-/// after DaftMusic: rounded cards on the window's background. The sidebar
-/// card down the leading side (the tabs, the library's collections, its
-/// playlists), Back, Forward and the search field above the page, the
-/// queue's card down the trailing side, and the player's cards along the
-/// bottom (`DesktopPlayerBar`), the now playing card under the sidebar and
-/// the queue's summary under the queue.
+/// The Mac's window, in place of the `TabView` (`AppState.usesDesktopShell`):
+/// rounded cards on the window's background. The sidebar card down the
+/// leading side (the tabs with Search, the library's collections, its
+/// playlists), the page in the middle, the queue's card down the trailing
+/// side, and the player's rounded bar along the bottom (`DesktopPlayerBar`),
+/// as Music has it.
 ///
 /// Each tab's page is kept once it has been shown, hidden while another
 /// shows, as a `TabView` keeps its tabs: built again on every switch, each
@@ -71,9 +76,9 @@ struct DesktopShell: View {
     @State private var desktop = DesktopState.shared
     /// The tabs whose pages are alive, the latest shown last.
     @State private var keptTabs: [AppTab] = []
-    /// Whether the window has room for the queue's card and summary. A
-    /// flag rather than the width, so a resize runs this again only as it
-    /// crosses the line.
+    /// Whether the window has room for the queue's card. A flag rather
+    /// than the width, so a resize runs this again only as it crosses the
+    /// line.
     @State private var isWide = true
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.openWindow) private var openWindow
@@ -97,10 +102,6 @@ struct DesktopShell: View {
         appState.showsQueuePanel && isWide
     }
 
-    /// The queue's summary under it, while the window has room for both
-    /// ends of the bar.
-    private var showsQueueSummary: Bool { isWide }
-
     var body: some View {
         let selected = appState.resolvedTab(router.selectedTab)
 
@@ -109,13 +110,9 @@ struct DesktopShell: View {
                 DesktopSidebar()
                     .frame(width: scaled(DesktopStyle.sidebarWidth))
 
-                VStack(spacing: 8) {
-                    DesktopToolbar()
-                        .frame(height: scaled(DesktopStyle.toolbarHeight))
-                    pages(selected: selected)
-                        .clipShape(.rect(cornerRadius: DesktopStyle.cornerRadius))
-                }
-                .frame(maxWidth: .infinity)
+                pages(selected: selected)
+                    .clipShape(.rect(cornerRadius: DesktopStyle.cornerRadius))
+                    .frame(maxWidth: .infinity)
 
                 if showsQueueCard {
                     DesktopQueueCard()
@@ -125,12 +122,8 @@ struct DesktopShell: View {
             }
             .animation(.snappy, value: showsQueueCard)
 
-            DesktopPlayerBar(
-                sidebarWidth: scaled(DesktopStyle.sidebarWidth),
-                queueWidth: queueWidth,
-                showsQueueSummary: showsQueueSummary
-            )
-            .frame(height: scaled(DesktopStyle.barHeight))
+            DesktopPlayerBar()
+                .frame(height: scaled(DesktopStyle.barHeight))
         }
         .padding(.horizontal, DesktopStyle.gap)
         .padding(.bottom, DesktopStyle.gap)
@@ -251,8 +244,7 @@ struct DesktopQueueCard: View {
 }
 
 /// A playlist chosen in the sidebar: its page as the root of a stack of its
-/// own (`Router.desktopPlaylist`), so Back and Forward step through what's
-/// opened from it.
+/// own (`Router.desktopPlaylist`), what's opened from it pushed there.
 struct DesktopPlaylistScreen: View {
     let playlist: PlayableContent
 

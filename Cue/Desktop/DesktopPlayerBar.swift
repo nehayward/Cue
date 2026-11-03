@@ -3,56 +3,128 @@ import MusicSearchKit
 import SonosKit
 import SwiftUI
 
-/// The player's cards along the bottom of the Mac window (`DesktopShell`),
-/// after DaftMusic's: what's playing under the sidebar, the transport, the
-/// scrubber, Play On with the speaker's volume, lyrics and the queue, and
-/// under the queue's card its summary with shuffle and repeat.
+/// The player along the bottom of the Mac window (`DesktopShell`): one
+/// rounded bar, as Music's is. The transport with shuffle and repeat, then
+/// what's playing with its progress under it, then lyrics, the queue, Play
+/// On and a speaker's volume.
 ///
 /// Read through `PlaybackRoute.presented`, as the player is, so this
 /// device and a Sonos group are one bar. The volume is a speaker's only:
 /// the Mac's own is the system's, in the menu bar and on the keyboard.
 struct DesktopPlayerBar: View {
-    let sidebarWidth: CGFloat
-    let queueWidth: CGFloat
-    let showsQueueSummary: Bool
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        HStack(spacing: DesktopStyle.gap) {
-            DesktopNowPlayingCard()
-                .frame(width: sidebarWidth)
-            DesktopTransportCard()
-            DesktopScrubberCard()
+        let scale = DesktopStyle.scale(typeSize)
+
+        HStack(spacing: 12 * scale) {
+            DesktopTransport()
+            DesktopNowPlaying()
+                .frame(maxWidth: 760 * scale)
                 .frame(maxWidth: .infinity)
-            DesktopActionsCard()
-            if showsQueueSummary {
-                DesktopQueueSummaryCard()
-                    .frame(width: queueWidth)
-            }
+            DesktopBarActions()
         }
+        .padding(.horizontal, 14 * scale)
+        .frame(maxHeight: .infinity)
+        .background(DesktopStyle.card, in: .capsule)
     }
 }
 
-/// A bar card's shape: its content in a row, centred in the bar's height.
-private struct BarCard<Content: View>: View {
-    var horizontalPadding: CGFloat = 12
-    @ViewBuilder var content: () -> Content
+// MARK: - Transport
+
+/// Shuffle, Previous, Play, Next and Repeat; a book's back 15 and forward
+/// 30 s, with no shuffle or repeat. While a hand-off holds the bar on its
+/// source they rest (`HeldPlaybackController`).
+private struct DesktopTransport: View {
+    private var route: PlaybackRoute { .shared }
 
     var body: some View {
-        HStack(spacing: 4) {
-            content()
+        let controller = route.presented
+        let isBook = PlayerCommands.isBook
+        let canChangeOrder = controller.isActive && controller.queueCount > 0
+
+        HStack(spacing: 2) {
+            if !isBook {
+                Button {
+                    Task { await controller.setShuffle(!controller.isShuffled) }
+                } label: {
+                    Image(systemName: "shuffle")
+                        .font(.body)
+                        .foregroundStyle(controller.isShuffled ? AnyShapeStyle(Color("Accent")) : AnyShapeStyle(.secondary))
+                }
+                .buttonStyle(DesktopIconButtonStyle(side: 36))
+                .disabled(!canChangeOrder)
+                .accessibilityLabel("Shuffle")
+                .accessibilityValue(controller.isShuffled ? "On" : "Off")
+                .help(controller.isShuffled ? "Shuffle: On" : "Shuffle: Off")
+            }
+
+            Button {
+                Task { await PlayerCommands.previous() }
+            } label: {
+                Image(systemName: PlayerCommands.previousSymbol)
+                    .font(.title3)
+            }
+            .buttonStyle(DesktopIconButtonStyle(side: 42))
+            .disabled(!PlayerCommands.canGoPrevious)
+            .accessibilityLabel(PlayerCommands.previousTitle)
+            .help(PlayerCommands.previousTitle)
+
+            Button {
+                Task { await PlayerCommands.togglePlayback() }
+            } label: {
+                Image(systemName: controller.isPlaying ? "pause.fill" : "play.fill")
+                    .font(.title)
+                    .contentTransition(GroupMediaControlsView.animatesPlayPause ? .symbolEffect(.replace) : .identity)
+            }
+            .buttonStyle(DesktopIconButtonStyle(side: 48))
+            .disabled(!controller.isActive)
+            .accessibilityLabel(controller.isPlaying ? "Pause" : "Play")
+            .help(controller.isPlaying ? "Pause" : "Play")
+
+            Button {
+                Task { await PlayerCommands.next() }
+            } label: {
+                Image(systemName: PlayerCommands.nextSymbol)
+                    .font(.title3)
+            }
+            .buttonStyle(DesktopIconButtonStyle(side: 42))
+            .disabled(!PlayerCommands.canGoNext)
+            .accessibilityLabel(PlayerCommands.nextTitle)
+            .help(PlayerCommands.nextTitle)
+
+            if !isBook {
+                Button {
+                    Task { await controller.setRepeatMode(controller.repeatMode.next) }
+                } label: {
+                    Image(systemName: controller.repeatMode == .one ? "repeat.1" : "repeat")
+                        .font(.body)
+                        .foregroundStyle(controller.repeatMode == .off ? AnyShapeStyle(.secondary) : AnyShapeStyle(Color("Accent")))
+                }
+                .buttonStyle(DesktopIconButtonStyle(side: 36))
+                .disabled(!canChangeOrder)
+                .accessibilityLabel("Repeat")
+                .accessibilityValue(repeatDescription(controller.repeatMode))
+                .help("Repeat: \(repeatDescription(controller.repeatMode))")
+            }
         }
-        .padding(.horizontal, horizontalPadding)
-        .frame(maxHeight: .infinity)
-        .background(DesktopStyle.card, in: .rect(cornerRadius: DesktopStyle.cornerRadius))
+    }
+
+    private func repeatDescription(_ mode: LocalPlaybackService.RepeatMode) -> String {
+        switch mode {
+        case .off: "Off"
+        case .all: "All"
+        case .one: "One"
+        }
     }
 }
 
 // MARK: - Now playing
 
-/// The song: its cover, title and artist, opening the player, and the like
-/// button where its service has one. On a speaker, the group's name under
-/// it; through a hand-off, where it's going.
-private struct DesktopNowPlayingCard: View {
+/// The song: its cover, title and artist, opening the player, the like
+/// button where its service has one, and its progress under them. On a
+/// speaker, the group's name; through a hand-off, where it's going.
+private struct DesktopNowPlaying: View {
     private var route: PlaybackRoute { .shared }
     @State private var router = Router.main
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -66,67 +138,85 @@ private struct DesktopNowPlayingCard: View {
         let group = controller.group
         let item = controller.nowPlayingDisplay
 
-        BarCard(horizontalPadding: 10) {
+        HStack(spacing: 12) {
             Button {
                 router.isPlayerPresented = true
             } label: {
-                HStack(spacing: 12) {
-                    artwork(item: item, group: group)
-                    VStack(alignment: .leading, spacing: 2) {
-                        // Cut short rather than scrolled: the bar is always
-                        // on screen, and a marquee redraws every frame while
-                        // it moves. The whole title is the tooltip.
-                        if let title = item?.title {
-                            Text(title)
-                                .font(.callout.weight(.semibold))
-                                .lineLimit(1)
-                                .help(title)
-                        } else {
-                            Text("Not Playing")
-                                .font(.callout.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                        }
-                        subtitle(item: item)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                        if route.isHolding || group != nil {
-                            Label(route.isHolding ? "Moving to \(route.group?.nameWithCount ?? "This Mac")…" : group?.nameWithCount ?? "", systemImage: "hifispeaker.fill")
-                                .font(.caption2.weight(.semibold))
-                                .foregroundStyle(Color("Accent"))
-                                .lineLimit(1)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .padding(4)
-                .contentShape(.rect)
+                artwork(item: item, group: group)
             }
             .buttonStyle(.plain)
-            .desktopHover(cornerRadius: 14)
+            .desktopHoverLift()
             .help("Show Player")
 
-            likeButton(item: item, group: group)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 8) {
+                    Button {
+                        router.isPlayerPresented = true
+                    } label: {
+                        titles(item: item, group: group)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .help(item?.title ?? "Show Player")
+
+                    likeButton(item: item, group: group)
+                }
+
+                if item != nil, controller.duration.isZero || !controller.duration.isFinite {
+                    Label("Live", systemImage: "dot.radiowaves.left.and.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                } else {
+                    PlayerScrubber(isInline: true)
+                }
+            }
         }
+    }
+
+    /// Cut short rather than scrolled: the bar is always on screen, and a
+    /// marquee redraws every frame while it moves.
+    private func titles(item: PlayableContent?, group: GroupRoom?) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            if let title = item?.title {
+                Text(title)
+                    .font(.callout.weight(.semibold))
+            } else {
+                Text("Not Playing")
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+            HStack(spacing: 6) {
+                if route.isHolding || group != nil {
+                    Label(route.isHolding ? "Moving to \(route.group?.nameWithCount ?? "This Mac")…" : group?.nameWithCount ?? "", systemImage: "hifispeaker.fill")
+                        .foregroundStyle(Color("Accent"))
+                        .fontWeight(.semibold)
+                }
+                subtitle(item: item)
+                    .foregroundStyle(.secondary)
+            }
+            .font(.caption)
+        }
+        .lineLimit(1)
     }
 
     @ViewBuilder
     private func artwork(item: PlayableContent?, group: GroupRoom?) -> some View {
-        Group {
+        VStack {
             if group != nil, route.isSwitching, !route.isHolding {
                 ProgressView()
             } else if let item {
                 ContentArtworkView(content: item, showMusicSource: false)
-                    .clipShape(.rect(cornerRadius: 9))
+                    .clipShape(.rect(cornerRadius: 8))
             } else {
                 Image(systemName: group == nil ? "music.note" : "hifispeaker.fill")
                     .font(.title3)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(.quaternary, in: .rect(cornerRadius: 9))
+                    .background(.quaternary, in: .rect(cornerRadius: 8))
             }
         }
-        .frame(width: scaled(52), height: scaled(52))
+        .frame(width: scaled(50), height: scaled(50))
     }
 
     @ViewBuilder
@@ -147,86 +237,14 @@ private struct DesktopNowPlayingCard: View {
         if !route.isHolding {
             if let group {
                 LikeButtonView(group: group)
-                    .frame(width: scaled(36), height: scaled(36))
+                    .frame(width: scaled(28), height: scaled(28))
             } else if let song = local.onAirMatch {
                 LikeButtonView(content: song)
                     .id(song.content.id)
-                    .frame(width: scaled(36), height: scaled(36))
+                    .frame(width: scaled(28), height: scaled(28))
             } else if let item = local.nowPlaying, item.content.service.supportsFavoriteTrack {
                 LikeButtonView(content: item)
-                    .frame(width: scaled(36), height: scaled(36))
-            }
-        }
-    }
-}
-
-// MARK: - Transport
-
-/// Previous, Play and Next; a book's back 15 and forward 30 s. While a
-/// hand-off holds the bar on its source they rest
-/// (`HeldPlaybackController`).
-private struct DesktopTransportCard: View {
-    private var route: PlaybackRoute { .shared }
-
-    var body: some View {
-        let controller = route.presented
-
-        BarCard(horizontalPadding: 8) {
-            Button {
-                Task { await PlayerCommands.previous() }
-            } label: {
-                Image(systemName: PlayerCommands.previousSymbol)
-                    .font(.title3)
-            }
-            .buttonStyle(DesktopIconButtonStyle(side: 44))
-            .disabled(!PlayerCommands.canGoPrevious)
-            .accessibilityLabel(PlayerCommands.previousTitle)
-            .help(PlayerCommands.previousTitle)
-
-            Button {
-                Task { await PlayerCommands.togglePlayback() }
-            } label: {
-                Image(systemName: controller.isPlaying ? "pause.fill" : "play.fill")
-                    .font(.title)
-                    .contentTransition(GroupMediaControlsView.animatesPlayPause ? .symbolEffect(.replace) : .identity)
-            }
-            .buttonStyle(DesktopIconButtonStyle(side: 52))
-            .disabled(!controller.isActive)
-            .accessibilityLabel(controller.isPlaying ? "Pause" : "Play")
-            .help(controller.isPlaying ? "Pause" : "Play")
-
-            Button {
-                Task { await PlayerCommands.next() }
-            } label: {
-                Image(systemName: PlayerCommands.nextSymbol)
-                    .font(.title3)
-            }
-            .buttonStyle(DesktopIconButtonStyle(side: 44))
-            .disabled(!PlayerCommands.canGoNext)
-            .accessibilityLabel(PlayerCommands.nextTitle)
-            .help(PlayerCommands.nextTitle)
-        }
-    }
-}
-
-// MARK: - Scrubber
-
-/// The player's own scrubber, in one row (`PlayerScrubber`); a station's
-/// word for having no end.
-private struct DesktopScrubberCard: View {
-    private var route: PlaybackRoute { .shared }
-
-    var body: some View {
-        let controller = route.presented
-
-        BarCard(horizontalPadding: 22) {
-            if controller.nowPlayingDisplay != nil, controller.duration.isZero || !controller.duration.isFinite {
-                Label("Live", systemImage: "dot.radiowaves.left.and.right")
-                    .font(.callout.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity)
-            } else {
-                PlayerScrubber(isInline: true)
+                    .frame(width: scaled(28), height: scaled(28))
             }
         }
     }
@@ -234,8 +252,8 @@ private struct DesktopScrubberCard: View {
 
 // MARK: - Actions
 
-/// Play On, a speaker's volume while one plays, lyrics and the queue.
-private struct DesktopActionsCard: View {
+/// Lyrics, the queue, Play On and a speaker's volume while one plays.
+private struct DesktopBarActions: View {
     private var route: PlaybackRoute { .shared }
     @State private var appState = AppState.shared
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -243,18 +261,9 @@ private struct DesktopActionsCard: View {
     var body: some View {
         let controller = route.presented
         let isBook = PlayerCommands.isBook
+        let scale = DesktopStyle.scale(typeSize)
 
-        BarCard(horizontalPadding: 8) {
-            PlaybackRouteButton()
-                .font(.title3)
-                .frame(width: 44 * DesktopStyle.scale(typeSize), height: 44 * DesktopStyle.scale(typeSize))
-                .desktopHover(cornerRadius: 22)
-                .help("Play On")
-
-            if let group = controller.group, !route.isHolding {
-                DesktopSpeakerVolume(group: group)
-            }
-
+        HStack(spacing: 2) {
             Button {
                 // The lyrics are looked up while the player is open, so the
                 // button opens it on them.
@@ -264,7 +273,7 @@ private struct DesktopActionsCard: View {
                 Image(systemName: isBook ? "captions.bubble" : "quote.bubble")
                     .font(.title3)
             }
-            .buttonStyle(DesktopIconButtonStyle(side: 44))
+            .buttonStyle(DesktopIconButtonStyle(side: 40))
             .disabled(controller.nowPlayingDisplay == nil)
             .accessibilityLabel(isBook ? "Transcript" : "Lyrics")
             .help(isBook ? "Transcript" : "Lyrics")
@@ -278,99 +287,22 @@ private struct DesktopActionsCard: View {
                     .font(.title3)
                     .foregroundStyle(appState.showsQueuePanel ? AnyShapeStyle(Color("Accent")) : AnyShapeStyle(.primary))
             }
-            .buttonStyle(DesktopIconButtonStyle(side: 44))
+            .buttonStyle(DesktopIconButtonStyle(side: 40))
             .accessibilityLabel(QueueToggleIcon.title(isShown: appState.showsQueuePanel))
             .accessibilityAddTraits(appState.showsQueuePanel ? .isSelected : [])
             .help("\(QueueToggleIcon.title(isShown: appState.showsQueuePanel)) (⌥⌘0)")
-        }
-    }
-}
 
-/// A Sonos group's volume: the speaker glyph, which mutes it, and the
-/// group's slider (`VolumeControlView`, which sends the levels).
-private struct DesktopSpeakerVolume: View {
-    @Bindable var group: GroupRoom
-    @Environment(\.dynamicTypeSize) private var typeSize
+            PlaybackRouteButton()
+                .font(.title3)
+                .frame(width: 40 * scale, height: 40 * scale)
+                .desktopHover(cornerRadius: 20 * scale)
+                .help("Play On")
 
-    var body: some View {
-        VolumeControlView(group: group, immediateDrag: true)
-            .frame(width: 200 * DesktopStyle.scale(typeSize))
-            .padding(.horizontal, 4)
-    }
-}
-
-// MARK: - Queue summary
-
-/// How long the queue is and where in it playback is, with shuffle and
-/// repeat; a book's title and what's left of it.
-private struct DesktopQueueSummaryCard: View {
-    private var route: PlaybackRoute { .shared }
-
-    var body: some View {
-        let controller = route.presented
-        let isBook = PlayerCommands.isBook
-
-        BarCard(horizontalPadding: 18) {
-            VStack(alignment: .leading, spacing: 2) {
-                if isBook {
-                    Text(AudiobookPlayer.shared.current?.book.title ?? "Audiobook")
-                        .font(.callout.weight(.semibold))
-                        .lineLimit(1)
-                    AudiobookTimeLeft(isCompact: true)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                } else if controller.queueCount > 0 {
-                    Text(controller.queueCount == 1 ? "1 Song" : "\(controller.queueCount) Songs")
-                        .font(.callout.weight(.semibold))
-                    if controller.queuePosition > 0 {
-                        Text("Playing \(controller.queuePosition) of \(controller.queueCount)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                } else {
-                    Text("Nothing Queued")
-                        .font(.callout.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                }
+            if let group = controller.group, !route.isHolding {
+                VolumeControlView(group: group, immediateDrag: true)
+                    .frame(width: 150 * scale)
+                    .padding(.leading, 4)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            if !isBook {
-                Button {
-                    Task { await controller.setRepeatMode(controller.repeatMode.next) }
-                } label: {
-                    Image(systemName: controller.repeatMode == .one ? "repeat.1" : "repeat")
-                        .font(.title3)
-                        .foregroundStyle(controller.repeatMode == .off ? AnyShapeStyle(.primary) : AnyShapeStyle(Color("Accent")))
-                }
-                .buttonStyle(DesktopIconButtonStyle(side: 40))
-                .disabled(!controller.isActive || controller.queueCount == 0)
-                .accessibilityLabel("Repeat")
-                .accessibilityValue(repeatDescription(controller.repeatMode))
-                .help("Repeat: \(repeatDescription(controller.repeatMode))")
-
-                Button {
-                    Task { await controller.setShuffle(!controller.isShuffled) }
-                } label: {
-                    Image(systemName: "shuffle")
-                        .font(.title3)
-                        .foregroundStyle(controller.isShuffled ? AnyShapeStyle(Color("Accent")) : AnyShapeStyle(.primary))
-                }
-                .buttonStyle(DesktopIconButtonStyle(side: 40))
-                .disabled(!controller.isActive || controller.queueCount == 0)
-                .accessibilityLabel("Shuffle")
-                .accessibilityValue(controller.isShuffled ? "On" : "Off")
-                .help(controller.isShuffled ? "Shuffle: On" : "Shuffle: Off")
-            }
-        }
-    }
-
-    private func repeatDescription(_ mode: LocalPlaybackService.RepeatMode) -> String {
-        switch mode {
-        case .off: "Off"
-        case .all: "All"
-        case .one: "One"
         }
     }
 }

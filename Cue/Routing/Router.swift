@@ -59,8 +59,8 @@ enum AppTab: Hashable, Codable {
     /// alone: two stacks bound to one path push each other.
     static var audiobooks = Router()
     /// Radio's and Downloads' stacks, here rather than in their screens so
-    /// the Mac window's Back and Forward can reach them (`forTab(_:)`).
-    /// Each bound by its own tab alone, as `audiobooks` is.
+    /// the Mac window can reach them (`forTab(_:)`). Each bound by its own
+    /// tab alone, as `audiobooks` is.
     static var radio = Router()
     static var downloads = Router()
     /// The Mac window's stack of a playlist chosen in the sidebar
@@ -70,8 +70,8 @@ enum AppTab: Hashable, Codable {
     /// A provider's tabs' stacks, one per tab, made as each is first shown.
     private static var providerRouters: [AppTab: Router] = [:]
 
-    /// The router whose stack a tab shows, for the Mac window's Back and
-    /// Forward, which act on whichever page is on screen.
+    /// The router whose stack a tab shows, for the Mac window, whose
+    /// sidebar takes a tab chosen again back to its first page.
     @MainActor
     static func forTab(_ tab: AppTab) -> Router {
         switch tab {
@@ -134,59 +134,12 @@ enum AppTab: Hashable, Codable {
         }
         set {
             guard newValue != storedPath else { return }
-            noteHistory(from: storedPath, to: newValue)
             withMutation(keyPath: \.path) {
                 storedPath = newValue
             }
         }
     }
     @ObservationIgnored private var storedPath: [RouterDestination] = []
-
-    /// The pages gone back from, the next one Forward brings back last.
-    /// Kept as a browser keeps them: a step back (the Mac window's Back, a
-    /// navigation bar's own back button) keeps what it took off, and
-    /// opening anything else forgets them.
-    private(set) var forwardPath: [RouterDestination] = []
-
-    var canGoBack: Bool { !path.isEmpty }
-    var canGoForward: Bool { !forwardPath.isEmpty }
-
-    @MainActor
-    func goBack() {
-        guard !path.isEmpty else { return }
-        path.removeLast()
-    }
-
-    @MainActor
-    func goForward() {
-        guard let next = forwardPath.last else { return }
-        path.append(next)
-    }
-
-    /// Keeps `forwardPath` in step with a change of path. Written only when
-    /// it changes: an observed property notifies on every write.
-    private func noteHistory(from old: [RouterDestination], to new: [RouterDestination]) {
-        var forward = forwardPath
-        if new.count < old.count, Array(old.prefix(new.count)) == new {
-            forward.append(contentsOf: old[new.count...].reversed())
-        } else if new.count > old.count, Array(new.prefix(old.count)) == old {
-            // Forward's own step takes its page off the list; any other page
-            // starts a new history.
-            for page in new[old.count...] {
-                if forward.last == page {
-                    forward.removeLast()
-                } else {
-                    forward.removeAll()
-                    break
-                }
-            }
-        } else {
-            forward.removeAll()
-        }
-        if forward != forwardPath {
-            forwardPath = forward
-        }
-    }
     var presentedSheet: SheetDestination? {
         didSet {
 #if targetEnvironment(macCatalyst)

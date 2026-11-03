@@ -3,8 +3,8 @@ import MusicSearchKit
 import SonosKit
 import SwiftUI
 
-/// The Mac window's sidebar card (`DesktopShell`), after DaftMusic's: the
-/// tabs, then the library of the service Browse shows (its collections, a
+/// The Mac window's sidebar card (`DesktopShell`): the tabs, Search under
+/// Home, then the library of the service Browse shows (its collections, a
 /// menu to switch service), then that library's playlists, and Settings at
 /// the foot.
 struct DesktopSidebar: View {
@@ -34,6 +34,9 @@ struct DesktopSidebar: View {
             DesktopSidebarRow(tab: .browse, title: "Home") {
                 Image("home.fill")
             }
+        }
+        DesktopSidebarRow(tab: .search, title: "Search") {
+            Image(systemName: "magnifyingglass")
         }
         if appState.showsRadioTab {
             DesktopSidebarRow(tab: .radio, title: "Radio") {

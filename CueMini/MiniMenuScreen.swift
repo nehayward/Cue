@@ -31,6 +31,10 @@ struct MiniMenuScreen: View {
             }
             .fontDesign(.rounded)
             .padding(.vertical)
+            // Frosted, over the whole menu, rather than the menu's clear
+            // glass, which let a bright desktop through the card and its
+            // text.
+            .background(.thickMaterial)
             .environment(sonosServiceMini)
             .task(id: link.showsSpeakers) {
                 // The speakers only for the group Cue plays on and its volume.

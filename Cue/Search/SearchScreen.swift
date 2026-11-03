@@ -376,12 +376,6 @@ struct SearchScreen: View {
         .onKeyPress(.escape) {
             handle(.cancel) ? .handled : .ignored
         }
-        // The same keys from the Mac window's field, which is outside this
-        // screen (`DesktopSearchField`).
-        .onChange(of: SearchActivator.shared.relayedKey?.count) {
-            guard !hostsOwnField, let key = SearchActivator.shared.relayedKey?.key else { return }
-            _ = handle(key)
-        }
         .presentationDragIndicator(.hidden)
         .listStyle(.plain)
         .foregroundStyle(.primary)
@@ -434,11 +428,7 @@ struct SearchScreen: View {
             ScrollStopLog.note("search appeared", logNow: true)
             searchFieldIsPresented = true
             lastNonEmptyQuery = ""
-            // The Mac window's field typed the query that brought this
-            // screen up: it stays.
-            if hostsOwnField {
-                musicSearchService.query = ""
-            }
+            musicSearchService.query = ""
             answerFocusRequest()
         }
         .onDisappear {
@@ -491,11 +481,7 @@ struct SearchScreen: View {
     /// no services to choose.
     private var searchBar: some View {
         HStack(spacing: 8) {
-            if hostsOwnField {
-                searchField
-            } else {
-                Spacer(minLength: 0)
-            }
+            searchField
             if !offline.isActive {
                 MediaServiceMenu(selection: $selectionStore.selection, filters: $filters)
                     .serviceMenuGlass()
@@ -553,17 +539,9 @@ struct SearchScreen: View {
     }
 #endif
 
-    /// Whether this screen draws the search field. The Mac window's Search
-    /// tab doesn't: its field is the window's, above every tab
-    /// (`DesktopSearchField`), which passes its keys on through
-    /// `SearchActivator`.
-    private var hostsOwnField: Bool {
-        !(AppState.usesDesktopShell && isTab)
-    }
-
     /// The arrow keys move through the results, Return plays the one
     /// chosen and Escape lets go of it. False when the key had nothing to do.
-    private func handle(_ key: SearchActivator.RelayedKey) -> Bool {
+    private func handle(_ key: SearchActivator.ResultKey) -> Bool {
         switch key {
         case .down:
             let count = navigableCount
@@ -602,7 +580,7 @@ struct SearchScreen: View {
         let request = SearchActivator.shared.requestCount
         guard request != answeredFocusRequest else { return }
         answeredFocusRequest = request
-        guard isTab, hostsOwnField else { return }
+        guard isTab else { return }
         ScrollStopLog.note("search focus requested", logNow: true)
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(100))

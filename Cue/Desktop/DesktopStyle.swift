@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 
 /// The Mac window's measures and colours (`DesktopShell`): rounded cards on
-/// the window's background, after DaftMusic and Spotify. In points of the
+/// the window's background and a rounded player bar, as Music has. In points of the
 /// iPad idiom the Mac app runs in, which macOS draws at 77%, so they're a
 /// third larger than the same thing in a native Mac app.
 enum DesktopStyle {
@@ -13,18 +13,15 @@ enum DesktopStyle {
     static let topInset: CGFloat = 36
     static let cornerRadius: CGFloat = 22
     static let sidebarWidth: CGFloat = 300
-    /// The search row above the content.
-    static let toolbarHeight: CGFloat = 48
-    /// The player cards along the bottom.
-    static let barHeight: CGFloat = 76
+    /// The player's bar along the bottom.
+    static let barHeight: CGFloat = 72
     /// Below this the queue card gives way, then the sidebar narrows.
     static let queueMinWindowWidth: CGFloat = 1180
 
     /// The window behind the cards: the content's own (the lists' black or
-    /// white), so a page sits on it with no card of its own, as DaftMusic's
-    /// does.
+    /// white), so a page sits on it with no card of its own.
     static let windowBackground = Color(uiColor: .systemBackground)
-    /// The sidebar, the queue, the search field and the player cards.
+    /// The sidebar, the queue and the player bar.
     static let card = Color(uiColor: .secondarySystemBackground)
     /// Under a row or button the pointer is over.
     static let hover = Color.primary.opacity(0.07)
@@ -99,12 +96,11 @@ private struct DesktopHoverLift: ViewModifier {
 }
 
 /// A round glyph button: a wash under the pointer, and a press that sinks.
-/// The player cards' transport and actions, and the toolbar's Back and
-/// Forward.
+/// The player bar's transport and actions, and the sidebar's gear.
 struct DesktopIconButtonStyle: ButtonStyle {
     var side: CGFloat = 40
-    /// Filled with the card's grey when not under the pointer (the toolbar's
-    /// Back and Forward, which sit on the window rather than a card).
+    /// Filled with the card's grey when not under the pointer, for a button
+    /// on the window rather than a card.
     var isFilled = false
 
     func makeBody(configuration: Configuration) -> some View {
