@@ -5,9 +5,10 @@ import UIKit
 /// The Mac window's columns in UIKit's split view: the sidebar in its
 /// sidebar column, on macOS's own sidebar material (`primaryBackgroundStyle`
 /// `.sidebar`: the desktop shows through it, as through Music's),
-/// `DesktopContent` beside it, and the queue in its inspector column. A
-/// Catalyst app gets that material only in a split view's primary column;
-/// a SwiftUI material blurs the window, not what's behind it.
+/// `DesktopContent` beside it, and the queue in its inspector column, which
+/// takes the same material. A Catalyst app gets that material only in a
+/// split view's side columns; a SwiftUI material blurs the window, not
+/// what's behind it.
 ///
 /// Each column is a hosting controller of its own, made once, so its root
 /// gives it what the window gives the shell (`DesktopColumn`). The split
@@ -17,7 +18,7 @@ struct DesktopSplit: UIViewControllerRepresentable {
     /// At the window's scale (`InterfaceSize`).
     let sidebarWidth: CGFloat
     let queueWidth: CGFloat
-    /// The queue, in the inspector column.
+    /// The queue, in the inspector column, on the same material.
     let showsQueue: Bool
     let zoomNamespace: Namespace.ID?
 
