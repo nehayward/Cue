@@ -50,14 +50,14 @@ private enum BarRoom {
 }
 
 private extension View {
-    /// Clear glass, as Music's bar is: the page shows through it, hardly
-    /// blurred, while it scrolls under. The regular kind read as a grey
-    /// slab over it.
+    /// Glass, as the page shows through it while it scrolls under. The
+    /// regular kind, as Music's bar has: the clear one let the page through
+    /// too plainly to read the bar over it.
     @ViewBuilder
     func playerBarGlass() -> some View {
 #if !os(visionOS)
         if #available(iOS 26.0, *) {
-            glassEffect(.clear, in: .capsule)
+            glassEffect(.regular, in: .capsule)
         } else {
             background(.thickMaterial, in: .capsule)
         }
