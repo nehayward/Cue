@@ -63,16 +63,50 @@ final class DesktopState {
 
 /// The Mac's window, in place of the `TabView` (`AppState.usesDesktopShell`):
 /// laid out as macOS 27's Music is. The sidebar runs the window's full
-/// height down the leading side, the traffic lights in its corner (the tabs
-/// with Search, the library's collections, its playlists), the queue the
-/// same down the trailing side, and the page between them runs to the
-/// window's top and bottom edges with the player's bar floating over its
-/// foot (`DesktopPlayerBar`).
+/// height down the leading side on macOS's own sidebar material, the
+/// desktop showing through it and the traffic lights in its corner (the
+/// tabs with Search, the library's collections, its playlists); beside it
+/// `DesktopContent`, the page and the queue.
+///
+/// On the Mac the two are the columns of UIKit's split view
+/// (`DesktopSplit`): only its sidebar column gets that material, which no
+/// SwiftUI view can draw for itself in a Catalyst app.
+struct DesktopShell: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.zoomNamespace) private var zoomNamespace
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        let sidebarWidth = (DesktopStyle.sidebarWidth * DesktopStyle.scale(typeSize)).rounded()
+
+#if targetEnvironment(macCatalyst)
+        DesktopSplit(sidebarWidth: sidebarWidth, zoomNamespace: zoomNamespace)
+            .ignoresSafeArea()
+            // How Settings opens its window from outside a view (the menu
+            // bar, the routers): here, in the scene, which the columns'
+            // own hosting isn't.
+            .onAppear {
+                SettingsWindow.shared.openWindow = openWindow
+            }
+#else
+        HStack(spacing: 0) {
+            DesktopSidebar()
+                .frame(width: sidebarWidth)
+                .desktopPanelBackground(edge: .trailing)
+            DesktopContent()
+        }
+#endif
+    }
+}
+
+/// The window beside the sidebar: the page, running to the window's top
+/// and bottom edges with the player's bar floating over its foot
+/// (`DesktopPlayerBar`), and the queue down the trailing side.
 ///
 /// Each tab's page is kept once it has been shown, hidden while another
 /// shows, as a `TabView` keeps its tabs: built again on every switch, each
 /// page ran its first load again, its spinner and all, and lost its place.
-struct DesktopShell: View {
+struct DesktopContent: View {
     @State private var appState = AppState.shared
     @State private var desktop = DesktopState.shared
     /// The tabs whose pages are alive, the latest shown last.
@@ -82,7 +116,6 @@ struct DesktopShell: View {
     /// line.
     @State private var isWide = true
     @Environment(\.dynamicTypeSize) private var typeSize
-    @Environment(\.openWindow) private var openWindow
 
     private var router: Router { .main }
 
@@ -107,9 +140,6 @@ struct DesktopShell: View {
         let selected = appState.resolvedTab(router.selectedTab)
 
         HStack(spacing: 0) {
-            DesktopSidebar()
-                .frame(width: scaled(DesktopStyle.sidebarWidth))
-
             // Up to the window's top and bottom edges, as Music's pages
             // run: an artist's picture fills the top of the window, and the
             // player's bar floats over the foot, the page scrolling under
@@ -136,18 +166,16 @@ struct DesktopShell: View {
         // a hairline, across the page and the panels.
         .scrollEdgeEffectHidden26()
         .background(DesktopStyle.windowBackground)
-        .ignoresSafeArea()
-        .onGeometryChange(for: Bool.self) { [threshold = scaled(DesktopStyle.queueMinWindowWidth)] in $0.size.width >= threshold } action: { isWide = $0 }
+        // Through the top and bottom, not the leading side: the split lays
+        // this column out under the sidebar too, inset by its width, and
+        // run through that the bar slid under the sidebar, its transport
+        // with it.
+        .ignoresSafeArea(.container, edges: .vertical)
+        // The window's width less the sidebar's, which this doesn't hold.
+        .onGeometryChange(for: Bool.self) { [threshold = scaled(DesktopStyle.queueMinWindowWidth - DesktopStyle.sidebarWidth)] in $0.size.width >= threshold } action: { isWide = $0 }
         .onChange(of: selected, initial: true) { _, tab in
             keep(tab)
         }
-#if targetEnvironment(macCatalyst)
-        // How Settings opens its window from outside a view (the menu bar,
-        // the routers).
-        .onAppear {
-            SettingsWindow.shared.openWindow = openWindow
-        }
-#endif
     }
 
     /// Every kept page, the selected one on top, or the playlist chosen in

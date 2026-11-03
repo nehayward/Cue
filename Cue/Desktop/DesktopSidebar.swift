@@ -27,8 +27,9 @@ struct DesktopSidebar: View {
         }
         // The window's full height, as macOS 27's sidebars run: the rows
         // start below the title bar, the traffic lights in the corner above
-        // them.
-        .desktopPanel(edge: .trailing)
+        // them. No background: on the Mac it's the split view's sidebar
+        // material (`DesktopSplit`).
+        .belowTitleBar()
     }
 
     @ViewBuilder

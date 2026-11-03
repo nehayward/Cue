@@ -50,17 +50,19 @@ enum DesktopStyle {
 }
 
 extension View {
-    /// A panel down a side of the window: the shell's grey up through the
-    /// title bar, with a hairline on the `edge` it meets the page by, and
-    /// the view below the title bar's strip.
+    /// A panel down a side of the window (the queue): the shell's grey up
+    /// through the title bar, with a hairline on the `edge` it meets the
+    /// page by, and the view below the title bar's strip.
     func desktopPanel(edge: HorizontalEdge) -> some View {
-        VStack(spacing: 0) {
-            Color.clear
-                .frame(height: DesktopStyle.titleBarHeight)
-            self
-        }
-        .ignoresSafeArea(.container, edges: .top)
-        .background {
+        belowTitleBar()
+            .desktopPanelBackground(edge: edge)
+    }
+
+    /// The panels' grey up through the title bar, with a hairline on the
+    /// `edge` it meets the page by. Not the sidebar's on the Mac, which is
+    /// macOS's own material (`DesktopSplit`).
+    func desktopPanelBackground(edge: HorizontalEdge) -> some View {
+        background {
             DesktopStyle.panel
                 .overlay(alignment: edge == .leading ? .leading : .trailing) {
                     DesktopStyle.panelEdge
@@ -68,6 +70,17 @@ extension View {
                 }
                 .ignoresSafeArea()
         }
+    }
+
+    /// The view below the title bar's strip, which a panel's list ran up
+    /// under, behind the traffic lights, when left to the safe area.
+    func belowTitleBar() -> some View {
+        VStack(spacing: 0) {
+            Color.clear
+                .frame(height: DesktopStyle.titleBarHeight)
+            self
+        }
+        .ignoresSafeArea(.container, edges: .top)
     }
 
     /// A rounded wash under the view while the pointer is over it.
