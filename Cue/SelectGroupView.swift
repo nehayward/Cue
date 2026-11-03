@@ -484,7 +484,7 @@ struct SelectGroupView: View {
                     .font(.title3)
                     .foregroundStyle(deviceSelected ? Color.accentColor : .secondary)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("This Device")
+                    Text(ThisDevice.name)
                         .font(.body.weight(.semibold))
                     Text("Play here instead of a speaker")
                         .font(.caption)

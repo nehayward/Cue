@@ -1526,7 +1526,7 @@ private struct PlayerBottomToolbarView: View {
     /// holds the player on its source, where it's going.
     private var routeName: String? {
         if route.isHolding {
-            return "Moving to \(route.group?.nameWithCount ?? "This Device")…"
+            return "Moving to \(route.group?.nameWithCount ?? ThisDevice.name)…"
         }
         return (group ?? route.group)?.nameWithCount ?? AudioOutputName.shared.name
     }

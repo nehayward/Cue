@@ -159,7 +159,7 @@ struct MusicPlaybackView: View {
     /// else the speaker's name for a speaker and the artist here.
     private func subtitle(for item: PlayableContent?, on group: GroupRoom?) -> String? {
         if route.isHolding {
-            return "Moving to \(route.group?.nameWithCount ?? "This Device")…"
+            return "Moving to \(route.group?.nameWithCount ?? ThisDevice.name)…"
         }
         if let group {
             return group.nameWithCount

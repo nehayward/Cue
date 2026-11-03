@@ -393,8 +393,8 @@ private struct DeviceRow: View {
 
     var body: some View {
         VolumeRouteRow(
-            title: String(localized: "This Device"),
-            icon: .symbol(Self.symbol),
+            title: ThisDevice.name,
+            icon: .symbol(ThisDevice.symbol),
             mark: isCurrent ? .checkmark : .empty,
             // While a speaker holds the system volume, the device's own
             // level isn't the one the buttons move: no fill to drag.
@@ -405,15 +405,6 @@ private struct DeviceRow: View {
         )
     }
 
-    private static var symbol: String {
-#if os(visionOS)
-        return "visionpro"
-#elseif targetEnvironment(macCatalyst)
-        return "laptopcomputer"
-#else
-        return UIDevice.current.userInterfaceIdiom == .pad ? "ipad" : "iphone"
-#endif
-    }
 }
 
 /// The bar under the rooms once playback is on a speaker: Everywhere (a
@@ -832,7 +823,7 @@ private struct PlayOnHeader: View {
     private var subtitle: Text {
         if let subtitle = item?.subtitle, !subtitle.isEmpty { return Text(subtitle) }
         if let group = route.group { return Text(group.nameWithCount) }
-        return Text("This Device")
+        return Text(ThisDevice.name)
     }
 }
 

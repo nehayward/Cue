@@ -228,7 +228,7 @@ private struct DesktopNowPlaying: View {
             }
             HStack(spacing: 6) {
                 if route.isHolding || group != nil {
-                    Label(route.isHolding ? "Moving to \(route.group?.nameWithCount ?? "This Mac")…" : group?.nameWithCount ?? "", systemImage: "hifispeaker.fill")
+                    Label(route.isHolding ? "Moving to \(route.group?.nameWithCount ?? ThisDevice.name)…" : group?.nameWithCount ?? "", systemImage: "hifispeaker.fill")
                         .foregroundStyle(Color("Accent"))
                         .fontWeight(.semibold)
                 }
