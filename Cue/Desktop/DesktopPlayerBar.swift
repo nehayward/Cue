@@ -252,7 +252,8 @@ private struct DesktopNowPlaying: View {
 
 // MARK: - Actions
 
-/// Lyrics, the queue, Play On and a speaker's volume while one plays.
+/// Lyrics, the queue, Play On and a speaker group's volume while one
+/// plays.
 private struct DesktopBarActions: View {
     private var route: PlaybackRoute { .shared }
     @State private var appState = AppState.shared
@@ -299,10 +300,41 @@ private struct DesktopBarActions: View {
                 .help("Play On")
 
             if let group = controller.group, !route.isHolding {
-                VolumeControlView(group: group, immediateDrag: true)
-                    .frame(width: 150 * scale)
-                    .padding(.leading, 4)
+                DesktopSpeakerVolume(group: group)
+                    .frame(width: 230 * scale)
+                    .padding(.leading, 6)
             }
         }
+    }
+}
+
+/// A Sonos group's volume as the Play On sheet draws it: the group on a
+/// capsule its level fills, dragged sideways to set it (`VolumeRouteRow`),
+/// its menu muting every room.
+private struct DesktopSpeakerVolume: View {
+    let group: GroupRoom
+    @State private var volumes = SpeakerVolumeWriter()
+
+    var body: some View {
+        let isMuted = group.isAllMuted
+
+        VolumeRouteRow(
+            title: group.nameWithCount,
+            icon: .speakers(group.rooms.count),
+            mark: .empty,
+            // A fixed-output coordinator ignores volume: nothing to drag.
+            level: group.coordinatorRoom.isOutputFixed ? nil : group.groupVolume / 100,
+            isMuted: isMuted,
+            listIsSettled: true,
+            onLevel: { volumes.set(group, to: $0 * 100) }
+        )
+        .contextMenu {
+            Button {
+                group.setAllMuted(!isMuted)
+            } label: {
+                Label(isMuted ? "Unmute" : "Mute", systemImage: isMuted ? "speaker.wave.2.fill" : "speaker.slash.fill")
+            }
+        }
+        .help("\(group.nameWithCount): drag for its volume")
     }
 }

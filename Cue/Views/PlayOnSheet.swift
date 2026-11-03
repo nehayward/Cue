@@ -420,7 +420,7 @@ private struct GroupBar: View {
     var body: some View {
         let membership = GroupMembership(group: group)
         let isEverywhere = membership.allGrouped
-        let isMuted = group.isMuted || group.rooms.allSatisfy(\.isMuted)
+        let isMuted = group.isAllMuted
         let isFixed = group.coordinatorRoom.isOutputFixed
         let level = Int(group.groupVolume.rounded())
         let isLevel = group.rooms.allSatisfy { Int($0.volume.rounded()) == level }
@@ -486,15 +486,28 @@ private struct GroupBar: View {
         }
     }
 
-    /// Sonos's group mute mutes or unmutes every room in it. Shown at once
-    /// on the rooms too; the poll confirms it.
     private func setAllMuted(_ mute: Bool) {
         HapticManager.shared.fireHaptic(.selection)
-        group.holdMute(mute)
-        for room in group.rooms where room.isMuted != mute {
+        group.setAllMuted(mute)
+    }
+}
+
+extension GroupRoom {
+    /// Sonos's group mute mutes or unmutes every room in it. Shown at once
+    /// on the rooms too; the poll confirms it. The Play On sheet's All
+    /// Speakers and the Mac window's player bar.
+    @MainActor
+    func setAllMuted(_ mute: Bool) {
+        holdMute(mute)
+        for room in rooms where room.isMuted != mute {
             room.holdMute(mute)
         }
-        Task { await SonosService.shared.setGroupMute(group: group, mute: mute) }
+        Task { await SonosService.shared.setGroupMute(group: self, mute: mute) }
+    }
+
+    /// Whether the group reads as muted: its own mute, or every room's.
+    var isAllMuted: Bool {
+        isMuted || rooms.allSatisfy(\.isMuted)
     }
 }
 
