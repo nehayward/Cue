@@ -62,12 +62,12 @@ final class DesktopState {
 }
 
 /// The Mac's window, in place of the `TabView` (`AppState.usesDesktopShell`):
-/// rounded cards on the window's background. The sidebar card down the
-/// leading side (the tabs with Search, the library's collections, its
-/// playlists, under the traffic lights), the page in the middle running up
-/// to the window's top edge, the queue's card down the trailing
-/// side, and the player's rounded bar along the bottom (`DesktopPlayerBar`),
-/// as Music has it.
+/// laid out as macOS 27's Music is. The sidebar runs the window's full
+/// height down the leading side, the traffic lights in its corner (the tabs
+/// with Search, the library's collections, its playlists), the queue the
+/// same down the trailing side, and the page between them runs to the
+/// window's top and bottom edges with the player's bar floating over its
+/// foot (`DesktopPlayerBar`).
 ///
 /// Each tab's page is kept once it has been shown, hidden while another
 /// shows, as a `TabView` keeps its tabs: built again on every switch, each
@@ -77,7 +77,7 @@ struct DesktopShell: View {
     @State private var desktop = DesktopState.shared
     /// The tabs whose pages are alive, the latest shown last.
     @State private var keptTabs: [AppTab] = []
-    /// Whether the window has room for the queue's card. A flag rather
+    /// Whether the window has room for the queue. A flag rather
     /// than the width, so a resize runs this again only as it crosses the
     /// line.
     @State private var isWide = true
@@ -98,41 +98,43 @@ struct DesktopShell: View {
         scaled(min(max(CGFloat(appState.queuePanelWidth), 280), 400))
     }
 
-    /// The queue's card, while it's asked for and the window has room.
-    private var showsQueueCard: Bool {
+    /// The queue, while it's asked for and the window has room.
+    private var showsQueue: Bool {
         appState.showsQueuePanel && isWide
     }
 
     var body: some View {
         let selected = appState.resolvedTab(router.selectedTab)
 
-        VStack(spacing: DesktopStyle.gap) {
-            HStack(spacing: DesktopStyle.gap) {
-                DesktopSidebar()
-                    .frame(width: scaled(DesktopStyle.sidebarWidth))
-                    .padding(.top, DesktopStyle.trafficLightRoom)
+        HStack(spacing: 0) {
+            DesktopSidebar()
+                .frame(width: scaled(DesktopStyle.sidebarWidth))
 
-                // Up to the window's top edge, under the title bar, as
-                // Music's pages run: an artist's picture fills the top of
-                // the window rather than starting under a strip of nothing.
-                pages(selected: selected)
-                    .clipShape(.rect(bottomLeadingRadius: DesktopStyle.cornerRadius, bottomTrailingRadius: DesktopStyle.cornerRadius))
-                    .frame(maxWidth: .infinity)
-
-                if showsQueueCard {
-                    DesktopQueueCard()
-                        .frame(width: queueWidth)
-                        .padding(.top, DesktopStyle.gap)
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
+            // Up to the window's top and bottom edges, as Music's pages
+            // run: an artist's picture fills the top of the window, and the
+            // player's bar floats over the foot, the page scrolling under
+            // it. A margin, not a safe-area inset, ends a list above the
+            // bar: an inset laid the pages out above it instead, cut off at
+            // its top edge.
+            pages(selected: selected)
+                .contentMargins(.bottom, scaled(DesktopStyle.barHeight + DesktopStyle.barMargin * 2))
+                .overlay(alignment: .bottom) {
+                    DesktopPlayerBar()
+                        .frame(height: scaled(DesktopStyle.barHeight))
+                        .padding([.horizontal, .bottom], scaled(DesktopStyle.barMargin))
                 }
-            }
-            .animation(.snappy, value: showsQueueCard)
+                .frame(maxWidth: .infinity)
 
-            DesktopPlayerBar()
-                .frame(height: scaled(DesktopStyle.barHeight))
+            if showsQueue {
+                DesktopQueuePanel()
+                    .frame(width: queueWidth)
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
+            }
         }
-        .padding(.horizontal, DesktopStyle.gap)
-        .padding(.bottom, DesktopStyle.gap)
+        .animation(.snappy, value: showsQueue)
+        // No band under the title bar: the lists' edge effect drew one, with
+        // a hairline, across the page and the panels.
+        .scrollEdgeEffectHidden26()
         .background(DesktopStyle.windowBackground)
         .ignoresSafeArea()
         .onGeometryChange(for: Bool.self) { [threshold = scaled(DesktopStyle.queueMinWindowWidth)] in $0.size.width >= threshold } action: { isWide = $0 }
@@ -154,10 +156,16 @@ struct DesktopShell: View {
     /// In an overlay, so the hidden pages' frozen sizes (`KeptPageFrame`)
     /// never size the column.
     private func pages(selected: AppTab) -> some View {
-        Color.clear.overlay(alignment: .topLeading) {
-            pageStack(selected: selected)
-        }
-        .clipped()
+        // Through the title bar's inset: a colour keeps to the safe area
+        // by itself, and the clip to it ended the pages short of the
+        // window's top. The pages still read the inset, so their bars keep
+        // below the title bar.
+        Color.clear
+            .ignoresSafeArea(.container, edges: .vertical)
+            .overlay(alignment: .topLeading) {
+                pageStack(selected: selected)
+            }
+            .clipped()
     }
 
     private func pageStack(selected: AppTab) -> some View {
@@ -238,13 +246,12 @@ private struct KeptPageFrame: ViewModifier {
     }
 }
 
-/// Next Up, or a book's chapters, as the window's trailing card.
-struct DesktopQueueCard: View {
+/// Next Up, or a book's chapters, down the window's trailing side.
+struct DesktopQueuePanel: View {
     var body: some View {
         QueueNextUpView()
             .scrollContentBackground(.hidden)
-            .background(DesktopStyle.card)
-            .clipShape(.rect(cornerRadius: DesktopStyle.cornerRadius))
+            .desktopPanel(edge: .leading)
     }
 }
 

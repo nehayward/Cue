@@ -213,9 +213,17 @@ final class SettingsWindow {
     /// main window; otherwise its top and centre stay where they are.
     private func setFrame(_ scene: UIWindowScene, height: CGFloat, placing: Bool) {
         let width = (Self.width * Self.scale).rounded()
-        let size = CGSize(width: width, height: height)
-        scene.sizeRestrictions?.minimumSize = size
-        scene.sizeRestrictions?.maximumSize = size
+        // A point either way, not one size: at 77% few sizes are a whole
+        // number of the Mac's pixels, AppKit rounds the frame, and with the
+        // least and most the same the frame never matched them, so UIKit
+        // set it again from inside its own layout until AppKit gave up
+        // (switching to Large crashed). Opened to anything first, so a
+        // new least never passes the old most on the way.
+        if let restrictions = scene.sizeRestrictions {
+            restrictions.minimumSize = .zero
+            restrictions.maximumSize = CGSize(width: width + 1, height: height + 1)
+            restrictions.minimumSize = CGSize(width: width - 1, height: height - 1)
+        }
 
         // The system's frame is in the Mac's points, the scene's in the
         // iPad's (macOS draws an iPad app at 77%), and holds the title bar

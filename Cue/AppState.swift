@@ -92,7 +92,27 @@ final class AppState {
         queuePanelWidth = defaults.object(forKey: AppStorageKeys.queuePanelWidth) as? Double ?? 320
         tabCustomization = defaults.data(forKey: AppStorageKeys.tabViewCustomization)
             .flatMap { try? JSONDecoder().decode(TabViewCustomization.self, from: $0) } ?? TabViewCustomization()
+        #if DEBUG && targetEnvironment(macCatalyst)
+        listenForInterfaceSizeSteps()
+        #endif
     }
+
+    #if DEBUG && targetEnvironment(macCatalyst)
+    /// Debug: `notifyutil -p dance.cue.debug.interfaceSize` steps to the
+    /// next Interface Size (after the largest, the smallest), as View ▸
+    /// Bigger does, from outside the app.
+    private func listenForInterfaceSizeSteps() {
+        let center = CFNotificationCenterGetDarwinNotifyCenter()
+        CFNotificationCenterAddObserver(center, nil, { _, _, _, _, _ in
+            Task { @MainActor in
+                let sizes = InterfaceSize.allCases
+                let state = AppState.shared
+                let next = (sizes.firstIndex(of: state.interfaceSize).map { $0 + 1 } ?? 0) % sizes.count
+                state.interfaceSize = sizes[next]
+            }
+        }, "dance.cue.debug.interfaceSize" as CFString, nil, .deliverImmediately)
+    }
+    #endif
 
     /// A setting written to UserDefaults when it changed: a write of any key
     /// runs every view still holding `@AppStorage` again.

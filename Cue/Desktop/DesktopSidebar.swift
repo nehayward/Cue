@@ -1,9 +1,10 @@
 import Defaults
+import FocusOnAppear
 import MusicSearchKit
 import SonosKit
 import SwiftUI
 
-/// The Mac window's sidebar card (`DesktopShell`): the tabs, Search under
+/// The Mac window's sidebar (`DesktopShell`): the tabs, Search under
 /// Home, then the library of the service Browse shows (its collections, a
 /// menu to switch service), then that library's playlists, and Settings at
 /// the foot.
@@ -24,8 +25,10 @@ struct DesktopSidebar: View {
 
             footer
         }
-        .background(DesktopStyle.card)
-        .clipShape(.rect(cornerRadius: DesktopStyle.cornerRadius))
+        // The window's full height, as macOS 27's sidebars run: the rows
+        // start below the title bar, the traffic lights in the corner above
+        // them.
+        .desktopPanel(edge: .trailing)
     }
 
     @ViewBuilder
@@ -231,15 +234,7 @@ private struct DesktopLibraryContent: View {
 
             if service.tabCollections.contains(.playlists) {
                 DesktopSidebarHeader(title: "Playlists") {
-                    Button {
-                        PlaylistMenuCommands.presentNewPlaylist()
-                    } label: {
-                        Image(systemName: "plus.circle")
-                            .font(.body)
-                    }
-                    .buttonStyle(DesktopIconButtonStyle(side: 28))
-                    .help("New Playlist")
-                    .accessibilityLabel("New Playlist")
+                    NewPlaylistButton()
                 }
                 DesktopPlaylistRows(service: service)
             }
@@ -290,6 +285,93 @@ private struct DesktopLibraryContent: View {
 }
 
 /// The library's playlists, each opening its page in the content's place.
+/// The Playlists header's +: the new playlist named in a popover of Cue's
+/// own, on the service the sidebar lists (`newPlaylistService`), rather
+/// than UIKit's alert, which on the Mac drew Create as a rounded rectangle
+/// beside a capsule Cancel. The menu bar's New Playlist keeps the alert, as
+/// it opens over whatever is up.
+private struct NewPlaylistButton: View {
+    @State private var isNaming = false
+
+    var body: some View {
+        Button {
+            isNaming = true
+        } label: {
+            Image(systemName: "plus.circle")
+                .font(.body)
+        }
+        .buttonStyle(DesktopIconButtonStyle(side: 28))
+        .help("New Playlist")
+        .accessibilityLabel("New Playlist")
+        .popover(isPresented: $isNaming, arrowEdge: .trailing) {
+            NewPlaylistPopover { isNaming = false }
+                .presentationCompactAdaptation(.popover)
+        }
+    }
+}
+
+/// A name and Create, Cancel beside it the same size. Return creates,
+/// Escape cancels.
+private struct NewPlaylistPopover: View {
+    let close: () -> Void
+
+    @State private var name = ""
+
+    private var trimmedName: String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    var body: some View {
+        let service = PlaylistMenuCommands.newPlaylistService
+
+        VStack(spacing: 16) {
+            Text(service.map(NewPlaylistView.title(for:)) ?? "New Playlist")
+                .font(.headline)
+
+            TextField("Playlist Title", text: $name)
+                .textFieldStyle(.plain)
+                .focusOnAppear()
+                .onSubmit { create(on: service) }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(.quaternary, in: .capsule)
+
+            HStack(spacing: 10) {
+                Button(role: .cancel, action: close) {
+                    Text("Cancel")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .keyboardShortcut(.cancelAction)
+
+                Button {
+                    create(on: service)
+                } label: {
+                    Text("Create")
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
+                .disabled(service == nil || trimmedName.isEmpty)
+            }
+            .buttonBorderShape(.capsule)
+            .controlSize(.large)
+        }
+        .padding(20)
+        .frame(width: 340)
+    }
+
+    private func create(on service: MusicService?) {
+        let name = trimmedName
+        guard let service, !name.isEmpty else { return }
+        close()
+        Task {
+            await NewPlaylistView.create(named: name, on: service)
+        }
+    }
+}
+
 private struct DesktopPlaylistRows: View {
     let service: MediaSearchService
 
@@ -317,6 +399,20 @@ private struct DesktopPlaylistRows: View {
     var body: some View {
         let cover = (36 * DesktopStyle.scale(typeSize)).rounded()
 
+        // A stack, not the bare `ForEach`, for the load below: on a
+        // `ForEach` of no playlists it never ran, so the list stayed empty
+        // until a page that loads them (Home, Search) had been opened.
+        VStack(alignment: .leading, spacing: 2) {
+            rows(cover: cover)
+        }
+        .environment(desktop.currentRouter)
+        .environment(Self.groupService)
+        .task(id: service) {
+            await load()
+        }
+    }
+
+    private func rows(cover: CGFloat) -> some View {
         ForEach(playlists) { playlist in
             let isSelected = desktop.isShowing(playlist)
             Button {
@@ -344,11 +440,6 @@ private struct DesktopPlaylistRows: View {
                 PlayableMenuView(item: playlist)
             }
             .accessibilityAddTraits(isSelected ? .isSelected : [])
-        }
-        .environment(desktop.currentRouter)
-        .environment(Self.groupService)
-        .task(id: service) {
-            await load()
         }
     }
 

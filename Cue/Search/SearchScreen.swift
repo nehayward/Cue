@@ -530,9 +530,13 @@ struct SearchScreen: View {
     /// trailing one — a gap the width of the menu, with nothing in it. As a
     /// row of its own the field starts at the same inset as the headers
     /// beside it.
+    ///
+    /// Held to a width at the leading edge, over the filters it leads,
+    /// rather than run across a wide window.
     private var searchHeader: some View {
         searchBar
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: 640)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 16)
             .padding(.top, 10)
             .padding(.bottom, 6)

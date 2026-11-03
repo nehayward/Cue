@@ -1,32 +1,69 @@
-import Defaults
 import MusicSearchKit
 import SonosKit
 import SwiftUI
 
-/// The player along the bottom of the Mac window (`DesktopShell`): one
-/// rounded bar, as Music's is. The transport with shuffle and repeat, then
-/// what's playing with its progress under it, then lyrics, the queue, Play
-/// On and a speaker's volume.
+/// The player of the Mac window (`DesktopShell`): one glass capsule
+/// floating over the foot of the page, as Music's is. The transport with
+/// shuffle and repeat, then what's playing with its progress under it, then
+/// a speaker's volume, Play On and the queue.
 ///
 /// Read through `PlaybackRoute.presented`, as the player is, so this
 /// device and a Sonos group are one bar. The volume is a speaker's only:
 /// the Mac's own is the system's, in the menu bar and on the keyboard.
 struct DesktopPlayerBar: View {
     @Environment(\.dynamicTypeSize) private var typeSize
+    @State private var room = BarRoom.everything
 
     var body: some View {
         let scale = DesktopStyle.scale(typeSize)
 
         HStack(spacing: 12 * scale) {
-            DesktopTransport()
+            DesktopTransport(showsOrder: room != .essentials)
             DesktopNowPlaying()
                 .frame(maxWidth: 760 * scale)
                 .frame(maxWidth: .infinity)
-            DesktopBarActions()
+            DesktopBarActions(showsVolume: room == .everything)
         }
         .padding(.horizontal, 14 * scale)
         .frame(maxHeight: .infinity)
-        .background(DesktopStyle.card, in: .capsule)
+        .playerBarGlass()
+        .onGeometryChange(for: BarRoom.self) { [scale] in BarRoom(width: $0.size.width / scale) } action: { room = $0 }
+    }
+}
+
+/// What the bar has room for: beside the queue on a smaller window
+/// the page is narrow, so the speaker's volume goes first (Play On still
+/// has it), then shuffle and repeat. A step rather than the width, so a
+/// resize runs the bar again only as it crosses one.
+private enum BarRoom {
+    case everything, noVolume, essentials
+
+    /// From the bar's width in base points: what each set takes, with
+    /// room for a title beside it.
+    init(width: CGFloat) {
+        self = switch width {
+        case 850...: .everything
+        case 610...: .noVolume
+        default: .essentials
+        }
+    }
+}
+
+private extension View {
+    /// Clear glass, as Music's bar is: the page shows through it, hardly
+    /// blurred, while it scrolls under. The regular kind read as a grey
+    /// slab over it.
+    @ViewBuilder
+    func playerBarGlass() -> some View {
+#if !os(visionOS)
+        if #available(iOS 26.0, *) {
+            glassEffect(.clear, in: .capsule)
+        } else {
+            background(.thickMaterial, in: .capsule)
+        }
+#else
+        background(.thickMaterial, in: .capsule)
+#endif
     }
 }
 
@@ -36,15 +73,18 @@ struct DesktopPlayerBar: View {
 /// 30 s, with no shuffle or repeat. While a hand-off holds the bar on its
 /// source they rest (`HeldPlaybackController`).
 private struct DesktopTransport: View {
+    /// Shuffle and repeat, where the bar has room for them.
+    let showsOrder: Bool
+
     private var route: PlaybackRoute { .shared }
 
     var body: some View {
         let controller = route.presented
-        let isBook = PlayerCommands.isBook
+        let showsOrder = showsOrder && !PlayerCommands.isBook
         let canChangeOrder = controller.isActive && controller.queueCount > 0
 
         HStack(spacing: 2) {
-            if !isBook {
+            if showsOrder {
                 Button {
                     Task { await controller.setShuffle(!controller.isShuffled) }
                 } label: {
@@ -93,7 +133,7 @@ private struct DesktopTransport: View {
             .accessibilityLabel(PlayerCommands.nextTitle)
             .help(PlayerCommands.nextTitle)
 
-            if !isBook {
+            if showsOrder {
                 Button {
                     Task { await controller.setRepeatMode(controller.repeatMode.next) }
                 } label: {
@@ -252,32 +292,37 @@ private struct DesktopNowPlaying: View {
 
 // MARK: - Actions
 
-/// Lyrics, the queue, Play On and a speaker group's volume while one
-/// plays.
+/// A speaker group's volume while one plays, Play On, and the queue at
+/// the bar's end. Play On on a speaker and the queue while it shows sit on
+/// an accent glass circle. No lyrics: the player has them.
 private struct DesktopBarActions: View {
+    /// The speaker's volume, where the bar has room for it.
+    let showsVolume: Bool
+
     private var route: PlaybackRoute { .shared }
     @State private var appState = AppState.shared
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         let controller = route.presented
-        let isBook = PlayerCommands.isBook
         let scale = DesktopStyle.scale(typeSize)
+        let isOnSpeaker = route.group != nil
+        let showsQueue = appState.showsQueuePanel
 
-        HStack(spacing: 2) {
-            Button {
-                // The lyrics are looked up while the player is open, so the
-                // button opens it on them.
-                UserDefaults.standard.set(true, forKey: AppStorageKeys.lyricsShown)
-                Router.main.isPlayerPresented = true
-            } label: {
-                Image(systemName: isBook ? "captions.bubble" : "quote.bubble")
-                    .font(.title3)
+        HStack(spacing: 6) {
+            if showsVolume, let group = controller.group, !route.isHolding {
+                DesktopSpeakerVolume(group: group)
+                    .frame(width: 230 * scale)
+                    .padding(.trailing, 4)
             }
-            .buttonStyle(DesktopIconButtonStyle(side: 40))
-            .disabled(controller.nowPlayingDisplay == nil)
-            .accessibilityLabel(isBook ? "Transcript" : "Lyrics")
-            .help(isBook ? "Transcript" : "Lyrics")
+
+            PlaybackRouteButton()
+                .font(.title3)
+                .tint(isOnSpeaker ? .white : .primary)
+                .frame(width: 40 * scale, height: 40 * scale)
+                .accentGlassCircle(isOn: isOnSpeaker)
+                .desktopHover(cornerRadius: 20 * scale)
+                .help("Play On")
 
             Button {
                 withAnimation(.snappy) {
@@ -286,25 +331,44 @@ private struct DesktopBarActions: View {
             } label: {
                 QueueToggleIcon()
                     .font(.title3)
-                    .foregroundStyle(appState.showsQueuePanel ? AnyShapeStyle(Color("Accent")) : AnyShapeStyle(.primary))
+                    .foregroundStyle(showsQueue ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
             }
             .buttonStyle(DesktopIconButtonStyle(side: 40))
-            .accessibilityLabel(QueueToggleIcon.title(isShown: appState.showsQueuePanel))
-            .accessibilityAddTraits(appState.showsQueuePanel ? .isSelected : [])
-            .help("\(QueueToggleIcon.title(isShown: appState.showsQueuePanel)) (⌥⌘0)")
+            .accentGlassCircle(isOn: showsQueue)
+            .accessibilityLabel(QueueToggleIcon.title(isShown: showsQueue))
+            .accessibilityAddTraits(showsQueue ? .isSelected : [])
+            .help("\(QueueToggleIcon.title(isShown: showsQueue)) (⌥⌘0)")
+        }
+    }
+}
 
-            PlaybackRouteButton()
-                .font(.title3)
-                .frame(width: 40 * scale, height: 40 * scale)
-                .desktopHover(cornerRadius: 20 * scale)
-                .help("Play On")
-
-            if let group = controller.group, !route.isHolding {
-                DesktopSpeakerVolume(group: group)
-                    .frame(width: 230 * scale)
-                    .padding(.leading, 6)
+private extension View {
+    /// Behind a bar button that's on: a circle of glass in the accent.
+    @ViewBuilder
+    func accentGlassCircle(isOn: Bool) -> some View {
+#if !os(visionOS)
+        if #available(iOS 26.0, *) {
+            background {
+                if isOn {
+                    Circle()
+                        .fill(.clear)
+                        .glassEffect(.regular.tint(Color("Accent")), in: .circle)
+                }
+            }
+        } else {
+            background {
+                if isOn {
+                    Circle().fill(Color("Accent"))
+                }
             }
         }
+#else
+        background {
+            if isOn {
+                Circle().fill(Color("Accent"))
+            }
+        }
+#endif
     }
 }
 

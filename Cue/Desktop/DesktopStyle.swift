@@ -1,31 +1,31 @@
 import SwiftUI
 import UIKit
 
-/// The Mac window's measures and colours (`DesktopShell`): rounded cards on
-/// the window's background and a rounded player bar, as Music has. In points of the
-/// iPad idiom the Mac app runs in, which macOS draws at 77%, so they're a
-/// third larger than the same thing in a native Mac app.
+/// The Mac window's measures and colours (`DesktopShell`): full-height
+/// panels down its sides and a floating player bar, as macOS 27's Music
+/// has. In points of the iPad idiom the Mac app runs in, which macOS draws
+/// at 77%, so they're a third larger than the same thing in a native Mac
+/// app.
 enum DesktopStyle {
-    /// Round the window's edges and between cards.
-    static let gap: CGFloat = 12
-    /// Above the sidebar card: room for the traffic lights, and a strip to
-    /// drag the window by. Not inside the card's corner, as Music has them:
-    /// macOS keeps them about 15 pt in, which a card set off from the
-    /// window's edge can't hold, and they sat across its rounded corner.
-    /// The page and the queue run higher.
-    static let trafficLightRoom: CGFloat = 36
-    static let cornerRadius: CGFloat = 22
     static let sidebarWidth: CGFloat = 300
-    /// The player's bar along the bottom.
+    /// The title bar's strip at the top of a panel, the traffic lights in
+    /// the sidebar's: its rows start below it. Left to the safe area, a
+    /// panel's list ran up under the lights. Not scaled, as the title bar
+    /// isn't.
+    static let titleBarHeight: CGFloat = 36
+    /// The player's bar, floating over the foot of the page.
     static let barHeight: CGFloat = 72
-    /// Below this the queue card gives way, then the sidebar narrows.
+    /// Between the bar and the page's sides and foot.
+    static let barMargin: CGFloat = 16
+    /// Below this the queue gives way, then the sidebar narrows.
     static let queueMinWindowWidth: CGFloat = 1180
 
-    /// The window behind the cards: the content's own (the lists' black or
-    /// white), so a page sits on it with no card of its own.
+    /// Behind the page: the content's own (the lists' black or white).
     static let windowBackground = Color(uiColor: .systemBackground)
-    /// The sidebar, the queue and the player bar.
-    static let card = Color(uiColor: .secondarySystemBackground)
+    /// The sidebar and the queue.
+    static let panel = Color(uiColor: .secondarySystemBackground)
+    /// Where a panel meets the page.
+    static let panelEdge = Color.primary.opacity(0.08)
     /// Under a row or button the pointer is over.
     static let hover = Color.primary.opacity(0.07)
     /// Under the chosen sidebar row.
@@ -33,7 +33,7 @@ enum DesktopStyle {
 
     /// How much larger than its base a measure draws at this type size
     /// (`InterfaceSize`): the body text's size over its default 17 pt, so
-    /// a card grows with the text in it.
+    /// a panel grows with the text in it.
     static func scale(_ typeSize: DynamicTypeSize) -> CGFloat {
         let body: CGFloat = switch typeSize {
         case .xSmall: 14
@@ -50,9 +50,24 @@ enum DesktopStyle {
 }
 
 extension View {
-    /// A card: the shell's grey, rounded.
-    func desktopCard(cornerRadius: CGFloat = DesktopStyle.cornerRadius) -> some View {
-        background(DesktopStyle.card, in: .rect(cornerRadius: cornerRadius))
+    /// A panel down a side of the window: the shell's grey up through the
+    /// title bar, with a hairline on the `edge` it meets the page by, and
+    /// the view below the title bar's strip.
+    func desktopPanel(edge: HorizontalEdge) -> some View {
+        VStack(spacing: 0) {
+            Color.clear
+                .frame(height: DesktopStyle.titleBarHeight)
+            self
+        }
+        .ignoresSafeArea(.container, edges: .top)
+        .background {
+            DesktopStyle.panel
+                .overlay(alignment: edge == .leading ? .leading : .trailing) {
+                    DesktopStyle.panelEdge
+                        .frame(width: 1)
+                }
+                .ignoresSafeArea()
+        }
     }
 
     /// A rounded wash under the view while the pointer is over it.
@@ -102,8 +117,8 @@ private struct DesktopHoverLift: ViewModifier {
 /// The player bar's transport and actions, and the sidebar's gear.
 struct DesktopIconButtonStyle: ButtonStyle {
     var side: CGFloat = 40
-    /// Filled with the card's grey when not under the pointer, for a button
-    /// on the window rather than a card.
+    /// Filled with the panels' grey when not under the pointer, for a button
+    /// on the page rather than a panel.
     var isFilled = false
 
     func makeBody(configuration: Configuration) -> some View {
@@ -126,7 +141,7 @@ private struct DesktopIconButton: View {
             .frame(width: side, height: side)
             .background {
                 Circle()
-                    .fill(isFilled ? DesktopStyle.card : .clear)
+                    .fill(isFilled ? DesktopStyle.panel : .clear)
                 Circle()
                     .fill(DesktopStyle.hover)
                     .opacity(isHovering && isEnabled ? 1 : 0)
