@@ -3,25 +3,25 @@ import UIKit
 
 // MARK: - Window Size Persistence
 
-enum WindowFrameStore {
-    private static let key = "DefaultSceneLatestSystemFrame"
+/// Where a window's frame is kept between launches: the main window's, and
+/// the Settings window's (`SettingsWindow`).
+struct WindowFrameStore {
+    let key: String
 
-    static var savedFrame: CGRect? {
-        get {
-            guard let dict = UserDefaults.standard.dictionary(forKey: key),
-                  let x = dict["x"] as? CGFloat,
-                  let y = dict["y"] as? CGFloat,
-                  let w = dict["w"] as? CGFloat,
-                  let h = dict["h"] as? CGFloat else { return nil }
-            return CGRect(x: x, y: y, width: w, height: h)
-        }
-        set {
-            if let r = newValue {
-                UserDefaults.standard.set(["x": r.origin.x, "y": r.origin.y, "w": r.width, "h": r.height], forKey: key)
-            } else {
-                UserDefaults.standard.removeObject(forKey: key)
-            }
-        }
+    static let main = WindowFrameStore(key: "DefaultSceneLatestSystemFrame")
+    static let settings = WindowFrameStore(key: "SettingsWindowSystemFrame")
+
+    var savedFrame: CGRect? {
+        guard let dict = UserDefaults.standard.dictionary(forKey: key),
+              let x = dict["x"] as? CGFloat,
+              let y = dict["y"] as? CGFloat,
+              let w = dict["w"] as? CGFloat,
+              let h = dict["h"] as? CGFloat else { return nil }
+        return CGRect(x: x, y: y, width: w, height: h)
+    }
+
+    func save(_ frame: CGRect) {
+        UserDefaults.standard.set(["x": frame.origin.x, "y": frame.origin.y, "w": frame.width, "h": frame.height], forKey: key)
     }
 }
 
@@ -30,7 +30,7 @@ final class WindowSizeObserver: NSObject {
     private var observation: NSKeyValueObservation?
     private var debounceWork: DispatchWorkItem?
 
-    init(windowScene: UIWindowScene) {
+    init(windowScene: UIWindowScene, store: WindowFrameStore) {
         self.observedScene = windowScene
         super.init()
         observation = observe(\.observedScene?.effectiveGeometry, options: [.new]) { [weak self] _, change in
@@ -39,7 +39,7 @@ final class WindowSizeObserver: NSObject {
                   frame.size != .zero else { return }
             self.debounceWork?.cancel()
             let work = DispatchWorkItem {
-                WindowFrameStore.savedFrame = frame
+                store.save(frame)
             }
             self.debounceWork = work
             // Once the window has been still a second: a write of any key

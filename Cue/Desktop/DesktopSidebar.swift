@@ -9,7 +9,6 @@ import SwiftUI
 /// the foot.
 struct DesktopSidebar: View {
     @State private var appState = AppState.shared
-    @State private var desktopRouter = Router.desktop
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
@@ -64,7 +63,11 @@ struct DesktopSidebar: View {
                 .font(.headline)
             Spacer(minLength: 0)
             Button {
-                desktopRouter.presentedSheet = .settings()
+#if targetEnvironment(macCatalyst)
+                SettingsWindow.shared.open()
+#else
+                Router.main.presentedSheet = .settings()
+#endif
             } label: {
                 Image(systemName: "gearshape")
                     .font(.title3)

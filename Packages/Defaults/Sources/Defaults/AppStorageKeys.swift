@@ -85,6 +85,8 @@ public enum AppStorageKeys {
     /// window draws (`InterfaceSize`), Cue's own scale over the 77% macOS
     /// draws an iPad app at.
     public static let interfaceSize = "\(Prefix.id).interfaceSize"
+    /// The pane the Mac's Settings window was last on (`SettingsPane`).
+    public static let settingsWindowPane = "\(Prefix.id).settingsWindowPane"
     public static let speedLaunchNowPlaying = "\(Prefix.id).speedLaunchNowPlaying"
     public static let queueMode = "\(Prefix.id).queueMode"
     public static let showArtworkOnly = "\(Prefix.id).showArtworkOnly"

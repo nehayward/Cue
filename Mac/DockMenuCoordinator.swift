@@ -485,7 +485,10 @@ final class DockMenuCoordinator {
     /// back when the window was closed. Asks for it explicitly; the renderer
     /// has already activated the app.
     private func bringCueForward() {
-        let session = UIApplication.shared.openSessions.first { $0.role == .windowApplication }
+        // The main window's, not Settings'.
+        let session = UIApplication.shared.openSessions.first {
+            $0.role == .windowApplication && !SettingsWindow.isMarked($0)
+        }
         UIApplication.shared.requestSceneSessionActivation(session, userActivity: nil, options: nil)
     }
 }

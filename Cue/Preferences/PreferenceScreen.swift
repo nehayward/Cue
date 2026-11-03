@@ -17,6 +17,10 @@ struct PreferenceScreen: View {
     @Environment(FeatureGate.self) var featureGate
     
     var destination: RouterDestination? = nil
+    /// The Mac Settings window's General pane (`SettingsWindow`): the rows
+    /// its toolbar has as panes left out, no close button and no bar of
+    /// its own at the top.
+    var isWindowPane = false
     
     @State private var router = Router()
     @State private var isShowingMailView = false
@@ -158,6 +162,7 @@ struct PreferenceScreen: View {
                 // One row a place, as the iPhone's Settings has it: what
                 // each place holds is on its own page, so this list stays
                 // short. The player's places first, then the speakers.
+                if !isWindowPane {
                 Section {
                     NavigationLink(value: RouterDestination.servicePreferenceScreen) {
                         LabeledContent {
@@ -262,6 +267,7 @@ struct PreferenceScreen: View {
                             }
                         }
                     }
+                }
                 }
 
                 Section {
@@ -381,13 +387,16 @@ struct PreferenceScreen: View {
 #endif
             }
             .animation(.smooth(duration: 0.35), value: hasUnseenWhatsNew)
-            .navigationTitle("Settings")
+            .navigationTitle(isWindowPane ? "General" : "Settings")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar(isWindowPane ? .hidden : .automatic, for: .navigationBar)
             .navigationDestination(isPresented: $presentWhatsNew) {
                 WhatsNewWebView()
             }
             .withAppRouter()
             .environment(\.defaultMinListHeaderHeight, 0)
+            // Hidden with the bar in the Settings window, which closes as a
+            // window does.
             .addDismiss {
                 dismiss()
             }

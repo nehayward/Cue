@@ -690,6 +690,15 @@ struct CueApp: App {
             }
             //            .withAlert()
         }
+#if targetEnvironment(macCatalyst)
+        // Settings, a window of its own on the Mac (`SettingsWindow`), opened
+        // with ⌘, and the gears. No links or activities open it: they're the
+        // main window's.
+        WindowGroup("Settings", id: SettingsWindow.sceneID) {
+            SettingsWindowScreen()
+        }
+        .handlesExternalEvents(matching: [])
+#endif
 //            .onOpenURL(perform: handle)
 //            .onAppear {
 //                guard !AppBootstrapper.shared.didLaunch else { return }
@@ -1879,7 +1888,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
          // or this does after a few seconds whatever happens), it's simply
          // there. Only as the app's own window connects: not for the car's
          // screen, nor a launch in the background with no window at all.
-         if connectingSceneSession.role == .windowApplication,
+         var isSettingsWindow = false
+#if targetEnvironment(macCatalyst)
+         isSettingsWindow = SettingsWindow.shared.claims(connectingSceneSession)
+#endif
+         if connectingSceneSession.role == .windowApplication, !isSettingsWindow,
             Router.main.selectedTab != .home, Router.main.selectedTab != .browse {
              UIView.setAnimationsEnabled(false)
              Task { @MainActor in
@@ -1914,6 +1927,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             builder.remove(menu: .open)
             builder.remove(menu: .openRecent)
             builder.remove(menu: .document)
+
+#if targetEnvironment(macCatalyst)
+            // Cue ▸ Settings… (⌘,), the Mac's place for it: a window of its
+            // own (`SettingsWindow`).
+            let settings = UIMenu(title: "", identifier: .preferences, options: .displayInline, children: [
+                UIKeyCommand(title: "Settings…", action: #selector(showSettings), input: ",", modifierFlags: .command)
+            ])
+            if builder.menu(for: .preferences) != nil {
+                builder.replace(menu: .preferences, with: settings)
+            } else {
+                builder.insertSibling(settings, afterMenu: .about)
+            }
+#endif
 
             // View › Show/Hide Queue, ⌥⌘0 as Xcode toggles its inspector.
             // The mini player's and the player's queue buttons do the same;
@@ -2088,6 +2114,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
     }
 
+#if targetEnvironment(macCatalyst)
+    @objc func showSettings() {
+        SettingsWindow.shared.open()
+    }
+#endif
+
     // MARK: - Controls menu
 
     @objc func controlsTogglePlayback() {
@@ -2213,6 +2245,13 @@ class CueSceneDelegate: NSObject, UIWindowSceneDelegate {
         guard let windowScene = (scene as? UIWindowScene) else { return }
         
 #if targetEnvironment(macCatalyst)
+        // The Settings window sets itself up: none of the main window's
+        // size, frame or bare titlebar.
+        if SettingsWindow.shared.claims(session) {
+            SettingsWindow.shared.connect(windowScene)
+            return
+        }
+
         if let titlebar = windowScene.titlebar {
             // No title and no toolbar, so the window's content runs up under
             // the traffic lights: the sidebar header names the app, and the
@@ -2230,19 +2269,20 @@ class CueSceneDelegate: NSObject, UIWindowSceneDelegate {
         windowScene.sizeRestrictions?.minimumSize = CGSize(width: 920, height: 600)
         
         // Restore saved window frame
-        if let savedFrame = WindowFrameStore.savedFrame {
+        if let savedFrame = WindowFrameStore.main.savedFrame {
             let geometry = UIWindowScene.GeometryPreferences.Mac(systemFrame: savedFrame)
             windowScene.requestGeometryUpdate(geometry)
         }
         
         // Start observing window size changes
-        windowSizeObserver = WindowSizeObserver(windowScene: windowScene)
+        windowSizeObserver = WindowSizeObserver(windowScene: windowScene, store: .main)
 #endif
     }
     
     func sceneDidDisconnect(_ scene: UIScene) {
 #if targetEnvironment(macCatalyst)
         windowSizeObserver = nil
+        SettingsWindow.shared.disconnect(scene)
 #endif
     }
     

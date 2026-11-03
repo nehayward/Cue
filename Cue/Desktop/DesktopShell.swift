@@ -69,7 +69,6 @@ final class DesktopState {
 struct DesktopShell: View {
     @State private var appState = AppState.shared
     @State private var desktop = DesktopState.shared
-    @State private var desktopRouter = Router.desktop
     /// The tabs whose pages are alive, the latest shown last.
     @State private var keptTabs: [AppTab] = []
     /// Whether the window has room for the queue's card and summary. A
@@ -77,6 +76,7 @@ struct DesktopShell: View {
     /// crosses the line.
     @State private var isWide = true
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.openWindow) private var openWindow
 
     private var router: Router { .main }
 
@@ -102,7 +102,6 @@ struct DesktopShell: View {
     private var showsQueueSummary: Bool { isWide }
 
     var body: some View {
-        @Bindable var desktopRouter = desktopRouter
         let selected = appState.resolvedTab(router.selectedTab)
 
         VStack(spacing: DesktopStyle.gap) {
@@ -142,13 +141,13 @@ struct DesktopShell: View {
         .onChange(of: selected, initial: true) { _, tab in
             keep(tab)
         }
-        // Settings, from the sidebar's gear: from a view of its own, so
-        // only the sheets it puts up draw their close button.
-        .background {
-            Color.clear
-                .withSheetDestinations(sheetDestinations: $desktopRouter.presentedSheet)
-                .environment(\.presentsDismissibleSheets, true)
+#if targetEnvironment(macCatalyst)
+        // How Settings opens its window from outside a view (the menu bar,
+        // the routers).
+        .onAppear {
+            SettingsWindow.shared.openWindow = openWindow
         }
+#endif
     }
 
     /// Every kept page, the selected one on top, or the playlist chosen in

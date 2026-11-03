@@ -63,9 +63,8 @@ enum AppTab: Hashable, Codable {
     /// Each bound by its own tab alone, as `audiobooks` is.
     static var radio = Router()
     static var downloads = Router()
-    /// The Mac window's own: the sheets its sidebar opens (Settings), and
-    /// the stack of a playlist chosen in the sidebar (`DesktopShell`).
-    static var desktop = Router()
+    /// The Mac window's stack of a playlist chosen in the sidebar
+    /// (`DesktopShell`).
     static var desktopPlaylist = Router()
 
     /// A provider's tabs' stacks, one per tab, made as each is first shown.
@@ -188,7 +187,20 @@ enum AppTab: Hashable, Codable {
             forwardPath = forward
         }
     }
-    var presentedSheet: SheetDestination?
+    var presentedSheet: SheetDestination? {
+        didSet {
+#if targetEnvironment(macCatalyst)
+            // Settings is a window of its own on the Mac (`SettingsWindow`),
+            // whichever router is asked for it.
+            if case let .settings(destination) = presentedSheet {
+                presentedSheet = oldValue
+                MainActor.assumeIsolated {
+                    SettingsWindow.shared.open(destination)
+                }
+            }
+#endif
+        }
+    }
     /// Destinations presented as `fullScreenCover` rather than `.sheet`.
     /// Currently used for `.paywall` and `.onboard` — moments where we want
     /// full canvas and no swipe-to-dismiss. Use `fullScreenCover(to:)` to
