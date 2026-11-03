@@ -5,7 +5,7 @@ import SwiftUI
 /// as tiles, a cover with the title under it, in a grid that flows with
 /// the window as Recently Added's does: as many columns as fit, two rows
 /// at most. Cards that split the row grew to a third of a wide window
-/// each; a tile is always 140 points.
+/// each; a tile is always 140 points, 12 apart.
 ///
 /// A list row of its own, with its own insets: the tiles line up with the
 /// section's header.
@@ -21,7 +21,7 @@ struct TileGrid: View {
         // line for it only when one does, kept on every tile so the rows
         // stay in line.
         let showsSubtitle = items.contains { !$0.subtitle.isEmpty }
-        TwoRowGrid(tileWidth: 140, minimumSpacing: 12, rowSpacing: 16) {
+        TwoRowGrid(tileWidth: 140, spacing: 12, rowSpacing: 16) {
             ForEach(items) { item in
                 PlayableCardView(item: item, artworkSize: 140, isTile: true, tileShowsSubtitle: showsSubtitle)
             }
@@ -32,22 +32,25 @@ struct TileGrid: View {
     }
 }
 
-/// Tiles of one size in as many columns as fit, the room left over shared
-/// between the columns so they run edge to edge, in two rows at most.
+/// Tiles of one size and spacing in as many columns as fit, in two rows at
+/// most, the room left over at the trailing end. A second row less than
+/// half full is left off (11 playlists and one more under them), the
+/// section's header opening the rest.
 ///
 /// A layout, so the column count comes from the width it's offered on each
 /// pass, as a `LazyVGrid`'s adaptive columns do: a width measured into
 /// state and fed back into a self-sizing list cell can loop
 /// (`PlayableContentGridView`), and a `ViewThatFits` that tried a second
-/// layout hitched every step of a window resize. The tiles keep their
-/// size, so a resize only moves them: tiles that grew with the width laid
-/// out their text again on every step, and the row's height changed with
-/// it, which the list followed a step behind, jittering. Tiles past the
-/// second row are placed out of sight, far past the trailing edge, where
-/// neither the list nor a click reaches.
+/// layout hitched every step of a window resize. Nothing moves as the
+/// window resizes but a column coming or going: tiles that grew with the
+/// width laid out their text again on every step and changed the row's
+/// height, which the list followed a step behind, and gaps that grew to
+/// fill the row moved every tile, both jittering. Tiles not shown are
+/// placed out of sight, far past the trailing edge, where neither the
+/// list nor a click reaches.
 private struct TwoRowGrid: Layout {
     var tileWidth: CGFloat
-    var minimumSpacing: CGFloat
+    var spacing: CGFloat
     var rowSpacing: CGFloat
 
     private var tileProposal: ProposedViewSize {
@@ -55,11 +58,7 @@ private struct TwoRowGrid: Layout {
     }
 
     private func columns(in width: CGFloat) -> Int {
-        max(1, Int((width + minimumSpacing) / (tileWidth + minimumSpacing)))
-    }
-
-    private func spacing(in width: CGFloat, columns: Int) -> CGFloat {
-        columns > 1 ? (width - tileWidth * CGFloat(columns)) / CGFloat(columns - 1) : 0
+        max(1, Int((width + spacing) / (tileWidth + spacing)))
     }
 
     /// Every tile is one height: one line of title, and a subtitle on all
@@ -68,24 +67,39 @@ private struct TwoRowGrid: Layout {
         subviews.first?.sizeThatFits(tileProposal).height ?? 0
     }
 
-    private func rowCount(_ subviews: Subviews, columns: Int) -> Int {
-        min(2, (subviews.count + columns - 1) / columns)
+    /// How many tiles show: two rows at most, the second only when at
+    /// least half full.
+    private func shownCount(_ subviews: Subviews, columns: Int) -> Int {
+        let second = min(subviews.count, columns * 2) - columns
+        guard second > 0 else { return subviews.count }
+        return second * 2 >= columns ? columns + second : columns
     }
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         // Asked for its ideal size, one row of every tile.
-        let width = proposal.width ?? CGFloat(subviews.count) * (tileWidth + minimumSpacing) - minimumSpacing
-        let rows = rowCount(subviews, columns: columns(in: width))
+        let width = proposal.width ?? CGFloat(subviews.count) * (tileWidth + spacing) - spacing
+        let columns = self.columns(in: width)
+        let rows = (shownCount(subviews, columns: columns) + columns - 1) / columns
         let height = CGFloat(rows) * tileHeight(subviews) + rowSpacing * CGFloat(max(rows - 1, 0))
         return CGSize(width: width, height: height)
     }
 
+    // No alignment guides of its own: the default merges every tile's,
+    // measuring each one on every pass of a resize.
+    func explicitAlignment(of guide: HorizontalAlignment, in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGFloat? {
+        nil
+    }
+
+    func explicitAlignment(of guide: VerticalAlignment, in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGFloat? {
+        nil
+    }
+
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         let columns = self.columns(in: bounds.width)
-        let spacing = self.spacing(in: bounds.width, columns: columns)
+        let shown = shownCount(subviews, columns: columns)
         let rowHeight = tileHeight(subviews) + rowSpacing
         for (index, tile) in subviews.enumerated() {
-            guard index < columns * 2 else {
+            guard index < shown else {
                 tile.place(at: CGPoint(x: bounds.maxX + 10_000, y: bounds.minY), proposal: .zero)
                 continue
             }
