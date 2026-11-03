@@ -234,12 +234,20 @@ final class MacBridge: NSObject, MacBridgeable, @unchecked Sendable {
                   !frame.subviews.contains(where: { $0.identifier == Self.materialIdentifier }) else { continue }
             window.titlebarAppearsTransparent = true
             let material = NSVisualEffectView(frame: frame.bounds)
-            material.identifier = Self.materialIdentifier
             material.material = .sidebar
             material.blendingMode = .behindWindow
             material.state = .followsWindowActiveState
+            material.identifier = Self.materialIdentifier
             material.autoresizingMask = [.width, .height]
             frame.addSubview(material, positioned: .below, relativeTo: nil)
+            // Liquid Glass over it, where the system has it: the blurred
+            // desktop refracted, lit at its edges.
+            if #available(macOS 26.0, *) {
+                let glass = NSGlassEffectView(frame: frame.bounds)
+                glass.style = .clear
+                glass.autoresizingMask = [.width, .height]
+                frame.addSubview(glass, positioned: .above, relativeTo: material)
+            }
         }
     }
 

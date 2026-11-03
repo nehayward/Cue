@@ -274,6 +274,7 @@ struct DesktopQueuePanel: View {
         QueueNextUpView()
             .scrollContentBackground(.hidden)
             .padding(.top, 10)
+            .catchesClicks()
             .ignoresSafeArea(.container, edges: .top)
     }
 }

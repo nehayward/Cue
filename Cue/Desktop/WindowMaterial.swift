@@ -19,12 +19,16 @@ enum WindowMaterial {
                 window.rootViewController?.view.backgroundColor = .clear
             }
         }
-        // The window's AppKit side may not be up as the shell first
-        // appears; a window that has it already is left as it is.
+        // At once, as the window appears: put in a moment later, the
+        // window opened see-through and the material came in after it.
+        // Again a few times, as the window's AppKit side may not be up
+        // yet; a window that has it already is left as it is.
+        let bridge = MenuAppLaunchAtLoginManager.shared.bridge
+        bridge?.installSidebarMaterial(inWindowsTitled: "Cue")
         Task {
             for _ in 0..<5 {
-                MenuAppLaunchAtLoginManager.shared.bridge?.installSidebarMaterial(inWindowsTitled: "Cue")
-                try? await Task.sleep(for: .milliseconds(400))
+                try? await Task.sleep(for: .milliseconds(200))
+                bridge?.installSidebarMaterial(inWindowsTitled: "Cue")
             }
         }
     }

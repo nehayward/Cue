@@ -50,6 +50,14 @@ enum DesktopStyle {
 }
 
 extension View {
+    /// Clicks anywhere on a panel over the window's material, not only on
+    /// what's drawn there: where a pixel is clear, macOS sends the click to
+    /// the window behind, and only a row's title and glyph took one. A fill
+    /// too faint to see.
+    func catchesClicks() -> some View {
+        background(Color.black.opacity(0.01))
+    }
+
     /// A hairline on the `edge` a panel meets the page by, up through the
     /// title bar.
     func desktopPanelEdge(_ edge: HorizontalEdge) -> some View {
