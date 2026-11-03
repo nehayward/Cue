@@ -29,6 +29,13 @@ struct PlayableCardView: View {
     /// The artwork-only tile's corner rounding: none for a wall of tiles
     /// that touch, some for tiles set apart, as the Radio tab's are.
     var artworkCornerRadius: CGFloat = 0
+    /// A cover this wide with the title and subtitle under it, and no menu
+    /// button: a tile on a shelf (`TileShelf`). Tap and long-press keep
+    /// working on the tile itself.
+    var tileWidth: CGFloat? = nil
+    /// Whether a tile has a line for its subtitle: a shelf whose items have
+    /// none leaves it off every tile.
+    var tileShowsSubtitle: Bool = true
     /// Set by a grid that has marked this card as a zoom source, so the
     /// album screen it opens grows out of the card. The grid applies the
     /// `matchedTransitionSource` itself; this only tells the push about it.
@@ -38,7 +45,7 @@ struct PlayableCardView: View {
         VStack {
             if let add = adding?.add, add {
                 content
-            } else if artworkOnly {
+            } else if artworkOnly || tileWidth != nil {
                 // A button with a context menu, not a `Menu` with a primary
                 // action: a grid lays out dozens of tiles at once, and the
                 // menu's content — nested menus, a download index refresh —
@@ -50,7 +57,7 @@ struct PlayableCardView: View {
                     content
                 }
                 .buttonStyle(.plain)
-                .contentShape(.contextMenuPreview, .rect(cornerRadius: artworkCornerRadius))
+                .contentShape(.contextMenuPreview, .rect(cornerRadius: tileWidth == nil ? artworkCornerRadius : 6))
                 .contextMenu {
                     PlayableMenuView(item: item)
                 }
@@ -67,7 +74,7 @@ struct PlayableCardView: View {
         .listRowBackground(Color.clear)
         .listRowSeparator(.hidden, edges: .all)
         .overlay(alignment: .topTrailing) {
-            if adding == nil && !hideAction && !artworkOnly {
+            if adding == nil && !hideAction && !artworkOnly && tileWidth == nil {
                 Menu {
                     PlayableMenuView(item: item)
                 } label: {
@@ -102,9 +109,29 @@ struct PlayableCardView: View {
                 .contentShape(.rect(cornerRadius: artworkCornerRadius))
                 // Nothing written on the tile, so VoiceOver reads the name.
                 .accessibilityLabel(item.title)
+        } else if let tileWidth {
+            tile(width: tileWidth)
         } else {
             card
         }
+    }
+
+    private func tile(width: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ContentArtworkView(content: item, showMusicSource: false, preferredSize: width, cornerRadius: 6)
+                .frame(width: width, height: width)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(item.title)
+                if tileShowsSubtitle {
+                    Text(item.subtitle)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .font(.subheadline)
+            .lineLimit(1)
+        }
+        .frame(width: width, alignment: .leading)
+        .contentShape(.rect)
     }
 
     private var card: some View {
