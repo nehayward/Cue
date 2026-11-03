@@ -269,6 +269,13 @@ public final class SonosService {
     /// eight requests a group a second, ran on for as long as Cue did.
     /// Back on screen, the loops wake at once.
     @ObservationIgnored public var isOutOfSight: Bool = false
+    /// How many screens show the other groups' songs and levels (Play On,
+    /// the speaker picker; `beginShowingOtherGroups`). Only while one does
+    /// are the other groups read every second: read with nothing to show
+    /// them, about eight requests a group a second kept an idle Cue near
+    /// 12% of a core. The group playing keeps up through its live events,
+    /// and the topology through the pulse.
+    @ObservationIgnored private var otherGroupViewers = 0
     @ObservationIgnored var streamingService: SonosStreamingService?
     /// What each live listener currently wants a socket for. Keyed by listener
     /// so the player screen and the Lock Screen session can't tear down each
@@ -544,8 +551,8 @@ public final class SonosService {
                     try? await Task.sleep(for: .milliseconds(100))
                     continue
                 }
-                if isOutOfSight {
-                    await restWhileOutOfSight(upTo: .seconds(10))
+                if isOutOfSight || otherGroupViewers == 0 {
+                    await rest(upTo: .seconds(10)) { $0.isOutOfSight || $0.otherGroupViewers == 0 }
                     continue
                 }
                 // MARK: Update room volumes
@@ -582,7 +589,7 @@ public final class SonosService {
                     // MARK: Update room volumes
                     try await load(useCache: useCache)
                     if isOutOfSight {
-                        await restWhileOutOfSight(upTo: .seconds(10))
+                        await rest(upTo: .seconds(10)) { $0.isOutOfSight }
                     } else {
                         try? await Task.sleep(for: .milliseconds(selectedGroup != nil ? 500 : 800))
                     }
@@ -622,13 +629,38 @@ public final class SonosService {
         }
     }
 
-    /// Waits `limit` while Cue is out of sight, a quarter second at a time,
-    /// so the loops pick up again as soon as it's back.
-    private func restWhileOutOfSight(upTo limit: Duration) async {
+    /// Waits up to `limit` while `condition` holds, a quarter second at a
+    /// time, so a loop picks up again as soon as it's needed: Cue back on
+    /// screen, a screen showing the other groups.
+    private func rest(upTo limit: Duration, while condition: (SonosService) -> Bool) async {
         let end = ContinuousClock.now + limit
-        while isOutOfSight, ContinuousClock.now < end, !Task.isCancelled {
+        while condition(self), ContinuousClock.now < end, !Task.isCancelled {
             try? await Task.sleep(for: .milliseconds(250))
         }
+    }
+
+    /// A screen showing the other groups' songs and levels has appeared:
+    /// they're read every second until it goes (`endShowingOtherGroups`),
+    /// and at once for the first, so it doesn't open on stale rows.
+    @MainActor
+    public func beginShowingOtherGroups() {
+        otherGroupViewers += 1
+        guard otherGroupViewers == 1 else { return }
+        let others = groups.filter { $0 != selectedGroup }
+        guard !others.isEmpty else { return }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            try? await updateGroups(from: others)
+            await updateGroupCheckTVMode(from: others)
+            await updateGroupMuteState(for: others)
+            await updateGroupsRooms(from: others)
+        }
+    }
+
+    /// The screen `beginShowingOtherGroups` counted has gone.
+    @MainActor
+    public func endShowingOtherGroups() {
+        otherGroupViewers = max(0, otherGroupViewers - 1)
     }
 
     @MainActor
@@ -927,6 +959,13 @@ public final class SonosService {
             saveGroupsCache()
             return
         }
+
+        // With no group playing (Cue on this device), every group was read
+        // in full each pulse, for nothing but the Play On rows: about 12% of
+        // a core with nothing showing them. Read while a screen shows the
+        // other groups (`beginShowingOtherGroups` reads them as it opens),
+        // and as the topology changes.
+        guard refreshGroup || otherGroupViewers > 0 else { return }
 
         try await withThrowingTaskGroup(of: Void.self) { [weak self] group in
             guard let self = self else { return }

@@ -62,6 +62,13 @@ struct SelectGroupView: View {
     }
     
     var body: some View {
+        picker
+            // Its rows show each group's song and level.
+            .showsOtherGroups()
+    }
+
+    @ViewBuilder
+    private var picker: some View {
         NavigationStack {
             VStack(spacing: 0) {
                 if let content {

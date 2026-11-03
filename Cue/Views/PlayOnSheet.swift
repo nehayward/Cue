@@ -70,6 +70,13 @@ struct PlayOnSheet: View {
     }
 
     var body: some View {
+        content
+            // Its rows show each group's song and level.
+            .showsOtherGroups()
+    }
+
+    @ViewBuilder
+    private var content: some View {
         VStack(spacing: 0) {
             // Outside the list, so a pull down on it is always the sheet's.
             PlayOnHeader(isPopover: isPopover)
@@ -1481,4 +1488,14 @@ final class SpeakerVolumeWriter {
         .sheet(isPresented: .constant(true)) {
             PlayOnSheet()
         }
+}
+
+extension View {
+    /// Has the other groups' songs and levels read every second while this
+    /// shows (`SonosService.beginShowingOtherGroups`): with nothing showing
+    /// them they go unread.
+    func showsOtherGroups() -> some View {
+        onAppear { SonosService.shared.beginShowingOtherGroups() }
+            .onDisappear { SonosService.shared.endShowingOtherGroups() }
+    }
 }

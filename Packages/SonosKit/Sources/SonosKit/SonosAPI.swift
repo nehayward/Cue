@@ -18,6 +18,11 @@ final class SonosAPI: NSObject {
     private lazy var transportSession: URLSession = transportSessionConfig
 
     var xmlParser = XMLParserSonos()
+    /// The last topology each speaker gave and what it parsed to. It's read
+    /// twice a second and almost never changes, and parsing it each time,
+    /// twice over, was most of what an idle Cue spent.
+    private var lastTopology: [String: (data: Data, zones: [ZoneGroup], vanished: [VanishedDevice])] = [:]
+    private let lastTopologyLock = NSLock()
     /// Each speaker's household id, by IP. A speaker doesn't change household,
     /// and the id was read with a SOAP round trip from eight places — one of
     /// them every time the app became active, where a failed read used to
@@ -355,15 +360,29 @@ final class SonosAPI: NSObject {
             guard let (data, _) = try await sendSoapRequest(ip: ipAddress, action: "GetZoneGroupState", arguments: [], endpoint: "ZoneGroupTopology") else {
                 return []
             }
-            let xml = String(decoding: data, as: UTF8.self)
-            SonosLogInformation.shared.log(name: "Groups.txt", xml.unescaped)
-            let zones = xmlParser.parseZones(xml: xml.unescaped)
-            let vanishedZones = xmlParser.parseVanishedDevices(xml: xml.unescaped).compactMap { $0.toGroup }
-            let groups = zones.compactMap { $0.toGroup }
-            if (groups + vanishedZones).isEmpty {
-                throw SonosServiceError.parseError(xml)
+            let zones: [ZoneGroup]
+            let vanished: [VanishedDevice]
+            let cached = lastTopologyLock.withLock { lastTopology[ipAddress] }
+            if let cached, cached.data == data {
+                zones = cached.zones
+                vanished = cached.vanished
+            } else {
+                let xml = String(decoding: data, as: UTF8.self)
+                let unescaped = xml.unescaped
+                SonosLogInformation.shared.log(name: "Groups.txt", unescaped)
+                zones = xmlParser.parseZones(xml: unescaped)
+                vanished = xmlParser.parseVanishedDevices(xml: unescaped)
+                if zones.isEmpty, vanished.isEmpty {
+                    throw SonosServiceError.parseError(xml)
+                }
+                lastTopologyLock.withLock { lastTopology[ipAddress] = (data, zones, vanished) }
             }
-            return groups + vanishedZones
+            // Built fresh each read: the callers take these and change them.
+            let groups = zones.compactMap { $0.toGroup } + vanished.compactMap { $0.toGroup }
+            if groups.isEmpty {
+                throw SonosServiceError.parseError(String(decoding: data, as: UTF8.self))
+            }
+            return groups
         } catch URLError.cannotConnectToHost {
             print("Can't connect")
             throw SonosServiceError.sonosSystemNotFound
