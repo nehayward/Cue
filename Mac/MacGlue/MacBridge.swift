@@ -221,6 +221,28 @@ final class MacBridge: NSObject, MacBridgeable, @unchecked Sendable {
         NSApp.orderFrontStandardAboutPanel(options: [.credits: text])
     }
 
+    // MARK: - Window material
+
+    private static let materialIdentifier = NSUserInterfaceItemIdentifier("dance.cue.sidebarMaterial")
+
+    func installSidebarMaterial(inWindowsTitled title: String) {
+        for window in NSApp.windows where window.title == title {
+            // The window's frame view, not its content view, which starts
+            // below the title bar and left a dark strip under the traffic
+            // lights.
+            guard let frame = window.contentView?.superview,
+                  !frame.subviews.contains(where: { $0.identifier == Self.materialIdentifier }) else { continue }
+            window.titlebarAppearsTransparent = true
+            let material = NSVisualEffectView(frame: frame.bounds)
+            material.identifier = Self.materialIdentifier
+            material.material = .sidebar
+            material.blendingMode = .behindWindow
+            material.state = .followsWindowActiveState
+            material.autoresizingMask = [.width, .height]
+            frame.addSubview(material, positioned: .below, relativeTo: nil)
+        }
+    }
+
     // MARK: - Distributed notifications
 
     /// The handler for each name observed.

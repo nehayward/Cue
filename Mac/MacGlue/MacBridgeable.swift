@@ -39,4 +39,10 @@ protocol MacBridgeable: NSObjectProtocol {
     /// version, small and centred, each phrase in `links` (its URL as a
     /// string) a link in it.
     func showAboutPanel(credits: String, links: [String: String])
+
+    /// Puts macOS's sidebar material (the desktop behind the window showing
+    /// through, blurred, as in Music's sidebar) under the whole of each
+    /// window titled `title`, beneath Cue's own content, so what Cue leaves
+    /// clear shows it. Once a window; again is a no-op.
+    func installSidebarMaterial(inWindowsTitled title: String)
 }

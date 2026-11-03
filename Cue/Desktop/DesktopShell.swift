@@ -12,12 +12,6 @@ final class DesktopState {
     /// The playlist on show, or nil for the selected tab's page.
     private(set) var playlist: PlayableContent?
 
-    /// The window's width less the sidebar's, and the queue's while it
-    /// shows: the page lays itself out by these rather than by its column
-    /// (`DesktopContent`). Written by `DesktopShell` only as they change.
-    var pageRoom: CGFloat = 0
-    var queueRoom: CGFloat = 0
-
     private init() {}
 
     /// The stack on screen, where a sidebar playlist's menu presents its
@@ -69,23 +63,18 @@ final class DesktopState {
 
 /// The Mac's window, in place of the `TabView` (`AppState.usesDesktopShell`):
 /// laid out as macOS 27's Music is. The sidebar runs the window's full
-/// height down the leading side on macOS's own sidebar material, the
-/// desktop showing through it and the traffic lights in its corner (the
-/// tabs with Search, the library's collections, its playlists); beside it
-/// `DesktopContent`, the page and the queue.
-///
-/// On the Mac they're the columns of UIKit's split view (`DesktopSplit`):
-/// the sidebar in its sidebar column, the queue in its inspector column,
-/// both on macOS's own see-through material, which no SwiftUI view can
-/// draw for itself in a Catalyst app.
+/// height down the leading side, the traffic lights in its corner (the
+/// tabs with Search, the library's collections, its playlists), the queue
+/// the same down the trailing side, and the page between them. Both
+/// panels are clear over macOS's own sidebar material, which sits behind
+/// the whole window (`WindowMaterial`), so the desktop shows through them
+/// as through Music's; the page draws its own background over it.
 struct DesktopShell: View {
     @State private var appState = AppState.shared
-    @State private var desktop = DesktopState.shared
     /// Whether the window has room for the queue. A flag rather than the
     /// width, so a resize runs this again only as it crosses the line.
     @State private var isWide = true
     @Environment(\.dynamicTypeSize) private var typeSize
-    @Environment(\.zoomNamespace) private var zoomNamespace
     @Environment(\.openWindow) private var openWindow
 
     /// A base measure at the window's size (`InterfaceSize`).
@@ -94,41 +83,36 @@ struct DesktopShell: View {
     }
 
     var body: some View {
-        let sidebarWidth = scaled(DesktopStyle.sidebarWidth)
         let queueWidth = scaled(min(max(CGFloat(appState.queuePanelWidth), 280), 400))
         let showsQueue = appState.showsQueuePanel && isWide
 
-#if targetEnvironment(macCatalyst)
-        DesktopSplit(sidebarWidth: sidebarWidth, queueWidth: queueWidth, showsQueue: showsQueue, zoomNamespace: zoomNamespace)
-            .ignoresSafeArea()
-            .onGeometryChange(for: Bool.self) { [threshold = scaled(DesktopStyle.queueMinWindowWidth)] in $0.size.width >= threshold } action: { isWide = $0 }
-            .onGeometryChange(for: CGFloat.self) { $0.size.width - sidebarWidth } action: { room in
-                if desktop.pageRoom != room { desktop.pageRoom = room }
-            }
-            .onChange(of: showsQueue ? queueWidth : 0, initial: true) { _, room in
-                desktop.queueRoom = room
-            }
-            // How Settings opens its window from outside a view (the menu
-            // bar, the routers): here, in the scene, which the columns'
-            // own hosting isn't.
-            .onAppear {
-                SettingsWindow.shared.openWindow = openWindow
-            }
-#else
         HStack(spacing: 0) {
             DesktopSidebar()
-                .frame(width: sidebarWidth)
-                .desktopPanelBackground(edge: .trailing)
+                .frame(width: scaled(DesktopStyle.sidebarWidth))
+                .desktopPanelEdge(.trailing)
+
             DesktopContent()
+
             if showsQueue {
                 DesktopQueuePanel()
                     .frame(width: queueWidth)
-                    .desktopPanelBackground(edge: .leading)
+                    .desktopPanelEdge(.leading)
                     .transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
         .animation(.snappy, value: showsQueue)
+        // No band under the title bar: the lists' edge effect drew one over
+        // the material and the page.
+        .scrollEdgeEffectHidden26()
+        .ignoresSafeArea()
         .onGeometryChange(for: Bool.self) { [threshold = scaled(DesktopStyle.queueMinWindowWidth)] in $0.size.width >= threshold } action: { isWide = $0 }
+#if targetEnvironment(macCatalyst)
+        .onAppear {
+            // How Settings opens its window from outside a view (the menu
+            // bar, the routers).
+            SettingsWindow.shared.openWindow = openWindow
+            WindowMaterial.install()
+        }
 #endif
     }
 }
@@ -180,25 +164,7 @@ struct DesktopContent: View {
         // a hairline, across the page and the panels.
         .scrollEdgeEffectHidden26()
         .background(DesktopStyle.windowBackground)
-        // Through the top and bottom, not the sides: the split lays this
-        // column out under the sidebar and the queue too, inset by their
-        // widths, and run through those the bar slid under the sidebar, its
-        // transport with it.
         .ignoresSafeArea(.container, edges: .vertical)
-#if targetEnvironment(macCatalyst)
-        // As wide as the window less the sidebar and the queue, the queue's
-        // share animated: the split narrows or widens this column at once
-        // as the queue comes or goes, while the queue slides, and the page
-        // and its bar jumped to the new width. Laid out by its own width,
-        // the page runs on past the column, under the queue, until its
-        // edge has moved.
-        .frame(width: desktop.pageRoom > 0 ? max(0, desktop.pageRoom - desktop.queueRoom) : nil)
-        .animation(.snappy, value: desktop.queueRoom)
-        // In an overlay, pinned to the column's leading edge: as a frame's
-        // child wider than the column, it was centred on it, and slid left
-        // under the sidebar as the queue came in.
-        .modifier(OverflowingTrailing())
-#endif
         .onChange(of: selected, initial: true) { _, tab in
             keep(tab)
         }
@@ -278,18 +244,6 @@ struct DesktopContent: View {
     }
 }
 
-/// Lets a view wider than the room it's given run on past its trailing
-/// edge, its leading edge where the room's is.
-private struct OverflowingTrailing: ViewModifier {
-    func body(content: Content) -> some View {
-        Color.clear
-            .ignoresSafeArea(.container, edges: .vertical)
-            .overlay(alignment: .topLeading) {
-                content
-            }
-    }
-}
-
 /// A kept page's frame: all the room there is while it shows; hidden, the
 /// size it last showed at, so a window being resized lays out the page on
 /// show alone, as a `TabView` doesn't lay out its tabs off screen. Shown
@@ -314,8 +268,7 @@ private struct KeptPageFrame: ViewModifier {
 
 /// Next Up, or a book's chapters, down the window's trailing side, up to
 /// the window's top as Music's queue is: no traffic lights sit over it.
-/// No background: on the Mac it's the split view's material
-/// (`DesktopSplit`).
+/// Clear, over the window's material (`WindowMaterial`).
 struct DesktopQueuePanel: View {
     var body: some View {
         QueueNextUpView()

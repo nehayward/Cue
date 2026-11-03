@@ -50,24 +50,12 @@ enum DesktopStyle {
 }
 
 extension View {
-    /// A panel down a side of the window (the queue): the shell's grey up
-    /// through the title bar, with a hairline on the `edge` it meets the
-    /// page by, and the view below the title bar's strip.
-    func desktopPanel(edge: HorizontalEdge) -> some View {
-        belowTitleBar()
-            .desktopPanelBackground(edge: edge)
-    }
-
-    /// The panels' grey up through the title bar, with a hairline on the
-    /// `edge` it meets the page by. Not the sidebar's on the Mac, which is
-    /// macOS's own material (`DesktopSplit`).
-    func desktopPanelBackground(edge: HorizontalEdge) -> some View {
-        background {
-            DesktopStyle.panel
-                .overlay(alignment: edge == .leading ? .leading : .trailing) {
-                    DesktopStyle.panelEdge
-                        .frame(width: 1)
-                }
+    /// A hairline on the `edge` a panel meets the page by, up through the
+    /// title bar.
+    func desktopPanelEdge(_ edge: HorizontalEdge) -> some View {
+        overlay(alignment: edge == .leading ? .leading : .trailing) {
+            DesktopStyle.panelEdge
+                .frame(width: 1)
                 .ignoresSafeArea()
         }
     }
