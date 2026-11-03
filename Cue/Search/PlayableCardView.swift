@@ -30,8 +30,11 @@ struct PlayableCardView: View {
     /// that touch, some for tiles set apart, as the Radio tab's are.
     var artworkCornerRadius: CGFloat = 0
     /// A cover this wide with the title and subtitle under it, and no menu
-    /// button: a tile on a shelf (`TileShelf`). Tap and long-press keep
-    /// working on the tile itself.
+    /// button: a tile on a shelf (`TileShelf`). Its menu is the card's
+    /// `Menu`, held or right-clicked, as Recently Played's rows are: a
+    /// context menu in a list row belongs to the whole row, so on the
+    /// phone a long press lifted the whole shelf and on the Mac every
+    /// tile's right-click opened the first one's menu.
     var tileWidth: CGFloat? = nil
     /// Whether a tile has a line for its subtitle: a shelf whose items have
     /// none leaves it off every tile.
@@ -45,7 +48,7 @@ struct PlayableCardView: View {
         VStack {
             if let add = adding?.add, add {
                 content
-            } else if usesContextMenu {
+            } else if artworkOnly {
                 // A button with a context menu, not a `Menu` with a primary
                 // action: a grid lays out dozens of tiles at once, and the
                 // menu's content — nested menus, a download index refresh —
@@ -57,7 +60,7 @@ struct PlayableCardView: View {
                     content
                 }
                 .buttonStyle(.plain)
-                .contentShape(.contextMenuPreview, .rect(cornerRadius: tileWidth == nil ? artworkCornerRadius : 6))
+                .contentShape(.contextMenuPreview, .rect(cornerRadius: artworkCornerRadius))
                 .contextMenu {
                     PlayableMenuView(item: item)
                 }
@@ -114,18 +117,6 @@ struct PlayableCardView: View {
         } else {
             card
         }
-    }
-
-    /// A shelf's tile on the phone keeps the card's held `Menu`, as the
-    /// Recent row's tiles do: a context menu in a list row lifts the whole
-    /// row, which for a shelf was every tile on it. The Mac keeps the
-    /// right-click.
-    private var usesContextMenu: Bool {
-#if targetEnvironment(macCatalyst)
-        artworkOnly || tileWidth != nil
-#else
-        artworkOnly
-#endif
     }
 
     private func tile(width: CGFloat) -> some View {

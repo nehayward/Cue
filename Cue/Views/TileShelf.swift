@@ -22,12 +22,27 @@ struct TileShelf: View {
     private static let spacing: CGFloat = 12
     private static let margin: CGFloat = 16
 
-    /// The shelf's width, to tell whether the items fill two rows.
-    @State private var width: CGFloat = 0
-
     var body: some View {
-        let fits = width > 0 ? Int((width - Self.margin * 2 + Self.spacing) / (Self.tileWidth + Self.spacing)) : 6
-        let rows = items.count >= max(fits, 2) * 2 ? 2 : 1
+        // One row or two chosen by the layout from the width it's offered,
+        // as Recently Played's grid picks its columns, rather than from a
+        // width measured into state: fed back into a self-sizing list cell,
+        // that can loop until UIKit kills the app (`PlayableContentGridView`).
+        // The one row "fits" while two rows wouldn't reach the edge.
+        ViewThatFits(in: .horizontal) {
+            shelf(rows: 1)
+                .frame(idealWidth: Self.width(ofColumns: (items.count + 1) / 2))
+            shelf(rows: 2)
+        }
+        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 12, trailing: 0))
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
+    }
+
+    private static func width(ofColumns columns: Int) -> CGFloat {
+        CGFloat(columns) * tileWidth + CGFloat(max(columns - 1, 0)) * spacing + margin * 2
+    }
+
+    private func shelf(rows: Int) -> some View {
         let columns = stride(from: 0, to: items.count, by: rows).map {
             Array(items[$0..<min($0 + rows, items.count)])
         }
@@ -35,7 +50,7 @@ struct TileShelf: View {
         // line for it only when one does, kept on every tile so the rows
         // stay in line.
         let showsSubtitle = items.contains { !$0.subtitle.isEmpty }
-        ScrollView(.horizontal) {
+        return ScrollView(.horizontal) {
             LazyHStack(alignment: .top, spacing: Self.spacing) {
                 ForEach(columns, id: \.[0].id) { column in
                     VStack(alignment: .leading, spacing: 16) {
@@ -51,9 +66,5 @@ struct TileShelf: View {
         .contentMargins(.horizontal, Self.margin, for: .scrollContent)
         .scrollIndicators(.hidden)
         .scrollClipDisabled()
-        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
-        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 12, trailing: 0))
-        .listRowBackground(Color.clear)
-        .listRowSeparator(.hidden)
     }
 }
