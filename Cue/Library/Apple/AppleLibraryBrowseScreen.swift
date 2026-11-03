@@ -199,20 +199,7 @@ struct AppleLibraryBrowseScreen: View {
                 .listRowSeparator(.hidden)
                 
                 if !appleMusicBrowseService.recommendedAlbums.isEmpty {
-                    // A grid with a card-width cap, not a fixed two-up `HStack`:
-                    // two cards split the whole row, so on a wide window each
-                    // one grew to most of the window's width. The grid keeps
-                    // the cards a readable size and fits more of them instead.
-                    LazyVGrid(
-                        columns: [GridItem(.adaptive(minimum: 160, maximum: 260), spacing: 12)],
-                        spacing: 12
-                    ) {
-                        ForEach(appleMusicBrowseService.recommendedAlbums.prefix(8)) { item in
-                            PlayableCardView(item: item)
-                        }
-                    }
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
+                    TileGrid(items: Array(appleMusicBrowseService.recommendedAlbums.prefix(TileGrid.fillCount)))
                 }
             }
             .listSectionSpacing(0)
@@ -228,15 +215,7 @@ struct AppleLibraryBrowseScreen: View {
                 }
                 .listRowBackground(Color.clear)
                 if !appleMusicBrowseService.userStations.isEmpty {
-                    VStack(spacing: 16) {
-                        HStack(spacing: 12) {
-                            ForEach(appleMusicBrowseService.userStations.prefix(3)) { item in
-                                PlayableCardView(item: item)
-                            }
-                        }
-                    }
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
+                    TileGrid(items: Array(appleMusicBrowseService.userStations.prefix(TileGrid.fillCount)))
                 }
             }
             .listRowInsets(.default)
@@ -259,11 +238,11 @@ struct AppleLibraryBrowseScreen: View {
             }
             
             group.addTask {
-                await appleMusicBrowseService.updateRadioStations(offset: 0, limit: 4)
+                await appleMusicBrowseService.updateRadioStations(offset: 0, limit: TileGrid.fillCount)
             }
             
             group.addTask {
-                await appleMusicBrowseService.updateRecommendedAlbums(offset: 0, limit: 4)
+                await appleMusicBrowseService.updateRecommendedAlbums(offset: 0, limit: TileGrid.fillCount)
             }
             
             group.addTask {
