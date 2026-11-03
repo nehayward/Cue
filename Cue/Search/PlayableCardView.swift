@@ -22,21 +22,21 @@ struct PlayableCardView: View {
     /// menu button — for a wall of artwork where the tiles touch. Tap and
     /// long-press keep working on the tile itself.
     var artworkOnly: Bool = false
-    /// How wide the artwork-only tile is on screen, in points. The cover
-    /// is decoded no bigger than this needs, so a wall of 130pt tiles
-    /// doesn't hold a 1200px bitmap for every one of them.
+    /// How wide the artwork-only tile, or a tile, is on screen, in points.
+    /// The cover is decoded no bigger than this needs, so a wall of 130pt
+    /// tiles doesn't hold a 1200px bitmap for every one of them.
     var artworkSize: Double = 200
     /// The artwork-only tile's corner rounding: none for a wall of tiles
     /// that touch, some for tiles set apart, as the Radio tab's are.
     var artworkCornerRadius: CGFloat = 0
-    /// A cover this wide with the title and subtitle under it, and no menu
-    /// button: a tile on a shelf (`TileShelf`). Its menu is the card's
-    /// `Menu`, held or right-clicked, as Recently Played's rows are: a
-    /// context menu in a list row belongs to the whole row, so on the
-    /// phone a long press lifted the whole shelf and on the Mac every
-    /// tile's right-click opened the first one's menu.
-    var tileWidth: CGFloat? = nil
-    /// Whether a tile has a line for its subtitle: a shelf whose items have
+    /// A square cover as wide as the tile is offered, with the title and
+    /// subtitle under it, and no menu button: a tile (`TileGrid`). Its
+    /// menu is the card's `Menu`, held or right-clicked, as Recently
+    /// Played's rows are: a context menu in a list row belongs to the
+    /// whole row, so on the phone a long press lifted every tile and on
+    /// the Mac every tile's right-click opened the first one's menu.
+    var isTile: Bool = false
+    /// Whether a tile has a line for its subtitle: a grid whose items have
     /// none leaves it off every tile.
     var tileShowsSubtitle: Bool = true
     /// Set by a grid that has marked this card as a zoom source, so the
@@ -77,7 +77,7 @@ struct PlayableCardView: View {
         .listRowBackground(Color.clear)
         .listRowSeparator(.hidden, edges: .all)
         .overlay(alignment: .topTrailing) {
-            if adding == nil && !hideAction && !artworkOnly && tileWidth == nil {
+            if adding == nil && !hideAction && !artworkOnly && !isTile {
                 Menu {
                     PlayableMenuView(item: item)
                 } label: {
@@ -112,17 +112,22 @@ struct PlayableCardView: View {
                 .contentShape(.rect(cornerRadius: artworkCornerRadius))
                 // Nothing written on the tile, so VoiceOver reads the name.
                 .accessibilityLabel(item.title)
-        } else if let tileWidth {
-            tile(width: tileWidth)
+        } else if isTile {
+            tile
         } else {
             card
         }
     }
 
-    private func tile(width: CGFloat) -> some View {
+    private var tile: some View {
         VStack(alignment: .leading, spacing: 4) {
-            ContentArtworkView(content: item, showMusicSource: false, preferredSize: width, cornerRadius: 6)
-                .frame(width: width, height: width)
+            Color.clear
+                .aspectRatio(1, contentMode: .fit)
+                .overlay {
+                    ContentArtworkView(content: item, showMusicSource: false, preferredSize: artworkSize, cornerRadius: 0)
+                        .scaledToFill()
+                }
+                .clipShape(.rect(cornerRadius: 6))
             VStack(alignment: .leading, spacing: 1) {
                 Text(item.title)
                 if tileShowsSubtitle {
@@ -135,7 +140,6 @@ struct PlayableCardView: View {
             // A menu's label takes the accent otherwise.
             .tint(.primary)
         }
-        .frame(width: width, alignment: .leading)
         .contentShape(.rect)
     }
 

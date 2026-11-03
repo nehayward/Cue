@@ -199,7 +199,7 @@ struct AppleLibraryBrowseScreen: View {
                 .listRowSeparator(.hidden)
                 
                 if !appleMusicBrowseService.recommendedAlbums.isEmpty {
-                    TileShelf(items: Array(appleMusicBrowseService.recommendedAlbums.prefix(TileShelf.fillCount)))
+                    TileGrid(items: Array(appleMusicBrowseService.recommendedAlbums.prefix(TileGrid.fillCount)))
                 }
             }
             .listSectionSpacing(0)
@@ -215,7 +215,7 @@ struct AppleLibraryBrowseScreen: View {
                 }
                 .listRowBackground(Color.clear)
                 if !appleMusicBrowseService.userStations.isEmpty {
-                    TileShelf(items: Array(appleMusicBrowseService.userStations.prefix(TileShelf.fillCount)))
+                    TileGrid(items: Array(appleMusicBrowseService.userStations.prefix(TileGrid.fillCount)))
                 }
             }
             .listRowInsets(.default)
@@ -238,11 +238,11 @@ struct AppleLibraryBrowseScreen: View {
             }
             
             group.addTask {
-                await appleMusicBrowseService.updateRadioStations(offset: 0, limit: TileShelf.fillCount)
+                await appleMusicBrowseService.updateRadioStations(offset: 0, limit: TileGrid.fillCount)
             }
             
             group.addTask {
-                await appleMusicBrowseService.updateRecommendedAlbums(offset: 0, limit: TileShelf.fillCount)
+                await appleMusicBrowseService.updateRecommendedAlbums(offset: 0, limit: TileGrid.fillCount)
             }
             
             group.addTask {

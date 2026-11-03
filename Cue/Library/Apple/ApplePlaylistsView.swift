@@ -25,11 +25,11 @@ struct ApplePlaylistsView: View {
             // Stable: a fresh UUID re-tagged the row on every pass.
             .tag("applePlaylistsHeader")
             if !appleMusicBrowseService.userPlaylists.isEmpty {
-                TileShelf(items: Array(appleMusicBrowseService.userPlaylists.prefix(TileShelf.fillCount)))
+                TileGrid(items: Array(appleMusicBrowseService.userPlaylists.prefix(TileGrid.fillCount)))
             }
         }
         .task {
-            await appleMusicBrowseService.updateUsersApplePlaylists(offset: 0, limit: TileShelf.fillCount)
+            await appleMusicBrowseService.updateUsersApplePlaylists(offset: 0, limit: TileGrid.fillCount)
         }
         .listRowSeparator(.hidden)
         .listSectionSeparator(.hidden)
