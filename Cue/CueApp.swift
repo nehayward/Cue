@@ -2147,9 +2147,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     /// File ▸ Close: Settings closes; the main window hides Cue.
     @objc func closeWindow() {
+        // The window in front: its scene the active one, as the Mac has
+        // one at a time. A key window wasn't found for Settings, so ⌘W hid
+        // Cue rather than closing it.
         let key = UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .first { $0.windows.contains(where: \.isKeyWindow) }
+            .first { $0.activationState == .foregroundActive }
         if let key, SettingsWindow.isMarked(key.session) {
             UIApplication.shared.requestSceneSessionDestruction(key.session, options: nil)
         } else {
@@ -2340,6 +2342,20 @@ class CueSceneDelegate: NSObject, UIWindowSceneDelegate {
 #endif
     }
     
+#if targetEnvironment(macCatalyst)
+    /// The main window hidden or minimised: the speakers read less while
+    /// nothing of Cue is on screen (`SonosService.isOutOfSight`).
+    func sceneDidEnterBackground(_ scene: UIScene) {
+        guard !SettingsWindow.isMarked(scene.session) else { return }
+        SonosService.shared.isOutOfSight = true
+    }
+
+    func sceneWillEnterForeground(_ scene: UIScene) {
+        guard !SettingsWindow.isMarked(scene.session) else { return }
+        SonosService.shared.isOutOfSight = false
+    }
+#endif
+
     func sceneDidDisconnect(_ scene: UIScene) {
 #if targetEnvironment(macCatalyst)
         windowSizeObserver = nil

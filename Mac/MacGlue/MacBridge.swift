@@ -225,8 +225,16 @@ final class MacBridge: NSObject, MacBridgeable, @unchecked Sendable {
 
     private static let materialIdentifier = NSUserInterfaceItemIdentifier("dance.cue.sidebarMaterial")
 
+    /// The main window: titled `title` and with no toolbar. A Settings
+    /// window reopened at launch can be titled for the app a moment before
+    /// its pane names it, and took the main window's close button with it;
+    /// its toolbar it has from the start.
+    private func mainWindows(titled title: String) -> [NSWindow] {
+        NSApp.windows.filter { $0.title == title && $0.toolbar == nil }
+    }
+
     func installSidebarMaterial(inWindowsTitled title: String) {
-        for window in NSApp.windows where window.title == title {
+        for window in mainWindows(titled: title) {
             // The window's frame view, not its content view, which starts
             // below the title bar and left a dark strip under the traffic
             // lights.
@@ -252,7 +260,7 @@ final class MacBridge: NSObject, MacBridgeable, @unchecked Sendable {
     }
 
     func hideOnClose(windowsTitled title: String) {
-        for window in NSApp.windows where window.title == title {
+        for window in mainWindows(titled: title) {
             guard let button = window.standardWindowButton(.closeButton),
                   button.action != #selector(hideApp) else { continue }
             button.target = self

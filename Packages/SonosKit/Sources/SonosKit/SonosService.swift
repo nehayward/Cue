@@ -262,6 +262,13 @@ public final class SonosService {
     @ObservationIgnored public var watcher: Task<Void, Error> = Task { }
     @ObservationIgnored public var isEditing: Bool = false
     @ObservationIgnored public var isGrouping: Bool = false
+    /// Whether nothing of Cue is on screen (the Mac's window hidden or
+    /// minimised; set by the app). Then the other groups go unread and the
+    /// topology is read every 10 s rather than twice a second: the group
+    /// playing keeps up through its live events, and those reads, about
+    /// eight requests a group a second, ran on for as long as Cue did.
+    /// Back on screen, the loops wake at once.
+    @ObservationIgnored public var isOutOfSight: Bool = false
     @ObservationIgnored var streamingService: SonosStreamingService?
     /// What each live listener currently wants a socket for. Keyed by listener
     /// so the player screen and the Lock Screen session can't tear down each
@@ -537,6 +544,10 @@ public final class SonosService {
                     try? await Task.sleep(for: .milliseconds(100))
                     continue
                 }
+                if isOutOfSight {
+                    await restWhileOutOfSight(upTo: .seconds(10))
+                    continue
+                }
                 // MARK: Update room volumes
                 if let selectedGroup {
                     try? await Task.sleep(for: .milliseconds(1000))
@@ -570,7 +581,11 @@ public final class SonosService {
                     }
                     // MARK: Update room volumes
                     try await load(useCache: useCache)
-                    try? await Task.sleep(for: .milliseconds(selectedGroup != nil ? 500 : 800))
+                    if isOutOfSight {
+                        await restWhileOutOfSight(upTo: .seconds(10))
+                    } else {
+                        try? await Task.sleep(for: .milliseconds(selectedGroup != nil ? 500 : 800))
+                    }
 
                     useCache = true
                 } catch SonosServiceError.permissionDenied {
@@ -604,6 +619,15 @@ public final class SonosService {
                     print(#function, error)
                 }
             } while !Task.isCancelled
+        }
+    }
+
+    /// Waits `limit` while Cue is out of sight, a quarter second at a time,
+    /// so the loops pick up again as soon as it's back.
+    private func restWhileOutOfSight(upTo limit: Duration) async {
+        let end = ContinuousClock.now + limit
+        while isOutOfSight, ContinuousClock.now < end, !Task.isCancelled {
+            try? await Task.sleep(for: .milliseconds(250))
         }
     }
 
