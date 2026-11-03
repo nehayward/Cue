@@ -24,19 +24,14 @@ struct ApplePlaylistsView: View {
             }
             // Stable: a fresh UUID re-tagged the row on every pass.
             .tag("applePlaylistsHeader")
-            if !appleMusicBrowseService.userPlaylists.isEmpty {
-                VStack(spacing: 16) {
-                    HStack(spacing: 12) {
-                        ForEach(appleMusicBrowseService.userPlaylists.prefix(3)) { item in
-                            PlayableCardView(item: item)
-                        }
-                    }
-                }
+            // Rows, as Recently Played draws under it on the Apple Library
+            // page, not three cards splitting the row: on a wide window each
+            // card grew to a third of the window and the section filled it.
+            PlayableContentGridView(items: Array(appleMusicBrowseService.userPlaylists), limit: 6)
                 .listRowBackground(Color.clear)
-            }
         }
         .task {
-            await appleMusicBrowseService.updateUsersApplePlaylists(offset: 0, limit: 4)
+            await appleMusicBrowseService.updateUsersApplePlaylists(offset: 0, limit: 6)
         }
         .listRowSeparator(.hidden)
         .listSectionSeparator(.hidden)
