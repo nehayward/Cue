@@ -296,6 +296,10 @@ private struct DesktopPlaylistRows: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var desktop = DesktopState.shared
 
+    /// For the rows' menus (`PlayableMenuView`), made once: one made in
+    /// `body` would redraw every row reading it on each pass.
+    private static let groupService = SelectedGroupService(group: nil)
+
     /// Read from the browse services, which their screens fill too.
     private var playlists: [PlayableContent] {
         switch service {
@@ -330,8 +334,16 @@ private struct DesktopPlaylistRows: View {
             }
             .buttonStyle(.plain)
             .desktopHover(cornerRadius: 12, isSelected: isSelected)
+            // A playlist's own menu, as its row has elsewhere: play,
+            // shuffle, play next, rename and delete. Its sheets go up from
+            // the page on show.
+            .contextMenu {
+                PlayableMenuView(item: playlist)
+            }
             .accessibilityAddTraits(isSelected ? .isSelected : [])
         }
+        .environment(desktop.currentRouter)
+        .environment(Self.groupService)
         .task(id: service) {
             await load()
         }

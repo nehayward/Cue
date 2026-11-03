@@ -34,4 +34,9 @@ protocol MacBridgeable: NSObjectProtocol {
     /// in the background. A second call for the same name replaces the
     /// handler.
     func observeDistributedNotification(named name: String, handler: @escaping (String?) -> Void)
+
+    /// The standard About panel (Cue ▸ About Cue) with `credits` under the
+    /// version, small and centred, each phrase in `links` (its URL as a
+    /// string) a link in it.
+    func showAboutPanel(credits: String, links: [String: String])
 }

@@ -15,15 +15,6 @@ final class MiniSettingsService {
             UserDefaults.standard.set(defaultVolume, forKey: "defaultVolume")
         }
     }
-    var pinnedSpeakerId: String? {
-        didSet {
-            if let pinnedSpeakerId = pinnedSpeakerId {
-                UserDefaults.standard.set(pinnedSpeakerId, forKey: "pinnedSpeakerId")
-            } else {
-                UserDefaults.standard.removeObject(forKey: "pinnedSpeakerId")
-            }
-        }
-    }
     var showSongTitleInMenuBar: Bool = true {
         didSet {
             UserDefaults.standard.set(showSongTitleInMenuBar, forKey: "showSongTitleInMenuBar")
@@ -58,7 +49,9 @@ final class MiniSettingsService {
             defaultVolume = 50.0
             UserDefaults.standard.set(defaultVolume, forKey: "defaultVolume")
         }
-        pinnedSpeakerId = UserDefaults.standard.string(forKey: "pinnedSpeakerId")
+        // Speakers were pinned from the menu's speaker list, now gone: the
+        // menu is Cue's player alone.
+        UserDefaults.standard.removeObject(forKey: "pinnedSpeakerId")
         
         // Load showSongTitleInMenuBar, defaulting to true if not set
         if UserDefaults.standard.object(forKey: "showSongTitleInMenuBar") != nil {
@@ -122,20 +115,6 @@ final class MiniSettingsService {
             return shortcut.description
         }
         return "Not set"
-    }
-    
-    // MARK: - Pinned Speaker
-    
-    func pinSpeaker(id: String) {
-        pinnedSpeakerId = id
-    }
-    
-    func unpinSpeaker() {
-        pinnedSpeakerId = nil
-    }
-    
-    func isSpeakerPinned(id: String) -> Bool {
-        return pinnedSpeakerId == id
     }
 }
 

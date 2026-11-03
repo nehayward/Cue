@@ -124,7 +124,7 @@ struct CueMiniApp: App {
     
     var body: some Scene {
         MenuBarExtra {
-            GroupMenuScreen()
+            MiniMenuScreen()
         } label: {
             MenuBarLabelView()
         }
@@ -176,13 +176,7 @@ struct MenuBarLabelView: View {
     private var sonosService = SonosMiniService.shared
     private var link = CueLink.shared
 
-    /// The pinned speaker, when there is one.
-    private var pinnedDevice: SonosDevice? {
-        guard let pinnedId = settings.pinnedSpeakerId else { return nil }
-        return sonosService.devices.first { $0.id == pinnedId }
-    }
-
-    /// Pinned speaker if there is one, otherwise whatever is playing.
+    /// A speaker playing, for its song while Cue's player has none.
     ///
     /// `devices` is in discovery order, not the order the menu lists rooms, and
     /// a room can report PLAYING with nothing to show: a soundbar on TV input
@@ -192,20 +186,17 @@ struct MenuBarLabelView: View {
     /// bare while music is playing in another room, so skip the ones with no
     /// title to show.
     private var device: SonosDevice? {
-        if let pinnedDevice {
-            return pinnedDevice
-        }
-        return sonosService.devices.first { $0.isPlaying && !$0.isTVMode && !$0.track.song.isEmpty }
+        sonosService.devices.first { $0.isPlaying && !$0.isTVMode && !$0.track.song.isEmpty }
     }
 
-    /// A pinned speaker's song, else Cue's while it plays (on this Mac or a
-    /// speaker), else a playing speaker's.
+    /// Cue's song while it plays (on this Mac or a speaker), else a playing
+    /// speaker's.
     ///
     /// `song`, not `name` — it prefers the stream metadata title and falls back
     /// to `name`, which is what the menu's own rows render.
     private var title: String? {
         guard settings.showSongTitleInMenuBar else { return nil }
-        if pinnedDevice == nil, let state = link.state, state.isPlaying, let item = state.item {
+        if let state = link.state, state.isPlaying, let item = state.item {
             return item.title
         }
         guard let device, !device.isTVMode else { return nil }

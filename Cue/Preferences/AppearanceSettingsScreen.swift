@@ -3,79 +3,88 @@ import SwiftUI
 /// Settings ▸ Appearance: the theme, picked from three swatches (light,
 /// dark, and half of each for System), and which optional tabs show.
 struct AppearanceSettingsScreen: View {
+    var body: some View {
+        Form {
+            AppearanceSettingsSections()
+        }
+        .navigationTitle("Appearance")
+        .navigationBarTitleDisplayMode(.inline)
+        .fontDesign(.rounded)
+    }
+}
+
+/// Appearance's sections, without a form of their own: the Mac's Settings
+/// window has them on its General pane (`GeneralSettingsScreen`).
+struct AppearanceSettingsSections: View {
     /// The settings these pick, kept and saved by `AppState`, which the tab
     /// bar and the windows read.
     @State private var appState = AppState.shared
 
     var body: some View {
-        Form {
-            Section {
-                HStack(spacing: 32) {
-                    ForEach(ColorSchemePreference.allCases, id: \.self) { option in
-                        ThemeChoice(option: option, isSelected: appState.colorScheme == option) {
-                            HapticManager.shared.fireHaptic(.selection)
-                            appState.colorScheme = option
-                        }
+        Section {
+            HStack(spacing: 32) {
+                ForEach(ColorSchemePreference.allCases, id: \.self) { option in
+                    ThemeChoice(option: option, isSelected: appState.colorScheme == option) {
+                        HapticManager.shared.fireHaptic(.selection)
+                        appState.colorScheme = option
                     }
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 6)
-            } header: {
-                Text("Theme")
-            }
-
-            // The Mac's window only: iPhone and iPad follow the system's
-            // text size.
-            if AppState.usesDesktopShell {
-                Section {
-                    Picker("Interface Size", selection: $appState.interfaceSize) {
-                        ForEach(InterfaceSize.allCases) { size in
-                            Text(size.title).tag(size)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                } header: {
-                    Text("Interface Size")
-                } footer: {
-                    Text("View ▸ Bigger (⌘+) and Smaller (⌘−) change it too.")
                 }
             }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+        } header: {
+            Text("Theme")
+        }
 
+        // The Mac's window only: iPhone and iPad follow the system's
+        // text size.
+        if AppState.usesDesktopShell {
             Section {
-                Toggle(isOn: $appState.showRadioTab) {
-                    Label {
-                        Text("Radio")
-                    } icon: {
-                        SettingsIcon(symbol: "radio", colors: [Color(red: 0.95, green: 0.35, blue: 0.45), Color(red: 0.8, green: 0.2, blue: 0.35)])
+                Picker("Interface Size", selection: $appState.interfaceSize) {
+                    ForEach(InterfaceSize.allCases) { size in
+                        Text(size.title).tag(size)
                     }
                 }
-                .tint(.accent)
-                Toggle(isOn: $appState.showAudiobooksTab) {
-                    Label {
-                        Text("Audiobooks")
-                    } icon: {
-                        SettingsIcon(symbol: "book.fill", colors: [Color(red: 0.98, green: 0.6, blue: 0.2), Color(red: 0.9, green: 0.42, blue: 0.1)])
-                    }
-                }
-                .tint(.accent)
-                Toggle(isOn: $appState.showDownloadsTab) {
-                    Label {
-                        Text("Downloads")
-                    } icon: {
-                        SettingsIcon(symbol: "arrow.down", colors: [Color(red: 0.3, green: 0.8, blue: 0.55), Color(red: 0.1, green: 0.6, blue: 0.4)])
-                    }
-                }
-                .tint(.accent)
+                .pickerStyle(.segmented)
+                .labelsHidden()
             } header: {
-                Text("Tabs")
+                Text("Interface Size")
             } footer: {
-                Text("While you're offline, Home and Radio hide, Audiobooks shows only books downloaded whole, and Downloads always shows.")
+                Text("View ▸ Bigger (⌘+) and Smaller (⌘−) change it too.")
             }
         }
-        .navigationTitle("Appearance")
-        .navigationBarTitleDisplayMode(.inline)
-        .fontDesign(.rounded)
+
+        Section {
+            Toggle(isOn: $appState.showRadioTab) {
+                Label {
+                    Text("Radio")
+                } icon: {
+                    SettingsIcon(symbol: "radio", colors: [Color(red: 0.95, green: 0.35, blue: 0.45), Color(red: 0.8, green: 0.2, blue: 0.35)])
+                }
+            }
+            .tint(.accent)
+            Toggle(isOn: $appState.showAudiobooksTab) {
+                Label {
+                    Text("Audiobooks")
+                } icon: {
+                    SettingsIcon(symbol: "book.fill", colors: [Color(red: 0.98, green: 0.6, blue: 0.2), Color(red: 0.9, green: 0.42, blue: 0.1)])
+                }
+            }
+            .tint(.accent)
+            Toggle(isOn: $appState.showDownloadsTab) {
+                Label {
+                    Text("Downloads")
+                } icon: {
+                    SettingsIcon(symbol: "arrow.down", colors: [Color(red: 0.3, green: 0.8, blue: 0.55), Color(red: 0.1, green: 0.6, blue: 0.4)])
+                }
+            }
+            .tint(.accent)
+        } header: {
+            // The Mac's window lists them in its sidebar.
+            Text(AppState.usesDesktopShell ? "Sidebar" : "Tabs")
+        } footer: {
+            Text("While you're offline, Home and Radio hide, Audiobooks shows only books downloaded whole, and Downloads always shows.")
+        }
     }
 }
 

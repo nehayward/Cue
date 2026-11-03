@@ -1939,6 +1939,21 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             } else {
                 builder.insertSibling(settings, afterMenu: .about)
             }
+
+            // What the iPhone's Settings page has past its settings, where
+            // a Mac app keeps it: About Cue with the version, this install's
+            // ID and Last.fm's credit, and Help with the help pages, the
+            // release notes and a mail to support.
+            builder.replace(menu: .about, with: UIMenu(title: "", identifier: .about, options: .displayInline, children: [
+                UICommand(title: "About Cue", action: #selector(showAbout))
+            ]))
+            builder.replace(menu: .help, with: UIMenu(title: "Help", identifier: .help, children: [
+                UICommand(title: "Cue Help", action: #selector(showHelp)),
+                UICommand(title: "What's New in Cue", action: #selector(showWhatsNew)),
+                UIMenu(title: "", options: .displayInline, children: [
+                    UICommand(title: "Contact Support…", action: #selector(contactSupport))
+                ])
+            ]))
 #endif
 
             // View › Show/Hide Queue, ⌥⌘0 as Xcode toggles its inspector.
@@ -2117,6 +2132,29 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 #if targetEnvironment(macCatalyst)
     @objc func showSettings() {
         SettingsWindow.shared.open()
+    }
+
+    @objc func showAbout() {
+        let credits = "ID: \(SubscriptionService.shared.userID)\nPowered by Audioscrobbler"
+        MenuAppLaunchAtLoginManager.shared.bridge?.showAboutPanel(credits: credits, links: ["Audioscrobbler": "https://www.last.fm"])
+    }
+
+    @objc func showHelp() {
+        UIApplication.shared.open(URL(string: "https://cue.dance/help")!)
+    }
+
+    /// This version's release notes, which count as seen as Settings' row
+    /// does on the iPhone.
+    @objc func showWhatsNew() {
+        let version = OSEnvironment.versionInfo
+        UIApplication.shared.open(URL(string: "https://cue.dance/releases/\(version)")!)
+        if UserDefaults.standard.string(forKey: AppStorageKeys.lastSeenWhatsNewVersion) != version {
+            UserDefaults.standard.set(version, forKey: AppStorageKeys.lastSeenWhatsNewVersion)
+        }
+    }
+
+    @objc func contactSupport() {
+        UIApplication.shared.open(SupportMail.url)
     }
 #endif
 

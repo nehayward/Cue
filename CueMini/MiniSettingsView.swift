@@ -4,7 +4,6 @@ import SonosKitMini
 
 struct MiniSettingsView: View {
     @State private var settingsService = MiniSettingsService.shared
-    @State private var sonosServiceMini = SonosMiniService.shared
     
     var body: some View {
         Form {
@@ -22,37 +21,6 @@ struct MiniSettingsView: View {
             Toggle("Show track change notifications", isOn: $settingsService.showTrackChangeHUD)
                 .toggleStyle(.switch)
             
-            Section("Pinned Speaker") {
-                VStack(alignment: .leading, spacing: 8) {
-                    if let pinnedId = settingsService.pinnedSpeakerId,
-                       let pinnedDevice = sonosServiceMini.devices.first(where: { $0.id == pinnedId }) {
-                        HStack {
-                            Image(systemName: "pin.fill")
-                                .foregroundStyle(.accent)
-                            Text("Currently pinned: \(pinnedDevice.nameWithCount)")
-                                .fontWeight(.medium)
-                            Spacer()
-                            Button("Unpin") {
-                                settingsService.unpinSpeaker()
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
-                        }
-                    } else {
-                        HStack {
-                            Image(systemName: "pin")
-                                .foregroundStyle(.secondary)
-                            Text("No speaker pinned")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    
-                    Text("Pin a speaker from the speaker list to put it ahead of Cue's player in the menu bar and the keyboard shortcuts. A pinned speaker shows its song in the menu bar and receives all media control commands.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
             Section("Keyboard Shortcuts") {
                 KeyboardShortcuts.Recorder(for: .toggleCueMini) {
                     Text("Show/Hide Cue Mini")
@@ -61,22 +29,22 @@ struct MiniSettingsView: View {
                 
                 KeyboardShortcuts.Recorder(for: .volumeUp) {
                     Text("Volume Up")
-                    Text("Increase the volume of the pinned speaker, else the group Cue plays on, else the group playing")
+                    Text("Increase the volume of the group Cue plays on, else the group playing")
                 }
                 
                 KeyboardShortcuts.Recorder(for: .volumeDown) {
                     Text("Volume Down")
-                    Text("Decrease the volume of the pinned speaker, else the group Cue plays on, else the group playing")
+                    Text("Decrease the volume of the group Cue plays on, else the group playing")
                 }
                 
                 KeyboardShortcuts.Recorder(for: .nextTrack) {
                     Text("Next Track")
-                    Text("Skip to the next track in Cue's player, or on the pinned speaker")
+                    Text("Skip to the next track in Cue's player")
                 }
                 
                 KeyboardShortcuts.Recorder(for: .previousTrack) {
                     Text("Previous Track")
-                    Text("Go to the previous track in Cue's player, or on the pinned speaker")
+                    Text("Go to the previous track in Cue's player")
                 }
             }
             

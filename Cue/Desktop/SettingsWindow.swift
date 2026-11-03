@@ -5,9 +5,11 @@ import SwiftUI
 import UIKit
 
 /// The panes of the Mac's Settings window, chosen from its toolbar. General
-/// is Settings' own page without the rows the other panes have taken.
+/// is Cue Super and Appearance's settings; About, Help, What's New and
+/// Contact Support, the rest of the iPhone's Settings page, are in the menu
+/// bar, where a Mac app keeps them.
 enum SettingsPane: String, CaseIterable, Identifiable {
-    case general, services, playback, sonos, appearance, storage
+    case general, services, playback, sonos, storage
 
     var id: Self { self }
 
@@ -17,7 +19,6 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .services: "Services"
         case .playback: "Playback"
         case .sonos: "Sonos"
-        case .appearance: "Appearance"
         case .storage: "Storage"
         }
     }
@@ -28,7 +29,6 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .services: "music.note.list"
         case .playback: "play.circle"
         case .sonos: "hifispeaker.2"
-        case .appearance: "paintpalette"
         case .storage: "internaldrive"
         }
     }
@@ -44,13 +44,12 @@ enum SettingsPane: String, CaseIterable, Identifiable {
 
     /// The pane a page of Settings belongs to, and the page to open on it
     /// past the pane itself (Alarms, under Sonos). Anything else opens
-    /// General, where About is.
+    /// General, Appearance's settings included.
     static func place(of destination: RouterDestination) -> (pane: SettingsPane, page: RouterDestination?) {
         switch destination {
         case .servicePreferenceScreen: (.services, nil)
         case .settingsPage(.playback): (.playback, nil)
         case .settingsPage(.sonos): (.sonos, nil)
-        case .settingsPage(.appearance): (.appearance, nil)
         case .settingsPage(.storage), .downloads: (.storage, nil)
         case .alarms: (.sonos, destination)
         default: (.general, nil)
@@ -63,8 +62,9 @@ enum SettingsPane: String, CaseIterable, Identifiable {
 /// is asked for (`Router.presentedSheet`) open it, or bring it forward where
 /// it's open already. One window, its panes in a preference toolbar
 /// (`SettingsToolbar`), titled for the pane on show; its width is fixed for
-/// the window's scale (`InterfaceSize`) and its height the listener's, and
-/// its frame and pane are kept for next time.
+/// the window's scale (`InterfaceSize`) and its height fits the pane on show
+/// (`fitHeight`), its top staying put, as a Mac app's settings window does.
+/// Where it was left and the pane are kept for next time.
 ///
 /// It's a SwiftUI scene of its own (`CueApp`), and `CueSceneDelegate` sets
 /// it up rather than as the main window: a session is the Settings window's
@@ -92,6 +92,8 @@ final class SettingsWindow {
     @ObservationIgnored private var askedAt: Date?
     @ObservationIgnored private var frameObserver: WindowSizeObserver?
     @ObservationIgnored private let toolbarDelegate = SettingsToolbar()
+    /// Each pane's height as last fitted, so the window opens at it.
+    @ObservationIgnored private var fittedHeights: [SettingsPane: CGFloat] = [:]
 
     private init() {
         let saved = UserDefaults.standard.string(forKey: AppStorageKeys.settingsWindowPane)
@@ -166,7 +168,7 @@ final class SettingsWindow {
         }
         scene.title = pane.title
         scene.sizeRestrictions?.allowsFullScreen = false
-        fit(scene, placing: true)
+        setFrame(scene, height: fittedHeights[pane] ?? (Self.height * Self.scale).rounded(), placing: true)
         frameObserver = WindowSizeObserver(windowScene: scene, store: .settings)
         Self.log.info("Settings window connected on \(self.pane.rawValue, privacy: .public)")
     }
@@ -177,43 +179,64 @@ final class SettingsWindow {
         frameObserver = nil
     }
 
-    /// Fits the window's width to the window's scale, as it opens and when
-    /// View ▸ Bigger or Smaller changes it.
+    /// Fits the window's width to the window's scale when View ▸ Bigger or
+    /// Smaller changes it; the pane's height follows from its list.
     func fitToScale() {
         guard let scene else { return }
-        fit(scene, placing: false)
+        setFrame(scene, height: scene.effectiveGeometry.coordinateSpace.bounds.height, placing: false)
     }
 
-    /// Its width is fixed, a Mac app's settings' way, at Cue's scale; its
-    /// height is free. `placing` puts it where it was left, else over the
-    /// main window.
-    private func fit(_ scene: UIWindowScene, placing: Bool) {
-        let scale = DesktopStyle.scale(AppState.shared.interfaceSize.typeSize)
-        let width = (Self.width * scale).rounded()
-        scene.sizeRestrictions?.minimumSize = CGSize(width: width, height: (Self.minimumHeight * scale).rounded())
-        scene.sizeRestrictions?.maximumSize = CGSize(width: width, height: .greatestFiniteMagnitude)
+    /// Fits the window's height to the list of the pane on show: as tall as
+    /// its rows, within a floor and the screen, the list scrolling past
+    /// that. Called whenever either height changes, so a row shown or
+    /// hidden (a service switched on) resizes it too.
+    func fitHeight(_ list: PaneListHeight, for pane: SettingsPane) {
+        guard pane == self.pane, let scene else { return }
+        let bounds = scene.effectiveGeometry.coordinateSpace.bounds
+        guard bounds.height > 0, list.shown > 0 else { return }
+        let scale = Self.scale
+        let ceiling = min(Self.maximumHeight * scale, scene.screen.bounds.height * 0.85)
+        let wanted = bounds.height + list.content - list.shown + Self.bottomMargin * scale
+        let height = min(max(wanted, Self.minimumHeight * scale), ceiling).rounded()
+        fittedHeights[pane] = height
+        guard abs(height - bounds.height) >= 1 else { return }
+        setFrame(scene, height: height, placing: false)
+    }
+
+    private static var scale: CGFloat {
+        DesktopStyle.scale(AppState.shared.interfaceSize.typeSize)
+    }
+
+    /// Sizes the window: its width fixed, a Mac app's settings' way, at
+    /// Cue's scale, and `height` (the iPad's points), neither left for the
+    /// listener to drag. `placing` puts it where it was left, else over the
+    /// main window; otherwise its top and centre stay where they are.
+    private func setFrame(_ scene: UIWindowScene, height: CGFloat, placing: Bool) {
+        let width = (Self.width * Self.scale).rounded()
+        let size = CGSize(width: width, height: height)
+        scene.sizeRestrictions?.minimumSize = size
+        scene.sizeRestrictions?.maximumSize = size
 
         // The system's frame is in the Mac's points, the scene's in the
-        // iPad's (macOS draws an iPad app at 77%).
-        let points = scene.effectiveGeometry.coordinateSpace.bounds.width
+        // iPad's (macOS draws an iPad app at 77%), and holds the title bar
+        // and toolbar too, which the change in height leaves as they are.
+        let points = scene.effectiveGeometry.coordinateSpace.bounds.size
         let current = scene.effectiveGeometry.systemFrame
-        let ratio = points > 0 && current.width > 0 ? current.width / points : 0.77
+        let ratio = points.width > 0 && current.width > 0 ? current.width / points.width : 0.77
         var frame = current
         frame.size.width = width * ratio
+        frame.size.height = current.height + (height - points.height) * ratio
         if placing {
             if let saved = WindowFrameStore.settings.savedFrame {
                 frame.origin = saved.origin
-                frame.size.height = saved.height
-            } else {
-                frame.size.height = Self.height * scale * ratio
-                if let main = Self.mainWindowFrame(besides: scene) {
-                    frame.origin = CGPoint(x: main.midX - frame.width / 2, y: main.midY - frame.height / 2)
-                }
+            } else if let main = Self.mainWindowFrame(besides: scene) {
+                frame.origin = CGPoint(x: main.midX - frame.width / 2, y: main.midY - frame.height / 2)
             }
         } else {
             frame.origin.x = current.midX - frame.width / 2
         }
-        guard frame.size != .zero else { return }
+        guard frame.size.width > 0, frame.size.height > 0 else { return }
+        Self.log.info("Settings window \(String(describing: current), privacy: .public) → \(String(describing: frame), privacy: .public), \(height, privacy: .public) pt high")
         scene.requestGeometryUpdate(.Mac(systemFrame: frame)) { error in
             Self.log.error("Settings window frame: \(error.localizedDescription, privacy: .public)")
         }
@@ -226,10 +249,22 @@ final class SettingsWindow {
             .effectiveGeometry.systemFrame
     }
 
-    /// In the iPad's points, at the default scale's 1.
+    /// In the iPad's points, at the default scale's 1: the width, the
+    /// height before a pane has been measured, and the least and most a
+    /// pane is fitted to.
     private static let width: CGFloat = 600
-    private static let height: CGFloat = 620
-    private static let minimumHeight: CGFloat = 400
+    private static let height: CGFloat = 520
+    private static let minimumHeight: CGFloat = 240
+    private static let maximumHeight: CGFloat = 780
+    /// Room under a pane's last row, which a list has none of.
+    private static let bottomMargin: CGFloat = 16
+}
+
+/// The list of the Settings window's pane on show: the height its rows take
+/// (with its insets) and the height it's shown at.
+struct PaneListHeight: Equatable {
+    var content: CGFloat
+    var shown: CGFloat
 }
 
 /// The Settings window's toolbar: a pane a button, the one on show selected,
@@ -298,37 +333,59 @@ private struct SettingsPaneStack: View {
     @State private var settings = SettingsWindow.shared
 
     var body: some View {
-        if pane == .general {
-            // Settings' own page, with its own stack and router.
-            PreferenceScreen(isWindowPane: true)
-        } else {
-            NavigationStack(path: $router.path) {
-                root
-                    .toolbar(.hidden, for: .navigationBar)
-                    .withAppRouter()
-            }
-            .environment(router)
-            .withSheetDestinations(sheetDestinations: $router.presentedSheet)
-            .withFullScreenCoverDestinations(destinations: $router.presentedFullScreenCover)
-            .withAlert()
-            .onChange(of: settings.pendingPage, initial: true) { _, page in
-                guard let page else { return }
-                settings.pendingPage = nil
-                router.path = [page]
-            }
+        NavigationStack(path: $router.path) {
+            root
+                // The window fits the pane's own list; a page further in
+                // scrolls in the height it has.
+                .onScrollGeometryChange(for: PaneListHeight.self) { geometry in
+                    PaneListHeight(
+                        content: geometry.contentSize.height + geometry.contentInsets.top + geometry.contentInsets.bottom,
+                        shown: geometry.containerSize.height
+                    )
+                } action: { _, height in
+                    settings.fitHeight(height, for: pane)
+                }
+                .toolbar(.hidden, for: .navigationBar)
+                .withAppRouter()
+        }
+        .environment(router)
+        .withSheetDestinations(sheetDestinations: $router.presentedSheet)
+        .withFullScreenCoverDestinations(destinations: $router.presentedFullScreenCover)
+        .withAlert()
+        .onChange(of: settings.pendingPage, initial: true) { _, page in
+            guard let page else { return }
+            settings.pendingPage = nil
+            router.path = [page]
         }
     }
 
     @ViewBuilder
     private var root: some View {
         switch pane {
-        case .general: EmptyView()
+        case .general: GeneralSettingsScreen()
         case .services: ServicePreferenceScreen()
         case .playback: PlaybackSettingsScreen()
         case .sonos: SonosSettingsScreen()
-        case .appearance: AppearanceSettingsScreen()
         case .storage: DownloadsScreen()
         }
+    }
+}
+
+/// The Settings window's General pane: Cue Super, then how Cue looks
+/// (Appearance's settings, which have no pane of their own on the Mac).
+private struct GeneralSettingsScreen: View {
+    var body: some View {
+        Form {
+            SuperSettingsSection()
+            AppearanceSettingsSections()
+#if DEBUG
+            DebugSettingsSection()
+#endif
+        }
+        .environment(\.defaultMinListHeaderHeight, 0)
+        .navigationTitle("General")
+        .navigationBarTitleDisplayMode(.inline)
+        .fontDesign(.rounded)
     }
 }
 #endif

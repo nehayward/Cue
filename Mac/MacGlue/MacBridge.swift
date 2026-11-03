@@ -202,6 +202,25 @@ final class MacBridge: NSObject, MacBridgeable, @unchecked Sendable {
         return definition.takeRetainedValue() as String
     }
 
+    // MARK: - About
+
+    func showAboutPanel(credits: String, links: [String: String]) {
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = .center
+        let text = NSMutableAttributedString(string: credits, attributes: [
+            .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
+            .foregroundColor: NSColor.secondaryLabelColor,
+            .paragraphStyle: paragraph,
+        ])
+        for (phrase, link) in links {
+            let range = (credits as NSString).range(of: phrase)
+            guard range.location != NSNotFound, let url = URL(string: link) else { continue }
+            text.addAttribute(.link, value: url, range: range)
+        }
+        NSApp.activate()
+        NSApp.orderFrontStandardAboutPanel(options: [.credits: text])
+    }
+
     // MARK: - Distributed notifications
 
     /// The handler for each name observed.

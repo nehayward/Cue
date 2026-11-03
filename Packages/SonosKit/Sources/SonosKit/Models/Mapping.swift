@@ -57,8 +57,11 @@ extension Track {
 /// inside; most carry only the image's path on Apple's artwork server, in
 /// `aat`, with the size in the URL's last path component — and those were
 /// the blank covers in the library's Albums list. Either way this returns
-/// an `https` URL; anything that isn't `musickit://` passes through.
-private func unwrappingMusicKitArtwork(_ url: URL?) -> URL? {
+/// an `https` URL; anything that isn't `musickit://` passes through. One
+/// with neither (the Mac's library, `musicKit://artwork/transient/…`, its
+/// covers on this Mac) is kept with `artwork` in `MusicKitArtworks`, for
+/// MusicKit's own view to draw.
+private func unwrappingMusicKitArtwork(_ url: URL?, keeping artwork: Artwork? = nil) -> URL? {
     guard let url,
           let components = URLComponents(url: url, resolvingAgainstBaseURL: true),
           components.scheme?.lowercased() == "musickit" else {
@@ -73,12 +76,37 @@ private func unwrappingMusicKitArtwork(_ url: URL?) -> URL? {
     // `https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/…/075679688767.jpg/100x100bb.jpg`.
     guard let path = components.queryItems?.first(where: { $0.name == "aat" })?.value,
           !path.isEmpty else {
+        if let artwork {
+            MusicKitArtworks.keep(artwork, for: url)
+        }
         return url
     }
     let size = url.lastPathComponent.range(of: #"^\d+x\d+$"#, options: .regularExpression) != nil
         ? url.lastPathComponent
         : "600x600"
     return URL(string: "https://is1-ssl.mzstatic.com/image/thumb/\(path)/\(size)bb.jpg")
+}
+
+/// MusicKit's artwork for the `musickit://` URLs only its own views can
+/// draw, by URL: the covers of the Mac's library, which carry no address an
+/// image loader can fetch. `ContentArtworkView` draws a row's cover from
+/// here with `ArtworkImage` when its URL is one of these.
+public enum MusicKitArtworks {
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var byURL: [URL: Artwork] = [:]
+
+    public static func artwork(for url: URL?) -> Artwork? {
+        guard let url, url.scheme?.lowercased() == "musickit" else { return nil }
+        lock.lock()
+        defer { lock.unlock() }
+        return byURL[url]
+    }
+
+    static func keep(_ artwork: Artwork, for url: URL) {
+        lock.lock()
+        defer { lock.unlock() }
+        byURL[url] = artwork
+    }
 }
 
 extension Song {
@@ -91,8 +119,8 @@ extension Song {
         PlayableContent(
             title: title,
             subtitle: [artistName, albumTitle ?? ""].filter { !$0.isEmpty }.joined(separator: " • "),
-            thumbnail: unwrappingMusicKitArtwork(artwork?.url(width: 100, height: 100)),
-            artwork: unwrappingMusicKitArtwork(artwork?.url(width: 600, height: 600)),
+            thumbnail: unwrappingMusicKitArtwork(artwork?.url(width: 100, height: 100), keeping: artwork),
+            artwork: unwrappingMusicKitArtwork(artwork?.url(width: 600, height: 600), keeping: artwork),
             content: MediaContent(service: .apple, id: id.description, type: .libraryTrack, location: url),
             metadata: PlayableContentMetadata(
                 duration: duration.map { Duration.seconds($0) },
@@ -137,8 +165,8 @@ extension MusicKit.Track {
 
         // The shared unwrapper: it looks at a `musickit://` URL only, where
         // this compiled a regular expression for every track mapped.
-        artworkURL = unwrappingMusicKitArtwork(artworkURL)
-        thumbnailURL = unwrappingMusicKitArtwork(thumbnailURL)
+        artworkURL = unwrappingMusicKitArtwork(artworkURL, keeping: artwork)
+        thumbnailURL = unwrappingMusicKitArtwork(thumbnailURL, keeping: artwork)
 
         let previewURL: URL?
         switch self {
@@ -173,8 +201,8 @@ extension MusicKit.Track {
 
         // The shared unwrapper: it looks at a `musickit://` URL only, where
         // this compiled a regular expression for every track mapped.
-        artworkURL = unwrappingMusicKitArtwork(artworkURL)
-        thumbnailURL = unwrappingMusicKitArtwork(thumbnailURL)
+        artworkURL = unwrappingMusicKitArtwork(artworkURL, keeping: artwork)
+        thumbnailURL = unwrappingMusicKitArtwork(thumbnailURL, keeping: artwork)
 
         return PlayableContent(
             title: title,
@@ -200,8 +228,8 @@ extension Playlist {
 
         // The shared unwrapper: it looks at a `musickit://` URL only, where
         // this compiled a regular expression for every track mapped.
-        artworkURL = unwrappingMusicKitArtwork(artworkURL)
-        thumbnailURL = unwrappingMusicKitArtwork(thumbnailURL)
+        artworkURL = unwrappingMusicKitArtwork(artworkURL, keeping: artwork)
+        thumbnailURL = unwrappingMusicKitArtwork(thumbnailURL, keeping: artwork)
 
         return PlayableContent(
             title: name,
@@ -311,8 +339,8 @@ extension Album {
                 artistName,
                 releaseDate?.formatted(.dateTime.year())
             ].compactMap { $0 }.joined(separator: " • "),
-            thumbnail: unwrappingMusicKitArtwork(artwork?.url(width: 100, height: 100)),
-            artwork: unwrappingMusicKitArtwork(artwork?.url(width: 600, height: 600)),
+            thumbnail: unwrappingMusicKitArtwork(artwork?.url(width: 100, height: 100), keeping: artwork),
+            artwork: unwrappingMusicKitArtwork(artwork?.url(width: 600, height: 600), keeping: artwork),
             content: MediaContent(service: .apple, id: id.description, type: .libraryAlbum, location: nil),
             metadata: PlayableContentMetadata(
                 popularity: 50,
