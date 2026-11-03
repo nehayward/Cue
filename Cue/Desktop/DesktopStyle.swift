@@ -8,9 +8,12 @@ import UIKit
 enum DesktopStyle {
     /// Round the window's edges and between cards.
     static let gap: CGFloat = 12
-    /// Above the cards: room for the traffic lights, which sit over the
-    /// sidebar's top corner, and a strip to drag the window by.
-    static let topInset: CGFloat = 36
+    /// Above the sidebar card: room for the traffic lights, and a strip to
+    /// drag the window by. Not inside the card's corner, as Music has them:
+    /// macOS keeps them about 15 pt in, which a card set off from the
+    /// window's edge can't hold, and they sat across its rounded corner.
+    /// The page and the queue run higher.
+    static let trafficLightRoom: CGFloat = 36
     static let cornerRadius: CGFloat = 22
     static let sidebarWidth: CGFloat = 300
     /// The player's bar along the bottom.

@@ -64,7 +64,8 @@ final class DesktopState {
 /// The Mac's window, in place of the `TabView` (`AppState.usesDesktopShell`):
 /// rounded cards on the window's background. The sidebar card down the
 /// leading side (the tabs with Search, the library's collections, its
-/// playlists), the page in the middle, the queue's card down the trailing
+/// playlists, under the traffic lights), the page in the middle running up
+/// to the window's top edge, the queue's card down the trailing
 /// side, and the player's rounded bar along the bottom (`DesktopPlayerBar`),
 /// as Music has it.
 ///
@@ -109,14 +110,19 @@ struct DesktopShell: View {
             HStack(spacing: DesktopStyle.gap) {
                 DesktopSidebar()
                     .frame(width: scaled(DesktopStyle.sidebarWidth))
+                    .padding(.top, DesktopStyle.trafficLightRoom)
 
+                // Up to the window's top edge, under the title bar, as
+                // Music's pages run: an artist's picture fills the top of
+                // the window rather than starting under a strip of nothing.
                 pages(selected: selected)
-                    .clipShape(.rect(cornerRadius: DesktopStyle.cornerRadius))
+                    .clipShape(.rect(bottomLeadingRadius: DesktopStyle.cornerRadius, bottomTrailingRadius: DesktopStyle.cornerRadius))
                     .frame(maxWidth: .infinity)
 
                 if showsQueueCard {
                     DesktopQueueCard()
                         .frame(width: queueWidth)
+                        .padding(.top, DesktopStyle.gap)
                         .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
             }
@@ -127,7 +133,6 @@ struct DesktopShell: View {
         }
         .padding(.horizontal, DesktopStyle.gap)
         .padding(.bottom, DesktopStyle.gap)
-        .padding(.top, DesktopStyle.topInset)
         .background(DesktopStyle.windowBackground)
         .ignoresSafeArea()
         .onGeometryChange(for: Bool.self) { [threshold = scaled(DesktopStyle.queueMinWindowWidth)] in $0.size.width >= threshold } action: { isWide = $0 }
