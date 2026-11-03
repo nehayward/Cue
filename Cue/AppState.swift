@@ -100,7 +100,8 @@ final class AppState {
     #if DEBUG && targetEnvironment(macCatalyst)
     /// Debug: `notifyutil -p dance.cue.debug.interfaceSize` steps to the
     /// next Interface Size (after the largest, the smallest), as View ▸
-    /// Bigger does, from outside the app.
+    /// Bigger does, and `notifyutil -p dance.cue.debug.queue` shows or hides
+    /// the queue, as View ▸ Show Queue does, from outside the app.
     private func listenForInterfaceSizeSteps() {
         let center = CFNotificationCenterGetDarwinNotifyCenter()
         CFNotificationCenterAddObserver(center, nil, { _, _, _, _, _ in
@@ -111,6 +112,13 @@ final class AppState {
                 state.interfaceSize = sizes[next]
             }
         }, "dance.cue.debug.interfaceSize" as CFString, nil, .deliverImmediately)
+        CFNotificationCenterAddObserver(center, nil, { _, _, _, _, _ in
+            Task { @MainActor in
+                withAnimation(.snappy) {
+                    AppState.shared.showsQueuePanel.toggle()
+                }
+            }
+        }, "dance.cue.debug.queue" as CFString, nil, .deliverImmediately)
     }
     #endif
 

@@ -294,7 +294,7 @@ private struct DesktopNowPlaying: View {
 
 /// A speaker group's volume while one plays, Play On, and the queue at
 /// the bar's end. Play On on a speaker and the queue while it shows sit on
-/// an accent glass circle. No lyrics: the player has them.
+/// a soft accent circle. No lyrics: the player has them.
 private struct DesktopBarActions: View {
     /// The speaker's volume, where the bar has room for it.
     let showsVolume: Bool
@@ -318,9 +318,9 @@ private struct DesktopBarActions: View {
 
             PlaybackRouteButton()
                 .font(.title3)
-                .tint(isOnSpeaker ? .white : .primary)
+                .tint(.primary)
                 .frame(width: 40 * scale, height: 40 * scale)
-                .accentGlassCircle(isOn: isOnSpeaker)
+                .accentCircle(isOn: isOnSpeaker)
                 .desktopHover(cornerRadius: 20 * scale)
                 .help("Play On")
 
@@ -331,10 +331,10 @@ private struct DesktopBarActions: View {
             } label: {
                 QueueToggleIcon()
                     .font(.title3)
-                    .foregroundStyle(showsQueue ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
+                    .foregroundStyle(.primary)
             }
             .buttonStyle(DesktopIconButtonStyle(side: 40))
-            .accentGlassCircle(isOn: showsQueue)
+            .accentCircle(isOn: showsQueue)
             .accessibilityLabel(QueueToggleIcon.title(isShown: showsQueue))
             .accessibilityAddTraits(showsQueue ? .isSelected : [])
             .help("\(QueueToggleIcon.title(isShown: showsQueue)) (⌥⌘0)")
@@ -343,32 +343,18 @@ private struct DesktopBarActions: View {
 }
 
 private extension View {
-    /// Behind a bar button that's on: a circle of glass in the accent.
-    @ViewBuilder
-    func accentGlassCircle(isOn: Bool) -> some View {
-#if !os(visionOS)
-        if #available(iOS 26.0, *) {
-            background {
-                if isOn {
-                    Circle()
-                        .fill(.clear)
-                        .glassEffect(.regular.tint(Color("Accent")), in: .circle)
-                }
-            }
-        } else {
-            background {
-                if isOn {
-                    Circle().fill(Color("Accent"))
-                }
-            }
-        }
-#else
+    /// Behind a bar button that's on: a soft wash of the accent, faded and
+    /// grown in with the button's change rather than appearing at once,
+    /// and light enough that the glyph on it still reads. A tinted glass
+    /// circle came and went with no animation and drowned the glyph.
+    func accentCircle(isOn: Bool) -> some View {
         background {
-            if isOn {
-                Circle().fill(Color("Accent"))
-            }
+            Circle()
+                .fill(Color("Accent").opacity(0.3))
+                .scaleEffect(isOn ? 1 : 0.6)
+                .opacity(isOn ? 1 : 0)
+                .animation(.snappy, value: isOn)
         }
-#endif
     }
 }
 
