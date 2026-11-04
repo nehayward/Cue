@@ -279,9 +279,16 @@ public final class SonosService {
     /// the speaker picker; `beginShowingOtherGroups`). Only while one does
     /// are the other groups read every second: read with nothing to show
     /// them, about eight requests a group a second kept an idle Cue near
-    /// 12% of a core. The group playing keeps up through its live events,
+    /// 12% of a core. The group Cue plays on keeps up through `follow(_:)`,
     /// and the topology through the pulse.
     @ObservationIgnored private var otherGroupViewers = 0
+    /// The group Cue plays on (`follow(_:)`).
+    @ObservationIgnored var followedGroupID: String?
+    @ObservationIgnored private var followedGroupReadAt: ContinuousClock.Instant?
+    /// How often the followed group is read when no player has it selected,
+    /// for what its socket doesn't say: where in the song it is, what the
+    /// transport allows, the queue's length.
+    private static let followedGroupReadInterval: Duration = .seconds(10)
     @ObservationIgnored var streamingService: SonosStreamingService?
     /// What each live listener currently wants a socket for. Keyed by listener
     /// so the player screen and the Lock Screen session can't tear down each
@@ -971,7 +978,10 @@ public final class SonosService {
         // a core with nothing showing them. Read while a screen shows the
         // other groups (`beginShowingOtherGroups` reads them as it opens),
         // and as the topology changes.
-        guard refreshGroup || otherGroupViewers > 0 else { return }
+        guard refreshGroup || otherGroupViewers > 0 else {
+            await readFollowedGroupIfDue()
+            return
+        }
 
         try await withThrowingTaskGroup(of: Void.self) { [weak self] group in
             guard let self = self else { return }
@@ -1001,6 +1011,15 @@ public final class SonosService {
         // inside the selectedGroup branch (it's a coordinator-level setting
         // only surfaced by the controlling group).
         await hydrateRoomDetails()
+    }
+
+    private func readFollowedGroupIfDue() async {
+        guard let followedGroupID,
+              let group = groups.first(where: { $0.coordinatorID == followedGroupID }) else { return }
+        let now = ContinuousClock.now
+        if let read = followedGroupReadAt, now - read < Self.followedGroupReadInterval { return }
+        followedGroupReadAt = now
+        try? await updateGroups(from: [group])
     }
 
     /// Fetches `DeviceInfo` and speaker `settings` in parallel for every active

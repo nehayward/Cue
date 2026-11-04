@@ -2,8 +2,8 @@ import MusicSearchKit
 import SonosKit
 import SwiftUI
 
-/// The player of the Mac window (`DesktopShell`): one glass capsule
-/// floating over the foot of the page, as Music's is. The transport with
+/// The player of the Mac window (`DesktopShell`): one capsule floating over
+/// the foot of the page, as Music's is. The transport with
 /// shuffle and repeat, then what's playing with its progress under it, then
 /// a speaker's volume, Play On and the queue.
 ///
@@ -26,7 +26,14 @@ struct DesktopPlayerBar: View {
         }
         .padding(.horizontal, 14 * scale)
         .frame(maxHeight: .infinity)
-        .playerBarGlass()
+        // A thick material rather than glass, which let bright covers
+        // scrolling under it through too plainly to read the song over them.
+        .background(.thickMaterial, in: .capsule)
+        .overlay {
+            Capsule()
+                .strokeBorder(DesktopStyle.panelEdge)
+                .allowsHitTesting(false)
+        }
         .onGeometryChange(for: BarRoom.self) { [scale] in BarRoom(width: $0.size.width / scale) } action: { room = $0 }
     }
 }
@@ -46,24 +53,6 @@ private enum BarRoom {
         case 610...: .noVolume
         default: .essentials
         }
-    }
-}
-
-private extension View {
-    /// Glass, as the page shows through it while it scrolls under. The
-    /// regular kind, as Music's bar has: the clear one let the page through
-    /// too plainly to read the bar over it.
-    @ViewBuilder
-    func playerBarGlass() -> some View {
-#if !os(visionOS)
-        if #available(iOS 26.0, *) {
-            glassEffect(.regular, in: .capsule)
-        } else {
-            background(.thickMaterial, in: .capsule)
-        }
-#else
-        background(.thickMaterial, in: .capsule)
-#endif
     }
 }
 
@@ -215,10 +204,12 @@ private struct DesktopNowPlaying: View {
     }
 
     /// A title or artist too long for the bar scrolls (`MarqueeText`, which
-    /// on the Mac does no work per frame: the bar is always on screen). The
-    /// speaker's name keeps its room and the artist scrolls beside it.
+    /// on the Mac does no work per frame: the bar is always on screen).
     private func titles(item: PlayableContent?, group: GroupRoom?) -> some View {
         VStack(alignment: .leading, spacing: 1) {
+            if route.isHolding || group != nil {
+                speakerLine(group: group)
+            }
             if let title = item?.title {
                 MarqueeText(title)
                     .font(.callout.weight(.semibold))
@@ -227,19 +218,20 @@ private struct DesktopNowPlaying: View {
                     .font(.callout.weight(.semibold))
                     .foregroundStyle(.secondary)
             }
-            HStack(spacing: 6) {
-                if route.isHolding || group != nil {
-                    Label(route.isHolding ? "Moving to \(route.group?.nameWithCount ?? ThisDevice.name)…" : group?.nameWithCount ?? "", systemImage: "hifispeaker.fill")
-                        .foregroundStyle(Color("Accent"))
-                        .fontWeight(.semibold)
-                        .layoutPriority(1)
-                }
-                subtitle(item: item)
-                    .foregroundStyle(.secondary)
-            }
-            .font(.caption)
+            subtitle(item: item)
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
         .lineLimit(1)
+    }
+
+    /// Where it plays, over the song, as the mini player has it.
+    private func speakerLine(group: GroupRoom?) -> some View {
+        HStack(spacing: 3) {
+            Image(systemName: (group?.rooms.count ?? 1) > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill")
+            Text(route.isHolding ? "Moving to \(route.group?.nameWithCount ?? ThisDevice.name)…" : group?.nameWithCount ?? "")
+        }
+        .font(.caption2.weight(.semibold))
     }
 
     @ViewBuilder

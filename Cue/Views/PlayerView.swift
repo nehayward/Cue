@@ -865,20 +865,18 @@ private struct PlayerSessionModifier: ViewModifier {
             }
             .onChange(of: coordinatorID) { _, id in
                 shouldFade = false
-#if !targetEnvironment(macCatalyst)
                 // The route left the speakers: the same as the speaker's
                 // player closing.
                 if id == nil {
                     sonosService.selectedGroup = nil
                 }
-#endif
             }
-#if !targetEnvironment(macCatalyst)
+            // Read twice a second only while its player is open: left
+            // selected on the Mac, about 6% of a core from then on.
             .onDisappear {
                 guard coordinatorID != nil else { return }
                 sonosService.selectedGroup = nil
             }
-#endif
     }
 }
 

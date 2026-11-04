@@ -20,6 +20,9 @@ import Foundation
 public enum LiveListener: String, Hashable, Sendable, CaseIterable {
     /// The group currently on screen — metadata only (audio quality badge).
     case viewing
+    /// The group Cue plays on, which the mini player and the Mac's bar show
+    /// with no player open (`follow(_:)`).
+    case route
     /// The group backing the system Now Playing card. Survives backgrounding.
     case nowPlaying
 }
@@ -71,6 +74,22 @@ extension SonosService {
         guard liveListeners[listener] != subscription else { return }
         liveListeners[listener] = subscription
         await reconcileLiveConnections()
+    }
+
+    /// Follows the group Cue plays on, nil for this device, so what draws it
+    /// stays current with no player open: nothing else reads a group that isn't
+    /// `selectedGroup`, and left to that the Mac's bar kept the song it opened
+    /// on until the player next opened. The socket says what changes as it
+    /// changes, at no cost in between; `load` reads the rest every
+    /// `followedGroupReadInterval`.
+    @MainActor
+    public func follow(_ group: GroupRoom?) async {
+        followedGroupID = group?.coordinatorID
+        if let group {
+            await listen(to: group, as: .route, events: [.metadata, .playback, .groupVolume])
+        } else {
+            await stopListening(as: .route)
+        }
     }
 
     /// Drops `listener`'s claim. The underlying socket only closes if no other

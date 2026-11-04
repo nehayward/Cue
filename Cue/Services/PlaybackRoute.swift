@@ -151,6 +151,22 @@ final class PlaybackRoute {
                 }
             })
         }
+        followGroup()
+    }
+
+    /// Tells Sonos which group Cue plays on, again whenever that changes,
+    /// so it stays current with no player open.
+    private func followGroup() {
+        let group = withObservationTracking {
+            self.group
+        } onChange: {
+            Task { @MainActor [weak self] in
+                self?.followGroup()
+            }
+        }
+        Task {
+            await SonosService.shared.follow(group)
+        }
     }
 
     private static var storedChoice: PlayDestination {
