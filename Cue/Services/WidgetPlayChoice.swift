@@ -23,9 +23,10 @@ extension BookShelfWidgetState.Destination {
 /// Home Screen sent an album to a speaker in another room, or to the phone
 /// with the speakers a tap away, with nothing on screen to say which.
 ///
-/// The system's own list can't show from a widget's button: `chronod`, which
-/// runs the button's intent, answers `requestChoice` with a cancel within
-/// milliseconds, whatever the intent (iOS 27.2). So Cue comes to the front to
+/// The system's own list and interactive snippets can't show from a widget's
+/// button: `chronod`, which runs the button's intent, answers `requestChoice`
+/// with a cancel within milliseconds and never draws a snippet, whatever the
+/// intent (iOS 27.2). So Cue comes to the front to
 /// ask (iOS 26: `continueInForeground` from the intent, `bringForward`), and
 /// asks in an action sheet over whatever is on screen. Where Cue can't come
 /// forward, or there's one place to play, the Play goes where the route
