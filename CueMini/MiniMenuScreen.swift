@@ -3,7 +3,8 @@ import SonosKitMini
 import SwiftUI
 
 /// Cue Mini's menu: Cue's player (`CueNowPlayingCard`), on this Mac or a
-/// Sonos group, the group's volume under it, and Mini's settings.
+/// Sonos group, the group's volume under it. Mini's settings are the item's
+/// right click (`StatusItemManager`).
 struct MiniMenuScreen: View {
     @State private var sonosServiceMini = SonosMiniService.shared
     @State private var menuVisibilityService = MenuVisibilityService.shared
@@ -22,19 +23,14 @@ struct MiniMenuScreen: View {
 
     var body: some View {
         CueNowPlayingCard(isVisible: isVisible, speakerGroup: cueGroupBinding)
-            .padding(.horizontal, 12)
-            .frame(width: 400, alignment: .top)
-            .safeArea(edge: .bottom) {
-                SettingsMenuView()
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    .padding(.horizontal)
-            }
-            .fontDesign(.rounded)
-            .padding(.vertical)
-            // Frosted, over the whole menu, rather than the menu's clear
-            // glass, which let a bright desktop through the card and its
-            // text.
+            .frame(width: 340, alignment: .top)
+            // Frosted, as clear glass let a bright desktop through its text.
             .background(.thickMaterial)
+            .clipShape(.rect(cornerRadius: StatusItemManager.panelCornerRadius))
+            .overlay {
+                RoundedRectangle(cornerRadius: StatusItemManager.panelCornerRadius)
+                    .strokeBorder(.white.opacity(0.12))
+            }
             .environment(sonosServiceMini)
             .task(id: link.showsSpeakers) {
                 // The speakers only for the group Cue plays on and its volume.
@@ -51,18 +47,5 @@ struct MiniMenuScreen: View {
                 isVisible = false
                 menuVisibilityService.setMenuVisible(false)
             }
-    }
-}
-
-extension View {
-    @ViewBuilder
-    func safeArea<V>(edge: VerticalEdge, @ViewBuilder content: () -> V) -> some View where V : View {
-        if #available(iOS 26.0, macOS 26, *) {
-            self
-                .safeAreaBar(edge: edge, content: content)
-        } else {
-            self
-                .safeAreaInset(edge: edge, content: content)
-        }
     }
 }

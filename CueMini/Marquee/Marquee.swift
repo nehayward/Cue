@@ -17,7 +17,9 @@ struct MarqueeText: View {
     var body: some View {
         ViewThatFits {
             Text(text)
+                .font(font)
             marqueeView
+                .id(text)
         }
     }
     

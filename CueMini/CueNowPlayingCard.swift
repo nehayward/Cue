@@ -1,12 +1,13 @@
 import SonosKitMini
 import SwiftUI
 
-/// The top of Cue Mini: Cue's player, wherever it plays. The song or book
-/// on show, where it plays, its progress and transport, as Cue (Mac) last
-/// wrote them (`CueLink`), with the Sonos group's volume under them when
-/// it plays on one. Cue not open, it says so and offers to open it.
+/// Cue Mini's menu: Cue's player, wherever it plays, drawn as the system's
+/// Now Playing in the menu bar is: a row for the song, with the cover and
+/// the transport beside it, then how far through, then a hairline over where
+/// it plays and the Sonos group's volume. All as Cue (Mac) last wrote it
+/// (`CueLink`). Cue not open, it says so and offers to open it.
 struct CueNowPlayingCard: View {
-    /// The menu is open: titles scroll only then, as the speaker rows' do.
+    /// The menu is open: titles scroll only then.
     var isVisible: Bool
     /// The Sonos group Cue plays on, as Mini's speakers know it, for its
     /// volume. Nil on this Mac, whose volume is macOS's.
@@ -15,27 +16,25 @@ struct CueNowPlayingCard: View {
     @State private var link = CueLink.shared
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            if !link.isCueRunning {
-                CueClosedView()
-            } else if let state = link.state, let item = state.item {
-                CuePlayingView(state: state, item: item, cover: link.currentCover, isVisible: isVisible)
-            } else {
-                CueIdleView(route: link.state?.route)
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading) {
+                if !link.isCueRunning {
+                    CueClosedView()
+                } else if let state = link.state, let item = state.item {
+                    CuePlayingView(state: state, item: item, cover: link.currentCover, isVisible: isVisible)
+                } else {
+                    CueIdleView()
+                }
             }
+            .padding(14)
 
-            if let speakerGroup {
-                VolumeControlView(device: speakerGroup)
-                    .frame(height: 16)
-                    .transaction { $0.animation = nil }
+            if let route = link.state?.route {
+                Divider()
+                CueRouteRow(route: route, speakerGroup: speakerGroup)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
             }
         }
-        .padding(12)
-        .background {
-            RoundedRectangle(cornerRadius: 12)
-                .foregroundStyle(Color(nsColor: .secondarySystemFill))
-        }
-        .fontDesign(.rounded)
     }
 }
 
@@ -51,71 +50,86 @@ private struct CuePlayingView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                CueRouteLabel(route: state.route)
-                Spacer()
-                ShowInCueButton()
-            }
-
-            HStack(spacing: 12) {
+            HStack(spacing: 8) {
                 Button {
                     link.showPlayer()
                 } label: {
-                    CueCover(image: cover, side: 56)
+                    HStack(spacing: 10) {
+                        CueCover(image: cover)
+                        VStack(alignment: .leading, spacing: 0) {
+                            CueLine(text: item.title, font: .body.weight(.semibold), isVisible: isVisible)
+                            CueLine(text: item.subtitle, font: .body, isVisible: isVisible)
+                                .foregroundStyle(.secondary)
+                        }
+                        .lineLimit(1)
+                        .contentTransition(.identity)
+                        .transaction { $0.animation = nil }
+                    }
+                    .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
                 .help("Show in Cue")
 
-                VStack(alignment: .leading, spacing: 2) {
-                    // As the speaker rows: both branches laid out alike, so
-                    // the swap as the menu opens doesn't move the title.
-                    VStack(alignment: .leading) {
-                        if isVisible {
-                            MarqueeText(item.title, font: .headline)
-                        } else {
-                            Text(item.title)
-                                .font(.headline)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                    Text(item.subtitle)
-                        .foregroundStyle(.secondary)
-                }
-                .lineLimit(1)
-                .contentTransition(.identity)
-                .transaction { $0.animation = nil }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                CueTransport(state: state)
             }
 
             if state.clock.duration > 0 {
-                CueProgressBar(
-                    clock: state.clock,
-                    canScrub: state.transport.canScrub && state.isActive
-                ) { seconds in
+                CueProgressRow(state: state) { seconds in
                     link.send(.seek(seconds: state.clock.spanStart + seconds, itemID: item.id))
                 }
             }
-
-            CueTransport(state: state)
         }
     }
 }
 
-/// Where Cue plays: this Mac, a speaker group, or where a hand-off is
-/// taking the song.
-private struct CueRouteLabel: View {
-    let route: CueMiniNowPlaying.Route
+/// A line of the song's, scrolling while the menu is open if it's too long.
+/// Both branches laid out alike, so the swap as the menu opens doesn't move
+/// it, and the row's height is the same for a line that scrolls and one that
+/// doesn't.
+private struct CueLine: View {
+    let text: String
+    let font: Font
+    let isVisible: Bool
 
     var body: some View {
-        Label {
-            Text(route.movingTo.map { "Moving to \($0)…" } ?? route.name)
-                .lineLimit(1)
-        } icon: {
-            Image(systemName: symbol)
+        VStack(alignment: .leading) {
+            if isVisible {
+                MarqueeText(text, font: font)
+            } else {
+                Text(text)
+                    .font(font)
+            }
         }
-        .font(.caption)
-        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: 18)
+    }
+}
+
+/// Where Cue plays, with the Sonos group's volume beside it: this Mac, a
+/// speaker group, or where a hand-off is taking the song.
+private struct CueRouteRow: View {
+    let route: CueMiniNowPlaying.Route
+    let speakerGroup: Binding<SonosDevice>?
+
+    var body: some View {
+        HStack(spacing: 10) {
+            HStack(spacing: 5) {
+                Image(systemName: symbol)
+                    .foregroundStyle(.secondary)
+                // As wide as it needs up to a limit, the volume taking the rest.
+                Text(route.movingTo.map { "Moving to \($0)…" } ?? route.name)
+                    .lineLimit(1)
+                    .frame(maxWidth: 130, alignment: .leading)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+            if let speakerGroup {
+                VolumeControlView(device: speakerGroup)
+                    .transaction { $0.animation = nil }
+            } else {
+                Spacer(minLength: 0)
+            }
+        }
+        .frame(height: 24)
     }
 
     private var symbol: String {
@@ -124,25 +138,12 @@ private struct CueRouteLabel: View {
     }
 }
 
-private struct ShowInCueButton: View {
-    var body: some View {
-        Button {
-            CueLink.shared.showPlayer()
-        } label: {
-            Image(systemName: "arrow.up.forward.app")
-                .foregroundStyle(.secondary)
-                .frame(width: 24, height: 20)
-                .contentShape(.rect)
-        }
-        .buttonStyle(.plain)
-        .help("Show in Cue")
-    }
-}
-
-/// The cover, or Cue's mark in its place.
+/// The cover, or Cue's mark in its place, with Cue's badge at its corner as
+/// the system's rows have their app's.
 private struct CueCover: View {
     let image: NSImage?
-    let side: CGFloat
+
+    private let side: CGFloat = 44
 
     var body: some View {
         ZStack {
@@ -151,7 +152,7 @@ private struct CueCover: View {
                     .resizable()
                     .aspectRatio(contentMode: .fill)
             } else {
-                RoundedRectangle(cornerRadius: 8)
+                RoundedRectangle(cornerRadius: 9)
                     .foregroundStyle(.quaternary)
                 CueMark()
                     .fill(.secondary)
@@ -159,11 +160,81 @@ private struct CueCover: View {
             }
         }
         .frame(width: side, height: side)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .clipShape(RoundedRectangle(cornerRadius: 9))
+        .overlay(alignment: .bottomTrailing) {
+            if image != nil {
+                CueBadge()
+                    .offset(x: 3, y: 3)
+            }
+        }
+    }
+}
+
+private struct CueBadge: View {
+    var body: some View {
+        RoundedRectangle(cornerRadius: 4)
+            .fill(Color(white: 0.13))
+            .overlay {
+                CueMark()
+                    .fill(.accent)
+                    .frame(width: 9 * CueMark.aspectRatio, height: 9)
+            }
+            .frame(width: 17, height: 17)
     }
 }
 
 // MARK: - Progress
+
+/// Shuffle, how far through, and Repeat, on one line: a book has no play
+/// modes, and its bar runs the row's width.
+private struct CueProgressRow: View {
+    let state: CueMiniNowPlaying
+    let onSeek: (TimeInterval) -> Void
+
+    private var link: CueLink { .shared }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if state.transport.showsPlayModes {
+                shuffleButton
+            }
+            CueProgressBar(
+                clock: state.clock,
+                canScrub: state.transport.canScrub && state.isActive,
+                onSeek: onSeek
+            )
+            if state.transport.showsPlayModes {
+                repeatButton
+            }
+        }
+        .buttonStyle(CueTransportButtonStyle())
+        .disabled(!state.isActive)
+    }
+
+    private var shuffleButton: some View {
+        Button {
+            link.send(.setShuffle(!state.isShuffled))
+        } label: {
+            Image(systemName: "shuffle")
+                .foregroundStyle(state.isShuffled ? AnyShapeStyle(.accent) : AnyShapeStyle(.secondary))
+                .frame(width: 24, height: 24, alignment: .leading)
+                .contentShape(.rect)
+        }
+        .help(state.isShuffled ? "Shuffle Off" : "Shuffle")
+    }
+
+    private var repeatButton: some View {
+        Button {
+            link.send(.setRepeat(state.repeatMode.next))
+        } label: {
+            Image(systemName: state.repeatMode == .one ? "repeat.1" : "repeat")
+                .foregroundStyle(state.repeatMode == .off ? AnyShapeStyle(.secondary) : AnyShapeStyle(.accent))
+                .frame(width: 24, height: 24, alignment: .trailing)
+                .contentShape(.rect)
+        }
+        .help(state.repeatMode == .off ? "Repeat" : state.repeatMode == .all ? "Repeat One" : "Repeat Off")
+    }
+}
 
 /// How far through, on the clock Cue sent: run on here, once a second
 /// while it's moving. A drag or a click seeks when it can.
@@ -172,7 +243,7 @@ private struct CueProgressBar: View {
     let canScrub: Bool
     let onSeek: (TimeInterval) -> Void
 
-    /// The finger's place while dragging, as a share of the bar.
+    /// The pointer's place while dragging, as a share of the bar.
     @State private var dragFraction: Double?
     @State private var isHovering = false
 
@@ -190,7 +261,9 @@ private struct CueProgressBar: View {
         let duration = max(clock.duration, 1)
         let fraction = dragFraction ?? min(max(position / duration, 0), 1)
         let shown = fraction * clock.duration
-        return VStack(spacing: 2) {
+        return HStack(spacing: 6) {
+            Text(Self.format(shown))
+                .fixedSize()
             GeometryReader { geometry in
                 let width = geometry.size.width
                 ZStack(alignment: .leading) {
@@ -219,15 +292,11 @@ private struct CueProgressBar: View {
             .frame(height: 12)
             .onHover { isHovering = $0 }
             .animation(.snappy(duration: 0.15), value: isHovering)
-
-            HStack {
-                Text(Self.format(shown))
-                Spacer()
-                Text("-" + Self.format(max(clock.duration - shown, 0)))
-            }
-            .font(.caption2.monospacedDigit())
-            .foregroundStyle(.secondary)
+            Text("-" + Self.format(max(clock.duration - shown, 0)))
+                .fixedSize()
         }
+        .font(.caption2.monospacedDigit())
+        .foregroundStyle(.secondary)
     }
 
     static func format(_ seconds: TimeInterval) -> String {
@@ -243,10 +312,9 @@ private struct CueProgressBar: View {
 
 // MARK: - Transport
 
-/// Shuffle, Previous, Play, Next and Repeat, as Cue's player has them: a
-/// book's ±15/30 s in Previous's and Next's places and no play modes, a
-/// live station without Previous or Next. All of it rests while a
-/// hand-off holds the player.
+/// Previous, Play and Next, as Cue's player has them: a book's ±15/30 s in
+/// Previous's and Next's places, a live station without Previous or Next.
+/// All of it rests while a hand-off holds the player.
 private struct CueTransport: View {
     let state: CueMiniNowPlaying
 
@@ -255,27 +323,15 @@ private struct CueTransport: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            playModeSlot { shuffleButton }
-            Spacer(minLength: 0)
             previousButton
             playButton
             nextButton
-            Spacer(minLength: 0)
-            playModeSlot { repeatButton }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(CueTransportButtonStyle())
         .disabled(!state.isActive)
-    }
-
-    /// Shuffle's or Repeat's place, kept empty when they don't apply, so
-    /// the transport stays centred.
-    private func playModeSlot<Content: View>(@ViewBuilder _ button: () -> Content) -> some View {
-        ZStack {
-            if transport.showsPlayModes {
-                button()
-            }
-        }
-        .frame(width: 36, height: 36)
+        // Next's glyph on the row's edge, over Repeat's: the button's width
+        // runs past it.
+        .padding(.trailing, -6)
     }
 
     @ViewBuilder
@@ -311,47 +367,45 @@ private struct CueTransport: View {
             link.send(.togglePlayback)
         } label: {
             Image(systemName: state.isPlaying ? "pause.fill" : "play.fill")
-                .font(.title)
+                .font(.system(size: 20))
                 .contentTransition(.symbolEffect(.replace))
                 .symbolEffect(.pulse, isActive: state.isLoading)
-                .frame(width: 52, height: 40)
+                .frame(width: 34, height: 34)
                 .contentShape(.rect)
         }
         .help(state.isPlaying ? "Pause" : "Play")
     }
 
-    private var shuffleButton: some View {
-        Button {
-            link.send(.setShuffle(!state.isShuffled))
-        } label: {
-            Image(systemName: "shuffle")
-                .foregroundStyle(state.isShuffled ? AnyShapeStyle(.accent) : AnyShapeStyle(.secondary))
-                .frame(width: 36, height: 36)
-                .contentShape(.rect)
-        }
-        .help(state.isShuffled ? "Shuffle Off" : "Shuffle")
-    }
-
-    private var repeatButton: some View {
-        Button {
-            link.send(.setRepeat(state.repeatMode.next))
-        } label: {
-            Image(systemName: state.repeatMode == .one ? "repeat.1" : "repeat")
-                .foregroundStyle(state.repeatMode == .off ? AnyShapeStyle(.secondary) : AnyShapeStyle(.accent))
-                .frame(width: 36, height: 36)
-                .contentShape(.rect)
-        }
-        .help(state.repeatMode == .off ? "Repeat" : state.repeatMode == .all ? "Repeat One" : "Repeat Off")
-    }
-
     private func transportButton(_ symbol: String, help: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.title3)
-                .frame(width: 44, height: 40)
+                .font(.system(size: 15))
+                .frame(width: 30, height: 34)
                 .contentShape(.rect)
         }
         .help(help)
+    }
+}
+
+/// The glyph dim until the pointer's on it, as the system's are in the menu
+/// bar, and dimmer while it can't be pressed. A glyph that's on (Shuffle)
+/// keeps its own colour.
+private struct CueTransportButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Face(configuration: configuration)
+    }
+
+    private struct Face: View {
+        let configuration: Configuration
+        @Environment(\.isEnabled) private var isEnabled
+        @State private var isHovering = false
+
+        var body: some View {
+            configuration.label
+                .foregroundStyle(isHovering && isEnabled ? .primary : .secondary)
+                .opacity(isEnabled ? (configuration.isPressed ? 0.6 : 1) : 0.4)
+                .onHover { isHovering = $0 }
+        }
     }
 }
 
@@ -359,19 +413,12 @@ private struct CueTransport: View {
 
 /// Cue is open with nothing loaded.
 private struct CueIdleView: View {
-    let route: CueMiniNowPlaying.Route?
-
     var body: some View {
-        HStack(spacing: 12) {
-            CueCover(image: nil, side: 56)
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Not Playing")
-                    .font(.headline)
-                if let route {
-                    CueRouteLabel(route: route)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+        HStack(spacing: 10) {
+            CueCover(image: nil)
+            Text("Not Playing")
+                .font(.body.weight(.semibold))
+                .frame(maxWidth: .infinity, alignment: .leading)
             Button("Open Cue") {
                 CueLink.shared.openCue()
             }
@@ -383,11 +430,11 @@ private struct CueIdleView: View {
 /// Cue isn't open: there's no player to show.
 private struct CueClosedView: View {
     var body: some View {
-        HStack(spacing: 12) {
-            CueCover(image: nil, side: 56)
+        HStack(spacing: 10) {
+            CueCover(image: nil)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Cue Isn't Open")
-                    .font(.headline)
+                    .font(.body.weight(.semibold))
                 Text("Open Cue to play music on this Mac or your speakers.")
                     .font(.caption)
                     .foregroundStyle(.secondary)

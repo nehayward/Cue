@@ -39,8 +39,13 @@ struct CueMiniApp: App {
         guard !Self.didRegisterGlobalHandlers else { return }
         Self.didRegisterGlobalHandlers = true
 
+        // Once the app has started: NSStatusBar needs it.
+        Task { @MainActor in
+            StatusItemManager.shared.start()
+        }
+
         KeyboardShortcuts.onKeyUp(for: .toggleCueMini) {
-            Self.clickStatusItem()
+            StatusItemManager.shared.togglePanel()
         }
 
         // Listen for show menu requests from main Cue app
@@ -49,13 +54,13 @@ struct CueMiniApp: App {
             object: nil,
             queue: .main
         ) { _ in
-            Self.clickStatusItem()
+            StatusItemManager.shared.togglePanel()
         }
 
         // Check for --show-menu launch argument
         if CommandLine.arguments.contains("--show-menu") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                Self.clickStatusItem()
+                StatusItemManager.shared.togglePanel()
             }
         }
         
@@ -122,113 +127,11 @@ struct CueMiniApp: App {
         }
     }
     
+    /// A scene for SwiftUI to have, which opens nothing: the item and its panel
+    /// are `StatusItemManager`'s, and Settings is `WindowManager`'s.
     var body: some Scene {
-        MenuBarExtra {
-            MiniMenuScreen()
-        } label: {
-            MenuBarLabelView()
+        Settings {
+            EmptyView()
         }
-        .menuBarExtraStyle(.window)
-        
-        Window("Cue Mini Active", id: "setup") {
-            LaunchSplashView()
-                .onDisappear {
-                    NSApplication.shared.setActivationPolicy(.accessory)
-                }
-        }
-        .windowStyle(.hiddenTitleBar)
-        .windowResizability(.contentSize)
-        .defaultPosition(.center)
-        
-        Window("Setting", id: "settings") {
-            MiniSettingsView()
-                .onDisappear {
-                    NSApplication.shared.setActivationPolicy(.accessory)
-                }
-        }
-        .windowLevel(.normal)
-        .windowIdealSize(.fitToContent)
     }
-
-    /// Programmatically clicks the menu bar status item to show/hide the menu
-    private static func clickStatusItem() {
-        guard let statusItem = NSApp.windows.first(where: { window in
-            (window.value(forKey: "statusItem") as? NSStatusItem) != nil
-        })?.value(forKey: "statusItem") as? NSStatusItem,
-              let button = statusItem.button else {
-            return
-        }
-        button.performClick(nil)
-    }
-}
-
-/// The status item's label.
-///
-/// This has to be its own `View`, not an `HStack` inlined into the
-/// `MenuBarExtra` label closure: inlined, the reads of `devices` and the
-/// settings happen while the `App`'s scene body is being built, which runs once
-/// at launch — before `loadWatch` has populated `devices` 200ms later — and is
-/// never re-run when an `@Observable` it touched changes. The title never
-/// appeared as a result. In a `View`, the same reads are tracked normally and
-/// only this label re-renders on a track change.
-struct MenuBarLabelView: View {
-    private var settings = MiniSettingsService.shared
-    private var sonosService = SonosMiniService.shared
-    private var link = CueLink.shared
-
-    /// A speaker playing, for its song while Cue's player has none.
-    ///
-    /// `devices` is in discovery order, not the order the menu lists rooms, and
-    /// a room can report PLAYING with nothing to show: a soundbar on TV input
-    /// has no `dc:title` at all (the codec arrives separately as `tvAudio`), and
-    /// an idle or not-yet-resolved room carries `SonosTrack.empty`. Taking the
-    /// first playing room blindly lands on one of those and leaves the menu bar
-    /// bare while music is playing in another room, so skip the ones with no
-    /// title to show.
-    private var device: SonosDevice? {
-        sonosService.devices.first { $0.isPlaying && !$0.isTVMode && !$0.track.song.isEmpty }
-    }
-
-    /// Cue's song while it plays (on this Mac or a speaker), else a playing
-    /// speaker's.
-    ///
-    /// `song`, not `name` — it prefers the stream metadata title and falls back
-    /// to `name`, which is what the menu's own rows render.
-    private var title: String? {
-        guard settings.showSongTitleInMenuBar else { return nil }
-        if let state = link.state, state.isPlaying, let item = state.item {
-            return item.title
-        }
-        guard let device, !device.isTVMode else { return nil }
-        let song = device.track.song
-        return song.isEmpty ? nil : song
-    }
-
-    var body: some View {
-        HStack {
-            Image(nsImage: .cueMark)
-            if let title {
-                Text(title)
-            }
-        }
-        .animation(.spring, value: title)
-    }
-}
-
-private extension NSImage {
-    /// Cue's play triangle (`CueMark`, shared with the widgets) on the menu
-    /// bar's 16-point square, a template the menu bar tints.
-    static let cueMark: NSImage = {
-        let image = NSImage(size: NSSize(width: 16, height: 16), flipped: true) { bounds in
-            guard let context = NSGraphicsContext.current?.cgContext else { return false }
-            let height: CGFloat = 14
-            let width = height * CueMark.aspectRatio
-            let mark = CGRect(x: (bounds.width - width) / 2, y: (bounds.height - height) / 2, width: width, height: height)
-            context.addPath(CueMark().path(in: mark).cgPath)
-            context.fillPath()
-            return true
-        }
-        image.isTemplate = true
-        return image
-    }()
 }
