@@ -176,10 +176,10 @@ final class AppState {
     /// the sections come back.
     var showsLibrarySections: Bool { false }
 
-    /// The Mac's window (`DesktopShell`): a sidebar of cards beside the
-    /// content, the search field above it, the queue on the trailing side
-    /// and a bar of player cards along the bottom, in place of the
-    /// `TabView`. Its sidebar opens a provider's collections (Artists,
+    /// The Mac's and the iPad's window (`DesktopShell`): the sidebar and the
+    /// queue down its sides and the player's bar floating over the page's
+    /// foot, in place of the `TabView` (an iPad window too narrow for that
+    /// keeps the tabs). Its sidebar opens a provider's collections (Artists,
     /// Albums, …) as tabs of their own.
     static var usesDesktopShell: Bool {
 #if targetEnvironment(macCatalyst)

@@ -1139,6 +1139,11 @@ struct PlayerScrubber: View {
                 slider(position: position, span: span, controller: controller)
                     .frame(maxWidth: 500)
                     .frame(height: 40)
+                    // Its whole height takes a touch first: drawn after it,
+                    // the time line's tap (a book's time left) reached into
+                    // it and took touches meant for the scrubber. Outermost,
+                    // as a frame round it keeps the trait from the stack.
+                    .zIndex(1)
 
                 HStack {
                     Text(elapsed.formatted(.time(pattern: pattern)))
@@ -1209,10 +1214,6 @@ struct PlayerScrubber: View {
         // the player on its source.
         .disabled(!controller.canScrub)
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { barWidth = $0 }
-        // Its whole height takes a touch first: drawn after it, the
-        // time line's tap (a book's time left) reached into it and
-        // took touches meant for the scrubber.
-        .zIndex(1)
     }
 
     private func scrubbingChanged(_ isEditing: Bool, on controller: any PlaybackController) {

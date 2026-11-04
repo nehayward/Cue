@@ -284,7 +284,7 @@ public final class SonosService {
     @ObservationIgnored private var otherGroupViewers = 0
     /// The group Cue plays on (`follow(_:)`).
     @ObservationIgnored var followedGroupID: String?
-    @ObservationIgnored private var followedGroupReadAt: ContinuousClock.Instant?
+    @ObservationIgnored var followedGroupReadAt: ContinuousClock.Instant?
     /// How often the followed group is read when no player has it selected,
     /// for what its socket doesn't say: where in the song it is, what the
     /// transport allows, the queue's length.
@@ -565,7 +565,9 @@ public final class SonosService {
                     continue
                 }
                 if isOutOfSight || otherGroupViewers == 0 {
-                    await rest(upTo: outOfSightPace) { $0.isOutOfSight || $0.otherGroupViewers == 0 }
+                    // A second at a time, its own pace: a screen opening
+                    // reads them itself (`beginShowingOtherGroups`).
+                    await rest(upTo: outOfSightPace, step: .seconds(1)) { $0.isOutOfSight || $0.otherGroupViewers == 0 }
                     continue
                 }
                 // MARK: Update room volumes
@@ -642,13 +644,17 @@ public final class SonosService {
         }
     }
 
-    /// Waits up to `limit` while `condition` holds, a quarter second at a
-    /// time, so a loop picks up again as soon as it's needed: Cue back on
-    /// screen, a screen showing the other groups.
-    private func rest(upTo limit: Duration, while condition: (SonosService) -> Bool) async {
+    /// Waits up to `limit` while `condition` holds, a `step` at a time, so a
+    /// loop picks up again as soon as it's needed: Cue back on screen, a
+    /// screen showing the other groups.
+    private func rest(
+        upTo limit: Duration,
+        step: Duration = .milliseconds(250),
+        while condition: (SonosService) -> Bool
+    ) async {
         let end = ContinuousClock.now + limit
         while condition(self), ContinuousClock.now < end, !Task.isCancelled {
-            try? await Task.sleep(for: .milliseconds(250))
+            try? await Task.sleep(for: step)
         }
     }
 

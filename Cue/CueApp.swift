@@ -1497,11 +1497,6 @@ private struct WindowToasts: ViewModifier {
     }
 }
 
-/// The plain tab bar on iPad, so it can't be turned into a sidebar: the
-/// adaptable style runs the sidebar's tab model wherever it is applied —
-/// hidden tabs, customization — and a tab that model hides is a tab bar
-/// item with no view controller behind it. (The sidebar on iPad and the Mac
-/// is `DesktopShell`'s; a compact iPad window has these tabs.)
 /// The window where the desktop layout is the one in use: `DesktopShell`,
 /// but on an iPad window too narrow for a sidebar (Slide Over, a narrow Stage
 /// Manager window) the tabs. A window crossing between them builds its
@@ -1524,6 +1519,11 @@ private struct DesktopWindowRoot<Tabs: View>: View {
     }
 }
 
+/// The plain tab bar on iPad, so it can't be turned into a sidebar: the
+/// adaptable style runs the sidebar's tab model wherever it is applied —
+/// hidden tabs, customization — and a tab that model hides is a tab bar
+/// item with no view controller behind it. (The sidebar on iPad and the Mac
+/// is `DesktopShell`'s; a compact iPad window has these tabs.)
 private struct AdaptiveTabViewStyle: ViewModifier {
     func body(content: Content) -> some View {
         if UIDevice.current.userInterfaceIdiom == .pad {

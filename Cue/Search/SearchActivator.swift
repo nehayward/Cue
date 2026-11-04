@@ -20,10 +20,4 @@ final class SearchActivator {
     func requestFocus() {
         requestCount += 1
     }
-
-    /// A key the results answer to: the arrows move through them, Return
-    /// plays the one chosen and Escape lets go of it.
-    enum ResultKey {
-        case down, up, select, cancel
-    }
 }

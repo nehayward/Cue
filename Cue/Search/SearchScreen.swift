@@ -543,9 +543,13 @@ struct SearchScreen: View {
     }
 #endif
 
+    private enum ResultKey {
+        case down, up, select, cancel
+    }
+
     /// The arrow keys move through the results, Return plays the one
     /// chosen and Escape lets go of it. False when the key had nothing to do.
-    private func handle(_ key: SearchActivator.ResultKey) -> Bool {
+    private func handle(_ key: ResultKey) -> Bool {
         switch key {
         case .down:
             let count = navigableCount

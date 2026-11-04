@@ -2,7 +2,7 @@ import MusicSearchKit
 import SonosKit
 import SwiftUI
 
-/// What the Mac window shows besides the tabs: a playlist chosen in the
+/// What the Mac and iPad window shows besides the tabs: a playlist chosen in the
 /// sidebar, which takes the content's place until a tab is chosen again.
 @MainActor
 @Observable

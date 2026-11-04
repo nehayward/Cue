@@ -510,11 +510,7 @@ extension GroupRoom {
     /// Speakers and the Mac window's player bar.
     @MainActor
     func setAllMuted(_ mute: Bool) {
-        holdMute(mute)
-        for room in rooms where room.isMuted != mute {
-            room.holdMute(mute)
-        }
-        Task { await SonosService.shared.setGroupMute(group: self, mute: mute) }
+        Task { await PlayerCommands.setMuted(mute, self) }
     }
 
     /// Whether the group reads as muted: its own mute, or every room's.

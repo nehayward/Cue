@@ -84,7 +84,12 @@ extension SonosService {
     /// `followedGroupReadInterval`.
     @MainActor
     public func follow(_ group: GroupRoom?) async {
-        followedGroupID = group?.coordinatorID
+        if followedGroupID != group?.coordinatorID {
+            followedGroupID = group?.coordinatorID
+            // The new group is read at the next pulse, not when the last
+            // one's turn would have come round.
+            followedGroupReadAt = nil
+        }
         if let group {
             await listen(to: group, as: .route, events: [.metadata, .playback, .groupVolume])
         } else {

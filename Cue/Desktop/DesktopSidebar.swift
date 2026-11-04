@@ -4,7 +4,7 @@ import MusicSearchKit
 import SonosKit
 import SwiftUI
 
-/// The Mac window's sidebar (`DesktopShell`): the tabs, Search under
+/// The Mac and iPad window's sidebar (`DesktopShell`): the tabs, Search under
 /// Home, then the library of the service Browse shows (its collections, a
 /// menu to switch service), then that library's playlists, and Settings at
 /// the foot.

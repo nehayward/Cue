@@ -253,7 +253,7 @@ private struct LargePlayerBarNowPlaying: View {
     }
 
     /// A title or artist too long for the bar scrolls (`MarqueeText`, which
-    /// on the Mac does no work per frame: the bar is always on screen).
+    /// here does no work per frame: the bar is always on screen).
     private func titles(item: PlayableContent?) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             if let title = item?.title {
