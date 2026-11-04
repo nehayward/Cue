@@ -214,10 +214,9 @@ private struct DesktopNowPlaying: View {
         }
     }
 
-    /// A title or artist too long for the bar scrolls, as the player's
-    /// title does (`MarqueeText`: two copies moved by layout, no shader,
-    /// and no frames while Cue is hidden or minimised). The speaker's name
-    /// keeps its room and the artist scrolls beside it.
+    /// A title or artist too long for the bar scrolls (`MarqueeText`, which
+    /// on the Mac does no work per frame: the bar is always on screen). The
+    /// speaker's name keeps its room and the artist scrolls beside it.
     private func titles(item: PlayableContent?, group: GroupRoom?) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             if let title = item?.title {

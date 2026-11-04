@@ -17,6 +17,9 @@ import SwiftUI
 /// changes its choice without animating: as the player's column widened or
 /// narrowed with the queue panel, the title jumped to where it would end up
 /// while everything round it moved. Laid out, it moves with them.
+///
+/// On the Mac it's `LayerMarquee`, the same rest and scroll moved by Core
+/// Animation, since the player bar keeps a long title on screen all day.
 struct MarqueeText: View {
     let text: String
 
@@ -25,7 +28,11 @@ struct MarqueeText: View {
     }
 
     var body: some View {
+        #if targetEnvironment(macCatalyst)
+        LayerMarquee(text: text, pointsPerSecond: 50 * 0.65, spacing: 20, pauseDuration: 1.5)
+        #else
         MarqueeScroller(text: text, speed: 0.65, spacing: 20, pauseDuration: 1.5)
+        #endif
     }
 }
 
