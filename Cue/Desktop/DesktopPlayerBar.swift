@@ -182,7 +182,7 @@ private struct DesktopNowPlaying: View {
                     Button {
                         router.isPlayerPresented = true
                     } label: {
-                        titles(item: item, group: group)
+                        titles(item: item)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .contentShape(.rect)
                     }
@@ -205,11 +205,8 @@ private struct DesktopNowPlaying: View {
 
     /// A title or artist too long for the bar scrolls (`MarqueeText`, which
     /// on the Mac does no work per frame: the bar is always on screen).
-    private func titles(item: PlayableContent?, group: GroupRoom?) -> some View {
+    private func titles(item: PlayableContent?) -> some View {
         VStack(alignment: .leading, spacing: 1) {
-            if route.isHolding || group != nil {
-                speakerLine(group: group)
-            }
             if let title = item?.title {
                 MarqueeText(title)
                     .font(.callout.weight(.semibold))
@@ -223,15 +220,6 @@ private struct DesktopNowPlaying: View {
                 .foregroundStyle(.secondary)
         }
         .lineLimit(1)
-    }
-
-    /// Where it plays, over the song, as the mini player has it.
-    private func speakerLine(group: GroupRoom?) -> some View {
-        HStack(spacing: 3) {
-            Image(systemName: (group?.rooms.count ?? 1) > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill")
-            Text(route.isHolding ? "Moving to \(route.group?.nameWithCount ?? ThisDevice.name)…" : group?.nameWithCount ?? "")
-        }
-        .font(.caption2.weight(.semibold))
     }
 
     @ViewBuilder
@@ -297,6 +285,15 @@ private struct DesktopBarActions: View {
     @State private var appState = AppState.shared
     @Environment(\.dynamicTypeSize) private var typeSize
 
+    /// The speaker it plays on, nothing on this Mac. Through a hand-off, where
+    /// it's going.
+    private var routeName: String? {
+        if route.isHolding {
+            return "Moving to \(route.group?.nameWithCount ?? ThisDevice.name)…"
+        }
+        return route.group?.nameWithCount
+    }
+
     var body: some View {
         let controller = route.presented
         let scale = DesktopStyle.scale(typeSize)
@@ -310,28 +307,47 @@ private struct DesktopBarActions: View {
                     .padding(.trailing, 4)
             }
 
-            PlaybackRouteButton()
-                .font(.title3)
-                .tint(.primary)
-                .frame(width: 40 * scale, height: 40 * scale)
-                .accentCircle(isOn: isOnSpeaker)
-                .desktopHover(cornerRadius: 20 * scale)
-                .help("Play On")
-
-            Button {
-                withAnimation(.snappy) {
-                    appState.showsQueuePanel.toggle()
-                }
-            } label: {
-                QueueToggleIcon()
+            HStack(spacing: 6) {
+                PlaybackRouteButton()
                     .font(.title3)
-                    .foregroundStyle(.primary)
+                    .tint(.primary)
+                    .frame(width: 40 * scale, height: 40 * scale)
+                    .accentCircle(isOn: isOnSpeaker)
+                    .desktopHover(cornerRadius: 20 * scale)
+                    .help("Play On")
+                    // Under the button, as the phone's player has it; hung
+                    // there rather than stacked, so it moves nothing beside it.
+                    .overlay(alignment: .top) {
+                        if let routeName {
+                            Text(routeName)
+                                .font(.caption2.weight(.medium))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.85)
+                                .frame(width: 120 * scale)
+                                .offset(y: 40 * scale)
+                                .allowsHitTesting(false)
+                                .accessibilityHidden(true)
+                        }
+                    }
+
+                Button {
+                    withAnimation(.snappy) {
+                        appState.showsQueuePanel.toggle()
+                    }
+                } label: {
+                    QueueToggleIcon()
+                        .font(.title3)
+                        .foregroundStyle(.primary)
+                }
+                .buttonStyle(DesktopIconButtonStyle(side: 40))
+                .accentCircle(isOn: showsQueue)
+                .accessibilityLabel(QueueToggleIcon.title(isShown: showsQueue))
+                .accessibilityAddTraits(showsQueue ? .isSelected : [])
+                .help("\(QueueToggleIcon.title(isShown: showsQueue)) (⌥⌘0)")
             }
-            .buttonStyle(DesktopIconButtonStyle(side: 40))
-            .accentCircle(isOn: showsQueue)
-            .accessibilityLabel(QueueToggleIcon.title(isShown: showsQueue))
-            .accessibilityAddTraits(showsQueue ? .isSelected : [])
-            .help("\(QueueToggleIcon.title(isShown: showsQueue)) (⌥⌘0)")
+            // Lifted a little while there's a name, or it sits on the bar's edge.
+            .offset(y: routeName == nil ? 0 : -3 * scale)
+            .animation(.snappy, value: routeName == nil)
         }
     }
 }
