@@ -5,9 +5,8 @@ import SonosKitMini
 import SwiftUI
 
 /// Cue Mini's item in the menu bar and the panel it opens: a click shows or
-/// hides the player, as the system's Now Playing does, a Command-click or
-/// Option-click plays or pauses, and a right click or a Control-click opens
-/// Mini's settings as a menu.
+/// hides the player, as the system's Now Playing does, a Command-click plays or
+/// pauses, and a right click or a Control-click opens Mini's settings as a menu.
 ///
 /// AppKit's rather than SwiftUI's `MenuBarExtra`, whose item on macOS 27 is
 /// hosted outside the app: a right click on it never reaches the app, not even
@@ -27,6 +26,8 @@ final class StatusItemManager: NSObject, NSWindowDelegate {
     private var panel: NSPanel?
     private var outsideClickMonitor: Any?
     private var shownTitle: MenuBarTitle?
+    /// Where a Command-press on the item began.
+    private var commandPress: NSPoint?
 
     private override init() {}
 
@@ -43,6 +44,36 @@ final class StatusItemManager: NSObject, NSWindowDelegate {
         }
         statusItem = item
         followTitle()
+        watchCommandClicks()
+    }
+
+    /// Plays or pauses on a Command-click. macOS keeps those for dragging an item
+    /// along the bar, so one never reaches `itemClicked` or Mini's own events: it's
+    /// only seen from outside, as a press and release in one place on the item.
+    private func watchCommandClicks() {
+        NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .leftMouseUp]) { event in
+            let hasCommand = event.modifierFlags.contains(.command)
+            let isPress = event.type == .leftMouseDown
+            MainActor.assumeIsolated {
+                StatusItemManager.shared.noteClick(hasCommand: hasCommand, isPress: isPress)
+            }
+        }
+    }
+
+    private func noteClick(hasCommand: Bool, isPress: Bool) {
+        guard hasCommand else {
+            commandPress = nil
+            return
+        }
+        let pointer = NSEvent.mouseLocation
+        if isPress {
+            commandPress = isPointerOnItem ? pointer : nil
+            return
+        }
+        defer { commandPress = nil }
+        guard let press = commandPress, abs(press.x - pointer.x) < 4, abs(press.y - pointer.y) < 4,
+              CueLink.shared.state?.item != nil else { return }
+        CueLink.shared.send(.togglePlayback)
     }
 
     /// Keeps the item's title on what's playing, again whenever that changes.
@@ -65,8 +96,6 @@ final class StatusItemManager: NSObject, NSWindowDelegate {
         if event?.type == .rightMouseUp || modifiers.contains(.control) {
             closePanel()
             showSettingsMenu()
-        } else if !modifiers.isDisjoint(with: [.command, .option]), CueLink.shared.state?.item != nil {
-            CueLink.shared.send(.togglePlayback)
         } else {
             togglePanel()
         }
