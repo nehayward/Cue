@@ -74,6 +74,7 @@ struct DesktopShell: View {
     /// Whether the window has room for the queue. A flag rather than the
     /// width, so a resize runs this again only as it crosses the line.
     @State private var isWide = true
+    @State private var barRooms = DesktopBarRooms()
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.openWindow) private var openWindow
 
@@ -91,7 +92,7 @@ struct DesktopShell: View {
                 .frame(width: scaled(DesktopStyle.sidebarWidth))
                 .desktopPanelEdge(.trailing)
 
-            DesktopContent()
+            DesktopContent(barRoom: showsQueue ? barRooms.besideQueue : barRooms.alone)
 
             if showsQueue {
                 DesktopQueuePanel()
@@ -106,6 +107,11 @@ struct DesktopShell: View {
         .scrollEdgeEffectHidden26()
         .ignoresSafeArea()
         .onGeometryChange(for: Bool.self) { [threshold = scaled(DesktopStyle.queueMinWindowWidth)] in $0.size.width >= threshold } action: { isWide = $0 }
+        .onGeometryChange(for: DesktopBarRooms.self) { [sidebarWidth = scaled(DesktopStyle.sidebarWidth), queueWidth, margin = scaled(DesktopStyle.barMargin), scale = DesktopStyle.scale(typeSize)] in
+            DesktopBarRooms(windowWidth: $0.size.width, sidebarWidth: sidebarWidth, queueWidth: queueWidth, margin: margin, scale: scale)
+        } action: {
+            barRooms = $0
+        }
 #if targetEnvironment(macCatalyst)
         .onAppear {
             // How Settings opens its window from outside a view (the menu
@@ -125,6 +131,7 @@ struct DesktopShell: View {
 /// shows, as a `TabView` keeps its tabs: built again on every switch, each
 /// page ran its first load again, its spinner and all, and lost its place.
 struct DesktopContent: View {
+    let barRoom: BarRoom
     @State private var appState = AppState.shared
     @State private var desktop = DesktopState.shared
     /// The tabs whose pages are alive, the latest shown last.
@@ -154,7 +161,7 @@ struct DesktopContent: View {
             pages(selected: selected)
                 .contentMargins(.bottom, scaled(DesktopStyle.barHeight + DesktopStyle.barMargin * 2))
                 .overlay(alignment: .bottom) {
-                    DesktopPlayerBar()
+                    DesktopPlayerBar(room: barRoom)
                         .frame(height: scaled(DesktopStyle.barHeight))
                         .padding([.horizontal, .bottom], scaled(DesktopStyle.barMargin))
                 }

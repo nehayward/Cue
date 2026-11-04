@@ -11,8 +11,9 @@ import SwiftUI
 /// device and a Sonos group are one bar. The volume is a speaker's only:
 /// the Mac's own is the system's, in the menu bar and on the keyboard.
 struct DesktopPlayerBar: View {
+    /// What it has room for, worked out from the window (`DesktopBarRooms`).
+    let room: BarRoom
     @Environment(\.dynamicTypeSize) private var typeSize
-    @State private var room = BarRoom.everything
 
     var body: some View {
         let scale = DesktopStyle.scale(typeSize)
@@ -27,7 +28,6 @@ struct DesktopPlayerBar: View {
             DesktopBarActions(showsVolume: room == .everything)
                 .layoutPriority(1)
         }
-        .animation(.snappy, value: room)
         .padding(.horizontal, 14 * scale)
         .frame(maxHeight: .infinity)
         // A thick material rather than glass, which let bright covers
@@ -38,7 +38,6 @@ struct DesktopPlayerBar: View {
                 .strokeBorder(DesktopStyle.panelEdge)
                 .allowsHitTesting(false)
         }
-        .onGeometryChange(for: BarRoom.self) { [scale] in BarRoom(width: $0.size.width / scale) } action: { room = $0 }
     }
 }
 
@@ -46,8 +45,8 @@ struct DesktopPlayerBar: View {
 /// speaker's volume shrinks (both by layout, as the window moves), and only
 /// then does the volume go (Play On still has it), then shuffle and repeat.
 /// A step rather than the width, so a resize runs the bar again only as it
-/// crosses one, and each is animated.
-private enum BarRoom: Equatable {
+/// crosses one.
+enum BarRoom: Equatable {
     case everything, noVolume, essentials
 
     /// The least the song takes beside the volume, in base points. A long
@@ -68,6 +67,27 @@ private enum BarRoom: Equatable {
         case 580...: .noVolume
         default: .essentials
         }
+    }
+}
+
+/// What the bar has room for at a window's width, beside the queue and
+/// without it. Both are known ahead, rather than measured from the bar, so
+/// that a step goes with what caused it: the queue coming or going picks the
+/// other one in its own update, and the step moves in the queue's animation,
+/// where measured a moment later it landed in place while the queue still
+/// slid, over the buttons on their way. A window being resized only changes
+/// these, with no animation, as a Mac window's toolbar keeps up with the pointer.
+struct DesktopBarRooms: Equatable {
+    var besideQueue = BarRoom.everything
+    var alone = BarRoom.everything
+
+    init() {}
+
+    /// All in points at the window's size, `scale` being `DesktopStyle.scale`.
+    init(windowWidth: CGFloat, sidebarWidth: CGFloat, queueWidth: CGFloat, margin: CGFloat, scale: CGFloat) {
+        let barWidth = windowWidth - sidebarWidth - margin * 2
+        besideQueue = BarRoom(width: (barWidth - queueWidth) / scale)
+        alone = BarRoom(width: barWidth / scale)
     }
 }
 
@@ -320,7 +340,6 @@ private struct DesktopBarActions: View {
                 DesktopSpeakerVolume(group: group)
                     .frame(minWidth: BarRoom.leastVolumeWidth * scale, maxWidth: BarRoom.volumeWidth * scale)
                     .padding(.trailing, 4)
-                    .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .trailing)))
             }
 
             HStack(spacing: 6) {
