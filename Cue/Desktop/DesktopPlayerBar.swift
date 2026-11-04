@@ -214,12 +214,14 @@ private struct DesktopNowPlaying: View {
         }
     }
 
-    /// Cut short rather than scrolled: the bar is always on screen, and a
-    /// marquee redraws every frame while it moves.
+    /// A title or artist too long for the bar scrolls, as the player's
+    /// title does (`MarqueeText`: two copies moved by layout, no shader,
+    /// and no frames while Cue is hidden or minimised). The speaker's name
+    /// keeps its room and the artist scrolls beside it.
     private func titles(item: PlayableContent?, group: GroupRoom?) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             if let title = item?.title {
-                Text(title)
+                MarqueeText(title)
                     .font(.callout.weight(.semibold))
             } else {
                 Text("Not Playing")
@@ -231,6 +233,7 @@ private struct DesktopNowPlaying: View {
                     Label(route.isHolding ? "Moving to \(route.group?.nameWithCount ?? ThisDevice.name)…" : group?.nameWithCount ?? "", systemImage: "hifispeaker.fill")
                         .foregroundStyle(Color("Accent"))
                         .fontWeight(.semibold)
+                        .layoutPriority(1)
                 }
                 subtitle(item: item)
                     .foregroundStyle(.secondary)
@@ -264,7 +267,7 @@ private struct DesktopNowPlaying: View {
         if PlayerCommands.isBook {
             AudiobookTimeLeft(prefix: AudiobookPlayer.shared.current?.book.subtitle, isCompact: true)
         } else if let subtitle = item?.subtitle, !subtitle.isEmpty {
-            Text(subtitle)
+            MarqueeText(subtitle)
         }
     }
 
