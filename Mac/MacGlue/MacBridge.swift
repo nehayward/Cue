@@ -174,7 +174,48 @@ final class MacBridge: NSObject, MacBridgeable, @unchecked Sendable {
         }
     }
 
+    // MARK: - One development copy
+
+    /// Copies built in DerivedData only, so an installed Cue is left alone. One
+    /// built by a script goes if Xcode's is running, as the one the listener is
+    /// using; otherwise the newest stays. Xcode only stops copies it started.
+    ///
+    /// The others are asked to quit themselves: a sandboxed app can't terminate
+    /// another.
+    func keepOneDevelopmentCopy() {
+        let pid = String(getpid())
+        // Xcode's own folder for a project is its name and a hash.
+        func isXcodeBuilt(_ path: String?) -> Bool {
+            path?.range(of: "/DerivedData/[^/]+-[a-z]{28}/", options: .regularExpression) != nil
+        }
+        let others = Bundle.main.bundleIdentifier.map(NSRunningApplication.runningApplications(withBundleIdentifier:))?.filter {
+            $0.processIdentifier != getpid() && $0.bundleURL?.path.contains("/DerivedData/") == true
+        } ?? []
+        if !isXcodeBuilt(Bundle.main.bundlePath), let xcode = others.first(where: { isXcodeBuilt($0.bundleURL?.path) }) {
+            xcode.activate()
+            exit(0)
+        }
+
+        observeDistributedNotification(named: Self.quitCopiesNotification) { sender in
+            guard sender != pid else { return }
+            NSApp.terminate(nil)
+        }
+        guard !others.isEmpty else { return }
+        postDistributedNotification(named: Self.quitCopiesNotification, object: pid)
+        // They've let go of the Sonos event port before this one asks for it.
+        let deadline = Date.now.addingTimeInterval(2)
+        while others.contains(where: { !$0.isTerminated }), Date.now < deadline {
+            RunLoop.current.run(until: .now + 0.1)
+        }
+    }
+
+    private static let quitCopiesNotification = "dance.cue.debug.quitOtherCopies"
+
     // MARK: - Running observer
+
+    var isCueMiniRunning: Bool {
+        !NSRunningApplication.runningApplications(withBundleIdentifier: bundleIdentifier).isEmpty
+    }
 
     func setupRunningAppsObserver() {
         appsObserver = TopRunningAppsObserver(bundleIdentifier: bundleIdentifier)
@@ -200,5 +241,117 @@ final class MacBridge: NSObject, MacBridgeable, @unchecked Sendable {
         let range = CFRange(location: 0, length: CFStringGetLength(text))
         guard range.length > 0, let definition = DCSCopyTextDefinition(nil, text, range) else { return nil }
         return definition.takeRetainedValue() as String
+    }
+
+    // MARK: - About
+
+    func showAboutPanel(credits: String, links: [String: String]) {
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = .center
+        let text = NSMutableAttributedString(string: credits, attributes: [
+            .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
+            .foregroundColor: NSColor.secondaryLabelColor,
+            .paragraphStyle: paragraph,
+        ])
+        for (phrase, link) in links {
+            let range = (credits as NSString).range(of: phrase)
+            guard range.location != NSNotFound, let url = URL(string: link) else { continue }
+            text.addAttribute(.link, value: url, range: range)
+        }
+        NSApp.activate()
+        NSApp.orderFrontStandardAboutPanel(options: [.credits: text])
+    }
+
+    // MARK: - Window material
+
+    private static let materialIdentifier = NSUserInterfaceItemIdentifier("dance.cue.sidebarMaterial")
+
+    /// The main window: titled `title` and with no toolbar. A Settings
+    /// window reopened at launch can be titled for the app a moment before
+    /// its pane names it, and took the main window's close button with it;
+    /// its toolbar it has from the start.
+    private func mainWindows(titled title: String) -> [NSWindow] {
+        NSApp.windows.filter { $0.title == title && $0.toolbar == nil }
+    }
+
+    func installSidebarMaterial(inWindowsTitled title: String) {
+        for window in mainWindows(titled: title) {
+            // The window's frame view, not its content view, which starts
+            // below the title bar and left a dark strip under the traffic
+            // lights.
+            guard let frame = window.contentView?.superview,
+                  !frame.subviews.contains(where: { $0.identifier == Self.materialIdentifier }) else { continue }
+            window.titlebarAppearsTransparent = true
+            let material = NSVisualEffectView(frame: frame.bounds)
+            material.material = .sidebar
+            material.blendingMode = .behindWindow
+            material.state = .followsWindowActiveState
+            material.identifier = Self.materialIdentifier
+            material.autoresizingMask = [.width, .height]
+            frame.addSubview(material, positioned: .below, relativeTo: nil)
+            // Liquid Glass over it, where the system has it: the blurred
+            // desktop refracted, lit at its edges.
+            if #available(macOS 26.0, *) {
+                let glass = NSGlassEffectView(frame: frame.bounds)
+                glass.style = .clear
+                glass.autoresizingMask = [.width, .height]
+                frame.addSubview(glass, positioned: .above, relativeTo: material)
+            }
+        }
+    }
+
+    func hideOnClose(windowsTitled title: String) {
+        for window in mainWindows(titled: title) {
+            guard let button = window.standardWindowButton(.closeButton),
+                  button.action != #selector(hideApp) else { continue }
+            button.target = self
+            button.action = #selector(hideApp)
+        }
+    }
+
+    @objc func hideApp() {
+        NSApp.hide(nil)
+    }
+
+    // MARK: - Distributed notifications
+
+    /// The handler for each name observed.
+    private var distributedHandlers: [String: (String?) -> Void] = [:]
+
+    func postDistributedNotification(named name: String, object: String?) {
+        DistributedNotificationCenter.default().postNotificationName(
+            Notification.Name(name),
+            object: object,
+            userInfo: nil,
+            deliverImmediately: true
+        )
+    }
+
+    func observeDistributedNotification(named name: String, handler: @escaping (String?) -> Void) {
+        let isNew = distributedHandlers[name] == nil
+        distributedHandlers[name] = handler
+        guard isNew else { return }
+        // Delivered immediately: AppKit suspends distributed notifications
+        // while an app isn't active, which Cue isn't while its menu bar app
+        // is being used.
+        DistributedNotificationCenter.default().addObserver(
+            self,
+            selector: #selector(receiveDistributedNotification(_:)),
+            name: Notification.Name(name),
+            object: nil,
+            suspensionBehavior: .deliverImmediately
+        )
+    }
+
+    @objc private func receiveDistributedNotification(_ notification: Notification) {
+        let object = notification.object as? String
+        let name = notification.name.rawValue
+        if Thread.isMainThread {
+            distributedHandlers[name]?(object)
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                self?.distributedHandlers[name]?(object)
+            }
+        }
     }
 }

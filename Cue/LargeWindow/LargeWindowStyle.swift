@@ -1,0 +1,198 @@
+import SwiftUI
+import UIKit
+
+/// The Mac window's measures and colours (`LargeWindowShell`): full-height
+/// panels down its sides and a floating player bar, as macOS 27's Music
+/// has. In points of the iPad idiom the Mac app runs in, which macOS draws
+/// at 77%, so they're a third larger than the same thing in a native Mac
+/// app.
+enum LargeWindowStyle {
+#if targetEnvironment(macCatalyst)
+    static let sidebarWidth: CGFloat = 300
+#else
+    /// Real points on an iPad, which aren't drawn at 77%.
+    static let sidebarWidth: CGFloat = 260
+#endif
+    /// The title bar's strip at the top of a panel, the traffic lights in
+    /// the sidebar's: its rows start below it. Left to the safe area, a
+    /// panel's list ran up under the lights. Not scaled, as the title bar
+    /// isn't. Lower on an iPad, whose status bar and window controls (in Stage
+    /// Manager, over the Home row) come further down.
+#if targetEnvironment(macCatalyst)
+    static let titleBarHeight: CGFloat = 36
+#else
+    static let titleBarHeight: CGFloat = 56
+#endif
+    /// The player's bar, floating over the foot of the page.
+    static let barHeight: CGFloat = 72
+    /// Between the bar and the page's sides and foot.
+    static let barMargin: CGFloat = 16
+    /// Below this the queue gives way, then the sidebar narrows.
+    static let queueMinWindowWidth: CGFloat = 1180
+#if targetEnvironment(macCatalyst)
+    /// Never: on the Mac the queue only ever shows beside the sidebar.
+    static let queueAloneMinWindowWidth: CGFloat = .infinity
+#else
+    /// Below `queueMinWindowWidth` the queue takes the sidebar's place on an
+    /// iPad, down to this, an 11-inch iPad in portrait: any narrower left the
+    /// page and its bar too little to read a song in.
+    static let queueAloneMinWindowWidth: CGFloat = 800
+#endif
+
+    /// Behind the page: the content's own (the lists' black or white).
+    static let windowBackground = Color(uiColor: .systemBackground)
+    /// The sidebar and the queue.
+    static let panel = Color(uiColor: .secondarySystemBackground)
+    /// Where a panel meets the page.
+    static let panelEdge = Color.primary.opacity(0.08)
+    /// Under a row or button the pointer is over.
+    static let hover = Color.primary.opacity(0.07)
+    /// Under the chosen sidebar row.
+    static let selection = Color.primary.opacity(0.1)
+
+    /// How much larger than its base a measure draws at this type size
+    /// (`InterfaceSize`): the body text's size over its default 17 pt, so
+    /// a panel grows with the text in it.
+    static func scale(_ typeSize: DynamicTypeSize) -> CGFloat {
+        let body: CGFloat = switch typeSize {
+        case .xSmall: 14
+        case .small: 15
+        case .medium: 16
+        case .large: 17
+        case .xLarge: 19
+        case .xxLarge: 21
+        case .xxxLarge: 23
+        default: 25
+        }
+        return body / 17
+    }
+}
+
+extension View {
+    /// Clicks anywhere on a panel over the window's material, not only on
+    /// what's drawn there: where a pixel is clear, macOS sends the click to
+    /// the window behind, and only a row's title and glyph took one. A fill
+    /// too faint to see.
+    func catchesClicks() -> some View {
+        background(Color.black.opacity(0.01))
+    }
+
+    /// What's behind a panel. On the Mac nothing: it's clear over the window's
+    /// material (`MainWindowChrome`). An iPad has no such material to show.
+    @ViewBuilder
+    func largeWindowPanelBackground() -> some View {
+#if targetEnvironment(macCatalyst)
+        self
+#else
+        background {
+            LargeWindowStyle.panel
+                .ignoresSafeArea()
+        }
+#endif
+    }
+
+    /// A hairline on the `edge` a panel meets the page by, up through the
+    /// title bar.
+    func largeWindowPanelEdge(_ edge: HorizontalEdge) -> some View {
+        overlay(alignment: edge == .leading ? .leading : .trailing) {
+            LargeWindowStyle.panelEdge
+                .frame(width: 1)
+                .ignoresSafeArea()
+        }
+    }
+
+    /// The view below the title bar's strip, which a panel's list ran up
+    /// under, behind the traffic lights, when left to the safe area.
+    func belowTitleBar() -> some View {
+        VStack(spacing: 0) {
+            Color.clear
+                .frame(height: LargeWindowStyle.titleBarHeight)
+            self
+        }
+        .ignoresSafeArea(.container, edges: .top)
+    }
+
+    /// A rounded wash under the view while the pointer is over it.
+    func largeWindowHover(cornerRadius: CGFloat = 10, isSelected: Bool = false) -> some View {
+        modifier(LargeWindowHoverHighlight(cornerRadius: cornerRadius, isSelected: isSelected))
+    }
+
+    /// Grows a little under the pointer, as a cover does in Music: for
+    /// artwork and tiles that are buttons in themselves.
+    func largeWindowHoverLift(scale: CGFloat = 1.03) -> some View {
+        modifier(LargeWindowHoverLift(scale: scale))
+    }
+}
+
+private struct LargeWindowHoverHighlight: ViewModifier {
+    let cornerRadius: CGFloat
+    let isSelected: Bool
+    @State private var isHovering = false
+
+    func body(content: Content) -> some View {
+        content
+            .background {
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .fill(isSelected ? LargeWindowStyle.selection : LargeWindowStyle.hover)
+                    .opacity(isSelected || isHovering ? 1 : 0)
+            }
+            .onHover { isHovering = $0 }
+            .animation(.easeOut(duration: 0.12), value: isHovering)
+    }
+}
+
+private struct LargeWindowHoverLift: ViewModifier {
+    let scale: CGFloat
+    @State private var isHovering = false
+
+    func body(content: Content) -> some View {
+        content
+            // A scale alone: a shadow is drawn offscreen, which on the Mac
+            // costs GPU memory for as long as it animates.
+            .scaleEffect(isHovering ? scale : 1)
+            .onHover { isHovering = $0 }
+            .animation(.snappy(duration: 0.18), value: isHovering)
+    }
+}
+
+/// A round glyph button: a wash under the pointer, and a press that sinks.
+/// The player bar's transport and actions, and the sidebar's gear.
+struct LargeWindowIconButtonStyle: ButtonStyle {
+    var side: CGFloat = 40
+    /// Filled with the panels' grey when not under the pointer, for a button
+    /// on the page rather than a panel.
+    var isFilled = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        LargeWindowIconButton(configuration: configuration, side: side, isFilled: isFilled)
+    }
+}
+
+private struct LargeWindowIconButton: View {
+    let configuration: ButtonStyle.Configuration
+    let side: CGFloat
+    let isFilled: Bool
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @State private var isHovering = false
+
+    var body: some View {
+        let side = (side * LargeWindowStyle.scale(typeSize)).rounded()
+
+        configuration.label
+            .frame(width: side, height: side)
+            .background {
+                Circle()
+                    .fill(isFilled ? LargeWindowStyle.panel : .clear)
+                Circle()
+                    .fill(LargeWindowStyle.hover)
+                    .opacity(isHovering && isEnabled ? 1 : 0)
+            }
+            .contentShape(.circle)
+            .opacity(isEnabled ? 1 : 0.35)
+            .scaleEffect(configuration.isPressed ? 0.9 : 1)
+            .onHover { isHovering = $0 }
+            .animation(.snappy(duration: 0.15), value: configuration.isPressed)
+            .animation(.easeOut(duration: 0.12), value: isHovering)
+    }
+}

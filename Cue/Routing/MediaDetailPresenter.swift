@@ -13,6 +13,14 @@ import UIKit
 @MainActor
 enum MediaDetailPresenter {
     static func present(_ content: PlayableContent) {
+        // The Mac's window pushes it on the page showing, which Back
+        // leaves, rather than putting a sheet over the window. Not over a
+        // sheet, which would hide it; the player is put away.
+        if AppState.usesLargeWindow, TopViewController.current?.presentingViewController == nil || Router.main.isPlayerPresented {
+            Router.main.isPlayerPresented = false
+            LargeWindowState.shared.currentRouter.navigate(to: .mediaDetail(content: content, group: nil))
+            return
+        }
         guard let top = TopViewController.current else { return }
         // A sheet on its way down can't be presented over: wait for it.
         if let coordinator = top.transitionCoordinator {

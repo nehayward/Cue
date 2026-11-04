@@ -26,6 +26,10 @@ import SwiftUI
 /// With Sonos off, or on cellular where no speaker can be reached, it is the
 /// system AirPlay button instead.
 struct PlaybackRouteButton: View {
+    /// How much of the place the system's AirPlay button takes, all of it a
+    /// target. A Sonos button's comes from the `buttonStyle` around it.
+    var airPlaySide: CGFloat = 30
+
     /// Read off the singleton rather than the environment: this sits in the tab
     /// bar accessory, which is hosted outside the tab content and so isn't
     /// guaranteed to inherit what `withEnvironments()` installs.
@@ -43,7 +47,7 @@ struct PlaybackRouteButton: View {
                 // car where the AirPlay glyph was, the way Music's does. The
                 // picker underneath still takes the tap.
                 AirPlayRoutePicker(hidesGlyph: sonosService.isInCar)
-                    .frame(width: 30, height: 30)
+                    .frame(width: airPlaySide, height: airPlaySide)
                     .overlay {
                         if sonosService.isInCar {
                             Image(systemName: "car.fill")
@@ -91,7 +95,7 @@ private struct SonosRouteButton: View {
             // glyph: the route is Cue's, not AirPlay's.
             Image("hifispeaker.arrow.forward.fill")
                 .accessibilityLabel("Play On")
-                .accessibilityValue(route.group?.nameWithCount ?? AudioOutputName.shared.name ?? "This Device")
+                .accessibilityValue(route.group?.nameWithCount ?? AudioOutputName.shared.name ?? ThisDevice.name)
         }
         // The sheet grows out of the button and shrinks back into it,
         // rather than sliding up from the bottom edge, far from where the
@@ -133,60 +137,75 @@ struct PendingSwitch: Identifiable {
     var id: String { target.groupID ?? "device" }
 }
 
-/// The small sheet a route switch asks from: move what's playing along, or
-/// only change where playback goes. "Don't ask again" writes the answer to
-/// the setting (Settings › Playback), so the prompt is one tap to retire.
+/// What a route switch asks: move what's playing along, or only change
+/// where playback goes. Where it plays now and where it's going, each a
+/// glyph and a name, over the question and its two answers. "Don't ask
+/// again" writes the answer to the setting (Settings › Playback), so the
+/// prompt is one tap to retire.
+///
+/// A sheet of its own height on the iPhone; on the iPad and the Mac a card
+/// fitted to it (`presentationSizing(.fitted)`), as it opened as a large
+/// panel there with the prompt lost in the middle of it.
 struct RouteTransferPrompt: View {
     let target: PlayDestination
     let onChoose: (_ carrying: Bool) -> Void
 
     @State private var dontAskAgain = false
+    @State private var height: CGFloat = 400
 
     private var route: PlaybackRoute { .shared }
 
+    private var targetGroup: GroupRoom? {
+        guard let id = target.groupID else { return nil }
+        return SonosService.shared.groups.first { $0.coordinatorID == id }
+    }
+
     private var sourceName: String {
-        route.group?.nameWithCount ?? UIDevice.current.name
+        route.group?.nameWithCount ?? ThisDevice.name
     }
 
     private var targetName: String {
-        guard let id = target.groupID else { return UIDevice.current.name }
-        return SonosService.shared.groups.first { $0.coordinatorID == id }?.nameWithCount ?? "Speaker"
+        guard target.groupID != nil else { return ThisDevice.name }
+        return targetGroup?.nameWithCount ?? String(localized: "Speaker")
     }
 
-    private func symbol(for destination: PlayDestination) -> String {
-        destination == .device ? "iphone" : "hifispeaker.fill"
+    private static func symbol(for group: GroupRoom?) -> String {
+        guard let group else { return ThisDevice.symbol }
+        return group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill"
     }
 
     var body: some View {
-        VStack(spacing: 16) {
-            HStack(spacing: 14) {
-                Image(systemName: symbol(for: route.destination))
+        VStack(spacing: 20) {
+            HStack(alignment: .top, spacing: 8) {
+                RouteEnd(symbol: Self.symbol(for: route.group), name: sourceName, isTarget: false)
                 Image(systemName: "arrow.right")
                     .font(.body.weight(.semibold))
                     .foregroundStyle(.secondary)
-                Image(systemName: symbol(for: target))
+                    .frame(height: RouteEnd.side)
+                RouteEnd(symbol: Self.symbol(for: target.groupID == nil ? nil : targetGroup), name: targetName, isTarget: true)
             }
-            .font(.title)
-            .symbolRenderingMode(.hierarchical)
-            .padding(.top, 8)
 
-            VStack(spacing: 4) {
+            VStack(spacing: 6) {
                 Text("Move What's Playing?")
-                    .font(.headline)
-                Text("Bring the queue from \(sourceName) to \(targetName), or switch and leave it where it is.")
+                    .font(.title3.weight(.semibold))
+                Text("Bring the queue from \(sourceName) to \(targetName), or switch and leave it playing where it is.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
-            VStack(spacing: 8) {
+            VStack(spacing: 10) {
                 Button {
                     choose(carrying: true)
                 } label: {
                     Text("Move to \(targetName)")
+                        .fontWeight(.semibold)
+                        .lineLimit(1)
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
+                .tint(Color("Accent"))
 
                 Button {
                     choose(carrying: false)
@@ -195,17 +214,37 @@ struct RouteTransferPrompt: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
+                // Plain, not the accent: green on grey read poorly beside
+                // the accent button.
+                .tint(.primary)
             }
             .controlSize(.large)
+            .buttonBorderShape(.capsule)
 
-            Toggle("Don't ask again", isOn: $dontAskAgain)
+            // A check of Cue's own, not a switch: in the Mac's popover the system's
+            // lost its track on the glass, leaving the knob by itself.
+            Button {
+                dontAskAgain.toggle()
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: dontAskAgain ? "checkmark.circle.fill" : "circle")
+                        .foregroundStyle(dontAskAgain ? Color("Accent") : Color.primary.opacity(0.6))
+                    Text("Don't ask again")
+                        .foregroundStyle(.primary.opacity(0.7))
+                }
                 .font(.footnote)
-                .foregroundStyle(.secondary)
-                .tint(.accent)
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityRepresentation {
+                Toggle("Don't ask again", isOn: $dontAskAgain)
+            }
         }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 20)
-        .presentationDetents([.height(340)])
+        .padding(24)
+        .frame(maxWidth: 400)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
+        .presentationDetents([.height(height)])
+        .presentationSizing(.fitted)
         .presentationDragIndicator(.visible)
     }
 
@@ -216,6 +255,32 @@ struct RouteTransferPrompt: View {
             UserDefaults.standard.set(preference.rawValue, forKey: AppStorageKeys.routeQueueTransfer)
         }
         onChoose(carrying)
+    }
+}
+
+/// One end of a route switch: its glyph in a circle, the one it's going to
+/// in the accent, over its name.
+private struct RouteEnd: View {
+    let symbol: String
+    let name: String
+    let isTarget: Bool
+
+    static let side: CGFloat = 56
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: symbol)
+                .font(.title2)
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(isTarget ? AnyShapeStyle(Color("Accent")) : AnyShapeStyle(.primary))
+                .frame(width: Self.side, height: Self.side)
+                .background(isTarget ? AnyShapeStyle(Color("Accent").opacity(0.18)) : AnyShapeStyle(.quaternary), in: .circle)
+            Text(name)
+                .font(.footnote.weight(.semibold))
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+        }
+        .frame(width: 120)
     }
 }
 

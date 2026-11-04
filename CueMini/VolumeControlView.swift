@@ -1,7 +1,8 @@
 import SwiftUI
 import SonosKitMini
 
-// MARK: Migrate to updated Volume View
+/// The group's volume: a slim slider, as the system's are in the menu bar, its
+/// level beside it.
 struct VolumeControlView: View {
     @Binding var device: SonosDevice
 
@@ -9,25 +10,8 @@ struct VolumeControlView: View {
     @State private var volumeTask: Task<Void, Error>?
 
     var body: some View {
-        HStack(alignment: .center, spacing: 0) {
-            Button {
-                Task {
-                    await SonosMiniService.shared.setRelativeGroupVolume(ip: device.ip, volume: -1)
-                    device.groupVolume = max(0, device.groupVolume - 1)
-                    try? await Task.sleep(for: .seconds(isEditing ? 0 : 2))
-                    device.isEditingVolume = isEditing
-                }
-            } label: {
-                Image(systemName: "minus")
-                    .font(.caption.bold())
-                    .foregroundStyle(.primary)
-                    .frame(width: 32, height: 32)
-                    .contentShape(.rect)
-            }
-            .buttonStyle(.plain)
-            .buttonRepeatBehavior(.enabled)
-
-            VibeMiniSlider(value: $device.groupVolume, baseHeight: 24, showValue: true) { isEditing in
+        HStack(spacing: 8) {
+            VibeMiniSlider(value: $device.groupVolume, baseHeight: 10) { isEditing in
                 self.isEditing = isEditing
                 device.isEditingVolume = true
                 Task {
@@ -45,33 +29,13 @@ struct VolumeControlView: View {
             }
             .foregroundStyle(.primary)
 
-            Button {
-                Task {
-                    if device.groupIsMuted {
-                        await SonosMiniService.shared.setGroupMute(device: device, mute: false)
-                        try? await SonosMiniService.shared.updateWatchDevices(from: [device])
-                    }
-                    await SonosMiniService.shared.setRelativeGroupVolume(ip: device.ip, volume: 1)
-                    device.groupVolume = min(100, device.groupVolume + 1)
-                    try? await Task.sleep(for: .seconds(isEditing ? 0 : 2))
-                    device.isEditingVolume = isEditing
-                }
-            } label: {
-                Image(systemName: "plus")
-                    .font(.caption.bold())
-                    .foregroundStyle(.primary)
-                    .frame(width: 32, height: 32)
-                    .contentShape(.rect)
-            }
-            .buttonStyle(.plain)
-            .buttonRepeatBehavior(.enabled)
+            Text("\(Int(device.groupVolume))")
+                .font(.body.monospacedDigit())
+                .foregroundStyle(.primary)
+                .frame(minWidth: 24, alignment: .trailing)
         }
-        .font(.caption)
-        .fontDesign(.rounded)
-        .frame(height: 40)
         .opacity(device.isMuted ?? false ? 0.6 : 1)
         .animation(.spring, value: device.isMuted)
-        .tint(.primary)
         .onDisappear {
             volumeTask?.cancel()
         }

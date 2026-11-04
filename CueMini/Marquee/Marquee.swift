@@ -9,14 +9,17 @@ struct MarqueeText: View {
     @State private var textSize: CGSize = .zero
     @State private var animate: Bool = false
     
-    init(_ text: String) {
+    init(_ text: String, font: Font = .body) {
         self.text = text
+        self.font = font
     }
     
     var body: some View {
         ViewThatFits {
             Text(text)
+                .font(font)
             marqueeView
+                .id(text)
         }
     }
     

@@ -20,7 +20,7 @@
 		<string>_sonos._tcp</string>
 	</array>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Needed to find Sonos Devices</string>
+	<string>Cue Mini looks for your Sonos speakers on the local network to show and control them.</string>
 	<key>NSSupportsAutomaticTermination</key>
 	<true/>
 	<key>NSSupportsSuddenTermination</key>

@@ -81,6 +81,12 @@ public enum AppStorageKeys {
     public static let albumsLayout = "\(Prefix.id).albumsLayout"
     public static let appleMusicAuthorized = "\(Prefix.id).appleMusicAuthorized"
     public static let colorScheme = "\(Prefix.id).colorScheme"
+    /// Settings ▸ Appearance ▸ Interface Size, on the Mac: how large the
+    /// window draws (`InterfaceSize`), Cue's own scale over the 77% macOS
+    /// draws an iPad app at.
+    public static let interfaceSize = "\(Prefix.id).interfaceSize"
+    /// The pane the Mac's Settings window was last on (`SettingsPane`).
+    public static let settingsWindowPane = "\(Prefix.id).settingsWindowPane"
     public static let speedLaunchNowPlaying = "\(Prefix.id).speedLaunchNowPlaying"
     public static let queueMode = "\(Prefix.id).queueMode"
     public static let showArtworkOnly = "\(Prefix.id).showArtworkOnly"

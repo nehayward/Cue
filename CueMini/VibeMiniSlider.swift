@@ -89,7 +89,7 @@ public struct VibeMiniSlider: View {
                 }
             //                .frame(height: isDragging ? expandedHeight : baseHeight)
                 .frame(height: baseHeight)
-                .foregroundStyle(.quaternary)
+                .foregroundStyle(.tertiary)
                 .shadow(color: .black.opacity(0.1), radius: 1.5, y: 1)
                 .shadow(color: .white.opacity(0.1), radius: 0.5, y: 0.5)
                 .overlay(alignment: .leading) {
@@ -111,7 +111,9 @@ public struct VibeMiniSlider: View {
             .monospacedDigit()
             .fontDesign(.rounded)
             .fontWeight(.heavy)
-            .foregroundStyle(isDragging ? AnyShapeStyle(capsuleForeground) : AnyShapeStyle(.white))
+            // Against what's behind it: the fill takes the foreground, white
+            // in dark mode, where white digits couldn't be read.
+            .foregroundStyle(valueSitsOnFill ? AnyShapeStyle(capsuleForeground) : AnyShapeStyle(.primary))
             .blendMode(showBlendMode ? .difference : .normal)
             .contentTransition(.identity)
             .frame(minWidth: 28, minHeight: baseHeight)
@@ -123,6 +125,7 @@ public struct VibeMiniSlider: View {
             .opacity(showValue ? 1 : 0)
         }
         .padding(.vertical, baseHeight/2)
+        .contentShape(.rect)
         .gesture(dragGesture)
 #if !targetEnvironment(macCatalyst)
         .simultaneousGesture(
@@ -210,9 +213,16 @@ public struct VibeMiniSlider: View {
         return max(0, calculatedWidth)
     }
     
+    /// Whether the fill is long enough to hold the value; short of that it
+    /// sits just past the fill's end.
+    private var valueSitsOnFill: Bool {
+        isDragging || calculateProgressWidth() >= 28
+    }
+
     private var offsetForValue: Double {
         guard width > 0 else { return 0 }
         let progressWidth = calculateProgressWidth()
+        guard valueSitsOnFill else { return progressWidth }
         return min(max(0, progressWidth - 28), width - 28)
     }
 }

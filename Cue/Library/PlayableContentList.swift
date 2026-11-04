@@ -23,6 +23,7 @@ struct PlayableContentList: View {
             contentSection
             loadMoreIndicator
         }
+        .letterIndex(sectionLetters)
         .foregroundStyle(.foreground)
         .listStyle(.plain)
         .task { await loadInitialContent() }
@@ -34,6 +35,17 @@ struct PlayableContentList: View {
         .contentMargins(.bottom, 120, for: .scrollContent)
     }
     
+    /// The letters of the list on show, for the index on the Mac
+    /// (`letterIndex`).
+    private var sectionLetters: [String] {
+        switch type {
+        case .album: browseService.albumSections.map(\.letter)
+        case .artist: browseService.artistSections.map(\.letter)
+        case .playlist: browseService.playlistSections.map(\.letter)
+        default: []
+        }
+    }
+
     @ViewBuilder
     private var contentSection: some View {
         switch type {
@@ -62,35 +74,33 @@ struct PlayableContentList: View {
     @ViewBuilder
     private var albumSections: some View {
         ForEach(browseService.albumSections) { section in
-            Section(header: Text(section.letter)) {
+            LetterSection(letter: section.letter) {
                 ForEach(section.items) { item in
                     VStack {
                         PlayableContentView(item: item)
                     }
                 }
             }
-            .sectionIndex(section.letter)
         }
     }
 
     @ViewBuilder
     private var artistSections: some View {
         ForEach(browseService.artistSections) { section in
-            Section(header: Text(section.letter)) {
+            LetterSection(letter: section.letter) {
                 ForEach(section.items) { item in
                     VStack {
                         PlayableContentView(item: item)
                     }
                 }
             }
-            .sectionIndex(section.letter)
         }
     }
 
     @ViewBuilder
     private var playlistSections: some View {
         ForEach(browseService.playlistSections) { section in
-            Section(header: Text(section.letter)) {
+            LetterSection(letter: section.letter) {
                 ForEach(section.items) { item in
                     VStack {
                         PlayableContentView(item: item)
@@ -105,7 +115,6 @@ struct PlayableContentList: View {
                     }
                 }
             }
-            .sectionIndex(section.letter)
         }
     }
     

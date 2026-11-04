@@ -6,6 +6,7 @@
 //
 import Defaults
 import MusicSearchKit
+import SonosKit
 import SwiftUI
 
 @MainActor
@@ -102,10 +103,19 @@ enum Screens {
     static func providerRoot(_ service: MediaSearchService, collections: [ProviderCollection]) -> some View {
         let selectedGroupService = groupService("provider|\(service.rawValue)")
 
-        ProviderTabScreen(service: service, collections: collections)
+        ProviderTabScreen(service: service, collections: collections, router: Router.forTab(.provider(service)))
             .tint(Color("Accent"))
             .environment(selectedGroupService)
             .modifier(WindowQueuePanel(placement: .tab))
+    }
+
+    /// A playlist chosen in the Mac window's sidebar (`LargeWindowShell`), as
+    /// the root of a stack of its own.
+    @ViewBuilder
+    static func largeWindowPlaylist(_ playlist: PlayableContent) -> some View {
+        LargeWindowPlaylistScreen(playlist: playlist)
+            .tint(Color("Accent"))
+            .environment(groupService("largeWindow|playlist"))
     }
 
     /// One collection of a provider — a tab in its sidebar section.
@@ -113,7 +123,7 @@ enum Screens {
     static func providerCollection(_ service: MediaSearchService, collections: [ProviderCollection], collection: ProviderCollection) -> some View {
         let selectedGroupService = groupService("provider|\(service.rawValue)|\(collection.rawValue)")
 
-        ProviderTabScreen(service: service, collections: collections, collection: collection)
+        ProviderTabScreen(service: service, collections: collections, collection: collection, router: Router.forTab(.providerCollection(service, collection)))
             .tint(Color("Accent"))
             .environment(selectedGroupService)
             .modifier(WindowQueuePanel(placement: .tab))

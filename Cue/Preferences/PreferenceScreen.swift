@@ -14,7 +14,6 @@ struct PreferenceScreen: View {
     @Environment(SonosService.self) var sonosService
     @Environment(SubscriptionService.self) var subscriptionService
     @Environment(CoreFeatures.self) var coreFeatures
-    @Environment(FeatureGate.self) var featureGate
     
     var destination: RouterDestination? = nil
     
@@ -24,16 +23,9 @@ struct PreferenceScreen: View {
     
     @AppStorage("AppIcon") private var selectedAppIcon = "Default"
     
-    /// The theme's name on Appearance's row, and Debug's tab bar switch:
-    /// the app's own settings (`AppState`).
+    /// The theme's name on Appearance's row: the app's own settings
+    /// (`AppState`).
     @State private var appState = AppState.shared
-#if DEBUG
-    // Off until it's known whether the car's Now Playing follows without it
-    // (`CarPlayInterface.start`).
-    @AppStorage(Defaults.AppStorageKeys.carPlayMiniPlayer) private var carPlayMiniPlayer: Bool = false
-    @AppStorage(Defaults.AppStorageKeys.nowPlayingSession) private var nowPlayingSession: Bool = false
-    @State private var offline = OfflineMode.shared
-#endif
     @AppStorage(Defaults.AppStorageKeys.lastSeenWhatsNewVersion) private var lastSeenWhatsNewVersion: String = ""
     @AppStorage(Defaults.AppStorageKeys.latestReleaseVersion) private var latestReleaseVersion: String = ""
     @AppStorage(Defaults.AppStorageKeys.latestReleaseHeadline) private var latestReleaseHeadline: String = ""
@@ -76,41 +68,7 @@ struct PreferenceScreen: View {
                     }
                 }
 
-                Section {
-                    if !featureGate.hasSuper {
-                        PaywallButtonView()
-                            .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets())
-                    } else {
-                        Button {
-                            HapticManager.shared.fireHaptic(.buttonPress)
-                            router.presentedFullScreenCover = .paywall
-                        } label: {
-                            HStack(spacing: 12) {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    HStack(spacing: 6) {
-                                        Text("Cue Super")
-                                            .font(.headline)
-                                            .foregroundStyle(.primary)
-                                        Image(systemName: "checkmark.seal.fill")
-                                            .font(.subheadline)
-                                            .foregroundStyle(Color.accentColor.gradient)
-                                    }
-                                    subscriptionStatusLine
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.tertiary)
-                            }
-                        }
-                        .tint(.primary)
-                    }
-                } header: {
-                    Spacer(minLength: 0).listRowInsets(EdgeInsets())
-                }
+                SuperSettingsSection()
 
                 //#if DEBUG
                 //                Section("Discovered") {
@@ -315,9 +273,8 @@ struct PreferenceScreen: View {
                             SettingsIcon(symbol: "questionmark.circle", colors: [Color(red: 0.4, green: 0.7, blue: 0.95), Color(red: 0.25, green: 0.55, blue: 0.85)])
                         }
                     }
-                    let message = "mailto:hi@cue.dance?subject=Support&body=\n\nVersion: \(OSEnvironment.versionInfo)\nID: \(subscriptionService.userID)"
                     // The whole row opens Mail, not only its words.
-                    Link(destination: URL(string: message)!) {
+                    Link(destination: SupportMail.url) {
                         Label {
                             HStack {
                                 Text("Contact Support")
@@ -344,40 +301,7 @@ struct PreferenceScreen: View {
                 }
 
 #if DEBUG
-                Section {
-                    NavigationLink {
-                        FeatureGateDebugView()
-                            .withEnvironments()
-                    } label: {
-                        Label("Feature Gates", systemImage: "lock.open")
-                    }
-#if os(iOS) && !targetEnvironment(macCatalyst)
-                    Toggle(isOn: $carPlayMiniPlayer) {
-                        Label("CarPlay MiniPlayer", systemImage: "car")
-                    }
-#endif
-                    Toggle(isOn: $nowPlayingSession) {
-                        Label("Now Playing Session", systemImage: "play.rectangle")
-                    }
-                    // The offline app with the network up: the tab bar's
-                    // swap and Search's, switched while Cue runs.
-                    Toggle(isOn: $offline.simulatesOffline) {
-                        Label("Simulate No Network", systemImage: "wifi.slash")
-                    }
-                    // Whether the tab bar shrinking as a page scrolls is
-                    // what catches the scroll: switch it and compare.
-                    Toggle(isOn: $appState.minimizesTabBar) {
-                        Label("Shrink Tab Bar on Scroll", systemImage: "dock.arrow.down.rectangle")
-                    }
-                } header: {
-                    Text("Debug")
-                } footer: {
-#if os(iOS) && !targetEnvironment(macCatalyst)
-                    Text("Off (the default in Debug builds for now) hides the MiniPlayer in CarPlay, to see whether the car's Now Playing then follows Cue's own player after Apple Music. Takes effect the next time the car connects.\n\nNow Playing Session puts the Lock Screen and car card for Plex, Subsonic and radio through a session of the player making the sound. Takes effect from the next song started.")
-#else
-                    Text("Now Playing Session puts the Now Playing card for Plex, Subsonic and radio through a session of the player making the sound. Takes effect from the next song started.")
-#endif
-                }
+                DebugSettingsSection()
 #endif
             }
             .animation(.smooth(duration: 0.35), value: hasUnseenWhatsNew)
@@ -397,12 +321,11 @@ struct PreferenceScreen: View {
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)
         .withFullScreenCoverDestinations(destinations: $router.presentedFullScreenCover)
         .withAlert()
-        .task {
-            await subscriptionService.checkSubscription()
 #if DEBUG
+        .task {
             servers = await sonosService.services()
-#endif
         }
+#endif
         .onAppear {
             if OSEnvironment.isPreviews {
                 sonosService.monitor()
@@ -489,43 +412,6 @@ struct PreferenceScreen: View {
             : latestReleaseHeadline
     }
 
-    private func presentPaywall() {
-        featureGate.presentPaywall()
-    }
-
-    private var subscriptionStatusLine: Text {
-        let info = subscriptionService.subscription.info
-        var plan = info.flatMap { planName(for: $0.productIdentifier) }
-
-        if plan == "Lifetime" {
-            return Text("Lifetime")
-        }
-        // "Annual Free Trial · Renews …": the renewal is the first payment.
-        if info?.isTrial == true {
-            plan = [plan, "Free Trial"].compactMap { $0 }.joined(separator: " ")
-        }
-        if let info, let expiration = info.expirationDate {
-            let dateText = Text(expiration, style: .date)
-            let verb = info.willRenew ? "Renews" : "Expires"
-            if let plan {
-                return Text("\(plan) · \(verb) \(dateText)")
-            }
-            return Text("\(verb) \(dateText)")
-        }
-        if let plan {
-            return Text(plan)
-        }
-        return Text("Active subscription")
-    }
-
-    private func planName(for productIdentifier: String) -> String? {
-        let id = productIdentifier.lowercased()
-        if id.contains("lifetime") { return "Lifetime" }
-        if id.contains("annual") || id.contains("yearly") { return "Annual" }
-        if id.contains("month") { return "Monthly" }
-        return nil
-    }
-
     private func formattedSize(_ bytes: Int) -> String {
         let formatter = ByteCountFormatter()
         formatter.countStyle = .file
@@ -562,6 +448,58 @@ struct PreferenceScreen: View {
         }
     }
 }
+
+#if DEBUG
+/// Settings' Debug switches: on the iPhone's Settings and the Mac's General
+/// pane.
+struct DebugSettingsSection: View {
+    // Off until it's known whether the car's Now Playing follows without it
+    // (`CarPlayInterface.start`).
+    @AppStorage(Defaults.AppStorageKeys.carPlayMiniPlayer) private var carPlayMiniPlayer: Bool = false
+    @AppStorage(Defaults.AppStorageKeys.nowPlayingSession) private var nowPlayingSession: Bool = false
+    @State private var offline = OfflineMode.shared
+    @State private var appState = AppState.shared
+
+    var body: some View {
+        Section {
+            NavigationLink {
+                FeatureGateDebugView()
+                    .withEnvironments()
+            } label: {
+                Label("Feature Gates", systemImage: "lock.open")
+            }
+#if os(iOS) && !targetEnvironment(macCatalyst)
+            Toggle(isOn: $carPlayMiniPlayer) {
+                Label("CarPlay MiniPlayer", systemImage: "car")
+            }
+#endif
+            Toggle(isOn: $nowPlayingSession) {
+                Label("Now Playing Session", systemImage: "play.rectangle")
+            }
+            // The offline app with the network up: the tab bar's
+            // swap and Search's, switched while Cue runs.
+            Toggle(isOn: $offline.simulatesOffline) {
+                Label("Simulate No Network", systemImage: "wifi.slash")
+            }
+#if !targetEnvironment(macCatalyst)
+            // Whether the tab bar shrinking as a page scrolls is
+            // what catches the scroll: switch it and compare.
+            Toggle(isOn: $appState.minimizesTabBar) {
+                Label("Shrink Tab Bar on Scroll", systemImage: "dock.arrow.down.rectangle")
+            }
+#endif
+        } header: {
+            Text("Debug")
+        } footer: {
+#if os(iOS) && !targetEnvironment(macCatalyst)
+            Text("Off (the default in Debug builds for now) hides the MiniPlayer in CarPlay, to see whether the car's Now Playing then follows Cue's own player after Apple Music. Takes effect the next time the car connects.\n\nNow Playing Session puts the Lock Screen and car card for Plex, Subsonic and radio through a session of the player making the sound. Takes effect from the next song started.")
+#else
+            Text("Now Playing Session puts the Now Playing card for Plex, Subsonic and radio through a session of the player making the sound. Takes effect from the next song started.")
+#endif
+        }
+    }
+}
+#endif
 
 /// The capsule that marks a Cue Super feature in Preferences.
 struct SuperBadge: View {

@@ -365,33 +365,16 @@ struct SearchScreen: View {
         .keyboardType(.asciiCapable)
         .autocorrectionDisabled()
         .onKeyPress(.downArrow, phases: [.down, .repeat]) { _ in
-            let count = navigableCount
-            guard count > 0 else { return .ignored }
-            if let idx = keyboardSelectedIndex {
-                keyboardSelectedIndex = min(idx + 1, count - 1)
-            } else {
-                keyboardSelectedIndex = 0
-            }
-            return .handled
+            handle(.down) ? .handled : .ignored
         }
         .onKeyPress(.upArrow, phases: [.down, .repeat]) { _ in
-            guard keyboardSelectedIndex != nil else { return .ignored }
-            if let idx = keyboardSelectedIndex, idx > 0 {
-                keyboardSelectedIndex = idx - 1
-            } else {
-                keyboardSelectedIndex = nil
-            }
-            return .handled
+            handle(.up) ? .handled : .ignored
         }
         .onKeyPress(.return) {
-            guard let idx = keyboardSelectedIndex else { return .ignored }
-            activateSelectedItem(at: idx)
-            return .handled
+            handle(.select) ? .handled : .ignored
         }
         .onKeyPress(.escape) {
-            guard keyboardSelectedIndex != nil else { return .ignored }
-            keyboardSelectedIndex = nil
-            return .handled
+            handle(.cancel) ? .handled : .ignored
         }
         .presentationDragIndicator(.hidden)
         .listStyle(.plain)
@@ -547,14 +530,54 @@ struct SearchScreen: View {
     /// trailing one — a gap the width of the menu, with nothing in it. As a
     /// row of its own the field starts at the same inset as the headers
     /// beside it.
+    ///
+    /// Held to a width at the leading edge, over the filters it leads,
+    /// rather than run across a wide window.
     private var searchHeader: some View {
         searchBar
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: 640)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 16)
             .padding(.top, 10)
             .padding(.bottom, 6)
     }
 #endif
+
+    private enum ResultKey {
+        case down, up, select, cancel
+    }
+
+    /// The arrow keys move through the results, Return plays the one
+    /// chosen and Escape lets go of it. False when the key had nothing to do.
+    private func handle(_ key: ResultKey) -> Bool {
+        switch key {
+        case .down:
+            let count = navigableCount
+            guard count > 0 else { return false }
+            if let idx = keyboardSelectedIndex {
+                keyboardSelectedIndex = min(idx + 1, count - 1)
+            } else {
+                keyboardSelectedIndex = 0
+            }
+            return true
+        case .up:
+            guard keyboardSelectedIndex != nil else { return false }
+            if let idx = keyboardSelectedIndex, idx > 0 {
+                keyboardSelectedIndex = idx - 1
+            } else {
+                keyboardSelectedIndex = nil
+            }
+            return true
+        case .select:
+            guard let idx = keyboardSelectedIndex else { return false }
+            activateSelectedItem(at: idx)
+            return true
+        case .cancel:
+            guard keyboardSelectedIndex != nil else { return false }
+            keyboardSelectedIndex = nil
+            return true
+        }
+    }
 
     /// Focuses the field for a request not answered yet: a switch to the
     /// Search tab, or a tap on it while it shows. Only the tab's screen

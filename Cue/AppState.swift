@@ -40,6 +40,11 @@ final class AppState {
     var colorScheme: ColorSchemePreference {
         didSet { save(colorScheme.rawValue, from: oldValue.rawValue, as: AppStorageKeys.colorScheme) }
     }
+    /// Settings ▸ Appearance ▸ Interface Size, and View ▸ Bigger and
+    /// Smaller, on the Mac (`InterfaceSize`).
+    var interfaceSize: InterfaceSize {
+        didSet { save(interfaceSize.rawValue, from: oldValue.rawValue, as: AppStorageKeys.interfaceSize) }
+    }
     #if DEBUG
     /// Settings ▸ Debug ▸ Shrink Tab Bar on Scroll.
     var minimizesTabBar: Bool {
@@ -79,6 +84,7 @@ final class AppState {
         showAudiobooksTab = Self.bool(AppStorageKeys.showAudiobooksTab, default: true)
         showDownloadsTab = Self.bool(AppStorageKeys.showDownloadsTab, default: true)
         colorScheme = Self.colorSchemeSetting()
+        interfaceSize = defaults.string(forKey: AppStorageKeys.interfaceSize).flatMap(InterfaceSize.init(rawValue:)) ?? .standard
         #if DEBUG
         minimizesTabBar = Self.bool(Self.minimizesTabBarKey, default: true)
         #endif
@@ -86,7 +92,59 @@ final class AppState {
         queuePanelWidth = defaults.object(forKey: AppStorageKeys.queuePanelWidth) as? Double ?? 320
         tabCustomization = defaults.data(forKey: AppStorageKeys.tabViewCustomization)
             .flatMap { try? JSONDecoder().decode(TabViewCustomization.self, from: $0) } ?? TabViewCustomization()
+        #if DEBUG && targetEnvironment(macCatalyst)
+        listenForInterfaceSizeSteps()
+        #endif
     }
+
+    #if DEBUG && targetEnvironment(macCatalyst)
+    /// Debug: `notifyutil -p dance.cue.debug.interfaceSize` steps to the
+    /// next Interface Size (after the largest, the smallest), as View ▸
+    /// Bigger does, and `notifyutil -p dance.cue.debug.queue` shows or hides
+    /// the queue, as View ▸ Show Queue does, from outside the app.
+    private func listenForInterfaceSizeSteps() {
+        let center = CFNotificationCenterGetDarwinNotifyCenter()
+        CFNotificationCenterAddObserver(center, nil, { _, _, _, _, _ in
+            Task { @MainActor in
+                let sizes = InterfaceSize.allCases
+                let state = AppState.shared
+                let next = (sizes.firstIndex(of: state.interfaceSize).map { $0 + 1 } ?? 0) % sizes.count
+                state.interfaceSize = sizes[next]
+            }
+        }, "dance.cue.debug.interfaceSize" as CFString, nil, .deliverImmediately)
+        CFNotificationCenterAddObserver(center, nil, { _, _, _, _, _ in
+            Task { @MainActor in
+                withAnimation(.snappy) {
+                    AppState.shared.showsQueuePanel.toggle()
+                }
+            }
+        }, "dance.cue.debug.queue" as CFString, nil, .deliverImmediately)
+        // `notifyutil -p dance.cue.debug.closeWindow` does what the main
+        // window's close button and ⌘W do (hides Cue), to test what
+        // reopening keeps.
+        CFNotificationCenterAddObserver(center, nil, { _, _, _, _, _ in
+            Task { @MainActor in
+                MenuAppLaunchAtLoginManager.shared.bridge?.hideApp()
+            }
+        }, "dance.cue.debug.closeWindow" as CFString, nil, .deliverImmediately)
+        // `notifyutil -p dance.cue.debug.windowWider` (and `windowNarrower`)
+        // resizes the main window 40 pt, to walk a layout through its widths.
+        CFNotificationCenterAddObserver(center, nil, { _, _, _, _, _ in
+            Task { @MainActor in AppState.resizeMainWindow(by: 40) }
+        }, "dance.cue.debug.windowWider" as CFString, nil, .deliverImmediately)
+        CFNotificationCenterAddObserver(center, nil, { _, _, _, _, _ in
+            Task { @MainActor in AppState.resizeMainWindow(by: -40) }
+        }, "dance.cue.debug.windowNarrower" as CFString, nil, .deliverImmediately)
+    }
+
+    private static func resizeMainWindow(by change: CGFloat) {
+        for scene in UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }) where !SettingsWindow.isMarked(scene.session) {
+            var frame = scene.effectiveGeometry.systemFrame
+            frame.size.width += change
+            scene.requestGeometryUpdate(.Mac(systemFrame: frame))
+        }
+    }
+    #endif
 
     /// A setting written to UserDefaults when it changed: a write of any key
     /// runs every view still holding `@AppStorage` again.
@@ -117,6 +175,19 @@ final class AppState {
     /// crashing UIKit with a nil tab bar item. Kept as a switch for when
     /// the sections come back.
     var showsLibrarySections: Bool { false }
+
+    /// The Mac's and the iPad's window (`LargeWindowShell`): the sidebar and the
+    /// queue down its sides and the player's bar floating over the page's
+    /// foot, in place of the `TabView` (an iPad window too narrow for that
+    /// keeps the tabs). Its sidebar opens a provider's collections (Artists,
+    /// Albums, …) as tabs of their own.
+    static var usesLargeWindow: Bool {
+#if targetEnvironment(macCatalyst)
+        true
+#else
+        UIDevice.current.userInterfaceIdiom == .pad
+#endif
+    }
 
     /// The providers with a section in the sidebar: every one that browses
     /// by collection and is switched on in Services, in the order the app
@@ -218,6 +289,13 @@ final class AppState {
         }
         if showsDownloadsTab {
             tabs.insert(.downloads)
+        }
+        if Self.usesLargeWindow {
+            for service in tabProviders {
+                for collection in service.tabCollections {
+                    tabs.insert(.providerCollection(service, collection))
+                }
+            }
         }
         if showsLibrarySections {
             tabs.insert(.home)

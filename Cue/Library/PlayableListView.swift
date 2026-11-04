@@ -227,10 +227,12 @@ struct PlayableListView: View {
             if isGrid {
                 gridContent
             } else {
+                let sections = letterSections
                 List {
                     PlayAllButtonView(item: playAllItem)
-                    contentSection
+                    contentSection(sections)
                 }
+                .letterIndex(sections?.map(\.letter) ?? [])
             }
         }
         .overlay {
@@ -395,25 +397,30 @@ struct PlayableListView: View {
         return showSectionIndex ? { $0.title } : nil
     }
 
+    /// The rows by letter, in the order the list runs, or nil for a list
+    /// with no index. Grouped once per render, for the sections and the
+    /// index alike: `groupedItems` is computed, and reading it again inside
+    /// every section regrouped the whole list once per letter — ~27 full
+    /// passes each time a row appeared and nudged the load-more check.
+    private var letterSections: [(letter: String, items: [PlayableContent])]? {
+        guard let sectionKey else { return nil }
+        let grouped = groupedItems(by: sectionKey)
+        // The letters run the way the rows do, so a Z – A order keeps
+        // its Z at the top rather than being re-bucketed A – Z.
+        let reversed = selectedSort?.isReversible == true && isDescending
+        let letters = reversed ? grouped.keys.sorted(by: >) : grouped.keys.sorted()
+        return letters.map { ($0, grouped[$0] ?? []) }
+    }
+
     @ViewBuilder
-    private var contentSection: some View {
-        if let sectionKey {
-            // Grouped once per render: `groupedItems` is computed, and
-            // reading it again inside every section regrouped the whole
-            // list once per letter — ~27 full passes each time a row
-            // appeared and nudged the load-more check.
-            let grouped = groupedItems(by: sectionKey)
-            // The letters run the way the rows do, so a Z – A order keeps
-            // its Z at the top rather than being re-bucketed A – Z.
-            let reversed = selectedSort?.isReversible == true && isDescending
-            let letters = reversed ? grouped.keys.sorted(by: >) : grouped.keys.sorted()
-            ForEach(letters, id: \.self) { letter in
-                Section(header: Text(letter)) {
-                    ForEach(grouped[letter] ?? []) { item in
+    private func contentSection(_ sections: [(letter: String, items: [PlayableContent])]?) -> some View {
+        if let sections {
+            ForEach(sections, id: \.letter) { section in
+                LetterSection(letter: section.letter) {
+                    ForEach(section.items) { item in
                         playableRow(item: item)
                     }
                 }
-                .sectionIndex(letter)
             }
         } else {
             ForEach(items) { item in

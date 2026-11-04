@@ -266,6 +266,7 @@ struct GroupScreen: View {
         }
         .presentationDetents([.large])
         .presentationDragIndicator(.hidden)
+        .showsOtherGroups()
         .task {
             guard let foundGroup = sonosService.sorted.first(where: { $0.coordinatorID == coordinatorID }) else { return }
             group = foundGroup

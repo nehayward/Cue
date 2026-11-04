@@ -207,8 +207,20 @@ struct ContentArtworkView: View {
         }
     }
 
-    /// The image itself, clipped: what gets dragged.
+    /// The image itself, clipped: what gets dragged. A cover from the Mac's
+    /// Apple Music library has no address to fetch, only MusicKit's own
+    /// view to draw it (`MusicKitArtworks`).
+    @ViewBuilder
     private var artwork: some View {
+        if let musicKitArtwork = MusicKitArtworks.artwork(for: artworkURL) {
+            MusicKitCover(artwork: musicKitArtwork, placeholderStyle: placeholderStyle)
+                .clipShape(.rect(cornerRadius: isCircular ? .greatestFiniteMagnitude : cornerRadius))
+        } else {
+            loadedArtwork
+        }
+    }
+
+    private var loadedArtwork: some View {
         LazyImage(request: artworkRequest) { state in
             if let image = state.image {
                 image
@@ -246,7 +258,37 @@ struct ContentArtworkView: View {
                 .foregroundStyle(.ultraThinMaterial)
         }
 #endif
-        .clipShape(.rect(cornerRadius: isCircular ? preferredSize / 2 : cornerRadius))
+        // A radius past half the side is a circle at whatever size the
+        // artwork is drawn: the Mac's rows draw it bigger than
+        // `preferredSize`, and half of that left an artist a rounded square.
+        .clipShape(.rect(cornerRadius: isCircular ? .greatestFiniteMagnitude : cornerRadius))
+    }
+}
+
+/// A cover MusicKit draws itself, filling a square at the size it's laid
+/// out at, over the placeholder the other covers show, which is all an
+/// album with no artwork gets.
+private struct MusicKitCover: View {
+    let artwork: Artwork
+    let placeholderStyle: AnyShapeStyle
+
+    var body: some View {
+        Rectangle()
+            .foregroundStyle(placeholderStyle)
+            .aspectRatio(1, contentMode: .fit)
+            .overlay {
+                Image(systemName: "music.note")
+                    .resizable()
+                    .scaledToFit()
+                    .foregroundStyle(.secondary)
+                    .frame(width: 24, height: 24)
+                    .bold()
+            }
+            .overlay {
+                GeometryReader { proxy in
+                    ArtworkImage(artwork, width: proxy.size.width, height: proxy.size.height)
+                }
+            }
     }
 }
 

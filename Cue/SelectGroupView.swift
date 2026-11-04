@@ -62,6 +62,13 @@ struct SelectGroupView: View {
     }
     
     var body: some View {
+        picker
+            // Its rows show each group's song and level.
+            .showsOtherGroups()
+    }
+
+    @ViewBuilder
+    private var picker: some View {
         NavigationStack {
             VStack(spacing: 0) {
                 if let content {
@@ -477,7 +484,7 @@ struct SelectGroupView: View {
                     .font(.title3)
                     .foregroundStyle(deviceSelected ? Color.accentColor : .secondary)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("This Device")
+                    Text(ThisDevice.name)
                         .font(.body.weight(.semibold))
                     Text("Play here instead of a speaker")
                         .font(.caption)

@@ -34,6 +34,7 @@ public struct VibeSlider: View {
     private var capsuleColor: Color { colorScheme == .dark ? .white : .black }
     private let delayDrag: Bool
     private let immediateDrag: Bool
+    private let touchHeight: CGFloat?
     private let showValue: Bool
     private var onEditingChanged: (Bool) -> Void
     private let onLongPress: (() -> Void)?
@@ -55,6 +56,10 @@ public struct VibeSlider: View {
     ///   - immediateDrag: Start the drag on touch-down so a navigation back
     ///     swipe can't claim it first. Only for sliders outside scroll views —
     ///     it also stops a scroll that starts on the slider. iOS 18+.
+    ///   - touchHeight: How tall the slider takes a touch, for one thinner than
+    ///     a finger: a touch covers more than a thin track, and went to whatever
+    ///     button sat beside it. Put a frame of `baseHeight` on the slider so
+    ///     this doesn't take room in the layout.
     ///   - valueAnimation: How the fill moves when `value` changes. Pass `nil`
     ///     to have it swap in place instead — the animation is applied inside
     ///     the slider, so a caller cannot suppress it with a transaction from
@@ -70,6 +75,7 @@ public struct VibeSlider: View {
         baseHeight: CGFloat = 24,
         delayDrag: Bool = false,
         immediateDrag: Bool = false,
+        touchHeight: CGFloat? = nil,
         showValue: Bool = false,
         valueAnimation: Animation? = .interactiveSpring,
         onEditingChanged: @escaping (Bool) -> Void = { _ in },
@@ -84,6 +90,7 @@ public struct VibeSlider: View {
             self.delayDrag = delayDrag
 #endif
             self.immediateDrag = immediateDrag
+            self.touchHeight = touchHeight
             self.showValue = showValue
             self.valueAnimation = valueAnimation
             self.onEditingChanged = onEditingChanged
@@ -136,6 +143,10 @@ public struct VibeSlider: View {
             Color.orange.opacity(0.0001)
                 .frame(height: 40.0)
 #endif
+            if let touchHeight {
+                Color.orange.opacity(0.0001)
+                    .frame(height: touchHeight)
+            }
             Capsule()
                 .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
                 .frame(height: baseHeight)

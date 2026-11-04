@@ -148,11 +148,9 @@ struct LargePlayerView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .animation(.interactiveSpring, value: showArtworkOnly)
-            #if !targetEnvironment(macCatalyst)
             .onDisappear {
                 sonosService.selectedGroup = nil
             }
-            #endif
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {

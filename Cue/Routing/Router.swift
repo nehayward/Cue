@@ -58,6 +58,35 @@ enum AppTab: Hashable, Codable {
     /// on it from outside the tab (`showAudiobooks(_:)`). Bound by that tab
     /// alone: two stacks bound to one path push each other.
     static var audiobooks = Router()
+    /// Radio's and Downloads' stacks, here rather than in their screens so
+    /// the Mac window can reach them (`forTab(_:)`). Each bound by its own
+    /// tab alone, as `audiobooks` is.
+    static var radio = Router()
+    static var downloads = Router()
+    /// The Mac window's stack of a playlist chosen in the sidebar
+    /// (`LargeWindowShell`).
+    static var largeWindowPlaylist = Router()
+
+    /// A provider's tabs' stacks, one per tab, made as each is first shown.
+    private static var providerRouters: [AppTab: Router] = [:]
+
+    /// The router whose stack a tab shows, for the Mac window, whose
+    /// sidebar takes a tab chosen again back to its first page.
+    @MainActor
+    static func forTab(_ tab: AppTab) -> Router {
+        switch tab {
+        case .browse: return browse
+        case .search: return search
+        case .radio: return radio
+        case .audiobooks: return audiobooks
+        case .downloads: return downloads
+        case .home, .provider, .providerCollection:
+            if let router = providerRouters[tab] { return router }
+            let router = Router()
+            providerRouters[tab] = router
+            return router
+        }
+    }
 
     var selectedID: String?
     /// The selected tab. On `Router.main` only — the per-screen routers
@@ -111,12 +140,38 @@ enum AppTab: Hashable, Codable {
         }
     }
     @ObservationIgnored private var storedPath: [RouterDestination] = []
-    var presentedSheet: SheetDestination?
+    var presentedSheet: SheetDestination? {
+        didSet {
+#if targetEnvironment(macCatalyst)
+            // Settings is a window of its own on the Mac (`SettingsWindow`),
+            // whichever router is asked for it.
+            if case let .settings(destination) = presentedSheet {
+                presentedSheet = oldValue
+                MainActor.assumeIsolated {
+                    SettingsWindow.shared.open(destination)
+                }
+            }
+#endif
+        }
+    }
     /// Destinations presented as `fullScreenCover` rather than `.sheet`.
     /// Currently used for `.paywall` and `.onboard` — moments where we want
     /// full canvas and no swipe-to-dismiss. Use `fullScreenCover(to:)` to
     /// route, rather than `sheet(to:)`, so intent reads at the call site.
-    var presentedFullScreenCover: SheetDestination?
+    var presentedFullScreenCover: SheetDestination? {
+        didSet {
+#if targetEnvironment(macCatalyst)
+            // The paywall is a window of its own on the Mac (`PaywallWindow`),
+            // whichever router is asked for it.
+            if case .paywall = presentedFullScreenCover {
+                presentedFullScreenCover = oldValue
+                MainActor.assumeIsolated {
+                    PaywallWindow.shared.open()
+                }
+            }
+#endif
+        }
+    }
     var secondarySheet: SheetDestination?
 
     @MainActor var inspectorSheet: InspectorDestination?

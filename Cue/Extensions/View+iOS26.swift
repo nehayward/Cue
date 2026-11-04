@@ -178,8 +178,10 @@ extension View {
     
     /// The A–Z index down a list's trailing edge. Skipped on Catalyst: on
     /// macOS 27 the index sticks in its scrubbing state, which blurs and
-    /// dims every row while the section headers stay sharp. iPhone and iPad
-    /// keep it, where a finger scrub ends and the state clears.
+    /// dims every row while the section headers stay sharp. There
+    /// `LetterSection` and `letterIndex(_:)` draw Cue's own headings and
+    /// index; iPhone and iPad keep the system's, where a finger scrub ends
+    /// and the state clears.
     @ViewBuilder
     func sectionIndex(_ label: String) -> some View {
 #if targetEnvironment(macCatalyst)

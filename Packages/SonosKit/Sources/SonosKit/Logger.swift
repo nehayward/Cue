@@ -1,9 +1,13 @@
 import Foundation
 
 /// Debug builds keep the last of each kind of speaker response in
-/// Documents/Logs, to read when a speaker misbehaves.
+/// Documents/Logs, to read when a speaker misbehaves, when asked for at
+/// launch: `-dance.cue.logSonosResponses YES`. Off otherwise, as the
+/// topology alone was written twice a second.
 final class SonosLogInformation: @unchecked Sendable {
     static let shared = SonosLogInformation()
+
+    private let isOn = UserDefaults.standard.bool(forKey: "dance.cue.logSonosResponses")
 
     /// Writes one at a time, in order, off the main thread: speaker polls
     /// log a response every few seconds, and each was a file write on the
@@ -15,6 +19,7 @@ final class SonosLogInformation: @unchecked Sendable {
     /// release builds used to build on every poll and then drop.
     func log(name: String, _ message: @autoclosure @escaping () -> String) {
 #if DEBUG
+        guard isOn else { return }
         queue.async {
             let logMessage = message()
 

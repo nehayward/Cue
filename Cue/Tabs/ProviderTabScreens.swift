@@ -25,10 +25,10 @@ struct ProviderTabScreen: View {
     @Environment(LibraryBrowseService.self) private var libraryBrowseService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService?
 
-    /// One router per tab, never `Router.browse`: the Browse tab may be
-    /// showing this same provider, and two `NavigationStack`s bound to one
-    /// path push and pop each other.
-    @State private var router = Router()
+    /// One router per tab (`Router.forTab(_:)`), never `Router.browse`: the
+    /// Browse tab may be showing this same provider, and two
+    /// `NavigationStack`s bound to one path push and pop each other.
+    let router: Router
 
     private var library: ProviderLibrary {
         ProviderLibrary(
@@ -47,6 +47,7 @@ struct ProviderTabScreen: View {
 
     var body: some View {
         let library = library
+        @Bindable var router = router
 
         NavigationStack(path: $router.path) {
             Group {
@@ -136,6 +137,6 @@ struct ProviderTabScreen: View {
 }
 
 #Preview {
-    ProviderTabScreen(service: .plex, collections: MediaSearchService.plex.tabCollections, collection: .albums)
+    ProviderTabScreen(service: .plex, collections: MediaSearchService.plex.tabCollections, collection: .albums, router: Router())
         .withEnvironments()
 }

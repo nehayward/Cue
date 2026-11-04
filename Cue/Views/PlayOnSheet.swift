@@ -70,20 +70,36 @@ struct PlayOnSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Outside the list, so a pull down on it is always the sheet's.
-            PlayOnHeader(isPopover: isPopover)
-                .padding(.horizontal, 24)
-                // Clear of the sheet's grabber; a popover has none.
-                .padding(.top, isPopover ? 20 : 28)
-                .padding(.bottom, 8)
-                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
-                    headerHeight = $0
-                    refit()
-                }
+        content
+            // Its rows show each group's song and level.
+            .showsOtherGroups()
+    }
 
-            roomList
-            groupBar
+    @ViewBuilder
+    private var content: some View {
+        VStack(spacing: 0) {
+            // In a popover the Move prompt takes the rooms' place: a sheet
+            // presented from a popover opened as a large window on the Mac,
+            // whatever size it asked for.
+            if isPopover, let pending {
+                RouteTransferPrompt(target: pending.target) { carrying in
+                    choose(pending, carrying: carrying)
+                }
+            } else {
+                // Outside the list, so a pull down on it is always the sheet's.
+                PlayOnHeader(isPopover: isPopover)
+                    .padding(.horizontal, 24)
+                    // Clear of the sheet's grabber; a popover has none.
+                    .padding(.top, isPopover ? 20 : 28)
+                    .padding(.bottom, 8)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
+                        headerHeight = $0
+                        refit()
+                    }
+
+                roomList
+                groupBar
+            }
         }
         .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: {
             bottomInset = $0
@@ -93,7 +109,7 @@ struct PlayOnSheet: View {
         // height a sheet would be fitted to.
         .frame(
             idealWidth: isPopover ? 400 : nil,
-            idealHeight: isPopover ? (sheetHeight ?? openingSheetHeight) : nil
+            idealHeight: isPopover && pending == nil ? (sheetHeight ?? openingSheetHeight) : nil
         )
         // Opens fitted to the rooms, as the system's picker does, and a swipe
         // up still takes it to full height. The binding keeps it fitted as
@@ -103,10 +119,9 @@ struct PlayOnSheet: View {
             set: { isFullHeight = $0 == .large }
         ))
         .presentationDragIndicator(.visible)
-        .sheet(item: $pending) { pending in
+        .sheet(item: isPopover ? .constant(nil) : $pending) { pending in
             RouteTransferPrompt(target: pending.target) { carrying in
-                self.pending = nil
-                route.switchTo(pending.target, carrying: carrying)
+                choose(pending, carrying: carrying)
             }
         }
         .task { await refreshRoomVolumes() }
@@ -117,6 +132,12 @@ struct PlayOnSheet: View {
                 route.prefetchTargets()
             }
         }
+    }
+
+    /// The Move prompt's answer: the switch, moving what plays or not.
+    private func choose(_ pending: PendingSwitch, carrying: Bool) {
+        self.pending = nil
+        route.switchTo(pending.target, carrying: carrying)
     }
 
     private var roomList: some View {
@@ -386,8 +407,8 @@ private struct DeviceRow: View {
 
     var body: some View {
         VolumeRouteRow(
-            title: String(localized: "This Device"),
-            icon: .symbol(Self.symbol),
+            title: ThisDevice.name,
+            icon: .symbol(ThisDevice.symbol),
             mark: isCurrent ? .checkmark : .empty,
             // While a speaker holds the system volume, the device's own
             // level isn't the one the buttons move: no fill to drag.
@@ -398,15 +419,6 @@ private struct DeviceRow: View {
         )
     }
 
-    private static var symbol: String {
-#if os(visionOS)
-        return "visionpro"
-#elseif targetEnvironment(macCatalyst)
-        return "laptopcomputer"
-#else
-        return UIDevice.current.userInterfaceIdiom == .pad ? "ipad" : "iphone"
-#endif
-    }
 }
 
 /// The bar under the rooms once playback is on a speaker: Everywhere (a
@@ -420,7 +432,7 @@ private struct GroupBar: View {
     var body: some View {
         let membership = GroupMembership(group: group)
         let isEverywhere = membership.allGrouped
-        let isMuted = group.isMuted || group.rooms.allSatisfy(\.isMuted)
+        let isMuted = group.isAllMuted
         let isFixed = group.coordinatorRoom.isOutputFixed
         let level = Int(group.groupVolume.rounded())
         let isLevel = group.rooms.allSatisfy { Int($0.volume.rounded()) == level }
@@ -486,15 +498,24 @@ private struct GroupBar: View {
         }
     }
 
-    /// Sonos's group mute mutes or unmutes every room in it. Shown at once
-    /// on the rooms too; the poll confirms it.
     private func setAllMuted(_ mute: Bool) {
         HapticManager.shared.fireHaptic(.selection)
-        group.holdMute(mute)
-        for room in group.rooms where room.isMuted != mute {
-            room.holdMute(mute)
-        }
-        Task { await SonosService.shared.setGroupMute(group: group, mute: mute) }
+        group.setAllMuted(mute)
+    }
+}
+
+extension GroupRoom {
+    /// Sonos's group mute mutes or unmutes every room in it. Shown at once
+    /// on the rooms too; the poll confirms it. The Play On sheet's All
+    /// Speakers and the Mac window's player bar.
+    @MainActor
+    func setAllMuted(_ mute: Bool) {
+        Task { await PlayerCommands.setMuted(mute, self) }
+    }
+
+    /// Whether the group reads as muted: its own mute, or every room's.
+    var isAllMuted: Bool {
+        isMuted || rooms.allSatisfy(\.isMuted)
     }
 }
 
@@ -812,7 +833,7 @@ private struct PlayOnHeader: View {
     private var subtitle: Text {
         if let subtitle = item?.subtitle, !subtitle.isEmpty { return Text(subtitle) }
         if let group = route.group { return Text(group.nameWithCount) }
-        return Text("This Device")
+        return Text(ThisDevice.name)
     }
 }
 
@@ -861,10 +882,15 @@ struct VolumeRouteRow: View {
     /// The level when the volume drag began; `nil` when there isn't one.
     @State private var startLevel: Double?
     @State private var width: CGFloat = 0
+    @State private var isHovering = false
 
     private static let accessibilityStep = 0.05
 
     private var isAdjusting: Bool { startLevel != nil }
+    /// The level in the row's trailing slot: while it's dragged, and under
+    /// the pointer where the slot holds nothing else (a hover doesn't take a
+    /// row's checkmark away just as it's about to be clicked).
+    private var showsLevel: Bool { level != nil && (isAdjusting || isHovering && mark == .empty) }
     private var isSelected: Bool { mark == .checkmark || mark == .checkedCircle }
 
     /// The percent a drag last ticked at. A plain reference, not state:
@@ -896,6 +922,7 @@ struct VolumeRouteRow: View {
         }
         .contentShape(.contextMenuPreview, .capsule)
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+        .onHover { isHovering = $0 }
         .scaleEffect(isAdjusting ? 1.02 : 1)
         .animation(.snappy(duration: 0.2), value: isAdjusting)
         .gesture(
@@ -976,6 +1003,7 @@ struct VolumeRouteRow: View {
             // Said in the value and the selected trait instead.
             accessory
                 .frame(minWidth: 28, alignment: .trailing)
+                .animation(.snappy(duration: 0.15), value: showsLevel)
                 .accessibilityHidden(true)
         }
         .padding(.horizontal, 18)
@@ -1011,7 +1039,7 @@ struct VolumeRouteRow: View {
 
     @ViewBuilder
     private var accessory: some View {
-        if isAdjusting, let level {
+        if showsLevel, let level {
             Text(level, format: .percent.precision(.fractionLength(0)))
                 .font(.callout.weight(.semibold))
                 .monospacedDigit()
@@ -1468,4 +1496,14 @@ final class SpeakerVolumeWriter {
         .sheet(isPresented: .constant(true)) {
             PlayOnSheet()
         }
+}
+
+extension View {
+    /// Has the other groups' songs and levels read every second while this
+    /// shows (`SonosService.beginShowingOtherGroups`): with nothing showing
+    /// them they go unread.
+    func showsOtherGroups() -> some View {
+        onAppear { SonosService.shared.beginShowingOtherGroups() }
+            .onDisappear { SonosService.shared.endShowingOtherGroups() }
+    }
 }

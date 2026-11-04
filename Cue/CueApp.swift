@@ -43,7 +43,6 @@ struct MusicPlaybackView: View {
     /// Singletons rather than the environment: the accessory is hosted
     /// outside what `withEnvironments()` installs on the tab content.
     private var route: PlaybackRoute { .shared }
-    private var sonosService: SonosService { .shared }
 
     /// The iPad's layout (`PadLayout`), from the accessory's own size
     /// classes for the same reason as the singletons above: an iPhone Duo
@@ -57,16 +56,8 @@ struct MusicPlaybackView: View {
         // The buttons sit in cells of their own width, which space them, so
         // the row's own spacing is small.
         HStack(spacing: 4) {
-#if targetEnvironment(macCatalyst)
-            // The Mac's bar, after Music's: the transport at the leading
-            // end, Previous too, then the song, then Play On and the queue.
-            transportButtons(includesPrevious: true)
             trackButton
-                .padding(.horizontal, 8)
-#else
-            trackButton
-            transportButtons(includesPrevious: false)
-#endif
+            transportButtons
 
             // Present playing or not: the route is set ahead of Play, which
             // is the whole point of it no longer asking. Not in the bar
@@ -83,23 +74,12 @@ struct MusicPlaybackView: View {
             // open. Only at a regular width: a compact window has no side
             // panel to show. The Mac's is in the View menu too.
             if usesPadLayout, UIDevice.current.userInterfaceIdiom != .vision, horizontalSizeClass == .regular {
-                // A book's chapters take the panel (`QueueNextUpView`).
-                let isBook = AudiobookPlayer.shared.isPlayingBook(on: route.presented)
                 Button {
                     withAnimation(.snappy) {
                         appState.showsQueuePanel.toggle()
                     }
                 } label: {
-                    // The player's queue gauge: how far through the queue
-                    // playback is, for what's on screen. For a book, the
-                    // player's bookmark with the chapter's number.
-                    Group {
-                        if isBook {
-                            AudiobookChapterIconView()
-                        } else {
-                            PresentedQueueIconView()
-                        }
-                    }
+                    QueueToggleIcon()
                         .font(.title3)
                         // Shown: a soft accent disc behind the gauge rather
                         // than the gauge itself in accent, so its number stays
@@ -111,9 +91,9 @@ struct MusicPlaybackView: View {
                 }
                 .buttonStyle(.plain)
                 .animation(.snappy, value: appState.showsQueuePanel)
-                .accessibilityLabel(isBook ? (appState.showsQueuePanel ? "Hide Chapters" : "Show Chapters") : (appState.showsQueuePanel ? "Hide Queue" : "Show Queue"))
+                .accessibilityLabel(QueueToggleIcon.title(isShown: appState.showsQueuePanel))
                 .accessibilityAddTraits(appState.showsQueuePanel ? .isSelected : [])
-                .help(appState.showsQueuePanel ? "Hide Queue (⌥⌘0)" : "Show Queue (⌥⌘0)")
+                .help("\(QueueToggleIcon.title(isShown: appState.showsQueuePanel)) (⌥⌘0)")
             }
         }
         .padding(.horizontal, 12)
@@ -135,14 +115,10 @@ struct MusicPlaybackView: View {
     }
 
     /// iPad's bar, and an iPhone Duo open's, has the room for a longer
-    /// title before it scrolls. The Mac's is wider again, as Music's is,
-    /// with the transport in it as well.
+    /// title before it scrolls. (The Mac's window has a bar of its own,
+    /// `LargePlayerBar`.)
     private var maxWidth: CGFloat {
-#if targetEnvironment(macCatalyst)
-        760
-#else
         usesPadLayout && UIDevice.current.userInterfaceIdiom != .vision ? 720 : 500
-#endif
     }
 
     /// The iPhone's bar, and an iPad window's at a compact width, is as
@@ -183,7 +159,7 @@ struct MusicPlaybackView: View {
     /// else the speaker's name for a speaker and the artist here.
     private func subtitle(for item: PlayableContent?, on group: GroupRoom?) -> String? {
         if route.isHolding {
-            return "Moving to \(route.group?.nameWithCount ?? "This Device")…"
+            return "Moving to \(route.group?.nameWithCount ?? ThisDevice.name)…"
         }
         if let group {
             return group.nameWithCount
@@ -199,12 +175,9 @@ struct MusicPlaybackView: View {
 
     // MARK: - Now playing
 
-    /// A book reads as what's left of its chapter, and skips 15 and 30 s
-    /// where a song goes to the previous and the next: a book's file is a
-    /// chapter or more. Not while a hand-off holds the row.
-    private var isBook: Bool {
-        AudiobookPlayer.shared.isPlayingBook(on: route.presented) && !route.isHolding
-    }
+    /// A book reads as what's left of its chapter, and skips 30 s where a
+    /// song goes to the next (`PlayerCommands`).
+    private var isBook: Bool { PlayerCommands.isBook }
 
     /// The track: the cover, the title and the line under it, opening the
     /// player. The display item, not the queue row: a station reads as the
@@ -272,44 +245,19 @@ struct MusicPlaybackView: View {
         .zoomSource(.miniPlayer, in: zoomNamespace)
     }
 
-    /// Play and Pause and Next, with Previous ahead of them on the Mac. While
-    /// a hand-off holds the row on its source, the source is on its way out:
-    /// the buttons rest and Play reads as it did (`HeldPlaybackController`).
+    /// Play and Pause, and Next (a book's 30 s forward). While a hand-off
+    /// holds the row on its source, the source is on its way out: the
+    /// buttons rest and Play reads as it did (`HeldPlaybackController`).
     @ViewBuilder
-    private func transportButtons(includesPrevious: Bool) -> some View {
+    private var transportButtons: some View {
         let controller = route.presented
         let item = controller.nowPlayingDisplay
         let isPlaying = controller.isPlaying
 
         if item != nil || controller.isPlaying {
-            if includesPrevious, placement != .inline, controller.showsPrevious || isBook {
-                Button {
-                    HapticManager.shared.fireHaptic(.buttonPress)
-                    if isBook {
-                        Task { await AudiobookPlayer.shared.skip(by: -AudiobookPlayer.skipBackInterval) }
-                        return
-                    }
-                    Task {
-                        await controller.previous()
-                        // As Next: this brings the speaker's new song in.
-                        if let group = controller.group {
-                            try? await sonosService.updateGroups(from: [group])
-                        }
-                    }
-                } label: {
-                    Image(systemName: isBook ? "gobackward.\(Int(AudiobookPlayer.skipBackInterval))" : "backward.fill")
-                        .frame(width: Self.buttonSide, height: Self.buttonSide)
-                        .contentShape(.rect)
-                }
-                .buttonStyle(.plain)
-                .font(.title3)
-                .accessibilityLabel(isBook ? "Back \(Int(AudiobookPlayer.skipBackInterval)) Seconds" : "Previous")
-                .disabled(!isBook && !controller.canGoBack)
-            }
-
             Button {
                 HapticManager.shared.fireHaptic(.buttonPress)
-                Task { await controller.togglePlayback() }
+                Task { await PlayerCommands.togglePlayback() }
             } label: {
                 MiniPlayerPlayPauseLabel(controller: controller, isRinged: isCompact, showsProgress: item != nil)
             }
@@ -322,27 +270,16 @@ struct MusicPlaybackView: View {
             if placement != .inline, controller.showsNext || isBook {
                 Button {
                     HapticManager.shared.fireHaptic(.buttonPress)
-                    if isBook {
-                        Task { await AudiobookPlayer.shared.skip(by: AudiobookPlayer.skipForwardInterval) }
-                        return
-                    }
-                    Task {
-                        await controller.next()
-                        // Nothing may be listening to the speaker with the
-                        // player closed; this brings the new song in.
-                        if let group = controller.group {
-                            try? await sonosService.updateGroups(from: [group])
-                        }
-                    }
+                    Task { await PlayerCommands.next() }
                 } label: {
-                    Image(systemName: isBook ? "goforward.\(Int(AudiobookPlayer.skipForwardInterval))" : "forward.fill")
+                    Image(systemName: PlayerCommands.nextSymbol)
                         .frame(width: Self.buttonSide, height: Self.buttonSide)
                         .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
                 .font(.title3)
-                .accessibilityLabel(isBook ? "Forward \(Int(AudiobookPlayer.skipForwardInterval)) Seconds" : "Next")
-                .disabled(!isBook && !controller.hasNext)
+                .accessibilityLabel(PlayerCommands.nextTitle)
+                .disabled(!PlayerCommands.canGoNext)
             }
         }
     }
@@ -392,19 +329,6 @@ struct CueApp: App {
     
 #if targetEnvironment(macCatalyst)
     private var menuAppLaunchAtLoginManager = MenuAppLaunchAtLoginManager.shared
-
-    /// Composite key driving `.task(id:)` for the dock menu. Reading these
-    /// properties during body eval registers SwiftUI observation, so any
-    /// change re-fires the refresh task.
-    private var dockRefreshKey: DockMenuCoordinator.RefreshKey {
-        let group = router.selectedID.flatMap { id in sonosService.sorted.first(where: { $0.coordinatorID == id }) }
-        return .init(
-            selectedGroupID: router.selectedID,
-            trackUnique: group?.coordinatorRoom.track.unique,
-            isPlaying: group?.coordinatorRoom.isPlaying ?? false,
-            availableGroupIDs: sonosService.sorted.map { $0.coordinatorID }
-        )
-    }
 #endif
     
     /// Shared by the zoom's two halves: the source in the tab bar accessory and
@@ -560,62 +484,99 @@ struct CueApp: App {
         }
     }
 
+    /// The window's tabs, on iPhone and iPad: the tab bar (iPad's
+    /// sidebar too) with the mini player as its accessory, and the queue
+    /// panel beside it. The Mac's window is `LargeWindowShell` instead.
+    @ViewBuilder
+    private var tabView: some View {
+        @Bindable var router = router
+        TabView(selection: tabSelection) {
+            if !appState.showsLibrarySections {
+                // The phone's three on every device, Browse first in
+                // Home's place: providers are browsed from Browse's menu
+                // and set up in Settings › Services. No provider tabs, so
+                // the bar never overflows into More. Browse is the home
+                // here, so it's named Home and has the house. Offline it
+                // goes, and Downloads leads in its place.
+                if appState.showsBrowseTab {
+                    Tab("Home", image: "home.fill", value: AppTab.browse) {
+                        Screens.browse
+                    }
+                }
+                searchTab
+                radioTab
+                audiobooksTab
+                downloadsTab
+            } else {
+                Tab("Home", image: "home.fill", value: AppTab.home) {
+                    Screens.home
+                }
+                searchTab
+                Tab("Browse", systemImage: "square.grid.2x2", value: AppTab.browse) {
+                    Screens.browse
+                }
+                radioTab
+                audiobooksTab
+                downloadsTab
+
+                // The providers twice over, both driven by the switched-on
+                // set: once as tabs in one section, which is how the
+                // sidebar lets them be reordered and hidden, and then a
+                // collection section per provider. One turned off in
+                // Services drops out of both; its sidebar edits stay in
+                // the customization for when it comes back.
+                providersSection
+                ForEach(appState.tabProviders, id: \.self) { service in
+                    collectionSection(for: service)
+                }
+            }
+        }
+        // Built afresh when the network comes or goes, which takes Browse
+        // and Radio out or puts them back. The tab bar matches its items
+        // to tabs by place, so a tab put back in front of others came
+        // back with another's icon (Browse with the Audiobooks book after
+        // Airplane Mode). Hiding them with `.hidden(_:)` instead kept the
+        // items but caught every scroll on Radio and Audiobooks, and
+        // left a tab's page showing another's for seconds after a switch.
+        .id(offline.isActive)
+        // Customization only with the library sections: it holds the
+        // sidebar's edits, and with three fixed tabs there's no Edit.
+        .tabViewCustomization(appState.showsLibrarySections ? $appState.tabCustomization : nil)
+        // The queue panel is inside each tab (`Screens`), not out here:
+        // wrapped around the whole `TabView` it took its width from the
+        // sidebar's, which then had to overlay the content instead of
+        // sitting beside it.
+        .tabBarMinimizeBehavior(appState.tabBarMinimizes ? .onScrollDown : .never)
+        .tabViewBottomAccessory {
+            MusicPlaybackView(showPlayer: $router.isPlayerPresented, zoomNamespace: zoomNamespace)
+        }
+//            // Above the tabs, not in one of them: a toolbar belongs to the
+//            // navigation stack of whichever tab is on screen, so the only way
+//            // to keep one field in every tab is to host it out here.
+//            .safeAreaInset(edge: .top) {
+//                GlobalSearchField(selectedTab: $selectedTab)
+//            }
+        // The queue panel, beside the whole `TabView` on iPad; on a phone
+        // each tab has its own (`Screens`), so an iPhone Duo open keeps its
+        // tab bar at the trailing edge. Inside `withEnvironments()`, which
+        // the panel's view reads from.
+        .modifier(WindowQueuePanel())
+        .modifier(AdaptiveTabViewStyle())
+    }
+
     var body: some Scene {
         WindowGroup {
             @Bindable var router = router
             let _ = ScrollStopLog.note("body CueApp")
-            TabView(selection: tabSelection) {
-                if !appState.showsLibrarySections {
-                    // The phone's three on every device, Browse first in
-                    // Home's place: providers are browsed from Browse's menu
-                    // and set up in Settings › Services. No provider tabs, so
-                    // the bar never overflows into More. Browse is the home
-                    // here, so it's named Home and has the house. Offline it
-                    // goes, and Downloads leads in its place.
-                    if appState.showsBrowseTab {
-                        Tab("Home", image: "home.fill", value: AppTab.browse) {
-                            Screens.browse
-                        }
+            Group {
+                if AppState.usesLargeWindow {
+                    LargeWindowRoot {
+                        tabView
                     }
-                    searchTab
-                    radioTab
-                    audiobooksTab
-                    downloadsTab
                 } else {
-                    Tab("Home", image: "home.fill", value: AppTab.home) {
-                        Screens.home
-                    }
-                    searchTab
-                    Tab("Browse", systemImage: "square.grid.2x2", value: AppTab.browse) {
-                        Screens.browse
-                    }
-                    radioTab
-                    audiobooksTab
-                    downloadsTab
-
-                    // The providers twice over, both driven by the switched-on
-                    // set: once as tabs in one section, which is how the
-                    // sidebar lets them be reordered and hidden, and then a
-                    // collection section per provider. One turned off in
-                    // Services drops out of both; its sidebar edits stay in
-                    // the customization for when it comes back.
-                    providersSection
-                    ForEach(appState.tabProviders, id: \.self) { service in
-                        collectionSection(for: service)
-                    }
+                    tabView
                 }
             }
-            // Built afresh when the network comes or goes, which takes Browse
-            // and Radio out or puts them back. The tab bar matches its items
-            // to tabs by place, so a tab put back in front of others came
-            // back with another's icon (Browse with the Audiobooks book after
-            // Airplane Mode). Hiding them with `.hidden(_:)` instead kept the
-            // items but caught every scroll on Radio and Audiobooks, and
-            // left a tab's page showing another's for seconds after a switch.
-            .id(offline.isActive)
-            // Customization only with the library sections: it holds the
-            // sidebar's edits, and with three fixed tabs there's no Edit.
-            .tabViewCustomization(appState.showsLibrarySections ? $appState.tabCustomization : nil)
             // UIKit's animations back on once the tab bar has drawn on the
             // tab the app opened on (held off at launch, `AppDelegate`).
             .task {
@@ -632,64 +593,12 @@ struct CueApp: App {
                     router.selectedTab = appState.fallbackTab
                 }
             }
-            // The queue panel is inside each tab (`Screens`), not out here:
-            // wrapped around the whole `TabView` it took its width from the
-            // sidebar's, which then had to overlay the content instead of
-            // sitting beside it.
-            .tabBarMinimizeBehavior(appState.tabBarMinimizes ? .onScrollDown : .never)
-            .tabViewBottomAccessory {
-                MusicPlaybackView(showPlayer: $router.isPlayerPresented, zoomNamespace: zoomNamespace)
-            }
-//            // Above the tabs, not in one of them: a toolbar belongs to the
-//            // navigation stack of whichever tab is on screen, so the only way
-//            // to keep one field in every tab is to host it out here.
-//            .safeAreaInset(edge: .top) {
-//                GlobalSearchField(selectedTab: $selectedTab)
-//            }
-            .tabViewSidebarHeader {
-                HStack(spacing: 10) {
-                    Image("CueIconGlass")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 32, height: 32)
-                    Text("Cue")
-                        .font(.title3.bold())
-                    Spacer(minLength: 0)
-                }
-                .padding(.vertical, 4)
-            }
-            // The speaker-group count footer is off for now; the slot is
-            // still the place for it when it comes back.
-//            .tabViewSidebarFooter {
-//                let count = sonosService.sorted.count
-//                Label(
-//                    count == 1 ? "1 Speaker Group" : "\(count) Speaker Groups",
-//                    systemImage: count == 0 ? "hifispeaker.slash" : "hifispeaker.2"
-//                )
-//                .font(.footnote)
-//                .foregroundStyle(.secondary)
-//                .padding(.vertical, 4)
-//            }
-            // No bottom bar: the queue toggle is in the sidebar header.
-            // The sidebar's selection highlight is drawn in the tint, so this
-            // is what takes it off accent-teal. A TabView sidebar has no way to
-            // colour the row's label separately from its fill, so this gets the
-            // subtle neutral capsule but not Music.app's accent-coloured label.
-            // The tint reaches the whole TabView, which is why the tab content
-            // and the bottom bar put the real accent back — `Color("Accent")`
-            // by name, since `.accentColor` now resolves to this tint.
-//            .tint(Color.primary.opacity(0.12))
             // The toasts ("Added to …") on iPad, the Mac and an iPhone Duo
             // open, over the content column. The tab screens draw them only
             // in the iPhone's layout, so on those the menu bar's playlist
             // commands, and every other toast outside the player and the
             // sheets, showed nothing.
             .modifier(WindowToasts())
-            // The queue panel, beside the whole `TabView` on iPad and the
-            // Mac; on a phone each tab has its own (`Screens`), so an iPhone
-            // Duo open keeps its tab bar at the trailing edge. Inside
-            // `withEnvironments()`, which the panel's view reads from.
-            .modifier(WindowQueuePanel())
             .withEnvironments()
             .environment(\.zoomNamespace, zoomNamespace)
             // Presented from the `TabView`, not from inside the tab bar
@@ -720,12 +629,14 @@ struct CueApp: App {
                 WelcomeScreen()
                     .withEnvironments()
             }
-            .modifier(AdaptiveTabViewStyle())
             // The iPad's layout or the iPhone's, from the window's size
             // classes (`PadLayout`): out here, around the toasts, the queue
             // panel and the player's cover, which all read it. An iPhone Duo
             // open is the iPad's, and the iPhone's again folded.
             .withPadLayout()
+            // The Mac window's own scale (`InterfaceSize`), round the player
+            // and the sheets too.
+            .interfaceSize(appState.interfaceSize)
             // Settings ▸ Appearance. Applied to the windows, so everything
             // presented from them follows it too.
             .onChange(of: appState.colorScheme, initial: true) { _, preference in
@@ -773,10 +684,28 @@ struct CueApp: App {
                 // was lost with the rest of the old launch block below, and
                 // without it the card never appeared for speaker playback.
                 NowPlayingSessionService.shared.activate()
+#elseif targetEnvironment(macCatalyst)
+                // The Dock's menu and Cue Mini follow the player from here on.
+                DockMenuCoordinator.shared.installIfNeeded()
+                CueMiniLink.shared.start()
 #endif
             }
             //            .withAlert()
         }
+#if targetEnvironment(macCatalyst)
+        // Settings, a window of its own on the Mac (`SettingsWindow`), opened
+        // with ⌘, and the gears. No links or activities open it: they're the
+        // main window's.
+        WindowGroup("Settings", id: SettingsWindow.sceneID) {
+            SettingsWindowScreen()
+        }
+        .handlesExternalEvents(matching: [])
+        // The paywall, a window of its own on the Mac too.
+        WindowGroup("Cue Super", id: PaywallWindow.sceneID) {
+            PaywallWindowScreen()
+        }
+        .handlesExternalEvents(matching: [])
+#endif
 //            .onOpenURL(perform: handle)
 //            .onAppear {
 //                guard !AppBootstrapper.shared.didLaunch else { return }
@@ -1573,23 +1502,40 @@ private struct WindowToasts: ViewModifier {
     }
 }
 
-/// `.sidebarAdaptable` on the Mac, where the sidebar is; the plain tab bar
-/// on iPhone and iPad, which have none. The adaptable style runs the
-/// sidebar's tab model everywhere it is applied — hidden tabs,
-/// customization — and a tab that model hides is a tab bar item with no
-/// view controller behind it. `.tabBarOnly` on iPad so the bar can't be
-/// turned into a sidebar there either.
+/// The window where the large window is the one in use: `LargeWindowShell`,
+/// but on an iPad window too narrow for a sidebar (Slide Over, a narrow Stage
+/// Manager window) the tabs. A window crossing between them builds its
+/// pages again, which only happens as it's resized that far.
+private struct LargeWindowRoot<Tabs: View>: View {
+    @ViewBuilder let tabs: () -> Tabs
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    var body: some View {
+#if targetEnvironment(macCatalyst)
+        LargeWindowShell()
+#else
+        if horizontalSizeClass == .compact {
+            tabs()
+                .onAppear { LargeWindowState.shared.leaveForTabs() }
+        } else {
+            LargeWindowShell()
+        }
+#endif
+    }
+}
+
+/// The plain tab bar on iPad, so it can't be turned into a sidebar: the
+/// adaptable style runs the sidebar's tab model wherever it is applied —
+/// hidden tabs, customization — and a tab that model hides is a tab bar
+/// item with no view controller behind it. (The sidebar on iPad and the Mac
+/// is `LargeWindowShell`'s; a compact iPad window has these tabs.)
 private struct AdaptiveTabViewStyle: ViewModifier {
     func body(content: Content) -> some View {
-#if targetEnvironment(macCatalyst)
-        content.tabViewStyle(.sidebarAdaptable)
-#else
         if UIDevice.current.userInterfaceIdiom == .pad {
             content.tabViewStyle(.tabBarOnly)
         } else {
             content
         }
-#endif
     }
 }
 
@@ -1830,6 +1776,9 @@ private struct PlaybackTransportControls: View {
 
 class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        #if targetEnvironment(macCatalyst) && DEBUG
+        MenuAppLaunchAtLoginManager.shared.bridge?.keepOneDevelopmentCopy()
+        #endif
         #if targetEnvironment(macCatalyst)
         // macOS auto-injects "Start Dictation" and "Emoji & Symbols" into any Edit menu. Opt out so
         // ours carries only Undo/Redo. (AutoFill is removed via the menu builder.)
@@ -1850,6 +1799,21 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // In a car, speakers are put away and not looked for; known before
         // the first `monitor()` for the same reason.
         CarConnection.start()
+        // In the background, which playing on this device keeps Cue running
+        // in, the speakers are read less, as on the Mac with its window
+        // hidden (`SonosService.isOutOfSight`): the group playing keeps up
+        // through its live events, which the Lock Screen card reads. From
+        // launch too, for a launch into the background (a widget's Play).
+        // Every 2 s rather than the Mac's 10: a widget's Play waits up to
+        // 3 s for the speaker to say it's playing.
+        SonosService.shared.outOfSightPace = .seconds(2)
+        SonosService.shared.isOutOfSight = application.applicationState == .background
+        NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { _ in
+            SonosService.shared.isOutOfSight = true
+        }
+        NotificationCenter.default.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { _ in
+            SonosService.shared.isOutOfSight = false
+        }
         #endif
         // RevenueCat, analytics, remote flags and the image pipeline. Before
         // any view body: `Purchases.shared` is a fatal error until
@@ -1899,8 +1863,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // hold about its chapters.
         AudiobookAudit.startIfRequested()
         #if os(iOS)
-        // Cue's log as a file the Mac can copy off the phone.
+        // Cue's log as a file the Mac can copy off the phone. Not on the
+        // Mac, whose console goes to a file already (`Scripts/mac-logs.sh`):
+        // reading the log store every 20 s cost it a core for seconds at a
+        // time.
+        #if !targetEnvironment(macCatalyst)
         PhoneLogFile.start()
+        #endif
         // `-dance.cue.logDefaultsWrites YES`: every UserDefaults write by
         // key, and who made it.
         DefaultsWriteLog.startIfRequested()
@@ -1966,7 +1935,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
          // or this does after a few seconds whatever happens), it's simply
          // there. Only as the app's own window connects: not for the car's
          // screen, nor a launch in the background with no window at all.
-         if connectingSceneSession.role == .windowApplication,
+         var isSettingsWindow = false
+#if targetEnvironment(macCatalyst)
+         isSettingsWindow = PaywallWindow.shared.claims(connectingSceneSession) || SettingsWindow.shared.claims(connectingSceneSession)
+#endif
+         if connectingSceneSession.role == .windowApplication, !isSettingsWindow,
             Router.main.selectedTab != .home, Router.main.selectedTab != .browse {
              UIView.setAnimationsEnabled(false)
              Task { @MainActor in
@@ -2001,6 +1974,45 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             builder.remove(menu: .open)
             builder.remove(menu: .openRecent)
             builder.remove(menu: .document)
+
+#if targetEnvironment(macCatalyst)
+            // Cue ▸ Settings… (⌘,), the Mac's place for it: a window of its
+            // own (`SettingsWindow`).
+            let settings = UIMenu(title: "", identifier: .preferences, options: .displayInline, children: [
+                UIKeyCommand(title: "Settings…", action: #selector(showSettings), input: ",", modifierFlags: .command)
+            ])
+            if builder.menu(for: .preferences) != nil {
+                builder.replace(menu: .preferences, with: settings)
+            } else {
+                builder.insertSibling(settings, afterMenu: .about)
+            }
+
+            // What the iPhone's Settings page has past its settings, where
+            // a Mac app keeps it: About Cue with the version, this install's
+            // ID and Last.fm's credit, and Help with the help pages, the
+            // release notes and a mail to support.
+            builder.replace(menu: .about, with: UIMenu(title: "", identifier: .about, options: .displayInline, children: [
+                UICommand(title: "About Cue", action: #selector(showAbout))
+            ]))
+            // File ▸ Close (⌘W): from the main window it hides Cue, as the
+            // window's close button does (`MainWindowChrome`), so the window
+            // comes back as it was; Settings closes.
+            let close = UIMenu(title: "", identifier: .close, options: .displayInline, children: [
+                UIKeyCommand(title: "Close", action: #selector(closeWindow), input: "w", modifierFlags: .command)
+            ])
+            if builder.menu(for: .close) != nil {
+                builder.replace(menu: .close, with: close)
+            } else {
+                builder.insertChild(close, atEndOfMenu: .file)
+            }
+            builder.replace(menu: .help, with: UIMenu(title: "Help", identifier: .help, children: [
+                UICommand(title: "Cue Help", action: #selector(showHelp)),
+                UICommand(title: "What's New in Cue", action: #selector(showWhatsNew)),
+                UIMenu(title: "", options: .displayInline, children: [
+                    UICommand(title: "Contact Support…", action: #selector(contactSupport))
+                ])
+            ]))
+#endif
 
             // View › Show/Hide Queue, ⌥⌘0 as Xcode toggles its inspector.
             // The mini player's and the player's queue buttons do the same;
@@ -2132,7 +2144,155 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 UIMenu(title: "", options: .displayInline, children: [undoCommand, redoCommand])
             ])
             builder.insertSibling(playlistMenu, afterMenu: .file)
+
+            // Controls, after Music's, in the Mac's window: the player's
+            // transport, shuffle and repeat, a speaker's volume, and the
+            // search field. Space, ⌘← and ⌘→ leave a text field's typing
+            // and caret alone (`wantsPriorityOverSystemBehavior` is off).
+            if AppState.usesLargeWindow {
+                let controlsMenu = UIMenu(title: "Controls", identifier: UIMenu.Identifier("com.cue.controlsMenu"), children: [
+                    UIMenu(title: "", options: .displayInline, children: [
+                        UIKeyCommand(title: "Play/Pause", action: #selector(controlsTogglePlayback), input: " ", modifierFlags: []),
+                        UIKeyCommand(title: "Next", action: #selector(controlsNext), input: UIKeyCommand.inputRightArrow, modifierFlags: .command),
+                        UIKeyCommand(title: "Previous", action: #selector(controlsPrevious), input: UIKeyCommand.inputLeftArrow, modifierFlags: .command),
+                    ]),
+                    UIMenu(title: "", options: .displayInline, children: [
+                        UICommand(title: "Shuffle", action: #selector(controlsToggleShuffle)),
+                        UICommand(title: "Repeat", action: #selector(controlsCycleRepeat)),
+                    ]),
+                    UIMenu(title: "", options: .displayInline, children: [
+                        UIKeyCommand(title: "Speaker Volume Up", action: #selector(controlsVolumeUp), input: UIKeyCommand.inputUpArrow, modifierFlags: .command),
+                        UIKeyCommand(title: "Speaker Volume Down", action: #selector(controlsVolumeDown), input: UIKeyCommand.inputDownArrow, modifierFlags: .command),
+                    ]),
+                    UIMenu(title: "", options: .displayInline, children: [
+                        UIKeyCommand(title: "Search", action: #selector(controlsSearch), input: "f", modifierFlags: .command),
+                        UIKeyCommand(title: "Show Player", action: #selector(controlsShowPlayer), input: "p", modifierFlags: [.command, .shift]),
+                    ]),
+                ])
+                builder.insertSibling(controlsMenu, afterMenu: .view)
+
+#if targetEnvironment(macCatalyst)
+                // View ▸ Bigger, Smaller and Default Size, as a browser's
+                // zoom: the window's own scale (`InterfaceSize`). ⌘= too,
+                // unlisted, as + is a shifted key.
+                let sizeCommands = UIMenu(title: "", options: .displayInline, children: [
+                    UIKeyCommand(title: "Bigger", action: #selector(interfaceBigger), input: "+", modifierFlags: .command),
+                    // A property list of its own: two commands with one
+                    // action and none is a duplicate, which crashes at launch.
+                    UIKeyCommand(title: "Bigger", action: #selector(interfaceBigger), input: "=", modifierFlags: .command, propertyList: "equals", attributes: .hidden),
+                    UIKeyCommand(title: "Smaller", action: #selector(interfaceSmaller), input: "-", modifierFlags: .command),
+                    UIKeyCommand(title: "Default Size", action: #selector(interfaceDefaultSize), input: "0", modifierFlags: .command),
+                ])
+                builder.insertChild(sizeCommands, atEndOfMenu: .view)
+#endif
+            }
         }
+    }
+
+#if targetEnvironment(macCatalyst)
+    @objc func showSettings() {
+        SettingsWindow.shared.open()
+    }
+
+    /// File ▸ Close: Settings closes; the main window hides Cue.
+    @objc func closeWindow() {
+        // The window in front: its scene the active one, as the Mac has
+        // one at a time. A key window wasn't found for Settings, so ⌘W hid
+        // Cue rather than closing it.
+        let key = UIApplication.shared.connectedScenes
+            .first { $0.activationState == .foregroundActive }
+        if let key, SettingsWindow.isMarked(key.session) {
+            UIApplication.shared.requestSceneSessionDestruction(key.session, options: nil)
+        } else {
+            MenuAppLaunchAtLoginManager.shared.bridge?.hideApp()
+        }
+    }
+
+    @objc func showAbout() {
+        let credits = "ID: \(SubscriptionService.shared.userID)\nPowered by Audioscrobbler"
+        MenuAppLaunchAtLoginManager.shared.bridge?.showAboutPanel(credits: credits, links: ["Audioscrobbler": "https://www.last.fm"])
+    }
+
+    @objc func showHelp() {
+        UIApplication.shared.open(URL(string: "https://cue.dance/help")!)
+    }
+
+    /// This version's release notes, which count as seen as Settings' row
+    /// does on the iPhone.
+    @objc func showWhatsNew() {
+        let version = OSEnvironment.versionInfo
+        UIApplication.shared.open(URL(string: "https://cue.dance/releases/\(version)")!)
+        if UserDefaults.standard.string(forKey: AppStorageKeys.lastSeenWhatsNewVersion) != version {
+            UserDefaults.standard.set(version, forKey: AppStorageKeys.lastSeenWhatsNewVersion)
+        }
+    }
+
+    @objc func contactSupport() {
+        UIApplication.shared.open(SupportMail.url)
+    }
+#endif
+
+    // MARK: - Controls menu
+
+    @objc func controlsTogglePlayback() {
+        Task { @MainActor in await PlayerCommands.togglePlayback() }
+    }
+
+    @objc func controlsNext() {
+        Task { @MainActor in await PlayerCommands.next() }
+    }
+
+    @objc func controlsPrevious() {
+        Task { @MainActor in await PlayerCommands.previous() }
+    }
+
+    @objc func controlsToggleShuffle() {
+        Task { @MainActor in await PlayerCommands.toggleShuffle() }
+    }
+
+    @objc func controlsCycleRepeat() {
+        Task { @MainActor in await PlayerCommands.cycleRepeat() }
+    }
+
+    /// A Sonos group's volume by 5. On this Mac the volume is macOS's own.
+    @objc func controlsVolumeUp() {
+        Task { @MainActor in await PlayerCommands.nudgeSpeakerVolume(by: 5) }
+    }
+
+    @objc func controlsVolumeDown() {
+        Task { @MainActor in await PlayerCommands.nudgeSpeakerVolume(by: -5) }
+    }
+
+    /// The window's search field, with Search showing.
+    @objc func controlsSearch() {
+        Task { @MainActor in
+            LargeWindowState.shared.select(.search)
+            SearchActivator.shared.requestFocus()
+        }
+    }
+
+    @objc func controlsShowPlayer() {
+        Task { @MainActor in Router.main.isPlayerPresented = true }
+    }
+
+    @objc func interfaceBigger() {
+        Task { @MainActor in
+            if let size = AppState.shared.interfaceSize.bigger {
+                AppState.shared.interfaceSize = size
+            }
+        }
+    }
+
+    @objc func interfaceSmaller() {
+        Task { @MainActor in
+            if let size = AppState.shared.interfaceSize.smaller {
+                AppState.shared.interfaceSize = size
+            }
+        }
+    }
+
+    @objc func interfaceDefaultSize() {
+        Task { @MainActor in AppState.shared.interfaceSize = .standard }
     }
 
     /// Drives the foreground playlist editor's undo, routed from the Playlist menu / ⌘Z.
@@ -2197,6 +2357,18 @@ class CueSceneDelegate: NSObject, UIWindowSceneDelegate {
         guard let windowScene = (scene as? UIWindowScene) else { return }
         
 #if targetEnvironment(macCatalyst)
+        // The paywall's and the Settings window set themselves up: none of the
+        // main window's size, frame or bare titlebar. The paywall's first, as
+        // Settings claims any window marked as not the main one.
+        if PaywallWindow.shared.claims(session) {
+            PaywallWindow.shared.connect(windowScene)
+            return
+        }
+        if SettingsWindow.shared.claims(session) {
+            SettingsWindow.shared.connect(windowScene)
+            return
+        }
+
         if let titlebar = windowScene.titlebar {
             // No title and no toolbar, so the window's content runs up under
             // the traffic lights: the sidebar header names the app, and the
@@ -2214,19 +2386,35 @@ class CueSceneDelegate: NSObject, UIWindowSceneDelegate {
         windowScene.sizeRestrictions?.minimumSize = CGSize(width: 920, height: 600)
         
         // Restore saved window frame
-        if let savedFrame = WindowFrameStore.savedFrame {
+        if let savedFrame = WindowFrameStore.main.savedFrame {
             let geometry = UIWindowScene.GeometryPreferences.Mac(systemFrame: savedFrame)
             windowScene.requestGeometryUpdate(geometry)
         }
         
         // Start observing window size changes
-        windowSizeObserver = WindowSizeObserver(windowScene: windowScene)
+        windowSizeObserver = WindowSizeObserver(windowScene: windowScene, store: .main)
 #endif
     }
     
+#if targetEnvironment(macCatalyst)
+    /// The main window hidden or minimised: the speakers read less while
+    /// nothing of Cue is on screen (`SonosService.isOutOfSight`).
+    func sceneDidEnterBackground(_ scene: UIScene) {
+        guard !SettingsWindow.isMarked(scene.session) else { return }
+        SonosService.shared.isOutOfSight = true
+    }
+
+    func sceneWillEnterForeground(_ scene: UIScene) {
+        guard !SettingsWindow.isMarked(scene.session) else { return }
+        SonosService.shared.isOutOfSight = false
+    }
+#endif
+
     func sceneDidDisconnect(_ scene: UIScene) {
 #if targetEnvironment(macCatalyst)
         windowSizeObserver = nil
+        SettingsWindow.shared.disconnect(scene)
+        PaywallWindow.shared.disconnect(scene)
 #endif
     }
     

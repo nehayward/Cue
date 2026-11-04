@@ -31,10 +31,9 @@ final class GlobalMediaControlService {
     // resolved track, not stale ones.
     private var skipGeneration = 0
 
-    // Caches only the *unpinned* now-playing lookup (the one networked call in
-    // getPlayingGroup), with a short TTL so rapid skips stay snappy. A pinned
-    // speaker is resolved locally every time and is never cached, so changing the
-    // pin takes effect immediately. The TTL is the entire invalidation story.
+    // Caches the now-playing lookup (the one networked call in
+    // getPlayingGroup), with a short TTL so rapid skips stay snappy. The TTL
+    // is the entire invalidation story.
     private var cachedNowPlaying: (group: SonosDevice, at: Date)?
     private let nowPlayingCacheTTL: TimeInterval = 5
 
@@ -220,8 +219,16 @@ final class GlobalMediaControlService {
     /// HUD updates immediately each tap, and a generation token ensures only the
     /// latest tap's resolved track is shown.
     private func skip(forward: Bool) async {
-        // getPlayingGroup is instant for a pinned speaker and TTL-cached otherwise,
-        // so this stays snappy without going stale.
+        // Cue's player: on this Mac or the group Cue plays on, a book's
+        // skips included. Its HUD comes with the new song
+        // (`CueLink.onTrackChanged`), or the speaker's own.
+        if let state = CueLink.shared.state, state.item != nil, state.isActive {
+            CueLink.shared.skip(forward: forward)
+            return
+        }
+
+        // getPlayingGroup is TTL-cached, so this stays snappy without going
+        // stale.
         guard let group = await getPlayingGroup() else { return }
 
         let direction: MediaIndicatorView.MediaAction.Direction = forward ? .next : .previous
@@ -263,14 +270,18 @@ final class GlobalMediaControlService {
     }
 
     private func getPlayingGroup() async -> SonosDevice? {
-        // Pinned speaker: a local lookup that's always current, so a pin change is
-        // honored immediately. Not cached.
-        if let pinnedId = MiniSettingsService.shared.pinnedSpeakerId,
-           let pinnedDevice = SonosMiniService.shared.devices.first(where: { $0.id == pinnedId }) {
-            return pinnedDevice
+        // The group Cue's player is on, by its coordinator or a room in it.
+        if let id = CueLink.shared.speakerGroupID,
+           let group = SonosMiniService.shared.devices.first(where: { device in
+               device.id == id || device.rooms.contains { $0.id == id }
+           }) {
+            return group
         }
 
-        // Unpinned: getNowPlayingID is networked, so reuse a recent result while it
+        // Cue has Sonos switched off: no speakers to look for.
+        guard CueLink.shared.showsSpeakers else { return nil }
+
+        // getNowPlayingID is networked, so reuse a recent result while it
         // is still fresh. We re-read the live device by id each time so its track
         // and volume stay current even on a cache hit.
         if let cached = cachedNowPlaying,
