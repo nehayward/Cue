@@ -109,13 +109,13 @@ enum Screens {
             .modifier(WindowQueuePanel(placement: .tab))
     }
 
-    /// A playlist chosen in the Mac window's sidebar (`DesktopShell`), as
+    /// A playlist chosen in the Mac window's sidebar (`LargeWindowShell`), as
     /// the root of a stack of its own.
     @ViewBuilder
-    static func desktopPlaylist(_ playlist: PlayableContent) -> some View {
-        DesktopPlaylistScreen(playlist: playlist)
+    static func largeWindowPlaylist(_ playlist: PlayableContent) -> some View {
+        LargeWindowPlaylistScreen(playlist: playlist)
             .tint(Color("Accent"))
-            .environment(groupService("desktop|playlist"))
+            .environment(groupService("largeWindow|playlist"))
     }
 
     /// One collection of a provider — a tab in its sidebar section.

@@ -486,7 +486,7 @@ struct CueApp: App {
 
     /// The window's tabs, on iPhone and iPad: the tab bar (iPad's
     /// sidebar too) with the mini player as its accessory, and the queue
-    /// panel beside it. The Mac's window is `DesktopShell` instead.
+    /// panel beside it. The Mac's window is `LargeWindowShell` instead.
     @ViewBuilder
     private var tabView: some View {
         @Bindable var router = router
@@ -569,8 +569,8 @@ struct CueApp: App {
             @Bindable var router = router
             let _ = ScrollStopLog.note("body CueApp")
             Group {
-                if AppState.usesDesktopShell {
-                    DesktopWindowRoot {
+                if AppState.usesLargeWindow {
+                    LargeWindowRoot {
                         tabView
                     }
                 } else {
@@ -1502,23 +1502,23 @@ private struct WindowToasts: ViewModifier {
     }
 }
 
-/// The window where the desktop layout is the one in use: `DesktopShell`,
+/// The window where the large window is the one in use: `LargeWindowShell`,
 /// but on an iPad window too narrow for a sidebar (Slide Over, a narrow Stage
 /// Manager window) the tabs. A window crossing between them builds its
 /// pages again, which only happens as it's resized that far.
-private struct DesktopWindowRoot<Tabs: View>: View {
+private struct LargeWindowRoot<Tabs: View>: View {
     @ViewBuilder let tabs: () -> Tabs
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     var body: some View {
 #if targetEnvironment(macCatalyst)
-        DesktopShell()
+        LargeWindowShell()
 #else
         if horizontalSizeClass == .compact {
             tabs()
-                .onAppear { DesktopState.shared.leaveForTabs() }
+                .onAppear { LargeWindowState.shared.leaveForTabs() }
         } else {
-            DesktopShell()
+            LargeWindowShell()
         }
 #endif
     }
@@ -1528,7 +1528,7 @@ private struct DesktopWindowRoot<Tabs: View>: View {
 /// adaptable style runs the sidebar's tab model wherever it is applied —
 /// hidden tabs, customization — and a tab that model hides is a tab bar
 /// item with no view controller behind it. (The sidebar on iPad and the Mac
-/// is `DesktopShell`'s; a compact iPad window has these tabs.)
+/// is `LargeWindowShell`'s; a compact iPad window has these tabs.)
 private struct AdaptiveTabViewStyle: ViewModifier {
     func body(content: Content) -> some View {
         if UIDevice.current.userInterfaceIdiom == .pad {
@@ -2149,7 +2149,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             // transport, shuffle and repeat, a speaker's volume, and the
             // search field. Space, ⌘← and ⌘→ leave a text field's typing
             // and caret alone (`wantsPriorityOverSystemBehavior` is off).
-            if AppState.usesDesktopShell {
+            if AppState.usesLargeWindow {
                 let controlsMenu = UIMenu(title: "Controls", identifier: UIMenu.Identifier("com.cue.controlsMenu"), children: [
                     UIMenu(title: "", options: .displayInline, children: [
                         UIKeyCommand(title: "Play/Pause", action: #selector(controlsTogglePlayback), input: " ", modifierFlags: []),
@@ -2266,7 +2266,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     /// The window's search field, with Search showing.
     @objc func controlsSearch() {
         Task { @MainActor in
-            DesktopState.shared.select(.search)
+            LargeWindowState.shared.select(.search)
             SearchActivator.shared.requestFocus()
         }
     }

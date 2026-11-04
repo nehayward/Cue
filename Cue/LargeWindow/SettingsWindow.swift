@@ -130,7 +130,7 @@ final class SettingsWindow {
     /// Never General's: nothing past it is opened from outside.
     var pendingPage: RouterDestination?
 
-    /// SwiftUI's, from the main window (`DesktopShell`): the menu bar's
+    /// SwiftUI's, from the main window (`LargeWindowShell`): the menu bar's
     /// command and the routers have no environment to read it from.
     @ObservationIgnored var openWindow: OpenWindowAction?
     @ObservationIgnored private weak var scene: UIWindowScene?
@@ -274,7 +274,7 @@ final class SettingsWindow {
     }
 
     private static var scale: CGFloat {
-        DesktopStyle.scale(AppState.shared.interfaceSize.typeSize)
+        LargeWindowStyle.scale(AppState.shared.interfaceSize.typeSize)
     }
 
     /// Sizes the window: its width fixed, a Mac app's settings' way, at

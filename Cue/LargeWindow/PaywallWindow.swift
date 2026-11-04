@@ -80,7 +80,7 @@ final class PaywallWindow {
     /// scroll, over the main window, neither left to drag. A point between the
     /// least and most size, as `SettingsWindow.setFrame` says why.
     private func fit(_ scene: UIWindowScene) {
-        let scale = DesktopStyle.scale(AppState.shared.interfaceSize.typeSize)
+        let scale = LargeWindowStyle.scale(AppState.shared.interfaceSize.typeSize)
         let width = (Self.width * scale).rounded()
         let height = min(Self.height * scale, scene.screen.bounds.height * 0.9).rounded()
         if let restrictions = scene.sizeRestrictions {

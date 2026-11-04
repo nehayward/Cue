@@ -64,8 +64,8 @@ enum AppTab: Hashable, Codable {
     static var radio = Router()
     static var downloads = Router()
     /// The Mac window's stack of a playlist chosen in the sidebar
-    /// (`DesktopShell`).
-    static var desktopPlaylist = Router()
+    /// (`LargeWindowShell`).
+    static var largeWindowPlaylist = Router()
 
     /// A provider's tabs' stacks, one per tab, made as each is first shown.
     private static var providerRouters: [AppTab: Router] = [:]

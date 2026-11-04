@@ -4,11 +4,11 @@ import MusicSearchKit
 import SonosKit
 import SwiftUI
 
-/// The Mac and iPad window's sidebar (`DesktopShell`): the tabs, Search under
+/// The Mac and iPad window's sidebar (`LargeWindowShell`): the tabs, Search under
 /// Home, then the library of the service Browse shows (its collections, a
 /// menu to switch service), then that library's playlists, and Settings at
 /// the foot.
-struct DesktopSidebar: View {
+struct LargeWindowSidebar: View {
     @State private var appState = AppState.shared
     @Environment(\.dynamicTypeSize) private var typeSize
 
@@ -17,7 +17,7 @@ struct DesktopSidebar: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 2) {
                     tabRows
-                    DesktopLibrarySections()
+                    LargeWindowLibrarySections()
                 }
                 .padding(12)
             }
@@ -36,25 +36,25 @@ struct DesktopSidebar: View {
     @ViewBuilder
     private var tabRows: some View {
         if appState.showsBrowseTab {
-            DesktopSidebarRow(tab: .browse, title: "Home") {
+            LargeWindowSidebarRow(tab: .browse, title: "Home") {
                 Image("home.fill")
             }
         }
-        DesktopSidebarRow(tab: .search, title: "Search") {
+        LargeWindowSidebarRow(tab: .search, title: "Search") {
             Image(systemName: "magnifyingglass")
         }
         if appState.showsRadioTab {
-            DesktopSidebarRow(tab: .radio, title: "Radio") {
+            LargeWindowSidebarRow(tab: .radio, title: "Radio") {
                 Image(systemName: "dot.radiowaves.left.and.right")
             }
         }
         if appState.showsAudiobooksTab {
-            DesktopSidebarRow(tab: .audiobooks, title: "Audiobooks") {
+            LargeWindowSidebarRow(tab: .audiobooks, title: "Audiobooks") {
                 Image(systemName: "book.fill")
             }
         }
         if appState.showsDownloadsTab {
-            DesktopSidebarRow(tab: .downloads, title: "Downloads", badge: appState.downloadsTabBadge) {
+            LargeWindowSidebarRow(tab: .downloads, title: "Downloads", badge: appState.downloadsTabBadge) {
                 appState.downloadsTabIcon
             }
         }
@@ -66,7 +66,7 @@ struct DesktopSidebar: View {
             Image("CueIconGlass")
                 .resizable()
                 .scaledToFit()
-                .frame(width: 26 * DesktopStyle.scale(typeSize), height: 26 * DesktopStyle.scale(typeSize))
+                .frame(width: 26 * LargeWindowStyle.scale(typeSize), height: 26 * LargeWindowStyle.scale(typeSize))
             Text("Cue")
                 .font(.headline)
             Spacer(minLength: 0)
@@ -75,13 +75,13 @@ struct DesktopSidebar: View {
                 SettingsWindow.shared.open()
 #else
                 // The stack on screen: nothing presents `Router.main`'s.
-                DesktopState.shared.currentRouter.presentedSheet = .settings()
+                LargeWindowState.shared.currentRouter.presentedSheet = .settings()
 #endif
             } label: {
                 Image(systemName: "gearshape")
                     .font(.title3)
             }
-            .buttonStyle(DesktopIconButtonStyle(side: 36))
+            .buttonStyle(LargeWindowIconButtonStyle(side: 36))
             .help("Settings")
             .accessibilityLabel("Settings")
         }
@@ -94,32 +94,32 @@ struct DesktopSidebar: View {
 }
 
 /// A tab's row: its glyph in a rounded tile, the accent's while it shows.
-struct DesktopSidebarRow<Icon: View>: View {
+struct LargeWindowSidebarRow<Icon: View>: View {
     let tab: AppTab
     let title: String
     var badge: Int = 0
     @ViewBuilder var icon: () -> Icon
 
-    @State private var desktop = DesktopState.shared
+    @State private var largeWindow = LargeWindowState.shared
 
     var body: some View {
-        let isSelected = desktop.isShowing(tab)
+        let isSelected = largeWindow.isShowing(tab)
 
         Button {
-            desktop.select(tab)
+            largeWindow.select(tab)
         } label: {
-            DesktopSidebarLabel(title: title, isSelected: isSelected, badge: badge) {
+            LargeWindowSidebarLabel(title: title, isSelected: isSelected, badge: badge) {
                 icon()
             }
         }
         .buttonStyle(.plain)
-        .desktopHover(cornerRadius: 12, isSelected: false)
+        .largeWindowHover(cornerRadius: 12, isSelected: false)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
 /// A row's look: a 36 pt tile with the glyph, and the title beside it.
-struct DesktopSidebarLabel<Icon: View>: View {
+struct LargeWindowSidebarLabel<Icon: View>: View {
     let title: String
     let isSelected: Bool
     var badge: Int = 0
@@ -128,7 +128,7 @@ struct DesktopSidebarLabel<Icon: View>: View {
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        let tile = (36 * DesktopStyle.scale(typeSize)).rounded()
+        let tile = (36 * LargeWindowStyle.scale(typeSize)).rounded()
 
         HStack(spacing: 12) {
             icon()
@@ -157,7 +157,7 @@ struct DesktopSidebarLabel<Icon: View>: View {
 }
 
 /// A section's small capitals, with its button at the trailing end.
-private struct DesktopSidebarHeader<Accessory: View>: View {
+private struct LargeWindowSidebarHeader<Accessory: View>: View {
     let title: String
     @ViewBuilder var accessory: () -> Accessory
 
@@ -184,17 +184,17 @@ private struct DesktopSidebarHeader<Accessory: View>: View {
 /// stored choice is Browse's own, so switching here switches Browse too.
 ///
 /// Only this reads it: any UserDefaults write runs a view holding
-/// `@AppStorage` again, and what it hands `DesktopLibraryContent` is the
+/// `@AppStorage` again, and what it hands `LargeWindowLibraryContent` is the
 /// same service, so the rows under it aren't run again with it.
-private struct DesktopLibrarySections: View {
+private struct LargeWindowLibrarySections: View {
     @AppStorage(AppStorageKeys.browseMediaService) private var browseMediaService: MediaSearchService = .apple
 
     var body: some View {
-        DesktopLibraryContent(browseService: browseMediaService)
+        LargeWindowLibraryContent(browseService: browseMediaService)
     }
 }
 
-private struct DesktopLibraryContent: View {
+private struct LargeWindowLibraryContent: View {
     /// Its only input, so SwiftUI can tell it's unchanged (a closure here
     /// would read as new every time).
     let browseService: MediaSearchService
@@ -226,20 +226,20 @@ private struct DesktopLibraryContent: View {
 
     var body: some View {
         if let service {
-            DesktopSidebarHeader(title: "Library") {
+            LargeWindowSidebarHeader(title: "Library") {
                 serviceMenu(current: service)
             }
             ForEach(collections(of: service), id: \.self) { collection in
-                DesktopSidebarRow(tab: .providerCollection(service, collection), title: collection.title) {
+                LargeWindowSidebarRow(tab: .providerCollection(service, collection), title: collection.title) {
                     Image(systemName: collection.systemImage)
                 }
             }
 
             if service.tabCollections.contains(.playlists) {
-                DesktopSidebarHeader(title: "Playlists") {
+                LargeWindowSidebarHeader(title: "Playlists") {
                     NewPlaylistButton()
                 }
-                DesktopPlaylistRows(service: service)
+                LargeWindowPlaylistRows(service: service)
             }
         }
     }
@@ -303,7 +303,7 @@ private struct NewPlaylistButton: View {
             Image(systemName: "plus.circle")
                 .font(.body)
         }
-        .buttonStyle(DesktopIconButtonStyle(side: 28))
+        .buttonStyle(LargeWindowIconButtonStyle(side: 28))
         .help("New Playlist")
         .accessibilityLabel("New Playlist")
         .popover(isPresented: $isNaming, arrowEdge: .trailing) {
@@ -375,14 +375,14 @@ private struct NewPlaylistPopover: View {
     }
 }
 
-private struct DesktopPlaylistRows: View {
+private struct LargeWindowPlaylistRows: View {
     let service: MediaSearchService
 
     @Environment(AppleMusicBrowseService.self) private var apple
     @Environment(PlexBrowseService.self) private var plex
     @Environment(SubsonicBrowseService.self) private var subsonic
     @Environment(\.dynamicTypeSize) private var typeSize
-    @State private var desktop = DesktopState.shared
+    @State private var largeWindow = LargeWindowState.shared
 
     /// For the rows' menus (`PlayableMenuView`), made once: one made in
     /// `body` would redraw every row reading it on each pass.
@@ -400,7 +400,7 @@ private struct DesktopPlaylistRows: View {
     }
 
     var body: some View {
-        let cover = (36 * DesktopStyle.scale(typeSize)).rounded()
+        let cover = (36 * LargeWindowStyle.scale(typeSize)).rounded()
 
         // A stack, not the bare `ForEach`, for the load below: on a
         // `ForEach` of no playlists it never ran, so the list stayed empty
@@ -408,7 +408,7 @@ private struct DesktopPlaylistRows: View {
         VStack(alignment: .leading, spacing: 2) {
             rows(cover: cover)
         }
-        .environment(desktop.currentRouter)
+        .environment(largeWindow.currentRouter)
         .environment(Self.groupService)
         .task(id: service) {
             await load()
@@ -417,9 +417,9 @@ private struct DesktopPlaylistRows: View {
 
     private func rows(cover: CGFloat) -> some View {
         ForEach(playlists) { playlist in
-            let isSelected = desktop.isShowing(playlist)
+            let isSelected = largeWindow.isShowing(playlist)
             Button {
-                desktop.open(playlist)
+                largeWindow.open(playlist)
             } label: {
                 HStack(spacing: 12) {
                     ContentArtworkView(content: playlist, showMusicSource: false)
@@ -435,7 +435,7 @@ private struct DesktopPlaylistRows: View {
                 .contentShape(.rect)
             }
             .buttonStyle(.plain)
-            .desktopHover(cornerRadius: 12, isSelected: isSelected)
+            .largeWindowHover(cornerRadius: 12, isSelected: isSelected)
             // A playlist's own menu, as its row has elsewhere: play,
             // shuffle, play next, rename and delete. Its sheets go up from
             // the page on show.

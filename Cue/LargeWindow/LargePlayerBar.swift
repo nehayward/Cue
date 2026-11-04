@@ -2,7 +2,7 @@ import MusicSearchKit
 import SonosKit
 import SwiftUI
 
-/// The player of the Mac's and an iPad's window (`DesktopShell`): one capsule
+/// The player of the Mac's and an iPad's window (`LargeWindowShell`): one capsule
 /// floating over the foot of the page, as Music's is. The transport with
 /// shuffle and repeat, then what's playing with its progress under it, then
 /// a speaker's volume, Play On and the queue.
@@ -18,7 +18,7 @@ struct LargePlayerBar: View {
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        let scale = DesktopStyle.scale(typeSize)
+        let scale = LargeWindowStyle.scale(typeSize)
 
         HStack(spacing: 12 * scale) {
             LargePlayerBarTransport(showsOrder: room == .everything || room == .noVolume, showsPrevious: room != .least)
@@ -37,7 +37,7 @@ struct LargePlayerBar: View {
         .background(.thickMaterial, in: .capsule)
         .overlay {
             Capsule()
-                .strokeBorder(DesktopStyle.panelEdge)
+                .strokeBorder(LargeWindowStyle.panelEdge)
                 .allowsHitTesting(false)
         }
     }
@@ -87,8 +87,8 @@ struct LargePlayerBarRooms: Equatable {
 
     init() {}
 
-    /// All in points at the window's size, `scale` being `DesktopStyle.scale`.
-    init(windowWidth: CGFloat, sidebarWidth: CGFloat, queueWidth: CGFloat, margin: CGFloat, scale: CGFloat, queueRoom: DesktopQueueRoom) {
+    /// All in points at the window's size, `scale` being `LargeWindowStyle.scale`.
+    init(windowWidth: CGFloat, sidebarWidth: CGFloat, queueWidth: CGFloat, margin: CGFloat, scale: CGFloat, queueRoom: LargeWindowQueueRoom) {
         let barWidth = windowWidth - sidebarWidth - margin * 2
         // In the sidebar's place, the queue gives that room back.
         let widthBesideQueue = barWidth - queueWidth + (queueRoom == .inSidebarsPlace ? sidebarWidth : 0)
@@ -124,7 +124,7 @@ private struct LargePlayerBarTransport: View {
                         .font(.body)
                         .foregroundStyle(controller.isShuffled ? AnyShapeStyle(Color("Accent")) : AnyShapeStyle(.secondary))
                 }
-                .buttonStyle(DesktopIconButtonStyle(side: 36))
+                .buttonStyle(LargeWindowIconButtonStyle(side: 36))
                 .disabled(!canChangeOrder)
                 .accessibilityLabel("Shuffle")
                 .accessibilityValue(controller.isShuffled ? "On" : "Off")
@@ -138,7 +138,7 @@ private struct LargePlayerBarTransport: View {
                     Image(systemName: PlayerCommands.previousSymbol)
                         .font(.title3)
                 }
-                .buttonStyle(DesktopIconButtonStyle(side: 42))
+                .buttonStyle(LargeWindowIconButtonStyle(side: 42))
                 .disabled(!PlayerCommands.canGoPrevious)
                 .accessibilityLabel(PlayerCommands.previousTitle)
                 .help(PlayerCommands.previousTitle)
@@ -151,7 +151,7 @@ private struct LargePlayerBarTransport: View {
                     .font(.title)
                     .contentTransition(GroupMediaControlsView.animatesPlayPause ? .symbolEffect(.replace) : .identity)
             }
-            .buttonStyle(DesktopIconButtonStyle(side: 48))
+            .buttonStyle(LargeWindowIconButtonStyle(side: 48))
             .disabled(!controller.isActive)
             .accessibilityLabel(controller.isPlaying ? "Pause" : "Play")
             .help(controller.isPlaying ? "Pause" : "Play")
@@ -162,7 +162,7 @@ private struct LargePlayerBarTransport: View {
                 Image(systemName: PlayerCommands.nextSymbol)
                     .font(.title3)
             }
-            .buttonStyle(DesktopIconButtonStyle(side: 42))
+            .buttonStyle(LargeWindowIconButtonStyle(side: 42))
             .disabled(!PlayerCommands.canGoNext)
             .accessibilityLabel(PlayerCommands.nextTitle)
             .help(PlayerCommands.nextTitle)
@@ -175,7 +175,7 @@ private struct LargePlayerBarTransport: View {
                         .font(.body)
                         .foregroundStyle(controller.repeatMode == .off ? AnyShapeStyle(.secondary) : AnyShapeStyle(Color("Accent")))
                 }
-                .buttonStyle(DesktopIconButtonStyle(side: 36))
+                .buttonStyle(LargeWindowIconButtonStyle(side: 36))
                 .disabled(!canChangeOrder)
                 .accessibilityLabel("Repeat")
                 .accessibilityValue(repeatDescription(controller.repeatMode))
@@ -207,7 +207,7 @@ private struct LargePlayerBarNowPlaying: View {
     @Environment(\.dynamicTypeSize) private var typeSize
 
     private func scaled(_ value: CGFloat) -> CGFloat {
-        (value * DesktopStyle.scale(typeSize)).rounded()
+        (value * LargeWindowStyle.scale(typeSize)).rounded()
     }
 
     var body: some View {
@@ -223,7 +223,7 @@ private struct LargePlayerBarNowPlaying: View {
                     .modifier(PlayerZoomSource())
             }
             .buttonStyle(.plain)
-            .desktopHoverLift()
+            .largeWindowHoverLift()
             .help("Show Player")
 
             VStack(alignment: .leading, spacing: 2) {
@@ -366,7 +366,7 @@ private struct LargePlayerBarActions: View {
 
     var body: some View {
         let controller = route.presented
-        let scale = DesktopStyle.scale(typeSize)
+        let scale = LargeWindowStyle.scale(typeSize)
         let isOnSpeaker = route.group != nil
         let showsQueue = appState.showsQueuePanel
 
@@ -382,7 +382,7 @@ private struct LargePlayerBarActions: View {
                     .font(.title3)
                     .tint(.primary)
                     // The whole circle takes the click, as the queue's does.
-                    .buttonStyle(DesktopIconButtonStyle(side: 40))
+                    .buttonStyle(LargeWindowIconButtonStyle(side: 40))
                     .frame(width: 40 * scale, height: 40 * scale)
                     .accentCircle(isOn: isOnSpeaker)
                     .help("Play On")
@@ -411,7 +411,7 @@ private struct LargePlayerBarActions: View {
                             .font(.title3)
                             .foregroundStyle(.primary)
                     }
-                    .buttonStyle(DesktopIconButtonStyle(side: 40))
+                    .buttonStyle(LargeWindowIconButtonStyle(side: 40))
                     .accentCircle(isOn: showsQueue)
                     .accessibilityLabel(QueueToggleIcon.title(isShown: showsQueue))
                     .accessibilityAddTraits(showsQueue ? .isSelected : [])

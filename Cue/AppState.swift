@@ -176,12 +176,12 @@ final class AppState {
     /// the sections come back.
     var showsLibrarySections: Bool { false }
 
-    /// The Mac's and the iPad's window (`DesktopShell`): the sidebar and the
+    /// The Mac's and the iPad's window (`LargeWindowShell`): the sidebar and the
     /// queue down its sides and the player's bar floating over the page's
     /// foot, in place of the `TabView` (an iPad window too narrow for that
     /// keeps the tabs). Its sidebar opens a provider's collections (Artists,
     /// Albums, …) as tabs of their own.
-    static var usesDesktopShell: Bool {
+    static var usesLargeWindow: Bool {
 #if targetEnvironment(macCatalyst)
         true
 #else
@@ -290,7 +290,7 @@ final class AppState {
         if showsDownloadsTab {
             tabs.insert(.downloads)
         }
-        if Self.usesDesktopShell {
+        if Self.usesLargeWindow {
             for service in tabProviders {
                 for collection in service.tabCollections {
                     tabs.insert(.providerCollection(service, collection))

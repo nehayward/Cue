@@ -16,9 +16,9 @@ enum MediaDetailPresenter {
         // The Mac's window pushes it on the page showing, which Back
         // leaves, rather than putting a sheet over the window. Not over a
         // sheet, which would hide it; the player is put away.
-        if AppState.usesDesktopShell, TopViewController.current?.presentingViewController == nil || Router.main.isPlayerPresented {
+        if AppState.usesLargeWindow, TopViewController.current?.presentingViewController == nil || Router.main.isPlayerPresented {
             Router.main.isPlayerPresented = false
-            DesktopState.shared.currentRouter.navigate(to: .mediaDetail(content: content, group: nil))
+            LargeWindowState.shared.currentRouter.navigate(to: .mediaDetail(content: content, group: nil))
             return
         }
         guard let top = TopViewController.current else { return }

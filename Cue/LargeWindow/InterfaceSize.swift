@@ -5,7 +5,7 @@ import SwiftUI
 /// which left Cue's text and controls a size smaller than a Mac app's; each
 /// step here is a Dynamic Type size for the whole window, its sheets and
 /// the player (set at the window's root, `CueApp`), and the shell's cards
-/// grow with it (`DesktopStyle.scale`). Text, symbols and layout are drawn
+/// grow with it (`LargeWindowStyle.scale`). Text, symbols and layout are drawn
 /// at the new size rather than magnified, so they stay sharp, and it costs
 /// nothing once drawn.
 enum InterfaceSize: String, CaseIterable, Identifiable {

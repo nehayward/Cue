@@ -6,8 +6,8 @@ import SwiftUI
 /// sidebar, which takes the content's place until a tab is chosen again.
 @MainActor
 @Observable
-final class DesktopState {
-    static let shared = DesktopState()
+final class LargeWindowState {
+    static let shared = LargeWindowState()
 
     /// The playlist on show, or nil for the selected tab's page.
     private(set) var playlist: PlayableContent?
@@ -17,7 +17,7 @@ final class DesktopState {
     /// The stack on screen, where a sidebar playlist's menu presents its
     /// sheets.
     var currentRouter: Router {
-        if playlist != nil { return .desktopPlaylist }
+        if playlist != nil { return .largeWindowPlaylist }
         return Router.forTab(AppState.shared.resolvedTab(Router.main.selectedTab))
     }
 
@@ -45,10 +45,10 @@ final class DesktopState {
     /// Shows a playlist's page in the content's place.
     func open(_ playlist: PlayableContent) {
         guard self.playlist?.id != playlist.id else {
-            Router.desktopPlaylist.path.removeAll()
+            Router.largeWindowPlaylist.path.removeAll()
             return
         }
-        Router.desktopPlaylist.path.removeAll()
+        Router.largeWindowPlaylist.path.removeAll()
         self.playlist = playlist
     }
 
@@ -71,7 +71,7 @@ final class DesktopState {
 }
 
 /// The window on the Mac and an iPad, in place of the `TabView`
-/// (`AppState.usesDesktopShell`): laid out as macOS 27's Music is. The
+/// (`AppState.usesLargeWindow`): laid out as macOS 27's Music is. The
 /// sidebar runs the window's full height down the leading side, the traffic
 /// lights in its corner (the tabs with Search, the library's collections, its
 /// playlists), the queue the same down the trailing side, and the page
@@ -79,18 +79,18 @@ final class DesktopState {
 /// material, which sits behind the whole window (`MainWindowChrome`), so the
 /// desktop shows through them as through Music's; the page draws its own
 /// background over it. An iPad has no such thing, so its panels are grey.
-struct DesktopShell: View {
+struct LargeWindowShell: View {
     @State private var appState = AppState.shared
     /// How the window has room for the queue. A step rather than the width,
     /// so a resize runs this again only as it crosses one.
-    @State private var queueRoom = DesktopQueueRoom.besideSidebar
+    @State private var queueRoom = LargeWindowQueueRoom.besideSidebar
     @State private var barRooms = LargePlayerBarRooms()
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.openWindow) private var openWindow
 
     /// A base measure at the window's size (`InterfaceSize`).
     private func scaled(_ value: CGFloat) -> CGFloat {
-        (value * DesktopStyle.scale(typeSize)).rounded()
+        (value * LargeWindowStyle.scale(typeSize)).rounded()
     }
 
     var body: some View {
@@ -99,23 +99,23 @@ struct DesktopShell: View {
 
         HStack(spacing: 0) {
             if !showsQueue || queueRoom == .besideSidebar {
-                DesktopSidebar()
-                    .frame(width: scaled(DesktopStyle.sidebarWidth))
-                    .desktopPanelBackground()
-                    .desktopPanelEdge(.trailing)
+                LargeWindowSidebar()
+                    .frame(width: scaled(LargeWindowStyle.sidebarWidth))
+                    .largeWindowPanelBackground()
+                    .largeWindowPanelEdge(.trailing)
                     .transition(.move(edge: .leading).combined(with: .opacity))
             }
 
-            DesktopContent(
+            LargeWindowContent(
                 barRoom: showsQueue ? barRooms.besideQueue : barRooms.alone,
                 showsQueueToggle: queueRoom != .none
             )
 
             if showsQueue {
-                DesktopQueuePanel()
+                LargeWindowQueuePanel()
                     .frame(width: queueWidth)
-                    .desktopPanelBackground()
-                    .desktopPanelEdge(.leading)
+                    .largeWindowPanelBackground()
+                    .largeWindowPanelEdge(.leading)
                     .transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
@@ -124,19 +124,19 @@ struct DesktopShell: View {
         // the material and the page.
         .scrollEdgeEffectHidden26()
         .ignoresSafeArea()
-        .onGeometryChange(for: DesktopQueueRoom.self) { [scale = DesktopStyle.scale(typeSize)] in
-            DesktopQueueRoom(windowWidth: $0.size.width, scale: scale)
+        .onGeometryChange(for: LargeWindowQueueRoom.self) { [scale = LargeWindowStyle.scale(typeSize)] in
+            LargeWindowQueueRoom(windowWidth: $0.size.width, scale: scale)
         } action: {
             queueRoom = $0
         }
-        .onGeometryChange(for: LargePlayerBarRooms.self) { [sidebarWidth = scaled(DesktopStyle.sidebarWidth), queueWidth, margin = scaled(DesktopStyle.barMargin), scale = DesktopStyle.scale(typeSize)] in
+        .onGeometryChange(for: LargePlayerBarRooms.self) { [sidebarWidth = scaled(LargeWindowStyle.sidebarWidth), queueWidth, margin = scaled(LargeWindowStyle.barMargin), scale = LargeWindowStyle.scale(typeSize)] in
             LargePlayerBarRooms(
                 windowWidth: $0.size.width,
                 sidebarWidth: sidebarWidth,
                 queueWidth: queueWidth,
                 margin: margin,
                 scale: scale,
-                queueRoom: DesktopQueueRoom(windowWidth: $0.size.width, scale: scale)
+                queueRoom: LargeWindowQueueRoom(windowWidth: $0.size.width, scale: scale)
             )
         } action: {
             barRooms = $0
@@ -157,13 +157,13 @@ struct DesktopShell: View {
 /// while it shows. Narrower still, and on the Mac, whose window can simply be
 /// made wider, there's nowhere: the bar leaves out its button, and the player
 /// still has the queue.
-enum DesktopQueueRoom: Equatable {
+enum LargeWindowQueueRoom: Equatable {
     case besideSidebar, inSidebarsPlace, none
 
     init(windowWidth: CGFloat, scale: CGFloat) {
-        if windowWidth >= (DesktopStyle.queueMinWindowWidth * scale).rounded() {
+        if windowWidth >= (LargeWindowStyle.queueMinWindowWidth * scale).rounded() {
             self = .besideSidebar
-        } else if windowWidth >= (DesktopStyle.queueAloneMinWindowWidth * scale).rounded() {
+        } else if windowWidth >= (LargeWindowStyle.queueAloneMinWindowWidth * scale).rounded() {
             self = .inSidebarsPlace
         } else {
             self = .none
@@ -178,11 +178,11 @@ enum DesktopQueueRoom: Equatable {
 /// Each tab's page is kept once it has been shown, hidden while another
 /// shows, as a `TabView` keeps its tabs: built again on every switch, each
 /// page ran its first load again, its spinner and all, and lost its place.
-struct DesktopContent: View {
+struct LargeWindowContent: View {
     let barRoom: BarRoom
     let showsQueueToggle: Bool
     @State private var appState = AppState.shared
-    @State private var desktop = DesktopState.shared
+    @State private var largeWindow = LargeWindowState.shared
     /// The tabs whose pages are alive, the latest shown last.
     @State private var keptTabs: [AppTab] = []
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -191,7 +191,7 @@ struct DesktopContent: View {
 
     /// A base measure at the window's size (`InterfaceSize`).
     private func scaled(_ value: CGFloat) -> CGFloat {
-        (value * DesktopStyle.scale(typeSize)).rounded()
+        (value * LargeWindowStyle.scale(typeSize)).rounded()
     }
 
     /// Pages kept besides the one showing: Browse, Search and a few more.
@@ -208,18 +208,18 @@ struct DesktopContent: View {
             // bar: an inset laid the pages out above it instead, cut off at
             // its top edge.
             pages(selected: selected)
-                .contentMargins(.bottom, scaled(DesktopStyle.barHeight + DesktopStyle.barMargin * 2))
+                .contentMargins(.bottom, scaled(LargeWindowStyle.barHeight + LargeWindowStyle.barMargin * 2))
                 .overlay(alignment: .bottom) {
                     LargePlayerBar(room: barRoom, showsQueueToggle: showsQueueToggle)
-                        .frame(height: scaled(DesktopStyle.barHeight))
-                        .padding([.horizontal, .bottom], scaled(DesktopStyle.barMargin))
+                        .frame(height: scaled(LargeWindowStyle.barHeight))
+                        .padding([.horizontal, .bottom], scaled(LargeWindowStyle.barMargin))
                 }
                 .frame(maxWidth: .infinity)
         }
         // No band under the title bar: the lists' edge effect drew one, with
         // a hairline, across the page and the panels.
         .scrollEdgeEffectHidden26()
-        .background(DesktopStyle.windowBackground)
+        .background(LargeWindowStyle.windowBackground)
         .ignoresSafeArea(.container, edges: .vertical)
         .onChange(of: selected, initial: true) { _, tab in
             keep(tab)
@@ -247,7 +247,7 @@ struct DesktopContent: View {
     private func pageStack(selected: AppTab) -> some View {
         ZStack(alignment: .topLeading) {
             ForEach(keptTabs, id: \.self) { tab in
-                let isShown = desktop.playlist == nil && tab == selected
+                let isShown = largeWindow.playlist == nil && tab == selected
                 page(for: tab)
                     .modifier(KeptPageFrame(isShown: isShown))
                     .opacity(isShown ? 1 : 0)
@@ -257,8 +257,8 @@ struct DesktopContent: View {
                     .disabled(!isShown)
                     .accessibilityHidden(!isShown)
             }
-            if let playlist = desktop.playlist {
-                Screens.desktopPlaylist(playlist)
+            if let playlist = largeWindow.playlist {
+                Screens.largeWindowPlaylist(playlist)
                     .id(playlist.id)
             }
         }
@@ -325,7 +325,7 @@ private struct KeptPageFrame: ViewModifier {
 /// Next Up, or a book's chapters, down the window's trailing side, up to
 /// the window's top as Music's queue is: no traffic lights sit over it.
 /// Clear, over the window's material (`MainWindowChrome`).
-struct DesktopQueuePanel: View {
+struct LargeWindowQueuePanel: View {
     var body: some View {
         QueueNextUpView()
             .scrollContentBackground(.hidden)
@@ -340,11 +340,11 @@ struct DesktopQueuePanel: View {
 }
 
 /// A playlist chosen in the sidebar: its page as the root of a stack of its
-/// own (`Router.desktopPlaylist`), what's opened from it pushed there.
-struct DesktopPlaylistScreen: View {
+/// own (`Router.largeWindowPlaylist`), what's opened from it pushed there.
+struct LargeWindowPlaylistScreen: View {
     let playlist: PlayableContent
 
-    @State private var router = Router.desktopPlaylist
+    @State private var router = Router.largeWindowPlaylist
 
     var body: some View {
         @Bindable var router = router

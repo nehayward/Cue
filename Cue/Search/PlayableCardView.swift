@@ -60,7 +60,7 @@ struct PlayableCardView: View {
                     // A little larger under the pointer, as a cover is in
                     // Music.
                     content
-                        .desktopHoverLift()
+                        .largeWindowHoverLift()
                 }
                 .buttonStyle(.plain)
                 .contentShape(.contextMenuPreview, .rect(cornerRadius: artworkCornerRadius))
@@ -72,7 +72,7 @@ struct PlayableCardView: View {
                     PlayableMenuView(item: item)
                 } label: {
                     content
-                        .desktopHoverLift()
+                        .largeWindowHoverLift()
                 } primaryAction: {
                     actions()
                 }

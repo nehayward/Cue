@@ -1,12 +1,12 @@
 import SwiftUI
 import UIKit
 
-/// The Mac window's measures and colours (`DesktopShell`): full-height
+/// The Mac window's measures and colours (`LargeWindowShell`): full-height
 /// panels down its sides and a floating player bar, as macOS 27's Music
 /// has. In points of the iPad idiom the Mac app runs in, which macOS draws
 /// at 77%, so they're a third larger than the same thing in a native Mac
 /// app.
-enum DesktopStyle {
+enum LargeWindowStyle {
 #if targetEnvironment(macCatalyst)
     static let sidebarWidth: CGFloat = 300
 #else
@@ -80,12 +80,12 @@ extension View {
     /// What's behind a panel. On the Mac nothing: it's clear over the window's
     /// material (`MainWindowChrome`). An iPad has no such material to show.
     @ViewBuilder
-    func desktopPanelBackground() -> some View {
+    func largeWindowPanelBackground() -> some View {
 #if targetEnvironment(macCatalyst)
         self
 #else
         background {
-            DesktopStyle.panel
+            LargeWindowStyle.panel
                 .ignoresSafeArea()
         }
 #endif
@@ -93,9 +93,9 @@ extension View {
 
     /// A hairline on the `edge` a panel meets the page by, up through the
     /// title bar.
-    func desktopPanelEdge(_ edge: HorizontalEdge) -> some View {
+    func largeWindowPanelEdge(_ edge: HorizontalEdge) -> some View {
         overlay(alignment: edge == .leading ? .leading : .trailing) {
-            DesktopStyle.panelEdge
+            LargeWindowStyle.panelEdge
                 .frame(width: 1)
                 .ignoresSafeArea()
         }
@@ -106,25 +106,25 @@ extension View {
     func belowTitleBar() -> some View {
         VStack(spacing: 0) {
             Color.clear
-                .frame(height: DesktopStyle.titleBarHeight)
+                .frame(height: LargeWindowStyle.titleBarHeight)
             self
         }
         .ignoresSafeArea(.container, edges: .top)
     }
 
     /// A rounded wash under the view while the pointer is over it.
-    func desktopHover(cornerRadius: CGFloat = 10, isSelected: Bool = false) -> some View {
-        modifier(DesktopHoverHighlight(cornerRadius: cornerRadius, isSelected: isSelected))
+    func largeWindowHover(cornerRadius: CGFloat = 10, isSelected: Bool = false) -> some View {
+        modifier(LargeWindowHoverHighlight(cornerRadius: cornerRadius, isSelected: isSelected))
     }
 
     /// Grows a little under the pointer, as a cover does in Music: for
     /// artwork and tiles that are buttons in themselves.
-    func desktopHoverLift(scale: CGFloat = 1.03) -> some View {
-        modifier(DesktopHoverLift(scale: scale))
+    func largeWindowHoverLift(scale: CGFloat = 1.03) -> some View {
+        modifier(LargeWindowHoverLift(scale: scale))
     }
 }
 
-private struct DesktopHoverHighlight: ViewModifier {
+private struct LargeWindowHoverHighlight: ViewModifier {
     let cornerRadius: CGFloat
     let isSelected: Bool
     @State private var isHovering = false
@@ -133,7 +133,7 @@ private struct DesktopHoverHighlight: ViewModifier {
         content
             .background {
                 RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(isSelected ? DesktopStyle.selection : DesktopStyle.hover)
+                    .fill(isSelected ? LargeWindowStyle.selection : LargeWindowStyle.hover)
                     .opacity(isSelected || isHovering ? 1 : 0)
             }
             .onHover { isHovering = $0 }
@@ -141,7 +141,7 @@ private struct DesktopHoverHighlight: ViewModifier {
     }
 }
 
-private struct DesktopHoverLift: ViewModifier {
+private struct LargeWindowHoverLift: ViewModifier {
     let scale: CGFloat
     @State private var isHovering = false
 
@@ -157,18 +157,18 @@ private struct DesktopHoverLift: ViewModifier {
 
 /// A round glyph button: a wash under the pointer, and a press that sinks.
 /// The player bar's transport and actions, and the sidebar's gear.
-struct DesktopIconButtonStyle: ButtonStyle {
+struct LargeWindowIconButtonStyle: ButtonStyle {
     var side: CGFloat = 40
     /// Filled with the panels' grey when not under the pointer, for a button
     /// on the page rather than a panel.
     var isFilled = false
 
     func makeBody(configuration: Configuration) -> some View {
-        DesktopIconButton(configuration: configuration, side: side, isFilled: isFilled)
+        LargeWindowIconButton(configuration: configuration, side: side, isFilled: isFilled)
     }
 }
 
-private struct DesktopIconButton: View {
+private struct LargeWindowIconButton: View {
     let configuration: ButtonStyle.Configuration
     let side: CGFloat
     let isFilled: Bool
@@ -177,15 +177,15 @@ private struct DesktopIconButton: View {
     @State private var isHovering = false
 
     var body: some View {
-        let side = (side * DesktopStyle.scale(typeSize)).rounded()
+        let side = (side * LargeWindowStyle.scale(typeSize)).rounded()
 
         configuration.label
             .frame(width: side, height: side)
             .background {
                 Circle()
-                    .fill(isFilled ? DesktopStyle.panel : .clear)
+                    .fill(isFilled ? LargeWindowStyle.panel : .clear)
                 Circle()
-                    .fill(DesktopStyle.hover)
+                    .fill(LargeWindowStyle.hover)
                     .opacity(isHovering && isEnabled ? 1 : 0)
             }
             .contentShape(.circle)

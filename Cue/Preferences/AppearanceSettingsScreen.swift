@@ -80,7 +80,7 @@ struct AppearanceSettingsSections: View {
             .tint(.accent)
         } header: {
             // The Mac's window lists them in its sidebar.
-            Text(AppState.usesDesktopShell ? "Sidebar" : "Tabs")
+            Text(AppState.usesLargeWindow ? "Sidebar" : "Tabs")
         } footer: {
             Text("While you're offline, Home and Radio hide, Audiobooks shows only books downloaded whole, and Downloads always shows.")
         }
