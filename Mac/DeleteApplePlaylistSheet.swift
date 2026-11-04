@@ -3,8 +3,8 @@ import SwiftUI
 
 /// The confirmation for deleting an Apple Music playlist on the Mac, which Cue
 /// asks the Music app to do (`ApplePlaylistDeleter`), and where it says why a
-/// playlist can't go. A card fitted to its text, as `RouteTransferPrompt` is:
-/// a navigation stack in a fitted sheet collapsed to 100 pt wide.
+/// playlist can't go. A card fitted to its text, as `RouteTransferPrompt` is,
+/// with no navigation stack, which collapses when fitted.
 struct DeleteApplePlaylistSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
@@ -14,7 +14,7 @@ struct DeleteApplePlaylistSheet: View {
 
     private enum Step: Equatable {
         case checking
-        case ready(linkedPersistentID: String?)
+        case ready(ApplePlaylistDeleter.Checked)
         case deleting
         case refused(ApplePlaylistDeleter.Problem)
     }
@@ -61,12 +61,17 @@ struct DeleteApplePlaylistSheet: View {
         .presentationSizing(.fitted)
         .interactiveDismissDisabled(step == .deleting)
         .task {
-            do {
-                step = .ready(linkedPersistentID: try await ApplePlaylistDeleter.check(content))
+            do throws(ApplePlaylistDeleter.Problem) {
+                step = .ready(try await ApplePlaylistDeleter.check(content))
             } catch {
-                step = .refused(problem(from: error))
+                step = .refused(error)
             }
         }
+    }
+
+    private var checked: ApplePlaylistDeleter.Checked? {
+        guard case let .ready(checked) = step else { return nil }
+        return checked
     }
 
     private var refusal: ApplePlaylistDeleter.Problem? {
@@ -77,29 +82,25 @@ struct DeleteApplePlaylistSheet: View {
     @ViewBuilder
     private var buttons: some View {
         switch step {
-        case .checking, .deleting:
-            Button(role: .destructive) {} label: {
-                ProgressView()
-                    .frame(maxWidth: .infinity)
+        case .checking, .ready, .deleting:
+            Button(role: .destructive) {
+                delete()
+            } label: {
+                if checked == nil {
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                } else {
+                    Text("Delete Playlist")
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity)
+                }
             }
             .buttonStyle(.borderedProminent)
             .tint(.red)
-            .disabled(true)
+            .disabled(checked == nil)
 
             cancelButton
                 .disabled(step == .deleting)
-        case let .ready(linkedPersistentID):
-            Button(role: .destructive) {
-                delete(linkedPersistentID: linkedPersistentID)
-            } label: {
-                Text("Delete Playlist")
-                    .fontWeight(.semibold)
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(.red)
-
-            cancelButton
         case let .refused(problem):
             if problem.isPermission {
                 Button {
@@ -140,21 +141,18 @@ struct DeleteApplePlaylistSheet: View {
         .keyboardShortcut(.cancelAction)
     }
 
-    private func delete(linkedPersistentID: String?) {
+    private func delete() {
+        guard let checked else { return }
         step = .deleting
         Task {
-            do {
-                try await ApplePlaylistDeleter.delete(content, linkedPersistentID: linkedPersistentID)
-                ApplePlaylistDeleter.finish(content)
+            do throws(ApplePlaylistDeleter.Problem) {
+                try await ApplePlaylistDeleter.delete(content, checked)
+                LargeWindowState.shared.leavePage(of: content)
                 alertService.showAlert(with: "Removed \(content.title)", imageName: "trash")
                 dismiss()
             } catch {
-                step = .refused(problem(from: error))
+                step = .refused(error)
             }
         }
-    }
-
-    private func problem(from error: Error) -> ApplePlaylistDeleter.Problem {
-        error as? ApplePlaylistDeleter.Problem ?? .init(message: error.localizedDescription)
     }
 }

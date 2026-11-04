@@ -55,10 +55,16 @@ public enum ApplePlaylistDeletion {
         linkedPersistentID: String?,
         in playlists: [MusicPlaylist]
     ) -> Choice {
-        let sameName = playlists.filter { folded($0.name) == folded(name) }
+        let foldedName = folded(name)
+        let sameName = playlists.filter { folded($0.name) == foldedName }
         guard sameName.count < 2 else { return .refuse(.sameName(count: sameName.count)) }
 
-        let found = linkedPersistentID.map { id in playlists.first { $0.persistentID == id } } ?? sameName.first
+        // A link Music doesn't have is no reason to go by the name instead.
+        let found = if let linkedPersistentID {
+            playlists.first { $0.persistentID == linkedPersistentID }
+        } else {
+            sameName.first
+        }
         guard let playlist = found else { return .refuse(.notInMusic) }
         guard playlist.name == name else { return .refuse(.nameDiffers(inMusic: playlist.name)) }
         guard playlist.kind == .plain else { return .refuse(.wrongKind(playlist.kind)) }
@@ -73,8 +79,7 @@ public enum ApplePlaylistDeletion {
     /// other kind of id (a `p.…` is the web API's).
     public static func persistentID(fromMusicKitID id: String) -> String? {
         guard let value = Int64(id) else { return nil }
-        let hex = String(UInt64(bitPattern: value), radix: 16, uppercase: true)
-        return String(repeating: "0", count: 16 - hex.count) + hex
+        return String(format: "%016llX", UInt64(bitPattern: value))
     }
 
     /// Playlists that differ only by case or accent would be easy to mistake.

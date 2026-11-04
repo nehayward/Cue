@@ -77,6 +77,13 @@ final class ApplePlaylistDeletionTests: XCTestCase {
 
     /// A link to a playlist Music calls something else is never followed,
     /// even with the name Cue shows free in Music.
+    func testALinkMusicDoesntHaveDoesntFallBackToTheName() {
+        XCTAssertEqual(
+            choose("Road Trip", linked: "CCCCCCCCCCCCCCCC", in: [gym, roadTrip]),
+            .refuse(.notInMusic)
+        )
+    }
+
     func testALinkToAnotherNameIsRefused() {
         XCTAssertEqual(
             choose("Road Trip", linked: gym.persistentID, in: [gym]),

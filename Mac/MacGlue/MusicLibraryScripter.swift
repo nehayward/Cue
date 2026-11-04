@@ -19,15 +19,10 @@ final class MusicLibraryScripter: NSObject, MusicLibraryScriptable, @unchecked S
 
     private let target = NSAppleEventDescriptor(bundleIdentifier: MusicLibraryScripter.bundleID)
 
-    required override init() {
-        super.init()
-    }
-
     // MARK: - MusicLibraryScriptable
 
     func playlists() async throws -> [[String: String]] {
-        try await openMusicIfNeeded()
-        return try await withConnection { [self] in
+        try await withConnection { [self] in
             // `properties` in one event, so the rows are of one moment.
             let rows = try get(property("pALL", of: every("cPly", in: try librarySource())))
             return items(of: rows).map { row in
@@ -41,16 +36,14 @@ final class MusicLibraryScripter: NSObject, MusicLibraryScriptable, @unchecked S
     }
 
     func trackCount(ofPlaylist persistentID: String) async throws -> Int {
-        try await openMusicIfNeeded()
-        return try await withConnection { [self] in
+        try await withConnection { [self] in
             let playlist = try userPlaylist(persistentID: persistentID)
-            let count = try send("core", "cnte", direct: playlist, parameters: ["kocl": NSAppleEventDescriptor(typeCode: code("cTrk"))])
+            let count = try send("cnte", direct: playlist, parameters: ["kocl": NSAppleEventDescriptor(typeCode: code("cTrk"))])
             return Int(count.int32Value)
         }
     }
 
     func deletePlaylist(persistentID: String, named name: String) async throws {
-        try await openMusicIfNeeded()
         try await withConnection { [self] in
             let playlist = try userPlaylist(persistentID: persistentID)
             // What this specifier names right now is what's about to go.
@@ -59,7 +52,7 @@ final class MusicLibraryScripter: NSObject, MusicLibraryScriptable, @unchecked S
                 throw error(Self.noSuchObject)
             }
 
-            _ = try send("core", "delo", direct: playlist, timeout: 60)
+            _ = try send("delo", direct: playlist, timeout: 60)
 
             do {
                 _ = try get(property("pPIS", of: playlist))
@@ -85,9 +78,11 @@ final class MusicLibraryScripter: NSObject, MusicLibraryScriptable, @unchecked S
         _ = try await NSWorkspace.shared.openApplication(at: url, configuration: configuration)
     }
 
-    /// Runs `work` on the queue once this app may ask Music and Music answers.
+    /// Runs `work` on the queue once Music is open, this app may ask it and it
+    /// answers.
     private func withConnection<T>(_ work: @escaping () throws -> T) async throws -> T {
-        try await withCheckedThrowingContinuation { continuation in
+        try await openMusicIfNeeded()
+        return try await withCheckedThrowingContinuation { continuation in
             queue.async { [self] in
                 continuation.resume(with: Result {
                     try waitForMusic()
@@ -100,20 +95,21 @@ final class MusicLibraryScripter: NSObject, MusicLibraryScriptable, @unchecked S
     /// Asks for permission (a prompt the first time), then for Music's version,
     /// for up to 20 s while a Music just opened gets going.
     private func waitForMusic() throws {
+        let deadline = Date.now.addingTimeInterval(20)
         var status = OSStatus(procNotFound)
-        for attempt in 0 ..< 40 {
-            if attempt > 0 {
-                Thread.sleep(forTimeInterval: 0.5)
-            }
+        while Date.now < deadline {
             status = AEDeterminePermissionToAutomateTarget(target.aeDesc, typeWildCard, typeWildCard, true)
-            if status == OSStatus(procNotFound) { continue }
-            guard status == noErr else { throw error(Int(status)) }
-            do {
-                _ = try send("core", "getd", direct: property("vers", of: .null()), timeout: 5)
-                return
-            } catch let error as NSError where Self.isStillOpening(error.code) {
-                status = OSStatus(error.code)
+            if status == noErr {
+                do {
+                    _ = try send("getd", direct: property("vers", of: .null()), timeout: 5)
+                    return
+                } catch let error as NSError where Self.isStillOpening(error.code) {
+                    status = OSStatus(error.code)
+                }
+            } else if status != OSStatus(procNotFound) {
+                throw error(Int(status))
             }
+            Thread.sleep(forTimeInterval: 0.5)
         }
         throw error(Int(status))
     }
@@ -178,18 +174,17 @@ final class MusicLibraryScripter: NSObject, MusicLibraryScriptable, @unchecked S
     // MARK: - Events
 
     private func get(_ specifier: NSAppleEventDescriptor) throws -> NSAppleEventDescriptor {
-        try send("core", "getd", direct: specifier)
+        try send("getd", direct: specifier)
     }
 
     private func send(
-        _ eventClass: String,
         _ eventID: String,
         direct: NSAppleEventDescriptor,
         parameters: [String: NSAppleEventDescriptor] = [:],
         timeout: TimeInterval = 30
     ) throws -> NSAppleEventDescriptor {
         let event = NSAppleEventDescriptor(
-            eventClass: code(eventClass),
+            eventClass: code("core"),
             eventID: code(eventID),
             targetDescriptor: target,
             returnID: AEReturnID(kAutoGenerateReturnID),
