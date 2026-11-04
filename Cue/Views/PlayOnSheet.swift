@@ -886,10 +886,15 @@ struct VolumeRouteRow: View {
     /// The level when the volume drag began; `nil` when there isn't one.
     @State private var startLevel: Double?
     @State private var width: CGFloat = 0
+    @State private var isHovering = false
 
     private static let accessibilityStep = 0.05
 
     private var isAdjusting: Bool { startLevel != nil }
+    /// The level in the row's trailing slot: while it's dragged, and under
+    /// the pointer where the slot holds nothing else (a hover doesn't take a
+    /// row's checkmark away just as it's about to be clicked).
+    private var showsLevel: Bool { level != nil && (isAdjusting || isHovering && mark == .empty) }
     private var isSelected: Bool { mark == .checkmark || mark == .checkedCircle }
 
     /// The percent a drag last ticked at. A plain reference, not state:
@@ -921,6 +926,7 @@ struct VolumeRouteRow: View {
         }
         .contentShape(.contextMenuPreview, .capsule)
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+        .onHover { isHovering = $0 }
         .scaleEffect(isAdjusting ? 1.02 : 1)
         .animation(.snappy(duration: 0.2), value: isAdjusting)
         .gesture(
@@ -1001,6 +1007,7 @@ struct VolumeRouteRow: View {
             // Said in the value and the selected trait instead.
             accessory
                 .frame(minWidth: 28, alignment: .trailing)
+                .animation(.snappy(duration: 0.15), value: showsLevel)
                 .accessibilityHidden(true)
         }
         .padding(.horizontal, 18)
@@ -1036,7 +1043,7 @@ struct VolumeRouteRow: View {
 
     @ViewBuilder
     private var accessory: some View {
-        if isAdjusting, let level {
+        if showsLevel, let level {
             Text(level, format: .percent.precision(.fractionLength(0)))
                 .font(.callout.weight(.semibold))
                 .monospacedDigit()
