@@ -5,8 +5,9 @@ import SonosKitMini
 import SwiftUI
 
 /// Cue Mini's item in the menu bar and the panel it opens: a click shows or
-/// hides the player, as the system's Now Playing does, and a right click or a
-/// Control-click opens Mini's settings as a menu.
+/// hides the player, as the system's Now Playing does, a Command-click or
+/// Option-click plays or pauses, and a right click or a Control-click opens
+/// Mini's settings as a menu.
 ///
 /// AppKit's rather than SwiftUI's `MenuBarExtra`, whose item on macOS 27 is
 /// hosted outside the app: a right click on it never reaches the app, not even
@@ -25,6 +26,7 @@ final class StatusItemManager: NSObject, NSWindowDelegate {
     private var statusItem: NSStatusItem?
     private var panel: NSPanel?
     private var outsideClickMonitor: Any?
+    private var shownTitle: MenuBarTitle?
 
     private override init() {}
 
@@ -52,16 +54,19 @@ final class StatusItemManager: NSObject, NSWindowDelegate {
                 StatusItemManager.shared.followTitle()
             }
         }
-        if let button = statusItem?.button, button.title != title ?? "" {
-            button.title = title ?? ""
-        }
+        guard title != shownTitle else { return }
+        shownTitle = title
+        statusItem?.button?.attributedTitle = title?.attributed ?? NSAttributedString()
     }
 
     @objc private func itemClicked() {
         let event = NSApp.currentEvent
-        if event?.type == .rightMouseUp || event?.modifierFlags.contains(.control) == true {
+        let modifiers = event?.modifierFlags ?? []
+        if event?.type == .rightMouseUp || modifiers.contains(.control) {
             closePanel()
             showSettingsMenu()
+        } else if !modifiers.isDisjoint(with: [.command, .option]), CueLink.shared.state?.item != nil {
+            CueLink.shared.send(.togglePlayback)
         } else {
             togglePanel()
         }
@@ -239,29 +244,41 @@ private final class MiniPanel: NSPanel {
     }
 }
 
-/// What the item says beside its mark.
+/// What the item says beside its mark: the song, dim while it's paused.
 @MainActor
-private enum MenuBarTitle {
+private struct MenuBarTitle: Equatable {
     /// The longest title the bar carries, as it's there whenever something's
     /// loaded and a book's chapter can run long.
     private static let limit = 32
+
+    let text: String
+    let isPaused: Bool
 
     /// What Cue's player shows (on this Mac or a speaker), paused or not, else
     /// a playing speaker's song.
     ///
     /// `song`, not `name` — it prefers the stream metadata title and falls back
     /// to `name`, which is what the menu's own rows render.
-    static var current: String? {
+    static var current: MenuBarTitle? {
         guard MiniSettingsService.shared.showSongTitleInMenuBar else { return nil }
-        let full: String
-        if let item = CueLink.shared.state?.item {
-            full = item.title
-        } else if let song = playingDevice?.track.song {
-            full = song
-        } else {
-            return nil
+        if let state = CueLink.shared.state, let item = state.item {
+            return MenuBarTitle(text: shortened(item.title), isPaused: !state.isPlaying)
         }
-        return full.count > limit ? full.prefix(limit - 1) + "…" : full
+        if let song = playingDevice?.track.song {
+            return MenuBarTitle(text: shortened(song), isPaused: false)
+        }
+        return nil
+    }
+
+    private static func shortened(_ title: String) -> String {
+        title.count > limit ? title.prefix(limit - 1) + "…" : title
+    }
+
+    var attributed: NSAttributedString {
+        NSAttributedString(string: text, attributes: [
+            .font: NSFont.menuBarFont(ofSize: 0),
+            .foregroundColor: isPaused ? NSColor.secondaryLabelColor : NSColor.labelColor,
+        ])
     }
 
     /// A speaker playing, for its song while Cue's player has none.
