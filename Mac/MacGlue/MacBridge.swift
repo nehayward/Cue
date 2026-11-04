@@ -38,9 +38,6 @@ final class MacBridge: NSObject, MacBridgeable, @unchecked Sendable {
     private lazy var _dockMenu: DockMenuRenderer = DockMenuRenderer()
     var dockMenu: DockMenuRenderable { _dockMenu }
 
-    private lazy var _musicLibrary = MusicLibraryScripter()
-    var musicLibrary: MusicLibraryScriptable { _musicLibrary }
-
     enum CueMiniError: LocalizedError {
         case appNotFound
         case launchFailed(reason: String)

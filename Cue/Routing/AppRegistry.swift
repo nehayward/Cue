@@ -16,18 +16,8 @@ extension View {
             case let .customSleepTimer(recentTimers, onSelect):
                 SleepTimerCustomView(recentTimers: recentTimers, onSelect: onSelect)
             case let .confirmDeletePlaylist(content):
-#if targetEnvironment(macCatalyst)
-                if ApplePlaylistDeleter.offers(content) {
-                    DeleteApplePlaylistSheet(content: content)
-                        .withEnvironments()
-                } else {
-                    DeletePlaylistConfirmationView(content: content)
-                        .withEnvironments()
-                }
-#else
                 DeletePlaylistConfirmationView(content: content)
                     .withEnvironments()
-#endif
             case let .addToPlaylist(content):
                 AddToPlaylistSheet(content: content)
                     .presentationDragIndicator(.hidden)

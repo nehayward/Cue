@@ -84,16 +84,6 @@ struct PlayableMenuView: View {
                         Label("Delete Playlist", systemImage: "trash")
                     }
                 }
-
-#if targetEnvironment(macCatalyst)
-                if ApplePlaylistDeleter.offers(item) {
-                    Button(role: .destructive) {
-                        router.sheet(to: .confirmDeletePlaylist(content: item))
-                    } label: {
-                        Label("Delete Playlist", systemImage: "trash")
-                    }
-                }
-#endif
             case .album, .track, .libraryTrack, .libraryAlbum:
                 ControlGroup("Queue \(item.content.type.title)") {
                     Button {
