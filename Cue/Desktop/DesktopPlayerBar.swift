@@ -2,8 +2,8 @@ import MusicSearchKit
 import SonosKit
 import SwiftUI
 
-/// The player of the Mac window (`DesktopShell`): one capsule floating over
-/// the foot of the page, as Music's is. The transport with
+/// The player of the Mac's and an iPad's window (`DesktopShell`): one capsule
+/// floating over the foot of the page, as Music's is. The transport with
 /// shuffle and repeat, then what's playing with its progress under it, then
 /// a speaker's volume, Play On and the queue.
 ///
@@ -13,19 +13,21 @@ import SwiftUI
 struct DesktopPlayerBar: View {
     /// What it has room for, worked out from the window (`DesktopBarRooms`).
     let room: BarRoom
+    /// Whether the window has anywhere to show the queue.
+    let showsQueueToggle: Bool
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         let scale = DesktopStyle.scale(typeSize)
 
         HStack(spacing: 12 * scale) {
-            DesktopTransport(showsOrder: room != .essentials)
-            DesktopNowPlaying()
+            DesktopTransport(showsOrder: room == .everything || room == .noVolume, showsPrevious: room != .least)
+            DesktopNowPlaying(showsProgress: room != .least)
                 .frame(minWidth: room == .everything ? BarRoom.songWidthBesideVolume * scale : nil, maxWidth: 760 * scale)
                 .frame(maxWidth: .infinity)
             // First in line for the width: the song gives way down to its
             // least, and only then the volume down to its own.
-            DesktopBarActions(showsVolume: room == .everything)
+            DesktopBarActions(showsVolume: room == .everything, showsQueueToggle: showsQueueToggle)
                 .layoutPriority(1)
         }
         .padding(.horizontal, 14 * scale)
@@ -43,11 +45,12 @@ struct DesktopPlayerBar: View {
 
 /// What the bar has room for: as it narrows the song gives way, then the
 /// speaker's volume shrinks (both by layout, as the window moves), and only
-/// then does the volume go (Play On still has it), then shuffle and repeat.
-/// A step rather than the width, so a resize runs the bar again only as it
-/// crosses one.
+/// then does the volume go (Play On still has it), then shuffle and repeat,
+/// and last Previous and the song's progress, where a narrow window would
+/// otherwise leave the title no room at all. A step rather than the width, so
+/// a resize runs the bar again only as it crosses one.
 enum BarRoom: Equatable {
-    case everything, noVolume, essentials
+    case everything, noVolume, essentials, least
 
     /// The least the song takes beside the volume, in base points. A long
     /// title scrolls, so it can be short of its text.
@@ -65,7 +68,8 @@ enum BarRoom: Equatable {
         self = switch width {
         case beside...: .everything
         case 580...: .noVolume
-        default: .essentials
+        case 440...: .essentials
+        default: .least
         }
     }
 }
@@ -84,9 +88,11 @@ struct DesktopBarRooms: Equatable {
     init() {}
 
     /// All in points at the window's size, `scale` being `DesktopStyle.scale`.
-    init(windowWidth: CGFloat, sidebarWidth: CGFloat, queueWidth: CGFloat, margin: CGFloat, scale: CGFloat) {
+    init(windowWidth: CGFloat, sidebarWidth: CGFloat, queueWidth: CGFloat, margin: CGFloat, scale: CGFloat, queueRoom: DesktopQueueRoom) {
         let barWidth = windowWidth - sidebarWidth - margin * 2
-        besideQueue = BarRoom(width: (barWidth - queueWidth) / scale)
+        // In the sidebar's place, the queue gives that room back.
+        let widthBesideQueue = barWidth - queueWidth + (queueRoom == .inSidebarsPlace ? sidebarWidth : 0)
+        besideQueue = BarRoom(width: widthBesideQueue / scale)
         alone = BarRoom(width: barWidth / scale)
     }
 }
@@ -99,6 +105,8 @@ struct DesktopBarRooms: Equatable {
 private struct DesktopTransport: View {
     /// Shuffle and repeat, where the bar has room for them.
     let showsOrder: Bool
+    /// Previous, or a book's back 15 s, likewise.
+    let showsPrevious: Bool
 
     private var route: PlaybackRoute { .shared }
 
@@ -123,16 +131,18 @@ private struct DesktopTransport: View {
                 .help(controller.isShuffled ? "Shuffle: On" : "Shuffle: Off")
             }
 
-            Button {
-                Task { await PlayerCommands.previous() }
-            } label: {
-                Image(systemName: PlayerCommands.previousSymbol)
-                    .font(.title3)
+            if showsPrevious {
+                Button {
+                    Task { await PlayerCommands.previous() }
+                } label: {
+                    Image(systemName: PlayerCommands.previousSymbol)
+                        .font(.title3)
+                }
+                .buttonStyle(DesktopIconButtonStyle(side: 42))
+                .disabled(!PlayerCommands.canGoPrevious)
+                .accessibilityLabel(PlayerCommands.previousTitle)
+                .help(PlayerCommands.previousTitle)
             }
-            .buttonStyle(DesktopIconButtonStyle(side: 42))
-            .disabled(!PlayerCommands.canGoPrevious)
-            .accessibilityLabel(PlayerCommands.previousTitle)
-            .help(PlayerCommands.previousTitle)
 
             Button {
                 Task { await PlayerCommands.togglePlayback() }
@@ -189,6 +199,9 @@ private struct DesktopTransport: View {
 /// button where its service has one, and its progress under them. On a
 /// speaker, the group's name; through a hand-off, where it's going.
 private struct DesktopNowPlaying: View {
+    /// The scrubber under the title, where there's room to use it.
+    let showsProgress: Bool
+
     private var route: PlaybackRoute { .shared }
     @State private var router = Router.main
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -207,6 +220,7 @@ private struct DesktopNowPlaying: View {
                 router.isPlayerPresented = true
             } label: {
                 artwork(item: item, group: group)
+                    .modifier(PlayerZoomSource())
             }
             .buttonStyle(.plain)
             .desktopHoverLift()
@@ -231,7 +245,7 @@ private struct DesktopNowPlaying: View {
                     Label("Live", systemImage: "dot.radiowaves.left.and.right")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
-                } else {
+                } else if showsProgress {
                     PlayerScrubber(isInline: true)
                 }
             }
@@ -281,7 +295,7 @@ private struct DesktopNowPlaying: View {
         if PlayerCommands.isBook {
             AudiobookTimeLeft(prefix: AudiobookPlayer.shared.current?.book.subtitle, isCompact: true)
         } else if let subtitle = item?.subtitle, !subtitle.isEmpty {
-            MarqueeText(subtitle)
+            MarqueeText(subtitle, isSecondary: true)
         }
     }
 
@@ -307,6 +321,25 @@ private struct DesktopNowPlaying: View {
     }
 }
 
+/// Where an iPad's player zooms out of, as it does from the tab bar's mini
+/// player. The Mac's slides up (`CueApp`), so it has no source.
+private struct PlayerZoomSource: ViewModifier {
+    @Environment(\.zoomNamespace) private var namespace
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+#if targetEnvironment(macCatalyst)
+        content
+#else
+        if let namespace {
+            content.zoomSource(.miniPlayer, in: namespace)
+        } else {
+            content
+        }
+#endif
+    }
+}
+
 // MARK: - Actions
 
 /// A speaker group's volume while one plays, Play On, and the queue at
@@ -315,6 +348,8 @@ private struct DesktopNowPlaying: View {
 private struct DesktopBarActions: View {
     /// The speaker's volume, where the bar has room for it.
     let showsVolume: Bool
+    /// The queue's button, where the window has somewhere to show it.
+    let showsQueueToggle: Bool
 
     private var route: PlaybackRoute { .shared }
     @State private var appState = AppState.shared
@@ -365,20 +400,22 @@ private struct DesktopBarActions: View {
                         }
                     }
 
-                Button {
-                    withAnimation(.snappy) {
-                        appState.showsQueuePanel.toggle()
+                if showsQueueToggle {
+                    Button {
+                        withAnimation(.snappy) {
+                            appState.showsQueuePanel.toggle()
+                        }
+                    } label: {
+                        QueueToggleIcon()
+                            .font(.title3)
+                            .foregroundStyle(.primary)
                     }
-                } label: {
-                    QueueToggleIcon()
-                        .font(.title3)
-                        .foregroundStyle(.primary)
+                    .buttonStyle(DesktopIconButtonStyle(side: 40))
+                    .accentCircle(isOn: showsQueue)
+                    .accessibilityLabel(QueueToggleIcon.title(isShown: showsQueue))
+                    .accessibilityAddTraits(showsQueue ? .isSelected : [])
+                    .help("\(QueueToggleIcon.title(isShown: showsQueue)) (⌥⌘0)")
                 }
-                .buttonStyle(DesktopIconButtonStyle(side: 40))
-                .accentCircle(isOn: showsQueue)
-                .accessibilityLabel(QueueToggleIcon.title(isShown: showsQueue))
-                .accessibilityAddTraits(showsQueue ? .isSelected : [])
-                .help("\(QueueToggleIcon.title(isShown: showsQueue)) (⌥⌘0)")
             }
             // Lifted a little while there's a name, or it sits on the bar's edge.
             .offset(y: routeName == nil ? 0 : -3 * scale)

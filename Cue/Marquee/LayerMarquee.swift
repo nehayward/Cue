@@ -1,18 +1,20 @@
-#if targetEnvironment(macCatalyst)
+#if os(iOS)
 import SwiftUI
 import UIKit
 
-/// `MarqueeText` on the Mac: the same rest and scroll, with the text moved by
-/// Core Animation. The window server runs the animation, so nothing in Cue
+/// `MarqueeText` on the Mac and iPad: the same rest and scroll, with the text
+/// moved by Core Animation. The window server runs the animation, so nothing in Cue
 /// runs per frame, where moving it from SwiftUI (a timeline or an animated
 /// offset alike) took about 6% of a core for as long as a title stayed too
 /// long for the player bar, which is always on screen. One added animation a
 /// cycle is all Cue does.
 ///
 /// The text is still a SwiftUI `Text`, hosted with this view's environment,
-/// so it takes the font, weight and style the caller set.
+/// so it takes the font and weight the caller set. Its colour it takes from
+/// `isSecondary` while it moves (`MovingLine`).
 struct LayerMarquee: View {
     let text: String
+    let isSecondary: Bool
     var pointsPerSecond: CGFloat
     var spacing: CGFloat
     var pauseDuration: Double
@@ -68,7 +70,7 @@ struct LayerMarquee: View {
                 } else {
                     // Clicks go to whatever holds it (the bar's title opens
                     // the player), not to the UIKit view.
-                    MovingLine(text: text, spacing: spacing, distance: scrollDistance, duration: scrollDuration, isScrolling: isScrolling)
+                    MovingLine(text: text, isSecondary: isSecondary, spacing: spacing, textWidth: textWidth, duration: scrollDuration, isScrolling: isScrolling)
                         .allowsHitTesting(false)
                 }
             }
@@ -113,8 +115,9 @@ struct LayerMarquee: View {
 /// The text and its copy on one layer, which Core Animation moves.
 private struct MovingLine: UIViewRepresentable {
     let text: String
+    let isSecondary: Bool
     let spacing: CGFloat
-    let distance: CGFloat
+    let textWidth: CGFloat
     let duration: Double
     let isScrolling: Bool
 
@@ -132,10 +135,19 @@ private struct MovingLine: UIViewRepresentable {
             }
             .lineLimit(1)
             .fixedSize()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            // A plain colour, not the caller's style: `.secondary` on a
+            // material is drawn by blending with what's behind it, and on this
+            // view's clear layer, in light mode, that left nothing to see.
+            .foregroundStyle(Color(uiColor: isSecondary ? .secondaryLabel : .label))
             .environment(\.self, context.environment)
         }
-        .margins(.all, 0))
-        view.setScrolling(isScrolling, distance: distance, duration: duration)
+        .margins(.all, 0)
+        .minSize(width: 0, height: 0))
+        // Both copies and the space between: what's measured already,
+        // rather than asking the hosted view.
+        view.contentWidth = (textWidth * 2 + spacing).rounded(.up)
+        view.setScrolling(isScrolling, distance: textWidth + spacing, duration: duration)
     }
 }
 
@@ -144,6 +156,13 @@ private final class MovingLineView: UIView {
 
     private var content: (UIView & UIContentView)?
     private var isScrolling = false
+    var contentWidth: CGFloat = 0 {
+        didSet {
+            if contentWidth != oldValue {
+                setNeedsLayout()
+            }
+        }
+    }
 
     func show(_ configuration: some UIContentConfiguration) {
         if let content {
@@ -175,9 +194,7 @@ private final class MovingLineView: UIView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        guard let content else { return }
-        let size = content.sizeThatFits(CGSize(width: CGFloat.greatestFiniteMagnitude, height: bounds.height))
-        content.frame = CGRect(x: 0, y: ((bounds.height - size.height) / 2).rounded(), width: size.width, height: size.height)
+        content?.frame = CGRect(x: 0, y: 0, width: contentWidth, height: bounds.height)
     }
 }
 #endif

@@ -18,18 +18,26 @@ import SwiftUI
 /// narrowed with the queue panel, the title jumped to where it would end up
 /// while everything round it moved. Laid out, it moves with them.
 ///
-/// On the Mac it's `LayerMarquee`, the same rest and scroll moved by Core
-/// Animation, since the player bar keeps a long title on screen all day.
+/// On the Mac and iPad it's `LayerMarquee`, the same rest and scroll moved by
+/// Core Animation, since their player bar keeps a long title on screen all day.
 struct MarqueeText: View {
     let text: String
+    /// Whether it's a secondary line, for `LayerMarquee`, which can't take a
+    /// hierarchical style from its environment while the text moves.
+    let isSecondary: Bool
 
-    init(_ text: String) {
+    init(_ text: String, isSecondary: Bool = false) {
         self.text = text
+        self.isSecondary = isSecondary
     }
 
     var body: some View {
-        #if targetEnvironment(macCatalyst)
-        LayerMarquee(text: text, pointsPerSecond: 50 * 0.65, spacing: 20, pauseDuration: 1.5)
+        #if os(iOS)
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            LayerMarquee(text: text, isSecondary: isSecondary, pointsPerSecond: 50 * 0.65, spacing: 20, pauseDuration: 1.5)
+        } else {
+            MarqueeScroller(text: text, speed: 0.65, spacing: 20, pauseDuration: 1.5)
+        }
         #else
         MarqueeScroller(text: text, speed: 0.65, spacing: 20, pauseDuration: 1.5)
         #endif

@@ -185,7 +185,7 @@ final class AppState {
 #if targetEnvironment(macCatalyst)
         true
 #else
-        false
+        UIDevice.current.userInterfaceIdiom == .pad
 #endif
     }
 

@@ -74,7 +74,8 @@ struct DesktopSidebar: View {
 #if targetEnvironment(macCatalyst)
                 SettingsWindow.shared.open()
 #else
-                Router.main.presentedSheet = .settings()
+                // The stack on screen: nothing presents `Router.main`'s.
+                DesktopState.shared.currentRouter.presentedSheet = .settings()
 #endif
             } label: {
                 Image(systemName: "gearshape")

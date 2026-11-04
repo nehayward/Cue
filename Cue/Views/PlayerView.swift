@@ -1118,9 +1118,18 @@ struct PlayerScrubber: View {
                 HStack(spacing: 8) {
                     Text(elapsed.formatted(.time(pattern: pattern)))
                         .contentTransition(.identity)
+                        .fixedSize()
                     slider(position: position, span: span, controller: controller)
+                        // The slider's own track all but vanishes on a
+                        // material in light mode.
+                        .background {
+                            Capsule()
+                                .fill(Color.primary.opacity(0.1))
+                                .frame(height: 6)
+                        }
                     Text("-\(remaining.formatted(.time(pattern: pattern)))")
                         .contentTransition(.identity)
+                        .fixedSize()
                 }
                 .monospacedDigit()
                 .font(.caption2)

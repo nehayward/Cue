@@ -64,10 +64,10 @@ private struct InterfaceSizeModifier: ViewModifier {
     let size: InterfaceSize
 
     func body(content: Content) -> some View {
-        if AppState.usesDesktopShell {
-            content.dynamicTypeSize(size.typeSize)
-        } else {
-            content
-        }
+#if targetEnvironment(macCatalyst)
+        content.dynamicTypeSize(size.typeSize)
+#else
+        content
+#endif
     }
 }

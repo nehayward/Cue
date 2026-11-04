@@ -570,7 +570,9 @@ struct CueApp: App {
             let _ = ScrollStopLog.note("body CueApp")
             Group {
                 if AppState.usesDesktopShell {
-                    DesktopShell()
+                    DesktopWindowRoot {
+                        tabView
+                    }
                 } else {
                     tabView
                 }
@@ -1498,8 +1500,30 @@ private struct WindowToasts: ViewModifier {
 /// The plain tab bar on iPad, so it can't be turned into a sidebar: the
 /// adaptable style runs the sidebar's tab model wherever it is applied —
 /// hidden tabs, customization — and a tab that model hides is a tab bar
-/// item with no view controller behind it. (The Mac's window has no
-/// `TabView`: `DesktopShell`.)
+/// item with no view controller behind it. (The sidebar on iPad and the Mac
+/// is `DesktopShell`'s; a compact iPad window has these tabs.)
+/// The window where the desktop layout is the one in use: `DesktopShell`,
+/// but on an iPad window too narrow for a sidebar (Slide Over, a narrow Stage
+/// Manager window) the tabs. A window crossing between them builds its
+/// pages again, which only happens as it's resized that far.
+private struct DesktopWindowRoot<Tabs: View>: View {
+    @ViewBuilder let tabs: () -> Tabs
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    var body: some View {
+#if targetEnvironment(macCatalyst)
+        DesktopShell()
+#else
+        if horizontalSizeClass == .compact {
+            tabs()
+                .onAppear { DesktopState.shared.leaveForTabs() }
+        } else {
+            DesktopShell()
+        }
+#endif
+    }
+}
+
 private struct AdaptiveTabViewStyle: ViewModifier {
     func body(content: Content) -> some View {
         if UIDevice.current.userInterfaceIdiom == .pad {
@@ -2139,6 +2163,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 ])
                 builder.insertSibling(controlsMenu, afterMenu: .view)
 
+#if targetEnvironment(macCatalyst)
                 // View ▸ Bigger, Smaller and Default Size, as a browser's
                 // zoom: the window's own scale (`InterfaceSize`). ⌘= too,
                 // unlisted, as + is a shifted key.
@@ -2151,6 +2176,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                     UIKeyCommand(title: "Default Size", action: #selector(interfaceDefaultSize), input: "0", modifierFlags: .command),
                 ])
                 builder.insertChild(sizeCommands, atEndOfMenu: .view)
+#endif
             }
         }
     }

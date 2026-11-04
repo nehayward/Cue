@@ -52,6 +52,15 @@ final class DesktopState {
         self.playlist = playlist
     }
 
+    /// An iPad window gone narrow enough for the tabs: they have no place for
+    /// a sidebar's playlist or collection, so it goes back to their first.
+    func leaveForTabs() {
+        playlist = nil
+        if case .providerCollection = Router.main.selectedTab {
+            Router.main.selectedTab = AppState.shared.fallbackTab
+        }
+    }
+
     func isShowing(_ tab: AppTab) -> Bool {
         playlist == nil && AppState.shared.resolvedTab(Router.main.selectedTab) == tab
     }
@@ -61,19 +70,20 @@ final class DesktopState {
     }
 }
 
-/// The Mac's window, in place of the `TabView` (`AppState.usesDesktopShell`):
-/// laid out as macOS 27's Music is. The sidebar runs the window's full
-/// height down the leading side, the traffic lights in its corner (the
-/// tabs with Search, the library's collections, its playlists), the queue
-/// the same down the trailing side, and the page between them. Both
-/// panels are clear over macOS's own sidebar material, which sits behind
-/// the whole window (`MainWindowChrome`), so the desktop shows through them
-/// as through Music's; the page draws its own background over it.
+/// The window on the Mac and an iPad, in place of the `TabView`
+/// (`AppState.usesDesktopShell`): laid out as macOS 27's Music is. The
+/// sidebar runs the window's full height down the leading side, the traffic
+/// lights in its corner (the tabs with Search, the library's collections, its
+/// playlists), the queue the same down the trailing side, and the page
+/// between them. On the Mac both panels are clear over macOS's own sidebar
+/// material, which sits behind the whole window (`MainWindowChrome`), so the
+/// desktop shows through them as through Music's; the page draws its own
+/// background over it. An iPad has no such thing, so its panels are grey.
 struct DesktopShell: View {
     @State private var appState = AppState.shared
-    /// Whether the window has room for the queue. A flag rather than the
-    /// width, so a resize runs this again only as it crosses the line.
-    @State private var isWide = true
+    /// How the window has room for the queue. A step rather than the width,
+    /// so a resize runs this again only as it crosses one.
+    @State private var queueRoom = DesktopQueueRoom.besideSidebar
     @State private var barRooms = DesktopBarRooms()
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.openWindow) private var openWindow
@@ -85,18 +95,26 @@ struct DesktopShell: View {
 
     var body: some View {
         let queueWidth = scaled(min(max(CGFloat(appState.queuePanelWidth), 280), 400))
-        let showsQueue = appState.showsQueuePanel && isWide
+        let showsQueue = appState.showsQueuePanel && queueRoom != .none
 
         HStack(spacing: 0) {
-            DesktopSidebar()
-                .frame(width: scaled(DesktopStyle.sidebarWidth))
-                .desktopPanelEdge(.trailing)
+            if !showsQueue || queueRoom == .besideSidebar {
+                DesktopSidebar()
+                    .frame(width: scaled(DesktopStyle.sidebarWidth))
+                    .desktopPanelBackground()
+                    .desktopPanelEdge(.trailing)
+                    .transition(.move(edge: .leading).combined(with: .opacity))
+            }
 
-            DesktopContent(barRoom: showsQueue ? barRooms.besideQueue : barRooms.alone)
+            DesktopContent(
+                barRoom: showsQueue ? barRooms.besideQueue : barRooms.alone,
+                showsQueueToggle: queueRoom != .none
+            )
 
             if showsQueue {
                 DesktopQueuePanel()
                     .frame(width: queueWidth)
+                    .desktopPanelBackground()
                     .desktopPanelEdge(.leading)
                     .transition(.move(edge: .trailing).combined(with: .opacity))
             }
@@ -106,9 +124,20 @@ struct DesktopShell: View {
         // the material and the page.
         .scrollEdgeEffectHidden26()
         .ignoresSafeArea()
-        .onGeometryChange(for: Bool.self) { [threshold = scaled(DesktopStyle.queueMinWindowWidth)] in $0.size.width >= threshold } action: { isWide = $0 }
+        .onGeometryChange(for: DesktopQueueRoom.self) { [scale = DesktopStyle.scale(typeSize)] in
+            DesktopQueueRoom(windowWidth: $0.size.width, scale: scale)
+        } action: {
+            queueRoom = $0
+        }
         .onGeometryChange(for: DesktopBarRooms.self) { [sidebarWidth = scaled(DesktopStyle.sidebarWidth), queueWidth, margin = scaled(DesktopStyle.barMargin), scale = DesktopStyle.scale(typeSize)] in
-            DesktopBarRooms(windowWidth: $0.size.width, sidebarWidth: sidebarWidth, queueWidth: queueWidth, margin: margin, scale: scale)
+            DesktopBarRooms(
+                windowWidth: $0.size.width,
+                sidebarWidth: sidebarWidth,
+                queueWidth: queueWidth,
+                margin: margin,
+                scale: scale,
+                queueRoom: DesktopQueueRoom(windowWidth: $0.size.width, scale: scale)
+            )
         } action: {
             barRooms = $0
         }
@@ -123,6 +152,25 @@ struct DesktopShell: View {
     }
 }
 
+/// Where the queue goes at a window's width. Beside the sidebar when there's
+/// room for both. On an iPad without it (in portrait), in the sidebar's place
+/// while it shows. Narrower still, and on the Mac, whose window can simply be
+/// made wider, there's nowhere: the bar leaves out its button, and the player
+/// still has the queue.
+enum DesktopQueueRoom: Equatable {
+    case besideSidebar, inSidebarsPlace, none
+
+    init(windowWidth: CGFloat, scale: CGFloat) {
+        if windowWidth >= (DesktopStyle.queueMinWindowWidth * scale).rounded() {
+            self = .besideSidebar
+        } else if windowWidth >= (DesktopStyle.queueAloneMinWindowWidth * scale).rounded() {
+            self = .inSidebarsPlace
+        } else {
+            self = .none
+        }
+    }
+}
+
 /// The window between the sidebar and the queue: the page, running to the
 /// window's top and bottom edges with the player's bar floating over its
 /// foot (`DesktopPlayerBar`).
@@ -132,6 +180,7 @@ struct DesktopShell: View {
 /// page ran its first load again, its spinner and all, and lost its place.
 struct DesktopContent: View {
     let barRoom: BarRoom
+    let showsQueueToggle: Bool
     @State private var appState = AppState.shared
     @State private var desktop = DesktopState.shared
     /// The tabs whose pages are alive, the latest shown last.
@@ -161,7 +210,7 @@ struct DesktopContent: View {
             pages(selected: selected)
                 .contentMargins(.bottom, scaled(DesktopStyle.barHeight + DesktopStyle.barMargin * 2))
                 .overlay(alignment: .bottom) {
-                    DesktopPlayerBar(room: barRoom)
+                    DesktopPlayerBar(room: barRoom, showsQueueToggle: showsQueueToggle)
                         .frame(height: scaled(DesktopStyle.barHeight))
                         .padding([.horizontal, .bottom], scaled(DesktopStyle.barMargin))
                 }
@@ -282,7 +331,11 @@ struct DesktopQueuePanel: View {
             .scrollContentBackground(.hidden)
             .padding(.top, 10)
             .catchesClicks()
+#if targetEnvironment(macCatalyst)
+            // An iPad's status bar sits over it, where a Mac's top corner
+            // here is free.
             .ignoresSafeArea(.container, edges: .top)
+#endif
     }
 }
 

@@ -7,18 +7,37 @@ import UIKit
 /// at 77%, so they're a third larger than the same thing in a native Mac
 /// app.
 enum DesktopStyle {
+#if targetEnvironment(macCatalyst)
     static let sidebarWidth: CGFloat = 300
+#else
+    /// Real points on an iPad, which aren't drawn at 77%.
+    static let sidebarWidth: CGFloat = 260
+#endif
     /// The title bar's strip at the top of a panel, the traffic lights in
     /// the sidebar's: its rows start below it. Left to the safe area, a
     /// panel's list ran up under the lights. Not scaled, as the title bar
-    /// isn't.
+    /// isn't. Lower on an iPad, whose status bar and window controls (in Stage
+    /// Manager, over the Home row) come further down.
+#if targetEnvironment(macCatalyst)
     static let titleBarHeight: CGFloat = 36
+#else
+    static let titleBarHeight: CGFloat = 56
+#endif
     /// The player's bar, floating over the foot of the page.
     static let barHeight: CGFloat = 72
     /// Between the bar and the page's sides and foot.
     static let barMargin: CGFloat = 16
     /// Below this the queue gives way, then the sidebar narrows.
     static let queueMinWindowWidth: CGFloat = 1180
+#if targetEnvironment(macCatalyst)
+    /// Never: on the Mac the queue only ever shows beside the sidebar.
+    static let queueAloneMinWindowWidth: CGFloat = .infinity
+#else
+    /// Below `queueMinWindowWidth` the queue takes the sidebar's place on an
+    /// iPad, down to this, an 11-inch iPad in portrait: any narrower left the
+    /// page and its bar too little to read a song in.
+    static let queueAloneMinWindowWidth: CGFloat = 800
+#endif
 
     /// Behind the page: the content's own (the lists' black or white).
     static let windowBackground = Color(uiColor: .systemBackground)
@@ -56,6 +75,20 @@ extension View {
     /// too faint to see.
     func catchesClicks() -> some View {
         background(Color.black.opacity(0.01))
+    }
+
+    /// What's behind a panel. On the Mac nothing: it's clear over the window's
+    /// material (`MainWindowChrome`). An iPad has no such material to show.
+    @ViewBuilder
+    func desktopPanelBackground() -> some View {
+#if targetEnvironment(macCatalyst)
+        self
+#else
+        background {
+            DesktopStyle.panel
+                .ignoresSafeArea()
+        }
+#endif
     }
 
     /// A hairline on the `edge` a panel meets the page by, up through the
