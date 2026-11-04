@@ -221,10 +221,24 @@ struct RouteTransferPrompt: View {
             .controlSize(.large)
             .buttonBorderShape(.capsule)
 
-            Toggle("Don't ask again", isOn: $dontAskAgain)
+            // A check of Cue's own, not a switch: in the Mac's popover the system's
+            // lost its track on the glass, leaving the knob by itself.
+            Button {
+                dontAskAgain.toggle()
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: dontAskAgain ? "checkmark.circle.fill" : "circle")
+                        .foregroundStyle(dontAskAgain ? Color("Accent") : Color.primary.opacity(0.6))
+                    Text("Don't ask again")
+                        .foregroundStyle(.primary.opacity(0.7))
+                }
                 .font(.footnote)
-                .foregroundStyle(.secondary)
-                .tint(Color("Accent"))
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityRepresentation {
+                Toggle("Don't ask again", isOn: $dontAskAgain)
+            }
         }
         .padding(24)
         .frame(maxWidth: 400)
