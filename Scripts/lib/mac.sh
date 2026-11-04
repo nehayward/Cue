@@ -67,6 +67,12 @@ quit_mac_app() {
 # LaunchServices hadn't seen that build yet (a fresh Release build), and the
 # two fought over the Sonos event port, so the survivor found no speakers.
 launch_mac_app() {
+	# Xcode's run is the user's: leave it, as this copy couldn't run beside it.
+	local xcode_pid
+	xcode_pid="$(pgrep -f "/DerivedData/[^/]+-[a-z]{28}/Build/Products/[^/]+/Cue\.app/Contents/MacOS/Cue$" | head -1 || true)"
+	if [ -n "$xcode_pid" ]; then
+		fail "Cue is running from Xcode (pid $xcode_pid). Stop it there first: this build was made but not launched."
+	fi
 	quit_mac_app
 	mkdir -p build "$(dirname "$MAC_CONSOLE_LOG_REAL")"
 	: >"$MAC_CONSOLE_LOG_REAL"

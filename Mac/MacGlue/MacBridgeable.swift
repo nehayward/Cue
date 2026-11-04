@@ -14,6 +14,9 @@ protocol MacBridgeable: NSObjectProtocol {
     /// Whether Cue Mini is running now, asked of the system rather than
     /// `isRunning`, which only moves while the observer is set up.
     var isCueMiniRunning: Bool { get }
+    /// Debug builds, as one launches: leaves one development copy of Cue
+    /// running. Two fight over the Sonos event port and Cue Mini's link.
+    func keepOneDevelopmentCopy()
     func setupRunningAppsObserver()
     func stopRunningAppObserver()
 

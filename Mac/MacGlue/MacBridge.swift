@@ -174,6 +174,43 @@ final class MacBridge: NSObject, MacBridgeable, @unchecked Sendable {
         }
     }
 
+    // MARK: - One development copy
+
+    /// Copies built in DerivedData only, so an installed Cue is left alone. One
+    /// built by a script goes if Xcode's is running, as the one the listener is
+    /// using; otherwise the newest stays. Xcode only stops copies it started.
+    ///
+    /// The others are asked to quit themselves: a sandboxed app can't terminate
+    /// another.
+    func keepOneDevelopmentCopy() {
+        let pid = String(getpid())
+        // Xcode's own folder for a project is its name and a hash.
+        func isXcodeBuilt(_ path: String?) -> Bool {
+            path?.range(of: "/DerivedData/[^/]+-[a-z]{28}/", options: .regularExpression) != nil
+        }
+        let others = Bundle.main.bundleIdentifier.map(NSRunningApplication.runningApplications(withBundleIdentifier:))?.filter {
+            $0.processIdentifier != getpid() && $0.bundleURL?.path.contains("/DerivedData/") == true
+        } ?? []
+        if !isXcodeBuilt(Bundle.main.bundlePath), let xcode = others.first(where: { isXcodeBuilt($0.bundleURL?.path) }) {
+            xcode.activate()
+            exit(0)
+        }
+
+        observeDistributedNotification(named: Self.quitCopiesNotification) { sender in
+            guard sender != pid else { return }
+            NSApp.terminate(nil)
+        }
+        guard !others.isEmpty else { return }
+        postDistributedNotification(named: Self.quitCopiesNotification, object: pid)
+        // They've let go of the Sonos event port before this one asks for it.
+        let deadline = Date.now.addingTimeInterval(2)
+        while others.contains(where: { !$0.isTerminated }), Date.now < deadline {
+            RunLoop.current.run(until: .now + 0.1)
+        }
+    }
+
+    private static let quitCopiesNotification = "dance.cue.debug.quitOtherCopies"
+
     // MARK: - Running observer
 
     var isCueMiniRunning: Bool {
