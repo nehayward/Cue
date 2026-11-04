@@ -20,10 +20,14 @@ struct DesktopPlayerBar: View {
         HStack(spacing: 12 * scale) {
             DesktopTransport(showsOrder: room != .essentials)
             DesktopNowPlaying()
-                .frame(maxWidth: 760 * scale)
+                .frame(minWidth: room == .everything ? BarRoom.songWidthBesideVolume * scale : nil, maxWidth: 760 * scale)
                 .frame(maxWidth: .infinity)
+            // First in line for the width: the song gives way down to its
+            // least, and only then the volume down to its own.
             DesktopBarActions(showsVolume: room == .everything)
+                .layoutPriority(1)
         }
+        .animation(.snappy, value: room)
         .padding(.horizontal, 14 * scale)
         .frame(maxHeight: .infinity)
         // A thick material rather than glass, which let bright covers
@@ -38,19 +42,30 @@ struct DesktopPlayerBar: View {
     }
 }
 
-/// What the bar has room for: beside the queue on a smaller window
-/// the page is narrow, so the speaker's volume goes first (Play On still
-/// has it), then shuffle and repeat. A step rather than the width, so a
-/// resize runs the bar again only as it crosses one.
-private enum BarRoom {
+/// What the bar has room for: as it narrows the song gives way, then the
+/// speaker's volume shrinks (both by layout, as the window moves), and only
+/// then does the volume go (Play On still has it), then shuffle and repeat.
+/// A step rather than the width, so a resize runs the bar again only as it
+/// crosses one, and each is animated.
+private enum BarRoom: Equatable {
     case everything, noVolume, essentials
 
-    /// From the bar's width in base points: what each set takes, with
-    /// room for a title beside it.
+    /// The least the song takes beside the volume, in base points. A long
+    /// title scrolls, so it can be short of its text.
+    static let songWidthBesideVolume: CGFloat = 220
+    /// The least the volume takes, its name still readable.
+    static let leastVolumeWidth: CGFloat = 170
+    /// The volume at its full width.
+    static let volumeWidth: CGFloat = 230
+
+    /// From the bar's width in base points: the transport (212, 136 without
+    /// shuffle and repeat), Play On and the queue (86), and the bar's spacing
+    /// and margins (52), with room for the song.
     init(width: CGFloat) {
+        let beside = 350 + 10 + Self.leastVolumeWidth + Self.songWidthBesideVolume
         self = switch width {
-        case 850...: .everything
-        case 610...: .noVolume
+        case beside...: .everything
+        case 580...: .noVolume
         default: .essentials
         }
     }
@@ -303,8 +318,9 @@ private struct DesktopBarActions: View {
         HStack(spacing: 6) {
             if showsVolume, let group = controller.group, !route.isHolding {
                 DesktopSpeakerVolume(group: group)
-                    .frame(width: 230 * scale)
+                    .frame(minWidth: BarRoom.leastVolumeWidth * scale, maxWidth: BarRoom.volumeWidth * scale)
                     .padding(.trailing, 4)
+                    .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .trailing)))
             }
 
             HStack(spacing: 6) {

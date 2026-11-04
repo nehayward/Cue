@@ -127,6 +127,22 @@ final class AppState {
                 MenuAppLaunchAtLoginManager.shared.bridge?.hideApp()
             }
         }, "dance.cue.debug.closeWindow" as CFString, nil, .deliverImmediately)
+        // `notifyutil -p dance.cue.debug.windowWider` (and `windowNarrower`)
+        // resizes the main window 40 pt, to walk a layout through its widths.
+        CFNotificationCenterAddObserver(center, nil, { _, _, _, _, _ in
+            Task { @MainActor in AppState.resizeMainWindow(by: 40) }
+        }, "dance.cue.debug.windowWider" as CFString, nil, .deliverImmediately)
+        CFNotificationCenterAddObserver(center, nil, { _, _, _, _, _ in
+            Task { @MainActor in AppState.resizeMainWindow(by: -40) }
+        }, "dance.cue.debug.windowNarrower" as CFString, nil, .deliverImmediately)
+    }
+
+    private static func resizeMainWindow(by change: CGFloat) {
+        for scene in UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }) where !SettingsWindow.isMarked(scene.session) {
+            var frame = scene.effectiveGeometry.systemFrame
+            frame.size.width += change
+            scene.requestGeometryUpdate(.Mac(systemFrame: frame))
+        }
     }
     #endif
 
