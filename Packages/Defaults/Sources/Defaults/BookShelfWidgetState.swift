@@ -63,21 +63,47 @@ public struct BookShelfWidgetState: Codable, Equatable, Sendable {
     public var needsServer: Bool
     /// The Sonos group Play goes to, by name; nil for this device.
     public var speaker: String?
+    /// This device, while Play goes to it: what it plays through ("Nick's
+    /// AirPods", the car, an AirPlay receiver), else the device itself
+    /// ("iPhone"). Nil while a speaker takes Play, and in a state written
+    /// before Cue said so.
+    public var device: Destination?
     /// The album the player's song is from, on a shelf or not, by key, and
     /// whether it's playing: the album shelf writes it for the discography
     /// widget, whose albums Cue doesn't keep.
     public var albumInPlayer: String?
     public var albumInPlayerIsPlaying: Bool?
 
-    public init(shelves: [String: [Book]], loadedID: String?, isPlaying: Bool, chapter: String?, needsServer: Bool, speaker: String? = nil, albumInPlayer: String? = nil, albumInPlayerIsPlaying: Bool? = nil) {
+    public init(shelves: [String: [Book]], loadedID: String?, isPlaying: Bool, chapter: String?, needsServer: Bool, speaker: String? = nil, device: Destination? = nil, albumInPlayer: String? = nil, albumInPlayerIsPlaying: Bool? = nil) {
         self.shelves = shelves
         self.loadedID = loadedID
         self.isPlaying = isPlaying
         self.chapter = chapter
         self.needsServer = needsServer
         self.speaker = speaker
+        self.device = device
         self.albumInPlayer = albumInPlayer
         self.albumInPlayerIsPlaying = albumInPlayerIsPlaying
+    }
+
+    /// Where Play goes, as a widget names it: a name and a symbol.
+    public struct Destination: Codable, Equatable, Hashable, Sendable {
+        public var name: String
+        /// An SF Symbol: a speaker, the iPhone, AirPods, a car.
+        public var symbol: String
+
+        public init(name: String, symbol: String) {
+            self.name = name
+            self.symbol = symbol
+        }
+    }
+
+    /// What a widget says Play goes to: the Sonos group, or this device.
+    public var playsOn: Destination? {
+        if let speaker {
+            return Destination(name: speaker, symbol: "hifispeaker.fill")
+        }
+        return device
     }
 
     public static let empty = BookShelfWidgetState(shelves: [:], loadedID: nil, isPlaying: false, chapter: nil, needsServer: false)

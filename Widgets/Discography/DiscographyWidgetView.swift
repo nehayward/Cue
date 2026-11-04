@@ -171,8 +171,8 @@ private struct DiscographyLayout {
 
 // MARK: - Parts
 
-/// The artist's photo and name, how many releases and where, Play's
-/// speaker, and Cue's glyph.
+/// The artist's photo and name, how many releases and where, where Play
+/// goes, and Cue's glyph.
 private struct DiscographyHeader: View {
     let entry: DiscographyEntry
     let artist: DiscographyArtist
@@ -190,8 +190,8 @@ private struct DiscographyHeader: View {
                     .lineLimit(1)
             }
             Spacer(minLength: 0)
-            if let speaker = entry.speaker {
-                SpeakerLabel(name: speaker, color: .secondary)
+            if let playsOn = entry.playsOn {
+                SpeakerLabel(destination: playsOn, color: .secondary)
             }
             CueGlyph()
         }

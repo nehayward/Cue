@@ -626,13 +626,16 @@ struct ProgressPill: View {
     }
 }
 
-/// Where Play goes while it's a Sonos group, on the small widget's cover:
-/// the group's name in a dark capsule, as `ProgressPill` is drawn.
+/// Where Play goes, on the small widget's cover: the Sonos group, or this
+/// device (its AirPods, the car, or the iPhone), in a dark capsule, as
+/// `ProgressPill` is drawn.
 struct SpeakerPill: View {
-    let name: String
+    let destination: BookShelfWidgetState.Destination
+
+    private var name: String { destination.name }
 
     var body: some View {
-        Label(name, systemImage: "hifispeaker.fill")
+        Label(name, systemImage: destination.symbol)
             .font(.system(size: 12, weight: .semibold, design: .rounded))
             .lineLimit(1)
             .foregroundStyle(.white)

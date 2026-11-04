@@ -167,6 +167,7 @@ final class BookShelfWidgetPublisher {
         _ = PlaybackRoute.shared.presented.isPlaying
         // Where Play goes, shown beside it.
         _ = PlaybackRoute.shared.group?.nameWithCount
+        _ = BookShelfWidgetState.Destination.thisDevice
         _ = OfflineMode.shared.isActive
         _ = CoreFeatures.shared.features
     }
@@ -275,7 +276,8 @@ final class BookShelfWidgetPublisher {
             isPlaying: loaded != nil && presented.isPlaying,
             chapter: loaded != nil && player.hasChapters ? player.currentChapter?.title : nil,
             needsServer: needsServer,
-            speaker: PlaybackRoute.shared.group?.nameWithCount
+            speaker: PlaybackRoute.shared.group?.nameWithCount,
+            device: .thisDevice
         )
         return (state, contents)
     }
@@ -433,19 +435,22 @@ final class BookShelfWidgetPublisher {
             return
         }
         MediaDetailPresenter.dismissPresented()
-        Router.main.isPlayerPresented = true
-        await playOrPause(book)
+        // Cue is in front already; the player opens with the Play, after
+        // asking where when nothing plays.
+        await playOrPause(book, bringForward: { true }, opensPlayer: true)
     }
 
     /// The widget's Play, as Continue Listening's Play does. The widget is
     /// written again before it returns, so its reload after the intent
-    /// shows the book as it is.
-    func play(bookID: String) async {
+    /// shows the book as it is. With nothing playing, a book not loaded asks
+    /// where first, once `bringForward` has brought Cue to the front
+    /// (`WidgetPlayChoice`).
+    func play(bookID: String, bringForward: (@MainActor () async -> Bool)? = nil) async {
         guard let book = await findBook(withID: bookID) else {
             Self.log.error("book shelf widget: no book \(bookID, privacy: .public) to play")
             return
         }
-        await playOrPause(book)
+        await playOrPause(book, bringForward: bringForward)
         publishNow()
     }
 
@@ -457,15 +462,31 @@ final class BookShelfWidgetPublisher {
     /// so, 3 s at most: written at once, the widget kept the state before
     /// the change, and Cue, woken for this alone, could be suspended before
     /// a book on a parked queue began (its Play starts it in a task).
-    private func playOrPause(_ book: PlayableContent) async {
+    private func playOrPause(_ book: PlayableContent, bringForward: (@MainActor () async -> Bool)? = nil, opensPlayer: Bool = false) async {
         await PlayDestinationRouter.loadSpeakersIfNeeded()
         let player = AudiobookPlayer.shared
         let expected: Bool
         if player.isLoaded(book) {
             expected = !PlaybackRoute.shared.presented.isPlaying
             Self.log.notice("book shelf widget: \(expected ? "play" : "pause", privacy: .public) \(book.title, privacy: .public)")
+            if opensPlayer {
+                Router.main.isPlayerPresented = true
+            }
             await PlaybackRoute.shared.presented.togglePlayback()
         } else {
+            if let bringForward {
+                switch await WidgetPlayChoice.ask(about: book, bringForward: bringForward) {
+                case .cancelled:
+                    return
+                case .chosen:
+                    Router.main.isPlayerPresented = true
+                case .notAsked:
+                    break
+                }
+            }
+            if opensPlayer {
+                Router.main.isPlayerPresented = true
+            }
             expected = true
             Self.log.notice("book shelf widget: play \(book.title, privacy: .public)")
             await player.play(book)

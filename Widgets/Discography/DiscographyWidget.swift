@@ -262,8 +262,8 @@ struct DiscographyEntry: TimelineEntry {
     /// The album in the player, by key, and whether it plays.
     var albumInPlayer: String?
     var isPlaying = false
-    /// The Sonos group Play goes to.
-    var speaker: String?
+    /// Where Play goes: the Sonos group, or this device.
+    var playsOn: BookShelfWidgetState.Destination?
 
     func isPlaying(_ release: DiscographyArtist.Release) -> Bool {
         isPlaying && isLoaded(release)
@@ -378,7 +378,7 @@ struct DiscographyProvider: AppIntentTimelineProvider {
             onlyAlbums: onlyAlbums,
             albumInPlayer: player?.albumInPlayer,
             isPlaying: player?.albumInPlayerIsPlaying == true,
-            speaker: player?.speaker
+            playsOn: player?.playsOn
         )
     }
 

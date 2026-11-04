@@ -20,11 +20,22 @@ final class AudioOutputName {
     /// Sonos group reads on the same line.
     private(set) var name: String? = nil
 
+    /// An SF Symbol for the first of them (AirPods, a car, AirPlay,
+    /// headphones), nil with `name`. The shelf widgets draw it beside the
+    /// name, as they draw a speaker beside a group's.
+    private(set) var symbol: String? = nil
+
+    /// The device itself, for where it plays with nothing external.
+    static var deviceSymbol: String {
+        UIDevice.current.userInterfaceIdiom == .pad ? "ipad" : "iphone"
+    }
+
 #if os(iOS) && !targetEnvironment(macCatalyst)
     @ObservationIgnored private var observers: [Task<Void, Never>] = []
 
     private init() {
         name = Self.read()
+        symbol = AudioOutputRoute.externalSymbol
         let center = NotificationCenter.default
         observers = [
             // AirPods connecting or put away, a car, AirPlay starting or
@@ -45,7 +56,11 @@ final class AudioOutputName {
 
     private func update() {
         let name = Self.read()
+        let symbol = AudioOutputRoute.externalSymbol
         // `@Observable` notifies on every write, equal or not.
+        if symbol != self.symbol {
+            self.symbol = symbol
+        }
         guard name != self.name else { return }
         self.name = name
     }

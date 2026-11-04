@@ -127,8 +127,8 @@ private struct SmallBookView: View {
                 ProgressPill(fraction: fraction)
                     .padding(10)
             }
-            if let speaker = entry.state.speaker {
-                SpeakerPill(name: speaker)
+            if let playsOn = entry.state.playsOn {
+                SpeakerPill(destination: playsOn)
                     .padding(10)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
             }
@@ -158,13 +158,13 @@ private struct Bookcase: View {
             // Where Play goes: in the header, which a shelf without a name
             // (My Shelf) shows for it alone, unless the lead can say it
             // under its Play.
-            let headerSpeaker = entry.heading.showsHeader || !hasLead ? entry.state.speaker : nil
-            let showsHeader = entry.heading.showsHeader || headerSpeaker != nil
+            let headerPlaysOn = entry.heading.showsHeader || !hasLead ? entry.state.playsOn : nil
+            let showsHeader = entry.heading.showsHeader || headerPlaysOn != nil
             let metrics = BookcaseMetrics(size: proxy.size, margins: margins, look: style.look, showsLead: hasLead, showsHeader: showsHeader)
             let shelves = Shelves(books: entry.books, metrics: metrics)
             VStack(alignment: .leading, spacing: 0) {
                 if showsHeader {
-                    ShelfHeader(heading: entry.heading, speaker: headerSpeaker)
+                    ShelfHeader(heading: entry.heading, playsOn: headerPlaysOn)
                         .frame(height: BookcaseMetrics.headerHeight)
                         .padding(.horizontal, metrics.inset)
                 }
@@ -181,7 +181,7 @@ private struct Bookcase: View {
                 } else {
                     if let lead = shelves.lead {
                         Spacer(minLength: metrics.headerGap)
-                        LeadShelf(book: lead, beside: shelves.besideLead, state: entry.state, metrics: metrics, speaker: headerSpeaker == nil ? entry.state.speaker : nil, leavesCorner: !showsHeader)
+                        LeadShelf(book: lead, beside: shelves.besideLead, state: entry.state, metrics: metrics, playsOn: headerPlaysOn == nil ? entry.state.playsOn : nil, leavesCorner: !showsHeader)
                     }
                     ForEach(shelves.rows.indices, id: \.self) { index in
                         Spacer(minLength: index == 0 && shelves.lead == nil ? metrics.headerGap : BookcaseMetrics.rowGap)
@@ -317,8 +317,8 @@ private struct LeadShelf: View {
     let beside: ArraySlice<ShelfBook>
     let state: BookShelfWidgetState
     let metrics: BookcaseMetrics
-    /// The Sonos group Play goes to, where the header doesn't say it.
-    var speaker: String?
+    /// Where Play goes, where the header doesn't say it.
+    var playsOn: BookShelfWidgetState.Destination?
     /// Cue's glyph is in the corner over the details.
     var leavesCorner = false
 
@@ -328,7 +328,7 @@ private struct LeadShelf: View {
                 BookTap(book: book) {
                     BookOnShelf(book: book, side: metrics.leadSide, isPlaying: state.isPlaying(book), isLoaded: state.loadedID == book.id, showsBar: false)
                 }
-                BookDetails(book: book, state: state, isRoomy: metrics.leadSide >= 130, speaker: speaker, leavesCorner: leavesCorner)
+                BookDetails(book: book, state: state, isRoomy: metrics.leadSide >= 130, playsOn: playsOn, leavesCorner: leavesCorner)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
                 if !beside.isEmpty {
                     ShelfBooks(books: beside, side: metrics.side, state: state)
@@ -345,8 +345,8 @@ private struct BookDetails: View {
     let book: ShelfBook
     let state: BookShelfWidgetState
     let isRoomy: Bool
-    /// The Sonos group Play goes to, under it; nil where the header says it.
-    var speaker: String?
+    /// Where Play goes, under it; nil where the header says it.
+    var playsOn: BookShelfWidgetState.Destination?
     /// Keeps the title clear of the widget's top corner, Cue's glyph's.
     var leavesCorner = false
 
@@ -390,8 +390,8 @@ private struct BookDetails: View {
                         .frame(height: 4)
                 }
                 PlayPauseCapsule(book: book, isPlaying: isPlaying, isRoomy: isRoomy)
-                if let speaker {
-                    SpeakerLabel(name: speaker, color: secondary)
+                if let playsOn {
+                    SpeakerLabel(destination: playsOn, color: secondary)
                 }
             }
             .frame(maxWidth: 240, alignment: .leading)
@@ -401,14 +401,17 @@ private struct BookDetails: View {
     }
 }
 
-/// Where Play goes while it's a Sonos group, by its name: the widget's
-/// Play reaches the speaker, as Cue's own does, and says so.
+/// Where Play goes, by name: the Sonos group, as the widget's Play reaches
+/// the speaker as Cue's own does, or this device, by what it plays through
+/// (its AirPods, the car, an AirPlay receiver) else the iPhone itself.
 struct SpeakerLabel: View {
-    let name: String
+    let destination: BookShelfWidgetState.Destination
     let color: Color
 
+    private var name: String { destination.name }
+
     var body: some View {
-        Label(name, systemImage: "hifispeaker.fill")
+        Label(name, systemImage: destination.symbol)
             .font(.system(.caption, design: .rounded, weight: .semibold))
             .foregroundStyle(color)
             .lineLimit(1)
@@ -417,11 +420,11 @@ struct SpeakerLabel: View {
 }
 
 /// The shelf's name, in New York for books, and Cue's glyph, with
-/// `speaker`, the Sonos group Play goes to, before it; for a shelf without
-/// a name of its own (My Shelf), the speaker and glyph alone.
+/// `playsOn`, where Play goes, before it; for a shelf without a name of its
+/// own (My Shelf), where Play goes and the glyph alone.
 private struct ShelfHeader: View {
     let heading: ShelfHeading
-    var speaker: String?
+    var playsOn: BookShelfWidgetState.Destination?
 
     @Environment(\.shelfStyle) private var style
     @Environment(\.widgetRenderingMode) private var renderingMode
@@ -438,8 +441,8 @@ private struct ShelfHeader: View {
                     .widgetAccentable()
             }
             Spacer(minLength: 0)
-            if let speaker {
-                SpeakerLabel(name: speaker, color: secondary)
+            if let playsOn {
+                SpeakerLabel(destination: playsOn, color: secondary)
             }
             CueGlyph()
         }
@@ -541,7 +544,7 @@ private struct OneBookView: View {
                 BookTap(book: book) {
                     BookOnShelf(book: book, side: side, isPlaying: entry.state.isPlaying(book), isLoaded: entry.state.loadedID == book.id, showsBar: false)
                 }
-                BookDetails(book: book, state: entry.state, isRoomy: side >= 130, speaker: entry.state.speaker, leavesCorner: true)
+                BookDetails(book: book, state: entry.state, isRoomy: side >= 130, playsOn: entry.state.playsOn, leavesCorner: true)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
             }
             .frame(height: side, alignment: .bottom)
@@ -563,7 +566,7 @@ private struct OneBookView: View {
                     if isTallest {
                         Spacer(minLength: 0)
                     } else {
-                        BookStanding(book: book, isPlaying: isPlaying, speaker: entry.state.speaker)
+                        BookStanding(book: book, isPlaying: isPlaying, playsOn: entry.state.playsOn)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
@@ -581,8 +584,8 @@ private struct OneBookView: View {
 private struct BookStanding: View {
     let book: ShelfBook
     let isPlaying: Bool
-    /// The Sonos group Play goes to, if it's one.
-    var speaker: String?
+    /// Where Play goes.
+    var playsOn: BookShelfWidgetState.Destination?
 
     @Environment(\.shelfStyle) private var style
     @Environment(\.widgetRenderingMode) private var renderingMode
@@ -602,8 +605,8 @@ private struct BookStanding: View {
             }
             PlayPauseCapsule(book: book, isPlaying: isPlaying)
                 .padding(.top, 6)
-            if let speaker {
-                SpeakerLabel(name: speaker, color: isFullColor ? palette.secondaryText : Color.secondary)
+            if let playsOn {
+                SpeakerLabel(destination: playsOn, color: isFullColor ? palette.secondaryText : Color.secondary)
                     .padding(.top, 4)
             }
         }
@@ -656,8 +659,8 @@ private struct BookTitleBlock: View {
                 }
                 if isPlayInline {
                     PlayPauseCapsule(book: book, isPlaying: isPlaying)
-                    if let speaker = state.speaker {
-                        SpeakerLabel(name: speaker, color: secondary)
+                    if let playsOn = state.playsOn {
+                        SpeakerLabel(destination: playsOn, color: secondary)
                     }
                 }
             }
@@ -713,9 +716,8 @@ private struct RectangularBookView: View {
                     .font(.headline)
                     .lineLimit(1)
                     .widgetAccentable()
-                // The Sonos group Play goes to leads, ahead of the chapter
-                // or author.
-                let line = entry.state.speaker.map { Text("\(Image(systemName: "hifispeaker.fill")) \($0) · \(detail)") } ?? Text(detail)
+                // Where Play goes leads, ahead of the chapter or author.
+                let line = entry.state.playsOn.map { Text("\(Image(systemName: $0.symbol)) \($0.name) · \(detail)") } ?? Text(detail)
                 line
                     .font(.caption)
                     .foregroundStyle(.secondary)

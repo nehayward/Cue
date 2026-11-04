@@ -23,11 +23,47 @@ struct PlayAlbumIntent: AudioPlaybackIntent {
         self.albumID = albumID
     }
 
+    /// Runs in the background, as an audio intent does, and comes to the
+    /// front only to ask where to play (`WidgetPlayChoice`).
+    #if os(iOS) && !targetEnvironment(macCatalyst)
+    @available(iOS 26.0, *)
+    static var supportedModes: IntentModes {
+        [.background, .foreground(.dynamic)]
+    }
+    #endif
+
     @MainActor
     func perform() async throws -> some IntentResult {
         #if !WIDGET_EXTENSION
-        await AlbumShelfWidgetPublisher.shared.play(albumID: albumID)
+        // Not the intent's own task: one the system gives up on while the
+        // listener chooses where to play would cancel the Play's requests.
+        let bringForward = self.bringForward
+        await Task { @MainActor in
+            await AlbumShelfWidgetPublisher.shared.play(albumID: albumID, bringForward: bringForward)
+        }.value
         #endif
         return .result()
     }
+
+    #if !WIDGET_EXTENSION
+    /// Brings Cue to the front from a widget's tap, where iOS lets it
+    /// (iOS 26), so it can ask where to play: true once it's there.
+    @MainActor
+    private func bringForward() async -> Bool {
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+        if #available(iOS 26.0, *) {
+            let mode = systemContext.currentMode
+            if mode == .foreground { return true }
+            guard mode.canContinueInForeground else { return false }
+            do {
+                try await continueInForeground("Choose where this album plays in Cue.", alwaysConfirm: false)
+                return true
+            } catch {
+                return false
+            }
+        }
+        #endif
+        return false
+    }
+    #endif
 }

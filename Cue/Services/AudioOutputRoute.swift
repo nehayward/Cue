@@ -44,6 +44,29 @@ enum AudioOutputRoute {
             .map(\.portName)
     }
 
+    /// An SF Symbol for the first output that makes the route external, as
+    /// Control Center draws it: AirPods by their name, then by the kind of
+    /// port. Nil on the built-in speaker or earpiece.
+    static var externalSymbol: String? {
+        guard let output = AVAudioSession.sharedInstance().currentRoute.outputs.first(where: isExternalPort) else { return nil }
+        let name = output.portName.lowercased()
+        if name.contains("airpods max") { return "airpodsmax" }
+        if name.contains("airpods pro") { return "airpodspro" }
+        if name.contains("airpods") { return "airpods" }
+        switch output.portType {
+        case .carAudio:
+            return "car.fill"
+        case .airPlay:
+            return "airplayaudio"
+        case .HDMI:
+            return "tv"
+        case .bluetoothA2DP, .bluetoothHFP, .bluetoothLE, .headphones:
+            return "headphones"
+        default:
+            return "speaker.wave.2.fill"
+        }
+    }
+
     private static func isExternalPort(_ output: AVAudioSessionPortDescription) -> Bool {
         switch output.portType {
         case .builtInSpeaker, .builtInReceiver:

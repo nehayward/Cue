@@ -99,6 +99,7 @@ final class AlbumShelfWidgetPublisher {
             _ = presented.nowPlayingDisplay?.id
             // Where Play goes, shown beside it.
             _ = PlaybackRoute.shared.group?.nameWithCount
+            _ = BookShelfWidgetState.Destination.thisDevice
         }) {
             AlbumShelfWidgetPublisher.shared.schedule.after(.seconds(2))
         }
@@ -187,7 +188,7 @@ final class AlbumShelfWidgetPublisher {
         // speaker from here: reloaded only when they change, as its own
         // albums aren't on these shelves.
         if published?.albumInPlayer != state.albumInPlayer || published?.albumInPlayerIsPlaying != state.albumInPlayerIsPlaying
-            || published?.speaker != state.speaker {
+            || published?.playsOn != state.playsOn {
             WidgetCenter.shared.reloadTimelines(ofKind: DiscographyArtist.widgetKind)
         }
         published = state
@@ -240,6 +241,7 @@ final class AlbumShelfWidgetPublisher {
             chapter: nil,
             needsServer: false,
             speaker: PlaybackRoute.shared.group?.nameWithCount,
+            device: .thisDevice,
             albumInPlayer: inPlayer,
             albumInPlayerIsPlaying: inPlayer != nil && presented.isPlaying
         )
@@ -404,7 +406,12 @@ final class AlbumShelfWidgetPublisher {
     /// route points, as a card's Play does. The speakers are looked for
     /// first, so an album a speaker plays reads as loaded after a launch in
     /// the background (before, Pause restarted it from its first song).
-    func play(albumID: String) async {
+    ///
+    /// With nothing playing, a new album asks where first, once
+    /// `bringForward` has brought Cue to the front (`WidgetPlayChoice`); the
+    /// player opens on the answer. `opensPlayer`: the link's Play, which
+    /// opens the player as it plays.
+    func play(albumID: String, bringForward: (@MainActor () async -> Bool)? = nil, opensPlayer: Bool = false) async {
         let began = ContinuousClock.now
         guard let album = await findAlbum(withID: albumID) else {
             Self.log.error("album shelf widget: no album \(albumID, privacy: .public) to play")
@@ -419,9 +426,25 @@ final class AlbumShelfWidgetPublisher {
         let speaker = SpeakerSend()
         if isLoaded(album, on: presented) {
             Self.log.notice("album shelf widget: play/pause \(album.title, privacy: .public)")
+            if opensPlayer {
+                Router.main.isPlayerPresented = true
+            }
             expected = !presented.isPlaying
             await presented.togglePlayback()
         } else {
+            if let bringForward {
+                switch await WidgetPlayChoice.ask(about: album, bringForward: bringForward) {
+                case .cancelled:
+                    return
+                case .chosen:
+                    Router.main.isPlayerPresented = true
+                case .notAsked:
+                    break
+                }
+            }
+            if opensPlayer {
+                Router.main.isPlayerPresented = true
+            }
             Self.log.notice("album shelf widget: play \(album.title, privacy: .public)")
             expected = true
             await PlayDestinationRouter.play(album, position: .replace) { group, position in
@@ -513,7 +536,8 @@ final class AlbumShelfWidgetPublisher {
             MediaDetailPresenter.present(album)
             return
         }
-        Router.main.isPlayerPresented = true
-        await play(albumID: albumID)
+        // Cue is in front already; the player opens with the Play, after
+        // asking where when nothing plays.
+        await play(albumID: albumID, bringForward: { true }, opensPlayer: true)
     }
 }
