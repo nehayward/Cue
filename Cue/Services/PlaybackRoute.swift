@@ -451,6 +451,12 @@ final class PlaybackRoute {
         SelectedGroupService.shared.group = group
         if let id = target.groupID {
             Router.main.selectedID = id
+            // The player, the mini player and the Lock Screen follow the
+            // speaker through the poll. On this device's route a poll that
+            // had stopped went unseen, and the switch then showed the
+            // carried song and nothing after it. A no-op while it runs, and
+            // refused off screen.
+            SonosService.shared.monitor()
         }
     }
 

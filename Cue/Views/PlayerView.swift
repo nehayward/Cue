@@ -852,6 +852,9 @@ private struct PlayerSessionModifier: ViewModifier {
             .task(id: coordinatorID) {
                 guard let group = self.group else { return }
                 sonosService.selectedGroup = group
+                // The selected group is read by the poll alone (the
+                // watcher skips it), so it has to be running.
+                sonosService.monitor()
                 try? await sonosService.updateTrackInformation(for: [group])
             }
             .task(id: coordinatorID) {

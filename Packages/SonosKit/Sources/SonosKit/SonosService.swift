@@ -2,6 +2,7 @@ import Foundation
 import OrderedCollections
 import MusicSearchKit
 import Observation
+import OSLog
 import SwiftUI
 import MusicKit
 import Defaults
@@ -524,11 +525,40 @@ public final class SonosService {
         }
     }
 
+    /// `log stream --predicate 'subsystem == "dance.cue" AND category == "sonos"' --level debug`
+    private static let monitorLog = Logger(subsystem: "dance.cue", category: "sonos")
+
+    /// Which pulse is the current one. A pulse cancelled while a request was
+    /// out comes back from it after `monitor()` may have started the next,
+    /// and stopping "the pulse" from there stopped that new one.
+    @ObservationIgnored private var pulseGeneration = 0
+
+    /// How long the pulse waits before looking again for speakers it had
+    /// reached and lost: doubling from a second, ten at most.
+    private static func pulseBackoff(afterFailures failures: Int) -> Duration {
+        .seconds(min(1 << min(max(failures - 1, 0), 4), 10))
+    }
+
+    /// Stops monitoring from inside pulse `generation`, only while it's
+    /// still the current one.
+    @MainActor
+    private func endPulse(_ generation: Int) {
+        guard generation == pulseGeneration else { return }
+        sonosPulse.cancel()
+        watcher.cancel()
+    }
+
     @MainActor
     public func monitor(retry: Bool = true, useCache: Bool = true) {
         guard mayLookForSpeakers, allowsMonitoring else { return }
         if isRunning { return }
         print("Monitoring!")
+
+        // A pulse that stopped by itself left its watcher running, and the
+        // new one would run beside it for good.
+        watcher.cancel()
+        pulseGeneration += 1
+        let generation = pulseGeneration
 
         self.watcher = Task { [weak self] in
             guard let self else { return }
@@ -551,10 +581,22 @@ public final class SonosService {
             } while !Task.isCancelled
         }
 
+        // Stopping for good is kept for a system that was never reached on
+        // this pulse (no Sonos on this Wi‑Fi, onboarding's search). A pulse
+        // that stopped on a passing failure used to leave nothing polling
+        // until Cue next came to the front: the speakers' songs, play state
+        // and queues stood still, which on this device's route nobody saw,
+        // and a switch to a speaker then showed its first song and nothing
+        // after it, in the player, the mini player and the Lock Screen.
         self.sonosPulse = Task { [weak self] in
             guard let self else { return }
             var useCache = useCache
             var retry = retry
+            // Whether this pulse has reached the speakers: losing them then
+            // is a dropout to wait out, not a system that isn't here.
+            var hasLoaded = false
+            // Failed loads in a row, for the wait between them.
+            var failures = 0
             repeat {
                 groupsChanged(sorted)
                 do {
@@ -570,38 +612,60 @@ public final class SonosService {
                     }
                     // MARK: Update room volumes
                     try await load(useCache: useCache)
+                    if failures > 0 {
+                        Self.monitorLog.notice("speakers back after \(failures) failed loads")
+                    }
+                    hasLoaded = true
+                    failures = 0
+                    // Each failure gets its look from scratch again, not
+                    // only the session's first: kept spent, the second
+                    // failure of the session, however far apart, stopped
+                    // the pulse.
+                    retry = true
                     try? await Task.sleep(for: .milliseconds(selectedGroup != nil ? 500 : 800))
 
                     useCache = true
-                } catch SonosServiceError.permissionDenied {
-                    print("Permission")
-                    systemState.systemPermissionDenied = true
-                    sonosPulse.cancel()
-                } catch SonosServiceError.parseError(let xml) {
-                    parserError = xml
-                    guard retry else {
-                        print("System not found")
-                        systemState.systemNotFound = true
-                        sonosPulse.cancel()
-                        return
-                    }
-                    // MARK: Invalidate Cache
-                    useCache = false
-                    retry = false
-                } catch SonosServiceError.sonosSystemNotFound {
-                    guard retry else {
-                        print("System not found")
-                        systemState.systemNotFound = true
-                        sonosPulse.cancel()
-                        return
-                    }
-                    // MARK: Invalidate Cache
-                    useCache = false
-                    retry = false
                 } catch {
-                    print(error)
-                    sonosPulse.cancel()
-                    print(#function, error)
+                    // Cancelled while a request was out: Cue left the screen
+                    // or the speakers were put away, and `monitor()` may have
+                    // started the next pulse already. Nothing read here is
+                    // current, and `sonosPulse` may be that new pulse now.
+                    if Task.isCancelled { return }
+                    if case SonosServiceError.permissionDenied = error {
+                        print("Permission")
+                        systemState.systemPermissionDenied = true
+                        Self.monitorLog.error("monitoring stopped: no Local Network permission")
+                        endPulse(generation)
+                        return
+                    }
+                    if case SonosServiceError.parseError(let xml) = error {
+                        parserError = xml
+                    }
+                    if retry {
+                        // MARK: Invalidate Cache
+                        // The address on hand may be stale (another network,
+                        // a new lease): look from scratch, once, at once.
+                        useCache = false
+                        retry = false
+                    } else if !hasLoaded {
+                        print("System not found")
+                        Self.monitorLog.notice("monitoring stopped: no speakers found (\(String(describing: error), privacy: .public))")
+                        systemState.systemNotFound = true
+                        endPulse(generation)
+                        return
+                    } else {
+                        // Reached before and gone now: a Wi‑Fi dropout, a
+                        // speaker restarting. Keep looking, more slowly.
+                        failures += 1
+                        let wait = Self.pulseBackoff(afterFailures: failures)
+                        // Until the wait reaches its longest, not every 10 s
+                        // for as long as they're gone.
+                        if failures <= 5 {
+                            Self.monitorLog.notice("speakers out of reach (\(String(describing: error), privacy: .public)); looking again in \(Int(wait.components.seconds))s")
+                        }
+                        useCache = false
+                        try? await Task.sleep(for: wait)
+                    }
                 }
             } while !Task.isCancelled
         }
