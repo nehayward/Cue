@@ -8,6 +8,18 @@ struct CuePaywall: View {
     /// The gate that brought it up, if one did: a card at the top says
     /// what was held back, and its row in the table is lit.
     var reason: PaywallReason?
+    /// How it goes away in a window of its own on the Mac (`PaywallWindow`),
+    /// where `dismiss` closes nothing and the window has its own close button.
+    var onClose: (() -> Void)?
+
+    private func close() {
+        if let onClose {
+            onClose()
+        } else {
+            dismiss()
+        }
+    }
+
     /// The singleton rather than the environment, so the paywall can be shown
     /// from anywhere (onboarding included) without depending on what's
     /// installed above it.
@@ -84,7 +96,7 @@ struct CuePaywall: View {
             PurchaseFooter(offering: offering, failed: offeringFailed) {
                 Task { await loadOffering() }
             } purchased: {
-                dismiss()
+                close()
             }
         }
         // Hold content invisible until the slide-in settles, then fade in
@@ -104,20 +116,22 @@ struct CuePaywall: View {
         .preferredColorScheme(.dark)
         .interactiveDismissDisabled()
         .overlay(alignment: .topTrailing) {
-            Button("Dismiss", systemImage: "xmark.circle.fill", role: .cancel, action: {
-                dismiss()
-            })
-            .labelStyle(.iconOnly)
-            .padding([.top, .trailing])
-            .font(.title)
-            .foregroundStyle(.secondary)
+            if onClose == nil {
+                Button("Dismiss", systemImage: "xmark.circle.fill", role: .cancel, action: {
+                    dismiss()
+                })
+                .labelStyle(.iconOnly)
+                .padding([.top, .trailing])
+                .font(.title)
+                .foregroundStyle(.secondary)
+            }
         }
         #if targetEnvironment(macCatalyst)
         // SwiftUI's `.keyboardShortcut(.cancelAction)` doesn't reliably reach
         // the first responder inside a sheet on Mac Catalyst — we drop down to
         // a UIKeyCommand-backed VC that's guaranteed to receive Escape.
         .background {
-            EscapeKeyCatcher { dismiss() }
+            EscapeKeyCatcher { close() }
                 .frame(width: 0, height: 0)
         }
         #endif
@@ -126,7 +140,7 @@ struct CuePaywall: View {
         // install's RevenueCat user doesn't know landing while it's up.
         .onChange(of: subscriptionService.subscription.isActive) { _, isActive in
             if isActive {
-                dismiss()
+                close()
             }
         }
         .task {

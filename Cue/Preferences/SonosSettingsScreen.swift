@@ -175,7 +175,7 @@ struct SonosSettingsScreen: View {
 #endif
 
 #if targetEnvironment(macCatalyst)
-    /// Cue Mini controls speakers and nothing else.
+    /// Cue Mini, Cue's player in the menu bar.
     private var cueMiniSection: some View {
         Section {
             Button {

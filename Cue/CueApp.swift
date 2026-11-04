@@ -700,6 +700,11 @@ struct CueApp: App {
             SettingsWindowScreen()
         }
         .handlesExternalEvents(matching: [])
+        // The paywall, a window of its own on the Mac too.
+        WindowGroup("Cue Super", id: PaywallWindow.sceneID) {
+            PaywallWindowScreen()
+        }
+        .handlesExternalEvents(matching: [])
 #endif
 //            .onOpenURL(perform: handle)
 //            .onAppear {
@@ -1929,7 +1934,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
          // screen, nor a launch in the background with no window at all.
          var isSettingsWindow = false
 #if targetEnvironment(macCatalyst)
-         isSettingsWindow = SettingsWindow.shared.claims(connectingSceneSession)
+         isSettingsWindow = PaywallWindow.shared.claims(connectingSceneSession) || SettingsWindow.shared.claims(connectingSceneSession)
 #endif
          if connectingSceneSession.role == .windowApplication, !isSettingsWindow,
             Router.main.selectedTab != .home, Router.main.selectedTab != .browse {
@@ -2349,8 +2354,13 @@ class CueSceneDelegate: NSObject, UIWindowSceneDelegate {
         guard let windowScene = (scene as? UIWindowScene) else { return }
         
 #if targetEnvironment(macCatalyst)
-        // The Settings window sets itself up: none of the main window's
-        // size, frame or bare titlebar.
+        // The paywall's and the Settings window set themselves up: none of the
+        // main window's size, frame or bare titlebar. The paywall's first, as
+        // Settings claims any window marked as not the main one.
+        if PaywallWindow.shared.claims(session) {
+            PaywallWindow.shared.connect(windowScene)
+            return
+        }
         if SettingsWindow.shared.claims(session) {
             SettingsWindow.shared.connect(windowScene)
             return
@@ -2401,6 +2411,7 @@ class CueSceneDelegate: NSObject, UIWindowSceneDelegate {
 #if targetEnvironment(macCatalyst)
         windowSizeObserver = nil
         SettingsWindow.shared.disconnect(scene)
+        PaywallWindow.shared.disconnect(scene)
 #endif
     }
     

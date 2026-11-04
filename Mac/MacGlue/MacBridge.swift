@@ -176,6 +176,10 @@ final class MacBridge: NSObject, MacBridgeable, @unchecked Sendable {
 
     // MARK: - Running observer
 
+    var isCueMiniRunning: Bool {
+        !NSRunningApplication.runningApplications(withBundleIdentifier: bundleIdentifier).isEmpty
+    }
+
     func setupRunningAppsObserver() {
         appsObserver = TopRunningAppsObserver(bundleIdentifier: bundleIdentifier)
         appsObserver?.start { [weak self] isRunning in

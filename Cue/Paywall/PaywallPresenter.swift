@@ -10,6 +10,9 @@ import UIKit
 @MainActor
 enum PaywallPresenter {
     static func present(_ reason: PaywallReason? = nil) {
+#if targetEnvironment(macCatalyst)
+        PaywallWindow.shared.open(reason)
+#else
         guard let top = topController() else { return }
         // One at a time.
         if top is PaywallHost { return }
@@ -21,6 +24,7 @@ enum PaywallPresenter {
         let host = PaywallHost(rootView: AnyView(CuePaywall(reason: reason).withEnvironments()))
         host.modalPresentationStyle = .fullScreen
         top.present(host, animated: true)
+#endif
     }
 
     /// The controller presented last in the active window, past any on its

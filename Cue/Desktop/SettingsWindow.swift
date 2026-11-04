@@ -1,6 +1,7 @@
 #if targetEnvironment(macCatalyst)
 import Defaults
 import OSLog
+import SonosKit
 import SwiftUI
 import UIKit
 
@@ -28,9 +29,53 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .general: "gearshape"
         case .services: "music.note.list"
         case .playback: "play.circle"
-        case .sonos: "hifispeaker.2"
+        case .sonos: "hifispeaker"
         case .storage: "internaldrive"
         }
+    }
+
+    /// The toolbar's image. Sonos's carries the count of speakers found, cut out
+    /// of a badge on its corner as Play On's speakers do.
+    var image: UIImage? {
+        self == .sonos ? Self.speakerImage(count: Self.speakerCount) : UIImage(systemName: symbol)
+    }
+
+    /// The active speakers found, none while they can't be reached.
+    static var speakerCount: Int {
+        let sonos = SonosService.shared
+        return sonos.isAvailable ? sonos.sortedRooms.filter { $0.state == .active }.count : 0
+    }
+
+    /// A template, so the toolbar tints it as it does the others.
+    static func speakerImage(count: Int) -> UIImage? {
+        let configuration = UIImage.SymbolConfiguration(pointSize: 21)
+        guard let speaker = UIImage(systemName: "hifispeaker", withConfiguration: configuration) else { return nil }
+        guard count > 1 else { return speaker }
+
+        let badgeHeight: CGFloat = 15
+        let badgeWidth: CGFloat = count > 9 ? 21 : badgeHeight
+        let size = CGSize(width: speaker.size.width + badgeWidth / 2, height: speaker.size.height + badgeHeight / 2)
+        let image = UIGraphicsImageRenderer(size: size).image { context in
+            speaker.withTintColor(.black).draw(at: CGPoint(x: 0, y: size.height - speaker.size.height))
+            let badge = CGRect(x: size.width - badgeWidth, y: 0, width: badgeWidth, height: badgeHeight)
+
+            // A gap between the badge and the speaker.
+            context.cgContext.setBlendMode(.clear)
+            UIBezierPath(roundedRect: badge.insetBy(dx: -1.5, dy: -1.5), cornerRadius: badgeHeight).fill()
+            context.cgContext.setBlendMode(.normal)
+            UIColor.black.setFill()
+            UIBezierPath(roundedRect: badge, cornerRadius: badgeHeight / 2).fill()
+
+            // The count cut out of it.
+            context.cgContext.setBlendMode(.clear)
+            let text = NSAttributedString(string: "\(count)", attributes: [
+                .font: UIFont.systemFont(ofSize: 11, weight: .heavy),
+                .foregroundColor: UIColor.black,
+            ])
+            let textSize = text.size()
+            text.draw(at: CGPoint(x: badge.midX - textSize.width / 2, y: badge.midY - textSize.height / 2))
+        }
+        return image.withRenderingMode(.alwaysTemplate)
     }
 
     var itemIdentifier: NSToolbarItem.Identifier {
@@ -94,6 +139,8 @@ final class SettingsWindow {
     @ObservationIgnored private let toolbarDelegate = SettingsToolbar()
     /// Each pane's height as last fitted, so the window opens at it.
     @ObservationIgnored private var fittedHeights: [SettingsPane: CGFloat] = [:]
+    /// The count on the Sonos pane's icon.
+    @ObservationIgnored private var shownSpeakerCount: Int?
 
     private init() {
         let saved = UserDefaults.standard.string(forKey: AppStorageKeys.settingsWindowPane)
@@ -133,9 +180,16 @@ final class SettingsWindow {
 
     // MARK: - The scene
 
-    /// Whether `session` is the Settings window's, from its mark.
+    /// Whether `session` is this window's or another that isn't the main
+    /// window (`PaywallWindow`), from its mark.
     static func isMarked(_ session: UISceneSession) -> Bool {
         session.userInfo?[sessionMark] as? Bool == true
+    }
+
+    static func markNotMain(_ session: UISceneSession) {
+        var info = session.userInfo ?? [:]
+        info[sessionMark] = true
+        session.userInfo = info
     }
 
     /// Whether the session connecting is the Settings window's: marked, or
@@ -151,9 +205,7 @@ final class SettingsWindow {
     func connect(_ scene: UIWindowScene) {
         askedAt = nil
         self.scene = scene
-        var info = scene.session.userInfo ?? [:]
-        info[Self.sessionMark] = true
-        scene.session.userInfo = info
+        Self.markNotMain(scene.session)
 
         if let titlebar = scene.titlebar {
             let toolbar = NSToolbar(identifier: "dance.cue.settings")
@@ -170,6 +222,7 @@ final class SettingsWindow {
         scene.sizeRestrictions?.allowsFullScreen = false
         setFrame(scene, height: fittedHeights[pane] ?? (Self.height * Self.scale).rounded(), placing: true)
         frameObserver = WindowSizeObserver(windowScene: scene, store: .settings)
+        followSpeakerCount()
         Self.log.info("Settings window connected on \(self.pane.rawValue, privacy: .public)")
     }
 
@@ -177,6 +230,23 @@ final class SettingsWindow {
         guard scene === self.scene else { return }
         self.scene = nil
         frameObserver = nil
+    }
+
+    /// Keeps the Sonos pane's icon on how many speakers are found, while the
+    /// window's open.
+    private func followSpeakerCount() {
+        guard let scene else { return }
+        let count = withObservationTracking {
+            SettingsPane.speakerCount
+        } onChange: {
+            Task { @MainActor in
+                SettingsWindow.shared.followSpeakerCount()
+            }
+        }
+        guard count != shownSpeakerCount else { return }
+        shownSpeakerCount = count
+        let item = scene.titlebar?.toolbar?.items.first { $0.itemIdentifier == SettingsPane.sonos.itemIdentifier }
+        item?.image = SettingsPane.speakerImage(count: count)
     }
 
     /// Fits the window's width to the window's scale when View ▸ Bigger or
@@ -250,7 +320,7 @@ final class SettingsWindow {
         }
     }
 
-    private static func mainWindowFrame(besides settings: UIWindowScene) -> CGRect? {
+    static func mainWindowFrame(besides settings: UIWindowScene) -> CGRect? {
         UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
             .first { $0 !== settings && !isMarked($0.session) }?
@@ -294,7 +364,7 @@ final class SettingsToolbar: NSObject, NSToolbarDelegate {
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
         guard let pane = SettingsPane(itemIdentifier: itemIdentifier) else { return nil }
         let item = NSToolbarItem(itemIdentifier: itemIdentifier)
-        item.image = UIImage(systemName: pane.symbol)
+        item.image = pane.image
         item.label = pane.title
         item.paletteLabel = pane.title
         item.target = self

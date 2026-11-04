@@ -17,8 +17,10 @@ import UIKit
 /// each change, so nothing runs while nothing changes: the clock goes over
 /// as a reading and the time it was taken, and Mini runs it on. A change
 /// that leaves the state as it was (a clock reading within a second of
-/// where the last one sent would have run to) isn't sent. Nothing here
-/// touches `UserDefaults`.
+/// where the last one sent would have run to) isn't sent, and nothing is sent
+/// with no Mini running: a distributed notification goes through a system-wide
+/// server, and any app on the Mac can read what's playing from one. Mini asks
+/// as it launches. Nothing here touches `UserDefaults`.
 ///
 /// `start()` once, from the window's `onAppear`.
 @MainActor
@@ -169,6 +171,7 @@ final class CueMiniLink {
     /// anyway, with a fresh clock reading, and `withCover` the cover made
     /// for it again too (for a Mini that's just launched).
     private func send(force: Bool, withCover: Bool = false) {
+        guard bridge?.isCueMiniRunning == true else { return }
         let state = snapshot()
         updateCover(resending: withCover)
         if !force, let sent, sent.isSame(as: state) { return }

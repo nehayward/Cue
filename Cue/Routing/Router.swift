@@ -158,7 +158,20 @@ enum AppTab: Hashable, Codable {
     /// Currently used for `.paywall` and `.onboard` — moments where we want
     /// full canvas and no swipe-to-dismiss. Use `fullScreenCover(to:)` to
     /// route, rather than `sheet(to:)`, so intent reads at the call site.
-    var presentedFullScreenCover: SheetDestination?
+    var presentedFullScreenCover: SheetDestination? {
+        didSet {
+#if targetEnvironment(macCatalyst)
+            // The paywall is a window of its own on the Mac (`PaywallWindow`),
+            // whichever router is asked for it.
+            if case .paywall = presentedFullScreenCover {
+                presentedFullScreenCover = oldValue
+                MainActor.assumeIsolated {
+                    PaywallWindow.shared.open()
+                }
+            }
+#endif
+        }
+    }
     var secondarySheet: SheetDestination?
 
     @MainActor var inspectorSheet: InspectorDestination?

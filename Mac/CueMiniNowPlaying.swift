@@ -8,7 +8,7 @@ import Foundation
 /// exceptions on the `Mac` folder), so it's Foundation alone. Cue sends it
 /// as JSON in the object of a distributed notification
 /// (`changedNotification`) whenever something in it changes
-/// (`CueMiniLink`), never on a timer, and again when Mini asks
+/// (`CueMiniLink`) while Mini runs, never on a timer, and again when Mini asks
 /// (`CueMiniCommand.refresh`, as Mini launches and as its menu opens). The
 /// cover goes on its own (`CueMiniCover`), once per cover.
 ///

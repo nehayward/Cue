@@ -11,6 +11,9 @@ protocol MacBridgeable: NSObjectProtocol {
     func openCueMiniApp() async throws
 
     func runningUpdate(handler: @escaping (Bool) -> Void)
+    /// Whether Cue Mini is running now, asked of the system rather than
+    /// `isRunning`, which only moves while the observer is set up.
+    var isCueMiniRunning: Bool { get }
     func setupRunningAppsObserver()
     func stopRunningAppObserver()
 
