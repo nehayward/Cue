@@ -10,8 +10,8 @@ import SwiftUI
 /// Read through `PlaybackRoute.presented`, as the player is, so this
 /// device and a Sonos group are one bar. The volume is a speaker's only:
 /// the Mac's own is the system's, in the menu bar and on the keyboard.
-struct DesktopPlayerBar: View {
-    /// What it has room for, worked out from the window (`DesktopBarRooms`).
+struct LargePlayerBar: View {
+    /// What it has room for, worked out from the window (`LargePlayerBarRooms`).
     let room: BarRoom
     /// Whether the window has anywhere to show the queue.
     let showsQueueToggle: Bool
@@ -21,13 +21,13 @@ struct DesktopPlayerBar: View {
         let scale = DesktopStyle.scale(typeSize)
 
         HStack(spacing: 12 * scale) {
-            DesktopTransport(showsOrder: room == .everything || room == .noVolume, showsPrevious: room != .least)
-            DesktopNowPlaying(showsProgress: room != .least)
+            LargePlayerBarTransport(showsOrder: room == .everything || room == .noVolume, showsPrevious: room != .least)
+            LargePlayerBarNowPlaying(showsProgress: room != .least)
                 .frame(minWidth: room == .everything ? BarRoom.songWidthBesideVolume * scale : nil, maxWidth: 760 * scale)
                 .frame(maxWidth: .infinity)
             // First in line for the width: the song gives way down to its
             // least, and only then the volume down to its own.
-            DesktopBarActions(showsVolume: room == .everything, showsQueueToggle: showsQueueToggle)
+            LargePlayerBarActions(showsVolume: room == .everything, showsQueueToggle: showsQueueToggle)
                 .layoutPriority(1)
         }
         .padding(.horizontal, 14 * scale)
@@ -81,7 +81,7 @@ enum BarRoom: Equatable {
 /// where measured a moment later it landed in place while the queue still
 /// slid, over the buttons on their way. A window being resized only changes
 /// these, with no animation, as a Mac window's toolbar keeps up with the pointer.
-struct DesktopBarRooms: Equatable {
+struct LargePlayerBarRooms: Equatable {
     var besideQueue = BarRoom.everything
     var alone = BarRoom.everything
 
@@ -102,7 +102,7 @@ struct DesktopBarRooms: Equatable {
 /// Shuffle, Previous, Play, Next and Repeat; a book's back 15 and forward
 /// 30 s, with no shuffle or repeat. While a hand-off holds the bar on its
 /// source they rest (`HeldPlaybackController`).
-private struct DesktopTransport: View {
+private struct LargePlayerBarTransport: View {
     /// Shuffle and repeat, where the bar has room for them.
     let showsOrder: Bool
     /// Previous, or a book's back 15 s, likewise.
@@ -198,7 +198,7 @@ private struct DesktopTransport: View {
 /// The song: its cover, title and artist, opening the player, the like
 /// button where its service has one, and its progress under them. On a
 /// speaker, the group's name; through a hand-off, where it's going.
-private struct DesktopNowPlaying: View {
+private struct LargePlayerBarNowPlaying: View {
     /// The scrubber under the title, where there's room to use it.
     let showsProgress: Bool
 
@@ -345,7 +345,7 @@ private struct PlayerZoomSource: ViewModifier {
 /// A speaker group's volume while one plays, Play On, and the queue at
 /// the bar's end. Play On on a speaker and the queue while it shows sit on
 /// a soft accent circle. No lyrics: the player has them.
-private struct DesktopBarActions: View {
+private struct LargePlayerBarActions: View {
     /// The speaker's volume, where the bar has room for it.
     let showsVolume: Bool
     /// The queue's button, where the window has somewhere to show it.
@@ -372,7 +372,7 @@ private struct DesktopBarActions: View {
 
         HStack(spacing: 6) {
             if showsVolume, let group = controller.group, !route.isHolding {
-                DesktopSpeakerVolume(group: group)
+                LargePlayerBarVolume(group: group)
                     .frame(minWidth: BarRoom.leastVolumeWidth * scale, maxWidth: BarRoom.volumeWidth * scale)
                     .padding(.trailing, 4)
             }
@@ -443,7 +443,7 @@ private extension View {
 /// A Sonos group's volume as the Play On sheet draws it: the group on a
 /// capsule its level fills, dragged sideways to set it (`VolumeRouteRow`),
 /// its menu muting every room.
-private struct DesktopSpeakerVolume: View {
+private struct LargePlayerBarVolume: View {
     let group: GroupRoom
     @State private var volumes = SpeakerVolumeWriter()
 

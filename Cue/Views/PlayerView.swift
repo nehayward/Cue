@@ -1054,7 +1054,7 @@ private struct EmptyPlayerArtwork: View {
 /// (`AudiobookPlayer.chapterSpan`).
 struct PlayerScrubber: View {
     /// One slim row under the song, the times either side of the bar, as the
-    /// Mac window's player bar has it (`DesktopPlayerBar`); else the bar
+    /// Mac window's player bar has it (`LargePlayerBar`); else the bar
     /// over its times.
     var isInline = false
 

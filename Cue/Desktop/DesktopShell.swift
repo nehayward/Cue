@@ -84,7 +84,7 @@ struct DesktopShell: View {
     /// How the window has room for the queue. A step rather than the width,
     /// so a resize runs this again only as it crosses one.
     @State private var queueRoom = DesktopQueueRoom.besideSidebar
-    @State private var barRooms = DesktopBarRooms()
+    @State private var barRooms = LargePlayerBarRooms()
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.openWindow) private var openWindow
 
@@ -129,8 +129,8 @@ struct DesktopShell: View {
         } action: {
             queueRoom = $0
         }
-        .onGeometryChange(for: DesktopBarRooms.self) { [sidebarWidth = scaled(DesktopStyle.sidebarWidth), queueWidth, margin = scaled(DesktopStyle.barMargin), scale = DesktopStyle.scale(typeSize)] in
-            DesktopBarRooms(
+        .onGeometryChange(for: LargePlayerBarRooms.self) { [sidebarWidth = scaled(DesktopStyle.sidebarWidth), queueWidth, margin = scaled(DesktopStyle.barMargin), scale = DesktopStyle.scale(typeSize)] in
+            LargePlayerBarRooms(
                 windowWidth: $0.size.width,
                 sidebarWidth: sidebarWidth,
                 queueWidth: queueWidth,
@@ -173,7 +173,7 @@ enum DesktopQueueRoom: Equatable {
 
 /// The window between the sidebar and the queue: the page, running to the
 /// window's top and bottom edges with the player's bar floating over its
-/// foot (`DesktopPlayerBar`).
+/// foot (`LargePlayerBar`).
 ///
 /// Each tab's page is kept once it has been shown, hidden while another
 /// shows, as a `TabView` keeps its tabs: built again on every switch, each
@@ -210,7 +210,7 @@ struct DesktopContent: View {
             pages(selected: selected)
                 .contentMargins(.bottom, scaled(DesktopStyle.barHeight + DesktopStyle.barMargin * 2))
                 .overlay(alignment: .bottom) {
-                    DesktopPlayerBar(room: barRoom, showsQueueToggle: showsQueueToggle)
+                    LargePlayerBar(room: barRoom, showsQueueToggle: showsQueueToggle)
                         .frame(height: scaled(DesktopStyle.barHeight))
                         .padding([.horizontal, .bottom], scaled(DesktopStyle.barMargin))
                 }

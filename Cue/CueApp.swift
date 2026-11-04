@@ -116,7 +116,7 @@ struct MusicPlaybackView: View {
 
     /// iPad's bar, and an iPhone Duo open's, has the room for a longer
     /// title before it scrolls. (The Mac's window has a bar of its own,
-    /// `DesktopPlayerBar`.)
+    /// `LargePlayerBar`.)
     private var maxWidth: CGFloat {
         usesPadLayout && UIDevice.current.userInterfaceIdiom != .vision ? 720 : 500
     }
