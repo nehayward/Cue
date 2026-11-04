@@ -378,12 +378,13 @@ private struct LargePlayerBarActions: View {
             }
 
             HStack(spacing: 6) {
-                PlaybackRouteButton()
+                PlaybackRouteButton(airPlaySide: 40 * scale)
                     .font(.title3)
                     .tint(.primary)
+                    // The whole circle takes the click, as the queue's does.
+                    .buttonStyle(DesktopIconButtonStyle(side: 40))
                     .frame(width: 40 * scale, height: 40 * scale)
                     .accentCircle(isOn: isOnSpeaker)
-                    .desktopHover(cornerRadius: 20 * scale)
                     .help("Play On")
                     // Under the button, as the phone's player has it; hung
                     // there rather than stacked, so it moves nothing beside it.

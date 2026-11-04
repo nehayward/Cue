@@ -26,6 +26,10 @@ import SwiftUI
 /// With Sonos off, or on cellular where no speaker can be reached, it is the
 /// system AirPlay button instead.
 struct PlaybackRouteButton: View {
+    /// How much of the place the system's AirPlay button takes, all of it a
+    /// target. A Sonos button's comes from the `buttonStyle` around it.
+    var airPlaySide: CGFloat = 30
+
     /// Read off the singleton rather than the environment: this sits in the tab
     /// bar accessory, which is hosted outside the tab content and so isn't
     /// guaranteed to inherit what `withEnvironments()` installs.
@@ -43,7 +47,7 @@ struct PlaybackRouteButton: View {
                 // car where the AirPlay glyph was, the way Music's does. The
                 // picker underneath still takes the tap.
                 AirPlayRoutePicker(hidesGlyph: sonosService.isInCar)
-                    .frame(width: 30, height: 30)
+                    .frame(width: airPlaySide, height: airPlaySide)
                     .overlay {
                         if sonosService.isInCar {
                             Image(systemName: "car.fill")
