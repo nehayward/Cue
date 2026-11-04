@@ -1194,10 +1194,14 @@ struct PlayerScrubber: View {
             baseHeight: isInline ? 6 : (usesPadLayout ? 24 : 16),
             delayDrag: false,
             immediateDrag: true,
+            touchHeight: isInline ? 24 : nil,
             valueAnimation: nil
         ) { isEditing in
             scrubbingChanged(isEditing, on: controller)
         }
+        // The bar's thin line keeps its place in the layout, however tall a
+        // touch on it is.
+        .frame(height: isInline ? 6 : nil)
         .foregroundStyle(.primary)
         .accessibilityLabel("Playback Position")
         .accessibilityValue(Duration.seconds(position - span.lowerBound).formatted(.time(pattern: .minuteSecond)))
