@@ -20,6 +20,12 @@ enum ApplePlaylistDeleter {
         var isPermission = false
     }
 
+    /// What `check` learned, for `delete`: its persistent ID in Music as MusicKit
+    /// has it, nil when MusicKit has no link.
+    struct Checked: Equatable {
+        fileprivate let persistentID: String?
+    }
+
     private static let log = Logger(subsystem: "dance.cue", category: "playlists")
     static let automationSettings = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation")!
 
@@ -35,9 +41,8 @@ enum ApplePlaylistDeleter {
 
     /// What can be known without touching Music, so a playlist that can't go
     /// is told before Music opens or macOS asks: Apple's word that it's the
-    /// listener's to change, and its persistent ID in Music as MusicKit has
-    /// it. Returned for `delete`, nil when MusicKit has no link.
-    static func check(_ item: PlayableContent) async throws -> String? {
+    /// listener's to change, and MusicKit's link to it in Music.
+    static func check(_ item: PlayableContent) async throws(Problem) -> Checked {
         guard try await canEdit(item) else {
             throw Problem(message: "“\(item.title)” isn’t a playlist you made, so Cue leaves it alone. You can remove it in the Music app.")
         }
@@ -47,17 +52,17 @@ enum ApplePlaylistDeleter {
         // MusicKit leaves out playlists with no songs.
         guard let playlist = linked.first else {
             log.info("no MusicKit link for \(item.content.id, privacy: .public)")
-            return nil
+            return Checked(persistentID: nil)
         }
         guard linked.count == 1,
               let persistentID = ApplePlaylistDeletion.persistentID(fromMusicKitID: playlist.id.rawValue) else {
             throw Problem(message: "Cue can’t tell which playlist in Music this is. You can delete “\(item.title)” in the Music app.")
         }
-        return persistentID
+        return Checked(persistentID: persistentID)
     }
 
     /// Apple's own answer. Unknown (offline, say) counts as no answer to act on.
-    private static func canEdit(_ item: PlayableContent) async throws -> Bool {
+    private static func canEdit(_ item: PlayableContent) async throws(Problem) -> Bool {
         struct Response: Decodable {
             struct Row: Decodable {
                 struct Attributes: Decodable {
@@ -68,8 +73,7 @@ enum ApplePlaylistDeleter {
             let data: [Row]
         }
         do {
-            let url = URL(string: "https://api.music.apple.com/v1/me/library/playlists/\(item.content.id)")!
-            let data = try await MusicDataRequest(urlRequest: URLRequest(url: url)).response().data
+            let data = try await libraryRequest(for: item).response().data
             return try JSONDecoder().decode(Response.self, from: data).data.first?.attributes.canEdit == true
         } catch {
             log.error("couldn't read \(item.content.id, privacy: .public): \(error, privacy: .public)")
@@ -77,10 +81,16 @@ enum ApplePlaylistDeleter {
         }
     }
 
+    private static func libraryRequest(for item: PlayableContent) -> MusicDataRequest {
+        let url = URL(string: "https://api.music.apple.com/v1/me/library/playlists/\(item.content.id)")!
+        return MusicDataRequest(urlRequest: URLRequest(url: url))
+    }
+
     // MARK: - Delete
 
-    /// Asks Music again what it has, and deletes only what the rules pick.
-    static func delete(_ item: PlayableContent, linkedPersistentID: String?) async throws {
+    /// Asks Music again what it has, deletes only what the rules pick, and takes
+    /// the playlist out of Cue's list.
+    static func delete(_ item: PlayableContent, _ checked: Checked) async throws(Problem) {
         guard let music = MenuAppLaunchAtLoginManager.shared.bridge?.musicLibrary else {
             throw Problem(message: "Cue couldn’t reach the Music app. You can delete “\(item.title)” there.")
         }
@@ -92,19 +102,21 @@ enum ApplePlaylistDeleter {
                     kind: row["kind"].flatMap(ApplePlaylistDeletion.MusicPlaylist.Kind.init) ?? .other
                 )
             }
-            let choice = ApplePlaylistDeletion.choose(name: item.title, linkedPersistentID: linkedPersistentID, in: playlists)
+            let choice = ApplePlaylistDeletion.choose(name: item.title, linkedPersistentID: checked.persistentID, in: playlists)
             log.info("\(item.content.id, privacy: .public) in \(playlists.count) of Music's playlists: \(String(describing: choice), privacy: .public)")
+            let persistentID: String
             switch choice {
             case let .refuse(refusal):
                 throw Problem(message: message(for: refusal, title: item.title))
-            case let .exact(persistentID):
-                try await music.deletePlaylist(persistentID: persistentID, named: item.title)
-            case let .onlyIfEmpty(persistentID):
-                guard try await music.trackCount(ofPlaylist: persistentID) == 0 else {
+            case let .exact(id):
+                persistentID = id
+            case let .onlyIfEmpty(id):
+                guard try await music.trackCount(ofPlaylist: id) == 0 else {
                     throw Problem(message: "Cue can’t tell which playlist in Music this is. Try again in a minute, or delete “\(item.title)” in the Music app.")
                 }
-                try await music.deletePlaylist(persistentID: persistentID, named: item.title)
+                persistentID = id
             }
+            try await music.deletePlaylist(persistentID: persistentID, named: item.title)
         } catch let problem as Problem {
             throw problem
         } catch {
@@ -112,6 +124,7 @@ enum ApplePlaylistDeleter {
             log.error("\(item.content.id, privacy: .public): \(error, privacy: .public)")
             throw problem(forEventError: code, title: item.title)
         }
+        removeFromList(item)
     }
 
     private static func message(for refusal: ApplePlaylistDeletion.Refusal, title: String) -> String {
@@ -150,23 +163,23 @@ enum ApplePlaylistDeleter {
 
     // MARK: - After
 
-    /// Takes the playlist off screen at once, then follows iCloud. The web API
-    /// lists it for a while yet and `updateUsersApplePlaylists` only merges, so
-    /// a read in that time puts it back in the list: it's taken out again until
+    /// Takes the playlist out of the list at once, then follows iCloud. The web
+    /// API lists it for a while yet and `updateUsersApplePlaylists` only merges,
+    /// so a read in that time puts it back in the list: it's taken out again until
     /// Apple Music says it's gone.
-    static func finish(_ item: PlayableContent) {
+    private static func removeFromList(_ item: PlayableContent) {
         let browse = AppleMusicBrowseService.shared
         browse.userPlaylists.remove(item)
-        leavePage(of: item)
 
         Task {
             for wait in [5, 10, 15, 30, 60] {
                 try? await Task.sleep(for: .seconds(wait))
                 let isGone = await isGone(item)
-                browse.userPlaylists.remove(item)
+                if browse.userPlaylists.contains(item) {
+                    browse.userPlaylists.remove(item)
+                }
                 if isGone {
                     log.info("\(item.content.id, privacy: .public) gone from Apple Music")
-                    await browse.updateUsersApplePlaylists(offset: 0)
                     return
                 }
             }
@@ -179,33 +192,13 @@ enum ApplePlaylistDeleter {
     }
 
     private static func isGone(_ item: PlayableContent) async -> Bool {
-        let url = URL(string: "https://api.music.apple.com/v1/me/library/playlists/\(item.content.id)")!
         do {
-            _ = try await MusicDataRequest(urlRequest: URLRequest(url: url)).response()
+            _ = try await libraryRequest(for: item).response()
             return false
         } catch let error as MusicDataRequest.Error {
             return error.status == 404
         } catch {
             return false
-        }
-    }
-
-    /// Off its page, whether the sidebar opened it or a stack pushed it. The
-    /// sheet's route is cleared first: gone with the page but left set, it
-    /// would open again over the next playlist's page.
-    private static func leavePage(of item: PlayableContent) {
-        let window = LargeWindowState.shared
-        window.currentRouter.presentedSheet = nil
-        if window.isShowing(item) {
-            window.select(AppState.shared.resolvedTab(Router.main.selectedTab))
-        }
-        let router = window.currentRouter
-        let kept = router.path.filter { destination in
-            guard case let .mediaDetail(content, _, _) = destination else { return true }
-            return content.id != item.id
-        }
-        if kept.count != router.path.count {
-            router.path = kept
         }
     }
 }

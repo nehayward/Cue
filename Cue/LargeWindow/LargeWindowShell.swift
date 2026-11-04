@@ -52,6 +52,20 @@ final class LargeWindowState {
         self.playlist = playlist
     }
 
+    /// Off the page of something that's gone, whether the sidebar opened it or a
+    /// stack pushed it. A sheet it presented goes first: gone with the page but
+    /// left set, it would open again over the next page.
+    func leavePage(of content: PlayableContent) {
+        currentRouter.presentedSheet = nil
+        if isShowing(content) {
+            playlist = nil
+        }
+        currentRouter.path.removeAll { destination in
+            guard case let .mediaDetail(shown, _, _) = destination else { return false }
+            return shown.id == content.id
+        }
+    }
+
     /// An iPad window gone narrow enough for the tabs: they have no place for
     /// a sidebar's playlist or collection, so it goes back to their first.
     func leaveForTabs() {
