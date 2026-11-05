@@ -23,9 +23,9 @@ import WatchConnectivity
 /// its own browsing and listening, and sends them back; each side merges
 /// what the other sends (`WatchPicks.merged`, `WatchBookPlaces.merged`), so
 /// neither loses the other's changes, and a book picks up on either device
-/// where it was left on the other. The places also go through iCloud's
-/// key-value store (`CloudBookPlaces`), read at launch, on coming back to
-/// Cue and whenever it changes, so they cross with the watch out of reach.
+/// where it was left on the other. The places also go through iCloud
+/// (`BookPlaceSync`, every book's, to every device), so they cross with
+/// the watch out of reach.
 ///
 /// Audiobookshelf's sign-in is lent: the access token, never the refresh
 /// token, which the server rotates on every renewal. When the token the
@@ -78,12 +78,6 @@ final class WatchSyncService {
     @ObservationIgnored private var sentPlaces: WatchBookPlaces?
     @ObservationIgnored private var sentAllowance: WatchAllowance?
     @ObservationIgnored private var placesTask: Task<Void, Never>?
-    @ObservationIgnored private let cloud = CloudBookPlaces()
-    @ObservationIgnored private var cloudObserver: NSObjectProtocol?
-    /// The watch's places taken in this launch, by pick: a place this
-    /// iPhone holds only because the watch sent it isn't this iPhone's to
-    /// keep in the book's history.
-    @ObservationIgnored private var takenFromWatch: [String: AudiobookProgress] = [:]
     @ObservationIgnored private var backgroundObserver: NSObjectProtocol?
     @ObservationIgnored private var foregroundObserver: NSObjectProtocol?
     #if os(iOS) && !targetEnvironment(macCatalyst)
@@ -118,12 +112,10 @@ final class WatchSyncService {
         self.relay = relay
         WCSession.default.delegate = relay
         WCSession.default.activate()
-        // Sign-ins change in Settings; coming back to Cue is when to check,
-        // and to read the places iCloud brought while Cue was away.
+        // Sign-ins change in Settings; coming back to Cue is when to check.
         foregroundObserver = NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in
                 guard let self else { return }
-                self.reconcileWithCloud()
                 guard self.currentCredentials() != self.sentCredentials else { return }
                 self.send()
             }
@@ -134,13 +126,6 @@ final class WatchSyncService {
                 self?.sharePlaces()
             }
         }
-        cloudObserver = NotificationCenter.default.addObserver(forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification, object: NSUbiquitousKeyValueStore.default, queue: .main) { [weak self] _ in
-            Task { @MainActor in
-                self?.reconcileWithCloud()
-            }
-        }
-        NSUbiquitousKeyValueStore.default.synchronize()
-        reconcileWithCloud()
         trackAllowance()
         #endif
     }
@@ -254,8 +239,9 @@ final class WatchSyncService {
     }
 
     /// A book's place moved here (`AudiobookProgressStore.record`): the
-    /// watch and iCloud hear of it a minute after the first change, or as
-    /// Cue leaves the screen, rather than every few seconds of listening.
+    /// watch hears of it a minute after the first change, or as Cue leaves
+    /// the screen, rather than every few seconds of listening. (iCloud
+    /// hears through `BookPlaceSync`.)
     func bookPlacesDidChange() {
         guard isAvailable, picks.items.contains(where: { $0.kind == .audiobook }), placesTask == nil else { return }
         placesTask = Task { [weak self] in
@@ -266,30 +252,13 @@ final class WatchSyncService {
         }
     }
 
-    /// The places go up to iCloud where they're newer than its, and to the
-    /// watch when they've changed since it last heard.
+    /// The places go to the watch when they've changed since it last heard.
     private func sharePlaces() {
         placesTask?.cancel()
         placesTask = nil
         let places = currentPlaces()
-        let written = cloud.write(places)
-        if !written.isEmpty {
-            logger.info("Put \(written.count) book places in iCloud")
-        }
         guard places != sentPlaces else { return }
         send()
-    }
-
-    /// iCloud's places in, where they're newer than this iPhone's — the
-    /// watch's, from when it was out of reach — and this iPhone's up, where
-    /// they're newer than iCloud's: what was there may have been an older
-    /// place that reached iCloud last.
-    private func reconcileWithCloud() {
-        apply(cloud.read(), from: "iCloud")
-        let written = cloud.write(currentPlaces())
-        if !written.isEmpty {
-            logger.info("Put \(written.count) book places in iCloud")
-        }
     }
 
     /// The watch's places in its books, kept where they're newer than this
@@ -299,18 +268,18 @@ final class WatchSyncService {
     /// book's history, and a book loaded here but paused gives way, so Play
     /// starts from the watch's place. Only for a server this iPhone is
     /// signed in to: a sign-out forgets that account's places, and the
-    /// watch's mustn't bring them back. The same for iCloud's, which are
-    /// the watch's, or this iPhone's own coming back.
-    private func apply(_ theirs: WatchBookPlaces, from source: String = "the watch") {
+    /// watch's mustn't bring them back. (The watch's places in iCloud come
+    /// in through `BookPlaceSync`.)
+    private func apply(_ theirs: WatchBookPlaces) {
         for pick in picks.items where pick.kind == .audiobook && Self.isSignedIn(to: pick.source) {
             guard let place = theirs[pick.key] else { continue }
-            take(place, for: pick, from: source)
+            take(place, for: pick, from: "the watch")
         }
     }
 
-    /// One book's place from the watch (or iCloud), kept where it's newer
-    /// than this iPhone's; the book loaded here gives way to it, unless the
-    /// caller does that itself (`movesPlayer`). The place taken, if it was.
+    /// One book's place from the watch, kept where it's newer than this
+    /// iPhone's; the book loaded here gives way to it, unless the caller
+    /// does that itself (`movesPlayer`). The place taken, if it was.
     @discardableResult
     private func take(_ place: WatchBookPlace, for pick: WatchPick, from source: String, movesPlayer: Bool = true) -> AudiobookProgress? {
         let store = AudiobookProgressStore.shared
@@ -318,11 +287,12 @@ final class WatchSyncService {
         let held = store.progress(for: book)
         if let held, !place.supersedes(WatchBookPlace(held)) { return nil }
         let reading = AudiobookProgress(place)
-        if let held, held != takenFromWatch[pick.key], !held.isFinished, held.position > 0, abs(held.position - reading.position) > 60 {
+        let sync = BookPlaceSync.shared
+        if let held, !sync.isTaken(held, for: book), !held.isFinished, held.position > 0, abs(held.position - reading.position) > 60 {
             AudiobookPlaceHistory.shared.record(.replaced, at: held.position, to: reading.position, for: book, from: .watch)
         }
         logger.info("\(pick.title, privacy: .public): the place from \(source, privacy: .public), \(Int(reading.position)) s, is newer")
-        takenFromWatch[pick.key] = reading
+        sync.noteTaken(reading, for: book)
         store.record(reading, for: book)
         if movesPlayer {
             Task { await AudiobookPlayer.shared.notePlaceMoved(book, to: reading) }

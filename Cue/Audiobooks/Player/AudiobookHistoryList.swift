@@ -231,6 +231,10 @@ struct AudiobookHistoryList: View {
         case .replaced:
             switch place.source {
             case .watch: return String(localized: "Synced from Apple Watch")
+            case .iPhone: return String(localized: "Synced from iPhone")
+            case .iPad: return String(localized: "Synced from iPad")
+            case .mac: return String(localized: "Synced from Mac")
+            case .vision: return String(localized: "Synced from Apple Vision Pro")
             case .plex: return String(localized: "Synced from Plex")
             case .audiobookshelf: return String(localized: "Synced from Audiobookshelf")
             case nil: return String(localized: "Synced from another device")
@@ -250,7 +254,14 @@ struct AudiobookHistoryList: View {
         case .jumpedFrom:
             if let to = place.to, to < place.position { "arrow.uturn.backward" } else { "arrow.uturn.forward" }
         case .replaced:
-            place.source == .watch ? "applewatch" : "arrow.triangle.2.circlepath"
+            switch place.source {
+            case .watch: "applewatch"
+            case .iPhone: "iphone"
+            case .iPad: "ipad"
+            case .mac: "laptopcomputer"
+            case .vision: "visionpro"
+            case .plex, .audiobookshelf, nil: "arrow.triangle.2.circlepath"
+            }
         case .marked:
             place.to == 0 ? "arrow.counterclockwise" : "checkmark"
         case .left: "arrow.right.square"

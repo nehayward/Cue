@@ -15,9 +15,10 @@ import SonosKit
 /// Books are keyed by service and id (`key(for:)`), so a book reads the
 /// same wherever it's opened from.
 ///
-/// The books on the Apple Watch keep their places there too: the watch's
-/// newer ones come in here, and these go out to it
-/// (`WatchSyncService.bookPlacesDidChange`).
+/// The listener's other devices keep places too: every book's goes through
+/// iCloud (`BookPlaceSync`), the others' newer ones coming in here and
+/// this device's going out, and the books on the Apple Watch also go to
+/// and from it directly (`WatchSyncService.bookPlacesDidChange`).
 @MainActor
 @Observable
 final class AudiobookProgressStore {
@@ -44,6 +45,15 @@ final class AudiobookProgressStore {
         "\(service.sonosRawValue)|\(id)"
     }
 
+    /// The book a key names: its service and id, read back from
+    /// `key(service:id:)`.
+    static func book(forKey key: String) -> (service: MusicService, id: String)? {
+        guard let bar = key.firstIndex(of: "|"),
+              let service = MusicService(service: String(key[..<bar])) else { return nil }
+        let id = String(key[key.index(after: bar)...])
+        return id.isEmpty ? nil : (service, id)
+    }
+
     func progress(for book: PlayableContent) -> AudiobookProgress? {
         readings[Self.key(for: book)]
     }
@@ -66,6 +76,7 @@ final class AudiobookProgressStore {
         readings[key] = reading
         scheduleSave()
         WatchSyncService.shared.bookPlacesDidChange()
+        BookPlaceSync.shared.placesDidChange()
     }
 
     /// Notes the server's reading of a book read whole, kept only when it
@@ -76,6 +87,9 @@ final class AudiobookProgressStore {
     func recordServerProgress(of audiobook: Audiobook) {
         guard let reading = audiobook.serverProgress,
               AudiobookLibrary.preferring(local: progress(for: audiobook.book), server: reading, in: audiobook) == reading else { return }
+        // The server's, not this device's: iCloud hears it from the device
+        // that moved it.
+        BookPlaceSync.shared.noteTaken(reading, key: Self.key(for: audiobook.book))
         record(reading, for: audiobook.book)
     }
 
@@ -85,6 +99,7 @@ final class AudiobookProgressStore {
     func recordFromServer(_ reading: AudiobookProgress, service: MusicService, id: String) {
         let key = Self.key(service: service, id: id)
         guard AudiobookProgress.preferring(local: readings[key], server: reading) == reading else { return }
+        BookPlaceSync.shared.noteTaken(reading, key: key)
         record(reading, key: key)
     }
 

@@ -1026,6 +1026,12 @@ final class AudiobookPlayer {
         } else if playing {
             unrecorded = reading
         }
+        if paused {
+            // The listener may be about to pick the book up on another
+            // device: the place goes to iCloud in seconds, not the minute
+            // listening waits.
+            BookPlaceSync.shared.bookPaused()
+        }
         syncServer(current, part: part, time: time, playing: playing, onSpeaker: controller.group != nil)
         wasPlaying = playing
         if sleepsAt != nil {
