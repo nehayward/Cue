@@ -82,9 +82,28 @@ struct MediaDetailView: View {
     /// (`OnDeviceLibrary`): its songs are the ones here, read from the
     /// device, so the page opens with no network and keeps up as downloads
     /// come and go. It has no server's album or playlist behind it to
-    /// download, open a menu on, edit, or go to the artist of.
+    /// download, open a menu on or edit; online, an album reaches its
+    /// server's album and artist through a song (`serverSong`).
     private var isOnDevice: Bool {
         OnDeviceLibrary.isContainer(playableContent)
+    }
+
+    /// A song of a downloaded album that opens its server's own pages
+    /// while there's a network to read them: the whole album (an album
+    /// page finds a song's album, as the song's View Album does) and its
+    /// artist. Nil offline, for a downloaded playlist, and for songs with
+    /// no server page behind them.
+    private var serverSong: PlayableContent? {
+        guard isOnDevice, playableContent.content.type == .album, !OfflineMode.shared.isActive else { return nil }
+        let services: [MusicService] = [.plex, .subsonic, .apple, .files]
+        let songTypes: [ContentType] = [.track, .libraryTrack]
+        return tracks.first { services.contains($0.content.service) && songTypes.contains($0.content.type) }
+    }
+
+    /// What the artist line opens: a server's album itself, a downloaded
+    /// album's song (`serverSong`), or nothing, which leaves it plain text.
+    private var artistPageSource: PlayableContent? {
+        isOnDevice ? serverSong : (content ?? playableContent)
     }
 
     /// Plex keeps a playlist in its own order and won't sort its items, but
@@ -185,6 +204,7 @@ struct MediaDetailView: View {
             }
             // Moving a song means something only in the playlist's own order.
             .onMove(perform: canReorderTracks && sortedOrder == nil ? move : nil)
+            fullAlbumRow
             if tracks.isEmpty {
                 if !isLoaded {
                     ProgressView()
@@ -371,6 +391,30 @@ struct MediaDetailView: View {
         .listRowInsets(EdgeInsets())
     }
     
+    /// Under a downloaded album's songs, while online: the album as its
+    /// server has it, every song, as Apple Music's Show Complete Album.
+    @ViewBuilder
+    private var fullAlbumRow: some View {
+        if let serverSong {
+            Button {
+                HapticManager.shared.fireHaptic(.buttonPress)
+                router.navigate(to: .mediaDetail(content: serverSong, group: selectedGroupService.group))
+            } label: {
+                Label("Show Full Album", systemImage: "smallcircle.circle.fill")
+                    .bold()
+                    .fontDesign(.rounded)
+                    .foregroundStyle(.tint)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal)
+            .listRowBackground(Color.white.opacity(0.001))
+            .listRowSeparator(.hidden)
+            .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 12, trailing: 0))
+        }
+    }
+
     @ViewBuilder
     private var headerOverlay: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -383,14 +427,10 @@ struct MediaDetailView: View {
                 .allowsTightening(true)
                 .lineLimit(1)
             HStack(spacing: 0) {
-                if isOnDevice {
-                    Text(content?.metadata?.artist ?? "")
-                        .bold()
-                        .lineLimit(1)
-                } else {
+                if let artistPageSource {
                     Button {
                         HapticManager.shared.fireHaptic(.buttonPress)
-                        router.navigate(to: .artistDetail(content: content ?? playableContent, group: selectedGroupService.group))
+                        router.navigate(to: .artistDetail(content: artistPageSource, group: selectedGroupService.group))
                     } label: {
                         Text(content?.metadata?.artist ?? "")
                             .bold()
@@ -398,6 +438,10 @@ struct MediaDetailView: View {
                             .underline()
                     }
                     .buttonStyle(.plain)
+                } else {
+                    Text(content?.metadata?.artist ?? "")
+                        .bold()
+                        .lineLimit(1)
                 }
                 
                 let yearText = content?.metadata?.albumYear?.formatted(.dateTime.year())
