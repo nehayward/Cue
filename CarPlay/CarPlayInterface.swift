@@ -23,12 +23,7 @@ import UIKit
 /// - **Downloads** — what's on this iPhone, which plays with no signal:
 ///   Shuffle All, Albums, Artists and Songs, and the newest albums.
 /// - **Radio** — TuneIn's and Apple Music's stations, as on the phone, as
-///   grids of squares. Where the car has no room for it (a fifth tab, with
-///   Audiobooks up), a Radio tile on Home opens the same stations.
-/// - **Search** — the searches made in Cue on the phone, each opening its
-///   results across the providers, and what was opened from search last. A
-///   car gives an audio app no keyboard (the search template is a
-///   navigation app's), so it searches what was typed on the phone.
+///   grids of squares.
 ///
 /// Everything plays on this device (see `CarPlayPlayback`); speakers have
 /// no place in a car, so nothing here offers one. The car's Now Playing
@@ -55,13 +50,7 @@ final class CarPlayInterface: NSObject {
     private let audiobooksTemplate: CPListTemplate
     private let downloadsTemplate: CPListTemplate
     private let radioTemplate: CPListTemplate
-    private let searchTemplate: CPListTemplate
     private var tabBar: CPTabBarTemplate?
-    /// Radio's stations pushed from Home's tile, while Radio has no tab;
-    /// filled as the Radio tab is.
-    private weak var radioListTemplate: CPListTemplate?
-    /// The stations as last loaded, for that list to open on.
-    private var stations: [CarPlayLibrary.StationSection]?
 
     /// Up Next, pushed from Now Playing, follows the player while it's up.
     private weak var upNextTemplate: CPListTemplate?
@@ -128,7 +117,6 @@ final class CarPlayInterface: NSObject {
         audiobooksTemplate = CarPlayInterface.tab(title: "Audiobooks", image: UIImage(systemName: "book"))
         downloadsTemplate = CarPlayInterface.tab(title: "Downloads", image: UIImage(systemName: "arrow.down.circle"))
         radioTemplate = CarPlayInterface.tab(title: "Radio", image: UIImage(systemName: "dot.radiowaves.left.and.right"))
-        searchTemplate = CarPlayInterface.tab(title: "Search", image: UIImage(systemName: "magnifyingglass"))
         super.init()
     }
 
@@ -183,7 +171,6 @@ final class CarPlayInterface: NSObject {
         reloadAudiobooks()
         reloadDownloads()
         reloadRadio()
-        fillSearch()
         updateNowPlaying()
         // With no signal, what's on this iPhone is all that will play.
         if OfflineMode.shared.isActive {
@@ -207,25 +194,16 @@ final class CarPlayInterface: NSObject {
         audiobooksTask = nil
     }
 
-    /// Audiobooks only while there are books. An audio app has four tabs at
-    /// most, so with Audiobooks and Search up there's no room for Radio, the
-    /// one tab that can't play without a network: it goes first, to a tile
-    /// on Home (`radioIsTab`). Search sits at the bar's end, as on the phone.
+    /// Audiobooks only while there are books. Radio last: a car with room
+    /// for fewer tabs leaves it out first, and it's the one tab that can't
+    /// play without a network. An audio app has four at most.
     private var tabs: [CPTemplate] {
-        var wanted: [CPListTemplate] = [homeTemplate, searchTemplate]
+        var tabs: [CPTemplate] = [homeTemplate]
         if audiobooksShown {
-            wanted.append(audiobooksTemplate)
+            tabs.append(audiobooksTemplate)
         }
-        wanted += [downloadsTemplate, radioTemplate]
-        let kept = wanted.prefix(CPTabBarTemplate.maximumTabCount)
-        let order = [homeTemplate, audiobooksTemplate, downloadsTemplate, radioTemplate, searchTemplate]
-        return order.filter { tab in kept.contains { $0 === tab } }
-    }
-
-    /// Whether Radio has a tab of its own; when it hasn't, Home has a tile
-    /// for it.
-    private var radioIsTab: Bool {
-        tabs.contains { $0 === radioTemplate }
+        tabs += [downloadsTemplate, radioTemplate]
+        return Array(tabs.prefix(CPTabBarTemplate.maximumTabCount))
     }
 
     /// The gate is free today; this is what a locked one shows.
@@ -287,9 +265,6 @@ final class CarPlayInterface: NSObject {
         _ = player.onAirMatch
         // Likes, from here, the phone's player or the service as read.
         _ = LiveActivityFavoriteStore.shared.favorites
-        // The phone's searches, for the Search tab.
-        _ = RecentQueriesStorage.shared.object
-        _ = RecentSearchesStorage.shared.object
     }
 
     private func stateChanged() {
@@ -298,7 +273,6 @@ final class CarPlayInterface: NSObject {
         reloadHome()
         fillAudiobooks()
         reloadDownloads()
-        fillSearch()
         if let upNextTemplate {
             fillUpNext(upNextTemplate)
         }
@@ -494,11 +468,8 @@ final class CarPlayInterface: NSObject {
             homeTemplate.emptyViewTitleVariants = ["Nothing Here Yet"]
             homeTemplate.emptyViewSubtitleVariants = ["Set up Apple Music, Plex, Subsonic or a Files folder in Cue on your iPhone."]
         }
-        // Radio's way in when it has no tab; never offline, when no station
-        // plays.
-        let radioTile = !radioIsTab && !OfflineMode.shared.isActive
         let played = ([waiting?.id ?? ""] + newest.map(\.id)).joined(separator: "|")
-        let tiles = (sections.map { $0 == section ? "[\($0.rawValue)]" : $0.rawValue } + (radioTile ? ["radio"] : [])).joined(separator: ",")
+        let tiles = sections.map { $0 == section ? "[\($0.rawValue)]" : $0.rawValue }.joined(separator: ",")
         let body = shelves.map { shelves in
             shelves.map { ([$0.title] + $0.items.map(\.id)).joined(separator: ",") }.joined(separator: "|")
         }
@@ -513,17 +484,15 @@ final class CarPlayInterface: NSObject {
                 }
                 list.append(CPListSection(items: [cards]))
             }
-            guard !sections.isEmpty || radioTile else { return list }
+            guard !sections.isEmpty else { return list }
             // Room for the grids under what's above them.
             let room = max(CPListTemplate.maximumSectionCount - list.count - 1, 0)
             let library = [tiles, body ?? "…", String(room)].joined(separator: "/")
             if let kept = homeLibrary, kept.signature == library {
                 return list + kept.sections
             }
-            var built = [CPListSection(items: [libraryTiles(sections, radio: radioTile)])]
-            if sections.isEmpty {
-                // Only the Radio tile: no provider to fill a section.
-            } else if let shelves, !shelves.isEmpty {
+            var built = [CPListSection(items: [libraryTiles(sections)])]
+            if let shelves, !shelves.isEmpty {
                 let named = shelves.count > 1
                 built += shelves.prefix(room).map { shelf -> CPListSection in
                     let title = named ? shelf.title : section.title
@@ -540,21 +509,13 @@ final class CarPlayInterface: NSObject {
         updatePlayingIndicators()
     }
 
-    /// The library's sections as tiles, the one showing checked, and Radio
-    /// after them when it has no tab, which opens the stations on a list
-    /// of their own rather than switching the list under the tiles.
-    private func libraryTiles(_ sections: [ProviderCollection], radio: Bool) -> CPListImageRowItem {
-        var tiles = sections.map { section in
+    /// The library's sections as tiles, the one showing checked.
+    private func libraryTiles(_ sections: [ProviderCollection]) -> CPListImageRowItem {
+        tileRow(sections.map { section in
             Tile(title: section.title, systemImage: section.systemImage, isSelected: section == librarySection, action: .run { [weak self] in
                 self?.showLibrarySection(section)
             })
-        }
-        if radio {
-            tiles.append(Tile(title: "Radio", systemImage: "dot.radiowaves.left.and.right", action: .run { [weak self] in
-                self?.pushRadio()
-            }))
-        }
-        return tileRow(tiles)
+        })
     }
 
     /// Opens at once on a loading note and fills in when the provider
@@ -672,8 +633,6 @@ final class CarPlayInterface: NSObject {
         audiobooksShown = shows
         tabBar.updateTemplates(tabs)
         reloadAudiobooks()
-        // Radio's tab may have come or gone with it, and its tile on Home.
-        fillHome()
     }
 
     /// Reads each server's books when they've never been read, or when the
@@ -828,139 +787,25 @@ final class CarPlayInterface: NSObject {
     // MARK: - Radio
 
     /// Each section's stations as a grid of squares, the way the Music app
-    /// lays out its radio: on the Radio tab, and on the list Home's Radio
-    /// tile opened when it has none.
+    /// lays out its radio.
     private func reloadRadio() {
         radioTask?.cancel()
         radioTemplate.showsSpinnerWhileEmpty = true
         radioTask = Task { [weak self] in
             let sections = await CarPlayLibrary.stations()
             guard let self, !Task.isCancelled else { return }
-            self.stations = sections
-            self.fillRadio(self.radioTemplate, with: sections)
-            if let pushed = self.radioListTemplate {
-                self.fillRadio(pushed, with: sections)
+            self.radioTemplate.showsSpinnerWhileEmpty = false
+            self.radioTemplate.emptyViewTitleVariants = ["No Stations"]
+            self.radioTemplate.emptyViewSubtitleVariants = ["Switch on TuneIn or Apple Music in Cue on your iPhone."]
+            let signature = sections
+                .map { ([$0.title] + $0.stations.map(\.id)).joined(separator: ",") }
+                .joined(separator: "|")
+            self.update(self.radioTemplate, signature: signature) {
+                sections.prefix(CPListTemplate.maximumSectionCount).map { section in
+                    CPListSection(items: [self.imageGrid(title: section.title, items: section.stations)])
+                }
             }
             self.updatePlayingIndicators()
-        }
-    }
-
-    private func fillRadio(_ template: CPListTemplate, with sections: [CarPlayLibrary.StationSection]) {
-        template.showsSpinnerWhileEmpty = false
-        template.emptyViewTitleVariants = ["No Stations"]
-        template.emptyViewSubtitleVariants = ["Switch on TuneIn or Apple Music in Cue on your iPhone."]
-        let signature = sections
-            .map { ([$0.title] + $0.stations.map(\.id)).joined(separator: ",") }
-            .joined(separator: "|")
-        update(template, signature: signature) {
-            sections.prefix(CPListTemplate.maximumSectionCount).map { section in
-                CPListSection(items: [imageGrid(title: section.title, items: section.stations)])
-            }
-        }
-    }
-
-    /// The stations from Home's Radio tile: the last loaded at once, read
-    /// again behind them, as picking the Radio tab would.
-    private func pushRadio() {
-        let template = CPListTemplate(title: "Radio", sections: [])
-        template.showsSpinnerWhileEmpty = true
-        radioListTemplate = template
-        if let stations {
-            fillRadio(template, with: stations)
-        }
-        push(template)
-        updatePlayingIndicators()
-        reloadRadio()
-    }
-
-    // MARK: - Search
-
-    /// How many of the songs and artists found are rows; the rest are a
-    /// row away.
-    private static let resultRowCount = 8
-    private static let resultArtistCount = 5
-
-    /// The phone's searches as rows, newest first, each opening its results,
-    /// then what was opened from search last as cards. Refilled as the
-    /// phone searches.
-    private func fillSearch() {
-        let queries = CarPlayLibrary.recentQueries()
-        let viewed = CarPlayLibrary.recentlyViewed()
-        let newest = Array(viewed.prefix(Self.recentCardCount))
-        searchTemplate.emptyViewTitleVariants = ["No Recent Searches"]
-        searchTemplate.emptyViewSubtitleVariants = [
-            "Search in Cue on your iPhone, and your searches show up here to play in the car.",
-            "Search in Cue on your iPhone to find it here.",
-        ]
-        let signature = (queries + ["/"] + newest.map(\.id)).joined(separator: "|")
-        update(searchTemplate, signature: signature) {
-            var sections: [CPListSection] = []
-            if !queries.isEmpty {
-                let rows: [CPListTemplateItem] = queries.map { query in
-                    let row = CPListItem(text: query, detailText: nil, image: CarPlayArtwork.symbol("magnifyingglass"))
-                    row.accessoryType = .disclosureIndicator
-                    row.handler = { [weak self] _, completion in
-                        MainActor.assumeIsolated {
-                            self?.pushResults(for: query)
-                            completion()
-                        }
-                    }
-                    return row
-                }
-                sections.append(CPListSection(items: rows, header: "Recent Searches", sectionIndexTitle: nil))
-            }
-            if !newest.isEmpty {
-                let cards = cardRow(title: "Recently Viewed", items: newest) { [weak self] in
-                    self?.pushRows(title: "Recently Viewed", items: viewed)
-                }
-                sections.append(CPListSection(items: [cards]))
-            }
-            return sections
-        }
-        updatePlayingIndicators()
-    }
-
-    /// `query`'s results across the providers, a section a kind, the kind
-    /// that ranked best first. Opens on a spinner: a slow server shouldn't
-    /// hold the tap.
-    private func pushResults(for query: String) {
-        let template = CPListTemplate(title: query, sections: [])
-        template.showsSpinnerWhileEmpty = true
-        push(template)
-        Task { [weak self, weak template] in
-            let sections = await CarPlayLibrary.search(query)
-            guard let self, let template else { return }
-            template.showsSpinnerWhileEmpty = false
-            template.emptyViewTitleVariants = ["No Results"]
-            template.emptyViewSubtitleVariants = ["Nothing for “\(query)” can play on this iPhone."]
-            template.updateSections(sections.prefix(CPListTemplate.maximumSectionCount).map { self.resultSection($0) })
-            self.updatePlayingIndicators()
-        }
-    }
-
-    /// Songs and artists as rows under their kind, with a row for the rest;
-    /// albums, playlists, books and stations as a grid of covers whose
-    /// title opens them all.
-    private func resultSection(_ section: CarPlayLibrary.ResultSection) -> CPListSection {
-        let kind = section.kind
-        switch kind {
-        case .songs, .artists:
-            let shown = section.items.prefix(kind == .songs ? Self.resultRowCount : Self.resultArtistCount)
-            var rows: [CPListTemplateItem] = shown.map { row(for: $0) }
-            if section.items.count > shown.count {
-                let more = CPListItem(text: "See All \(kind.title)", detailText: nil)
-                more.accessoryType = .disclosureIndicator
-                more.handler = { [weak self] _, completion in
-                    MainActor.assumeIsolated {
-                        self?.pushRows(title: kind.title, items: section.items)
-                        completion()
-                    }
-                }
-                rows.append(more)
-            }
-            return CPListSection(items: rows, header: kind.title, sectionIndexTitle: nil)
-        case .albums, .playlists, .books, .stations:
-            return CPListSection(items: [imageGrid(title: kind.title, items: section.items)])
         }
     }
 
@@ -1841,9 +1686,9 @@ final class CarPlayInterface: NSObject {
 extension CarPlayInterface: CPTabBarTemplateDelegate {
     /// Home and Audiobooks read state that changes off screen — a sign-in on
     /// the phone, a provider switched off, a playlist or book added since —
-    /// so they're re-read on the way in. Downloads and Search follow the
-    /// on-device library and the phone's searches on their own. Radio is
-    /// loaded once, and again if it came up empty.
+    /// so they're re-read on the way in. Downloads follow the on-device
+    /// library on their own. Radio is loaded once, and again if it came up
+    /// empty.
     func tabBarTemplate(_ tabBarTemplate: CPTabBarTemplate, didSelect selectedTemplate: CPTemplate) {
         if selectedTemplate === homeTemplate {
             reloadHome(refresh: true)
@@ -1853,8 +1698,6 @@ extension CarPlayInterface: CPTabBarTemplateDelegate {
             if radioTemplate.sections.isEmpty {
                 reloadRadio()
             }
-        } else if selectedTemplate === searchTemplate {
-            fillSearch()
         }
     }
 }

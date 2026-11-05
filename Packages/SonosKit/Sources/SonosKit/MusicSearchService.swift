@@ -261,7 +261,37 @@ public final class MusicSearchService {
                     // one dead provider held up every other service's results.
                     // A timed-out provider just contributes nothing.
                     let fetched = await Self.withTimeout(seconds: Self.providerTimeout) {
-                        await self.fetch(provider, query: capturedQuery)
+                        switch provider {
+                        case .apple:
+                            await self.searchApple(query: capturedQuery)
+                        case .spotify:
+                            await self.searchSpotify(query: capturedQuery)
+                        case .library:
+                            await self.sortContentByIntelligentSearch(
+                                playableContent: self.sonosService.librarySearch(query: capturedQuery),
+                                query: capturedQuery
+                            )
+                        case .plex:
+                            await self.searchPlex(query: capturedQuery)
+                        case .tidal:
+                            await self.searchTidal(query: capturedQuery)
+                        case .tuneIn:
+                            await self.searchTuneIn(query: capturedQuery)
+                        case .soundcloud:
+                            await self.searchSoundCloud(query: capturedQuery)
+                        case .deezer:
+                            await self.searchDeezer(query: capturedQuery)
+                        case .sonosRadio:
+                            await self.searchSonosRadio(query: capturedQuery)
+                        case .pandora:
+                            await self.searchPandora(query: capturedQuery)
+                        case .subsonic:
+                            await self.searchSubsonic(query: capturedQuery)
+                        case .audiobookshelf:
+                            await self.searchAudiobookshelf(query: capturedQuery)
+                        case .files:
+                            await self.searchFiles(query: capturedQuery)
+                        }
                     }
                     // If we were cancelled during the fetch, the API may have returned []
                     // for a cancelled URLSession call. Drop the result so we don't blank
@@ -340,86 +370,6 @@ public final class MusicSearchService {
         }
 
         return allProvidersAnswered
-    }
-
-    /// One provider's results for `query`, as the Search screen asks for
-    /// them: ranked by the provider, unless it's part of a merged search
-    /// (`ranksMergedResults`).
-    private func fetch(_ provider: MediaSearchService, query: String) async -> [PlayableContent] {
-        switch provider {
-        case .apple:
-            await searchApple(query: query)
-        case .spotify:
-            await searchSpotify(query: query)
-        case .library:
-            await sortContentByIntelligentSearch(
-                playableContent: sonosService.librarySearch(query: query),
-                query: query
-            )
-        case .plex:
-            await searchPlex(query: query)
-        case .tidal:
-            await searchTidal(query: query)
-        case .tuneIn:
-            await searchTuneIn(query: query)
-        case .soundcloud:
-            await searchSoundCloud(query: query)
-        case .deezer:
-            await searchDeezer(query: query)
-        case .sonosRadio:
-            await searchSonosRadio(query: query)
-        case .pandora:
-            await searchPandora(query: query)
-        case .subsonic:
-            await searchSubsonic(query: query)
-        case .audiobookshelf:
-            await searchAudiobookshelf(query: query)
-        case .files:
-            await searchFiles(query: query)
-        }
-    }
-
-    /// `query` from each of `providers`, merged and ranked as a search of
-    /// several services is, without touching `query`, `results` or
-    /// `suggestions`, which are the Search screen's: for a search of its own,
-    /// such as CarPlay's, that mustn't change what the phone shows. A
-    /// provider that doesn't answer in time (`providerTimeout`) adds
-    /// nothing.
-    public func results(
-        for query: String,
-        from providers: Set<MediaSearchService>,
-        recentlyPlayedIDs: Set<String> = []
-    ) async -> [PlayableContent] {
-        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty, !providers.isEmpty else { return [] }
-        // Each provider's share is left unranked and the whole ranked once,
-        // with `recentlyPlayedIDs`: a provider ranking its own would read
-        // the Search screen's ids (`self.recentlyPlayedIDs`).
-        let found = await Self.$ranksMergedResults.withValue(true) {
-            await withTaskGroup(of: (MediaSearchService, [PlayableContent]?).self) { group in
-                for provider in providers {
-                    group.addTask { [weak self] in
-                        guard let self else { return (provider, nil) }
-                        let fetched = await Self.withTimeout(seconds: Self.providerTimeout) {
-                            await self.fetch(provider, query: query)
-                        }
-                        return (provider, fetched)
-                    }
-                }
-                var found: [MediaSearchService: [PlayableContent]] = [:]
-                for await (provider, items) in group {
-                    if let items {
-                        found[provider] = items
-                    }
-                }
-                return found
-            }
-        }
-        guard !Task.isCancelled else { return [] }
-        // In the services' own order, as `search(for:)` merges them, so the
-        // ranking's ties come out the same each time.
-        let merged = MediaSearchService.allCases.compactMap { found[$0] }.flatMap { $0 }
-        return await Self.ranked(merged, query: query, recentlyPlayedIDs: recentlyPlayedIDs, groupArtists: providers.count > 1)
     }
 
     /// Deadline for a single provider's fetch. Generous for a healthy
