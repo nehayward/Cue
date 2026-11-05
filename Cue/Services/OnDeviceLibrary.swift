@@ -428,6 +428,13 @@ enum OnDeviceLibrary {
         return .artistDetail(content: container, group: nil)
     }
 
+    /// The artist here that `track` is filed under, as the Artists page
+    /// groups them: nil when none of their songs is on this device.
+    static func artist(of track: PlayableContent) -> Group? {
+        let key = groupKey(.artists, for: track)
+        return songGroups(.artists, in: track.content.service).first { $0.id == key }
+    }
+
     /// The albums here with a song of `artist` (an artist container minted
     /// here) on them, by title: their own albums and those they're on.
     static func albums(ofArtist artist: PlayableContent) -> [Group] {

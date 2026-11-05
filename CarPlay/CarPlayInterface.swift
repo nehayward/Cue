@@ -29,8 +29,9 @@ import UIKit
 /// no place in a car, so nothing here offers one. The car's Now Playing
 /// screen is the system's, filled from the card the device player publishes
 /// (see `LocalNowPlayingPresenter`), or MusicKit's own for Apple Music; this
-/// adds the queue button and Up Next (with shuffle and repeat over it), the
-/// album or playlist that's playing, shuffle and repeat to it.
+/// adds the like button, the queue button and Up Next (with shuffle and
+/// repeat over it), the artist's page from the artist line, shuffle and
+/// repeat to it.
 ///
 /// The newest plays and downloads are iOS 26 card rows, the stations, the
 /// library's sections and the books image grids, and the buttons (the Library's
@@ -70,6 +71,13 @@ final class CarPlayInterface: NSObject {
     /// This interface's targets on the shuffle and repeat commands, for as
     /// long as the car is connected (`registerModeCommands`).
     private var modeCommandTargets: [(MPRemoteCommand, Any)] = []
+    /// The song whose like was last read from its service (`readLike`), and
+    /// the read: once a song, as the phone's like button reads it.
+    private var likeReadID: String?
+    private var likeReadTask: Task<Void, Never>?
+    /// Whether the artist line on Now Playing opens an artist page, for the
+    /// song it was last worked out for (`artistSong`).
+    private var artistOpens: (id: String, opens: Bool)?
 
     private var isConnected = false
     private var radioTask: Task<Void, Never>?
@@ -174,6 +182,9 @@ final class CarPlayInterface: NSObject {
     func stop() {
         isConnected = false
         nowPlayingButtons = nil
+        likeReadTask?.cancel()
+        likeReadTask = nil
+        likeReadID = nil
         CPNowPlayingTemplate.shared.remove(self)
         unregisterModeCommands()
         radioTask?.cancel()
@@ -249,6 +260,11 @@ final class CarPlayInterface: NSObject {
         _ = AudiobookPlayer.shared.currentChapter
         _ = player.setAsideQueue
         _ = AudiobookshelfBrowseService.shared.continueListening
+        // The song on air under a station, which the like and the artist
+        // line go to.
+        _ = player.onAirMatch
+        // Likes, from here, the phone's player or the service as read.
+        _ = LiveActivityFavoriteStore.shared.favorites
     }
 
     private func stateChanged() {
@@ -793,6 +809,111 @@ final class CarPlayInterface: NSObject {
         }
     }
 
+    // MARK: - Artists
+
+    /// How many of an artist's songs are rows on their page; the rest are a
+    /// row away.
+    private static let artistSongCount = 10
+
+    /// An artist's page: their top songs and their albums
+    /// (`CarPlayArtist`), from an artist or from a song of theirs. From Now
+    /// Playing, the album or playlist that's playing (`source`) is on top,
+    /// where the artist line used to take it.
+    private func pushArtist(_ content: PlayableContent, playingFrom source: PlayableContent? = nil) {
+        let name = content.content.type.isArtist ? content.title : (content.metadata?.artist ?? content.title)
+        let template = CPListTemplate(title: name, sections: [])
+        template.showsSpinnerWhileEmpty = true
+        if let source {
+            // The way back to the album at once, with the artist under it
+            // still loading.
+            template.updateSections([
+                playingFromSection(source),
+                CPListSection(items: [note("Loading \(name)…")]),
+            ])
+        }
+        push(template)
+        updatePlayingIndicators()
+        Task { [weak self, weak template] in
+            let page = await CarPlayArtist.page(for: content)
+            guard let self, let template else { return }
+            self.fillArtist(template, name: name, page: page, source: source)
+        }
+    }
+
+    private func fillArtist(_ template: CPListTemplate, name: String, page: CarPlayArtist.Page?, source: PlayableContent?) {
+        template.showsSpinnerWhileEmpty = false
+        template.emptyViewTitleVariants = ["Nothing Here"]
+        template.emptyViewSubtitleVariants = ["Nothing by \(name) can play on this iPhone."]
+        var sections: [CPListSection] = []
+        if let source {
+            sections.append(playingFromSection(source))
+        }
+        guard let page, !page.isEmpty else {
+            if !sections.isEmpty {
+                sections.append(CPListSection(items: [note("Nothing Here", detail: "Nothing by \(name) can play on this iPhone.")]))
+            }
+            template.updateSections(sections)
+            return
+        }
+
+        // Play and Shuffle take the artist whole where the queue can (a
+        // Subsonic, Files or downloaded artist), else the songs listed.
+        let player = LocalPlaybackService.shared
+        let songs = page.songs
+        let whole = page.artist.flatMap { player.canPlayContainerLocally($0) ? $0 : nil }
+        if whole != nil || !songs.isEmpty {
+            let play: @MainActor () async throws -> Void = {
+                if let whole {
+                    try await CarPlayPlayback.play([whole])
+                } else {
+                    try await CarPlayPlayback.play(songs, startingAt: 0)
+                }
+            }
+            let shuffle: @MainActor () async throws -> Void = {
+                try await CarPlayPlayback.play(whole.map { [$0] } ?? songs, shuffle: true)
+            }
+            if #available(iOS 27.0, *), let artist = page.artist {
+                showDetailsHeader(on: template, for: artist, play: play, shuffle: shuffle)
+            } else {
+                sections.append(CPListSection(items: [playTiles(play: play, shuffle: shuffle)]))
+            }
+        }
+
+        if !songs.isEmpty {
+            let shown = songs.prefix(Self.artistSongCount)
+            var rows: [CPListTemplateItem] = shown.enumerated().map { index, song in
+                // The whole list from there on, not just the rows shown.
+                row(for: song) {
+                    try await CarPlayPlayback.play(songs, startingAt: index)
+                }
+            }
+            if songs.count > shown.count {
+                let listing = CarPlayLibrary.Listing(title: page.songsTitle, systemImage: "music.note", playsInOrder: true) { songs }
+                let more = CPListItem(text: "See All Songs", detailText: nil)
+                more.accessoryType = .disclosureIndicator
+                more.handler = { [weak self] _, completion in
+                    MainActor.assumeIsolated {
+                        self?.pushListing(listing)
+                        completion()
+                    }
+                }
+                rows.append(more)
+            }
+            sections.append(CPListSection(items: rows, header: page.songsTitle, sectionIndexTitle: nil))
+        }
+        if !page.albums.isEmpty {
+            sections.append(CPListSection(items: [imageGrid(title: "Albums", items: page.albums)]))
+        }
+        template.updateSections(Array(sections.prefix(CPListTemplate.maximumSectionCount)))
+        updatePlayingIndicators()
+    }
+
+    /// The album or playlist the queue is playing from, on the artist's
+    /// page Now Playing opened.
+    private func playingFromSection(_ source: PlayableContent) -> CPListSection {
+        CPListSection(items: [row(for: source)], header: "Playing From", sectionIndexTitle: nil)
+    }
+
     // MARK: - Now Playing
 
     /// Whether the device's own queue is what's playing — not one parked
@@ -802,9 +923,11 @@ final class CarPlayInterface: NSObject {
         return PlaybackRoute.shared.destination == .device && player.isActive && player.isPlaying
     }
 
-    /// The album button while the device has a queue; shuffle and repeat for
-    /// a queue of songs (a station has neither); and the queue button. A
-    /// book has its speed and its chapters in their place.
+    /// The artist line while the song has an artist page, else the album
+    /// line while the device has a queue; the like button for a song its
+    /// service can like (the song on air, under a station); shuffle and
+    /// repeat for a queue of songs (a station has neither); and the queue
+    /// button. A book has its speed and its chapters in their place.
     ///
     /// The queue button is Cue's own, the song's place in the queue in a
     /// circle (`CarPlayArtwork.placeButton`), in place of the system's Up
@@ -822,16 +945,21 @@ final class CarPlayInterface: NSObject {
         if nowPlaying.isUpNextButtonEnabled {
             nowPlaying.isUpNextButtonEnabled = false
         }
-        let albumArtist = onDevice && player.source.map { player.canPlayContainerLocally($0) } == true
-        if nowPlaying.isAlbumArtistButtonEnabled != albumArtist {
-            nowPlaying.isAlbumArtistButtonEnabled = albumArtist
-        }
-
         // A book has its speed in place of shuffle and repeat, and its
         // chapters in place of the queue: its files in order aren't anything
         // to pick from.
         let books = AudiobookPlayer.shared
         let isBook = onDevice && books.contains(player.nowPlaying)
+
+        let albumArtist = onDevice && (artistSong() != nil || player.source.map { player.canPlayContainerLocally($0) } == true)
+        if nowPlaying.isAlbumArtistButtonEnabled != albumArtist {
+            nowPlaying.isAlbumArtistButtonEnabled = albumArtist
+        }
+        let likeable = onDevice && !isBook ? likeableSong() : nil
+        if let likeable {
+            readLike(of: likeable)
+        }
+        let liked = likeable.map { isLiked($0) } ?? false
         let hasModes = onDevice && !player.isPlayingStation && !isBook
         // Whenever there's a queue of songs, on its last song too, as the
         // Music app's is — and under a station, which leaves the queue
@@ -841,6 +969,7 @@ final class CarPlayInterface: NSObject {
         let chapters = isBook && books.hasChapters ? books.current?.chapters ?? [] : []
         let chapterPlace = Self.place(of: books.currentChapter, in: chapters)
         let signature = [
+            likeable.map { "\($0.id):\(liked)" } ?? "",
             hasModes ? "\(player.isShuffled),\(player.repeatMode.rawValue)" : "",
             hasQueue ? "\(player.queuePosition)" : "",
             isBook ? "book" : "",
@@ -850,6 +979,13 @@ final class CarPlayInterface: NSObject {
         nowPlayingButtons = signature
 
         var buttons: [CPNowPlayingButton] = []
+        if let likeable {
+            buttons.append(CPNowPlayingImageButton(image: Self.likeImage(for: likeable, liked: liked)) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.toggleLike()
+                }
+            })
+        }
         if hasModes {
             // A tap reaches these handlers only while the matching remote
             // commands are enabled, which `LocalNowPlayingPresenter` sees
@@ -904,6 +1040,96 @@ final class CarPlayInterface: NSObject {
             })
         }
         nowPlaying.updateNowPlayingButtons(buttons)
+    }
+
+    // MARK: - Likes
+
+    /// The song Now Playing's like button goes to: the song on air under a
+    /// station (once Apple Music has it), else the song playing, where its
+    /// service can like a song. The phone's player's rule.
+    private func likeableSong() -> PlayableContent? {
+        let player = LocalPlaybackService.shared
+        let song = player.onAirMatch ?? (player.isPlayingStation ? nil : player.nowPlaying)
+        guard let song, song.content.type.isTrack, song.content.service.supportsFavoriteTrack else { return nil }
+        return song
+    }
+
+    /// Whether `song` is liked, as last known: what the phone's like button
+    /// draws from (`LiveActivityFavoriteStore`), else the rating it came
+    /// with (Plex's and Subsonic's rows carry one).
+    private func isLiked(_ song: PlayableContent) -> Bool {
+        if let liked = LiveActivityFavoriteStore.shared.favorites[song.id] {
+            return liked
+        }
+        if let rating = FavoriteRatingCache.shared.ratings[song.id] ?? song.metadata?.userRating {
+            return rating > 0
+        }
+        return false
+    }
+
+    /// Reads whether `song` is liked from its service, once a song and a
+    /// beat after it starts, so skipping through songs doesn't ask about
+    /// each. The answer lands in the store, which `trackedState` follows.
+    private func readLike(of song: PlayableContent) {
+        guard likeReadID != song.id else { return }
+        likeReadID = song.id
+        likeReadTask?.cancel()
+        likeReadTask = Task {
+            try? await Task.sleep(for: .milliseconds(400))
+            guard !Task.isCancelled else { return }
+            let service = song.content.service
+            let liked = await MusicSearchService.shared.isFavorite(trackID: song.id, service: service)
+            guard !Task.isCancelled, service == .plex || service == .subsonic else { return }
+            // The phone's rows draw these two from the rating cache.
+            FavoriteRatingCache.shared.set(liked ? (service == .plex ? 10 : 1) : 0, for: song.id)
+        }
+    }
+
+    /// Likes the song or takes the like away, at once on the button and the
+    /// phone's player, then on its service, as the phone's like button does.
+    private func toggleLike() {
+        guard let song = likeableSong() else { return }
+        let service = song.content.service
+        let liked = !isLiked(song)
+        // A read still under way would put the old state back.
+        likeReadTask?.cancel()
+        Self.log.notice("like \(song.content.id, privacy: .public) → \(liked)")
+        LiveActivityFavoriteStore.shared.set(liked, for: song.id)
+        switch service {
+        case .plex: FavoriteRatingCache.shared.set(liked ? 10 : 0, for: song.id)
+        case .subsonic: FavoriteRatingCache.shared.set(liked ? 1 : 0, for: song.id)
+        default: break
+        }
+        Task {
+            await MusicSearchService.shared.setFavorite(liked, trackID: song.id, service: service)
+        }
+    }
+
+    /// A heart, filled once liked; Apple Music's is a star, as Favorite is
+    /// there and on the phone. A plain system symbol, which the car draws
+    /// the size of its own buttons (see `CarPlayArtwork.placeButton`).
+    private static func likeImage(for song: PlayableContent, liked: Bool) -> UIImage {
+        let shape = song.content.service == .apple ? "star" : "heart"
+        return UIImage(systemName: liked ? "\(shape).fill" : shape) ?? UIImage()
+    }
+
+    // MARK: - The artist line
+
+    /// The song whose artist the artist line on Now Playing opens: the song
+    /// on air under a station, else the song playing; nil for a book's file
+    /// or a song with no artist page in the car (`CarPlayArtist.canOpen`).
+    /// Worked out once a song: a song on no service the car reads artists
+    /// of is looked for among the downloads.
+    private func artistSong() -> PlayableContent? {
+        let player = LocalPlaybackService.shared
+        guard let song = player.onAirMatch ?? player.nowPlaying,
+              song.content.type.isTrack, !AudiobookPlayer.shared.contains(song) else { return nil }
+        if let artistOpens, artistOpens.id == song.id {
+            return artistOpens.opens ? song : nil
+        }
+        let opens = CarPlayArtist.canOpen(for: song)
+        artistOpens = (song.id, opens)
+        return opens ? song : nil
     }
 
     /// Targets on the shuffle and repeat commands while the car is
@@ -1200,19 +1426,23 @@ final class CarPlayInterface: NSObject {
         return row
     }
 
-    /// Whether picking `content` opens its songs rather than playing it. A
-    /// book plays.
+    /// Whether picking `content` opens a list (its songs, or an artist's
+    /// page) rather than playing it. A book plays.
     private func opens(_ content: PlayableContent) -> Bool {
-        content.content.type != .audiobook && !LocalPlaybackService.shared.canPlayLocally(content)
+        content.content.type != .audiobook
+            && (content.content.type.isArtist || !LocalPlaybackService.shared.canPlayLocally(content))
     }
 
-    /// Plays a book from where it was left, opens an album or playlist, or
-    /// runs `play` for anything else.
+    /// Plays a book from where it was left, opens an artist's page or an
+    /// album's or playlist's songs, or runs `play` for anything else.
     private func select(_ content: PlayableContent, completion: @escaping () -> Void, _ play: @escaping @MainActor () async throws -> Void) {
         if content.content.type == .audiobook {
             perform(completion: completion) {
                 try await CarPlayPlayback.play(book: content)
             }
+        } else if content.content.type.isArtist {
+            pushArtist(content)
+            completion()
         } else if opens(content) {
             pushContainer(content)
             completion()
@@ -1481,11 +1711,23 @@ extension CarPlayInterface: CPNowPlayingTemplateObserver {
         }
     }
 
-    /// The album, playlist or folder the queue was played from.
+    /// The artist's page, with the album, playlist or folder the queue was
+    /// played from on top of it; that alone for a song with no artist page
+    /// (a book, a service the car can't read artists of).
     nonisolated func nowPlayingTemplateAlbumArtistButtonTapped(_ nowPlayingTemplate: CPNowPlayingTemplate) {
         MainActor.assumeIsolated {
-            guard let source = LocalPlaybackService.shared.source else { return }
-            pushContainer(source)
+            let player = LocalPlaybackService.shared
+            let source = player.source.flatMap { player.canPlayContainerLocally($0) ? $0 : nil }
+            if let song = artistSong() {
+                // An artist the queue came from is the page itself.
+                pushArtist(song, playingFrom: source.flatMap { $0.content.type.isArtist ? nil : $0 })
+            } else if let source {
+                if source.content.type.isArtist {
+                    pushArtist(source)
+                } else {
+                    pushContainer(source)
+                }
+            }
         }
     }
 }
