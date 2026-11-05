@@ -431,6 +431,122 @@ enum CarPlayLibrary {
         }
     }
 
+    // MARK: - Search
+
+    /// A kind of search result, a section of the car's results each.
+    enum ResultKind: CaseIterable {
+        case artists, songs, albums, playlists, books, stations
+
+        var title: String {
+            switch self {
+            case .artists: "Artists"
+            case .songs: "Songs"
+            case .albums: "Albums"
+            case .playlists: "Playlists"
+            case .books: "Books"
+            case .stations: "Stations"
+            }
+        }
+
+        init?(_ content: PlayableContent) {
+            let type = content.content.type
+            if type.isArtist {
+                self = .artists
+            } else if type.isTrack {
+                self = .songs
+            } else if [.album, .libraryAlbum].contains(type) {
+                self = .albums
+            } else if type.isPlaylist {
+                self = .playlists
+            } else if type == .audiobook {
+                self = .books
+            } else if type.isRadio {
+                self = .stations
+            } else {
+                return nil
+            }
+        }
+    }
+
+    /// A kind's results, in the order the search ranked them.
+    struct ResultSection {
+        let kind: ResultKind
+        let items: [PlayableContent]
+    }
+
+    /// What was last searched for in Cue on the phone, newest first. A car
+    /// has no keyboard for an audio app (only a navigation app gets the
+    /// search template), so these are what the Search tab searches.
+    static func recentQueries() -> [String] {
+        var seen = Set<String>()
+        return RecentQueriesStorage.shared.object.reversed()
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty && seen.insert($0.lowercased()).inserted }
+    }
+
+    /// What was opened from search results last, newest first — the
+    /// phone's Recent shelf over Search — narrowed to what the car can
+    /// play or open.
+    static func recentlyViewed() -> [PlayableContent] {
+        RecentSearchesStorage.shared.object.reversed().filter(isResult)
+    }
+
+    /// The services the car searches: those Home browses, Audiobookshelf
+    /// while its books show, and TuneIn while it's on. Offline, none: what's
+    /// on this iPhone is searched instead (`search`).
+    static func searchServices() -> Set<MediaSearchService> {
+        guard !OfflineMode.shared.isActive else { return [] }
+        var services = Set(libraryServices())
+        if showsBooks(from: .audiobookshelf) {
+            services.insert(.audiobookshelf)
+        }
+        if CoreFeatures.shared.isEnabled(.tuneIn) {
+            services.insert(.tuneIn)
+        }
+        return services
+    }
+
+    /// `query` across `searchServices`, ranked as the phone ranks a search
+    /// of several services, then split by kind, each section where its
+    /// best result ranked: a song's name brings Songs first, a band's
+    /// Artists. Offline, the artists, albums and songs on this iPhone.
+    /// Leaves the phone's own search alone (`MusicSearchService.results`).
+    static func search(_ query: String) async -> [ResultSection] {
+        let found: [PlayableContent]
+        if OfflineMode.shared.isActive {
+            let here = OnDeviceLibrary.search(query)
+            found = here.artists.map(\.container) + here.albums.map(\.container) + here.songs
+        } else {
+            let played = Set(PlayHistoryService.shared.history.prefix(50).map(\.id))
+            found = await MusicSearchService.shared.results(for: query, from: searchServices(), recentlyPlayedIDs: played)
+        }
+        var order: [ResultKind] = []
+        var byKind: [ResultKind: [PlayableContent]] = [:]
+        var seen = Set<String>()
+        for item in found where isResult(item) && seen.insert(item.id).inserted {
+            guard let kind = ResultKind(item) else { continue }
+            if byKind[kind] == nil {
+                order.append(kind)
+            }
+            byKind[kind, default: []].append(item)
+        }
+        return order.compactMap { kind in
+            byKind[kind].map { ResultSection(kind: kind, items: Array($0.prefix(rowLimit))) }
+        }
+    }
+
+    /// Whether the car can do something with a result: play it, open its
+    /// songs, open the artist, or play the book.
+    private static func isResult(_ item: PlayableContent) -> Bool {
+        if item.content.type.isArtist {
+            return CarPlayArtist.canOpen(for: item)
+        }
+        if item.content.type == .audiobook {
+            return true
+        }
+        return LocalPlaybackService.shared.canPlayAnywhereLocally(item)
+    }
+
     // MARK: - Containers
 
     /// An album's or playlist's songs that this device can play, read the

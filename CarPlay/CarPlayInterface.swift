@@ -23,14 +23,20 @@ import UIKit
 /// - **Downloads** — what's on this iPhone, which plays with no signal:
 ///   Shuffle All, Albums, Artists and Songs, and the newest albums.
 /// - **Radio** — TuneIn's and Apple Music's stations, as on the phone, as
-///   grids of squares.
+///   grids of squares. Where the car has no room for it (a fifth tab, with
+///   Audiobooks up), a Radio tile on Home opens the same stations.
+/// - **Search** — the searches made in Cue on the phone, each opening its
+///   results across the providers, and what was opened from search last. A
+///   car gives an audio app no keyboard (the search template is a
+///   navigation app's), so it searches what was typed on the phone.
 ///
 /// Everything plays on this device (see `CarPlayPlayback`); speakers have
 /// no place in a car, so nothing here offers one. The car's Now Playing
 /// screen is the system's, filled from the card the device player publishes
 /// (see `LocalNowPlayingPresenter`), or MusicKit's own for Apple Music; this
-/// adds the queue button and Up Next (with shuffle and repeat over it), the
-/// album or playlist that's playing, shuffle and repeat to it.
+/// adds the like button, the queue button and Up Next (with shuffle and
+/// repeat over it), the artist's page from the artist line, shuffle and
+/// repeat to it.
 ///
 /// The newest plays and downloads are iOS 26 card rows, the stations, the
 /// library's sections and the books image grids, and the buttons (the Library's
@@ -49,7 +55,13 @@ final class CarPlayInterface: NSObject {
     private let audiobooksTemplate: CPListTemplate
     private let downloadsTemplate: CPListTemplate
     private let radioTemplate: CPListTemplate
+    private let searchTemplate: CPListTemplate
     private var tabBar: CPTabBarTemplate?
+    /// Radio's stations pushed from Home's tile, while Radio has no tab;
+    /// filled as the Radio tab is.
+    private weak var radioListTemplate: CPListTemplate?
+    /// The stations as last loaded, for that list to open on.
+    private var stations: [CarPlayLibrary.StationSection]?
 
     /// Up Next, pushed from Now Playing, follows the player while it's up.
     private weak var upNextTemplate: CPListTemplate?
@@ -70,6 +82,13 @@ final class CarPlayInterface: NSObject {
     /// This interface's targets on the shuffle and repeat commands, for as
     /// long as the car is connected (`registerModeCommands`).
     private var modeCommandTargets: [(MPRemoteCommand, Any)] = []
+    /// The song whose like was last read from its service (`readLike`), and
+    /// the read: once a song, as the phone's like button reads it.
+    private var likeReadID: String?
+    private var likeReadTask: Task<Void, Never>?
+    /// Whether the artist line on Now Playing opens an artist page, for the
+    /// song it was last worked out for (`artistSong`).
+    private var artistOpens: (id: String, opens: Bool)?
 
     private var isConnected = false
     private var radioTask: Task<Void, Never>?
@@ -109,6 +128,7 @@ final class CarPlayInterface: NSObject {
         audiobooksTemplate = CarPlayInterface.tab(title: "Audiobooks", image: UIImage(systemName: "book"))
         downloadsTemplate = CarPlayInterface.tab(title: "Downloads", image: UIImage(systemName: "arrow.down.circle"))
         radioTemplate = CarPlayInterface.tab(title: "Radio", image: UIImage(systemName: "dot.radiowaves.left.and.right"))
+        searchTemplate = CarPlayInterface.tab(title: "Search", image: UIImage(systemName: "magnifyingglass"))
         super.init()
     }
 
@@ -163,6 +183,7 @@ final class CarPlayInterface: NSObject {
         reloadAudiobooks()
         reloadDownloads()
         reloadRadio()
+        fillSearch()
         updateNowPlaying()
         // With no signal, what's on this iPhone is all that will play.
         if OfflineMode.shared.isActive {
@@ -174,6 +195,9 @@ final class CarPlayInterface: NSObject {
     func stop() {
         isConnected = false
         nowPlayingButtons = nil
+        likeReadTask?.cancel()
+        likeReadTask = nil
+        likeReadID = nil
         CPNowPlayingTemplate.shared.remove(self)
         unregisterModeCommands()
         radioTask?.cancel()
@@ -183,16 +207,25 @@ final class CarPlayInterface: NSObject {
         audiobooksTask = nil
     }
 
-    /// Audiobooks only while there are books. Radio last: a car with room
-    /// for fewer tabs leaves it out first, and it's the one tab that can't
-    /// play without a network. An audio app has four at most.
+    /// Audiobooks only while there are books. An audio app has four tabs at
+    /// most, so with Audiobooks and Search up there's no room for Radio, the
+    /// one tab that can't play without a network: it goes first, to a tile
+    /// on Home (`radioIsTab`). Search sits at the bar's end, as on the phone.
     private var tabs: [CPTemplate] {
-        var tabs: [CPTemplate] = [homeTemplate]
+        var wanted: [CPListTemplate] = [homeTemplate, searchTemplate]
         if audiobooksShown {
-            tabs.append(audiobooksTemplate)
+            wanted.append(audiobooksTemplate)
         }
-        tabs += [downloadsTemplate, radioTemplate]
-        return Array(tabs.prefix(CPTabBarTemplate.maximumTabCount))
+        wanted += [downloadsTemplate, radioTemplate]
+        let kept = wanted.prefix(CPTabBarTemplate.maximumTabCount)
+        let order = [homeTemplate, audiobooksTemplate, downloadsTemplate, radioTemplate, searchTemplate]
+        return order.filter { tab in kept.contains { $0 === tab } }
+    }
+
+    /// Whether Radio has a tab of its own; when it hasn't, Home has a tile
+    /// for it.
+    private var radioIsTab: Bool {
+        tabs.contains { $0 === radioTemplate }
     }
 
     /// The gate is free today; this is what a locked one shows.
@@ -249,6 +282,14 @@ final class CarPlayInterface: NSObject {
         _ = AudiobookPlayer.shared.currentChapter
         _ = player.setAsideQueue
         _ = AudiobookshelfBrowseService.shared.continueListening
+        // The song on air under a station, which the like and the artist
+        // line go to.
+        _ = player.onAirMatch
+        // Likes, from here, the phone's player or the service as read.
+        _ = LiveActivityFavoriteStore.shared.favorites
+        // The phone's searches, for the Search tab.
+        _ = RecentQueriesStorage.shared.object
+        _ = RecentSearchesStorage.shared.object
     }
 
     private func stateChanged() {
@@ -257,6 +298,7 @@ final class CarPlayInterface: NSObject {
         reloadHome()
         fillAudiobooks()
         reloadDownloads()
+        fillSearch()
         if let upNextTemplate {
             fillUpNext(upNextTemplate)
         }
@@ -452,8 +494,11 @@ final class CarPlayInterface: NSObject {
             homeTemplate.emptyViewTitleVariants = ["Nothing Here Yet"]
             homeTemplate.emptyViewSubtitleVariants = ["Set up Apple Music, Plex, Subsonic or a Files folder in Cue on your iPhone."]
         }
+        // Radio's way in when it has no tab; never offline, when no station
+        // plays.
+        let radioTile = !radioIsTab && !OfflineMode.shared.isActive
         let played = ([waiting?.id ?? ""] + newest.map(\.id)).joined(separator: "|")
-        let tiles = sections.map { $0 == section ? "[\($0.rawValue)]" : $0.rawValue }.joined(separator: ",")
+        let tiles = (sections.map { $0 == section ? "[\($0.rawValue)]" : $0.rawValue } + (radioTile ? ["radio"] : [])).joined(separator: ",")
         let body = shelves.map { shelves in
             shelves.map { ([$0.title] + $0.items.map(\.id)).joined(separator: ",") }.joined(separator: "|")
         }
@@ -468,15 +513,17 @@ final class CarPlayInterface: NSObject {
                 }
                 list.append(CPListSection(items: [cards]))
             }
-            guard !sections.isEmpty else { return list }
+            guard !sections.isEmpty || radioTile else { return list }
             // Room for the grids under what's above them.
             let room = max(CPListTemplate.maximumSectionCount - list.count - 1, 0)
             let library = [tiles, body ?? "…", String(room)].joined(separator: "/")
             if let kept = homeLibrary, kept.signature == library {
                 return list + kept.sections
             }
-            var built = [CPListSection(items: [libraryTiles(sections)])]
-            if let shelves, !shelves.isEmpty {
+            var built = [CPListSection(items: [libraryTiles(sections, radio: radioTile)])]
+            if sections.isEmpty {
+                // Only the Radio tile: no provider to fill a section.
+            } else if let shelves, !shelves.isEmpty {
                 let named = shelves.count > 1
                 built += shelves.prefix(room).map { shelf -> CPListSection in
                     let title = named ? shelf.title : section.title
@@ -493,13 +540,21 @@ final class CarPlayInterface: NSObject {
         updatePlayingIndicators()
     }
 
-    /// The library's sections as tiles, the one showing checked.
-    private func libraryTiles(_ sections: [ProviderCollection]) -> CPListImageRowItem {
-        tileRow(sections.map { section in
+    /// The library's sections as tiles, the one showing checked, and Radio
+    /// after them when it has no tab, which opens the stations on a list
+    /// of their own rather than switching the list under the tiles.
+    private func libraryTiles(_ sections: [ProviderCollection], radio: Bool) -> CPListImageRowItem {
+        var tiles = sections.map { section in
             Tile(title: section.title, systemImage: section.systemImage, isSelected: section == librarySection, action: .run { [weak self] in
                 self?.showLibrarySection(section)
             })
-        })
+        }
+        if radio {
+            tiles.append(Tile(title: "Radio", systemImage: "dot.radiowaves.left.and.right", action: .run { [weak self] in
+                self?.pushRadio()
+            }))
+        }
+        return tileRow(tiles)
     }
 
     /// Opens at once on a loading note and fills in when the provider
@@ -617,6 +672,8 @@ final class CarPlayInterface: NSObject {
         audiobooksShown = shows
         tabBar.updateTemplates(tabs)
         reloadAudiobooks()
+        // Radio's tab may have come or gone with it, and its tile on Home.
+        fillHome()
     }
 
     /// Reads each server's books when they've never been read, or when the
@@ -771,26 +828,245 @@ final class CarPlayInterface: NSObject {
     // MARK: - Radio
 
     /// Each section's stations as a grid of squares, the way the Music app
-    /// lays out its radio.
+    /// lays out its radio: on the Radio tab, and on the list Home's Radio
+    /// tile opened when it has none.
     private func reloadRadio() {
         radioTask?.cancel()
         radioTemplate.showsSpinnerWhileEmpty = true
         radioTask = Task { [weak self] in
             let sections = await CarPlayLibrary.stations()
             guard let self, !Task.isCancelled else { return }
-            self.radioTemplate.showsSpinnerWhileEmpty = false
-            self.radioTemplate.emptyViewTitleVariants = ["No Stations"]
-            self.radioTemplate.emptyViewSubtitleVariants = ["Switch on TuneIn or Apple Music in Cue on your iPhone."]
-            let signature = sections
-                .map { ([$0.title] + $0.stations.map(\.id)).joined(separator: ",") }
-                .joined(separator: "|")
-            self.update(self.radioTemplate, signature: signature) {
-                sections.prefix(CPListTemplate.maximumSectionCount).map { section in
-                    CPListSection(items: [self.imageGrid(title: section.title, items: section.stations)])
-                }
+            self.stations = sections
+            self.fillRadio(self.radioTemplate, with: sections)
+            if let pushed = self.radioListTemplate {
+                self.fillRadio(pushed, with: sections)
             }
             self.updatePlayingIndicators()
         }
+    }
+
+    private func fillRadio(_ template: CPListTemplate, with sections: [CarPlayLibrary.StationSection]) {
+        template.showsSpinnerWhileEmpty = false
+        template.emptyViewTitleVariants = ["No Stations"]
+        template.emptyViewSubtitleVariants = ["Switch on TuneIn or Apple Music in Cue on your iPhone."]
+        let signature = sections
+            .map { ([$0.title] + $0.stations.map(\.id)).joined(separator: ",") }
+            .joined(separator: "|")
+        update(template, signature: signature) {
+            sections.prefix(CPListTemplate.maximumSectionCount).map { section in
+                CPListSection(items: [imageGrid(title: section.title, items: section.stations)])
+            }
+        }
+    }
+
+    /// The stations from Home's Radio tile: the last loaded at once, read
+    /// again behind them, as picking the Radio tab would.
+    private func pushRadio() {
+        let template = CPListTemplate(title: "Radio", sections: [])
+        template.showsSpinnerWhileEmpty = true
+        radioListTemplate = template
+        if let stations {
+            fillRadio(template, with: stations)
+        }
+        push(template)
+        updatePlayingIndicators()
+        reloadRadio()
+    }
+
+    // MARK: - Search
+
+    /// How many of the songs and artists found are rows; the rest are a
+    /// row away.
+    private static let resultRowCount = 8
+    private static let resultArtistCount = 5
+
+    /// The phone's searches as rows, newest first, each opening its results,
+    /// then what was opened from search last as cards. Refilled as the
+    /// phone searches.
+    private func fillSearch() {
+        let queries = CarPlayLibrary.recentQueries()
+        let viewed = CarPlayLibrary.recentlyViewed()
+        let newest = Array(viewed.prefix(Self.recentCardCount))
+        searchTemplate.emptyViewTitleVariants = ["No Recent Searches"]
+        searchTemplate.emptyViewSubtitleVariants = [
+            "Search in Cue on your iPhone, and your searches show up here to play in the car.",
+            "Search in Cue on your iPhone to find it here.",
+        ]
+        let signature = (queries + ["/"] + newest.map(\.id)).joined(separator: "|")
+        update(searchTemplate, signature: signature) {
+            var sections: [CPListSection] = []
+            if !queries.isEmpty {
+                let rows: [CPListTemplateItem] = queries.map { query in
+                    let row = CPListItem(text: query, detailText: nil, image: CarPlayArtwork.symbol("magnifyingglass"))
+                    row.accessoryType = .disclosureIndicator
+                    row.handler = { [weak self] _, completion in
+                        MainActor.assumeIsolated {
+                            self?.pushResults(for: query)
+                            completion()
+                        }
+                    }
+                    return row
+                }
+                sections.append(CPListSection(items: rows, header: "Recent Searches", sectionIndexTitle: nil))
+            }
+            if !newest.isEmpty {
+                let cards = cardRow(title: "Recently Viewed", items: newest) { [weak self] in
+                    self?.pushRows(title: "Recently Viewed", items: viewed)
+                }
+                sections.append(CPListSection(items: [cards]))
+            }
+            return sections
+        }
+        updatePlayingIndicators()
+    }
+
+    /// `query`'s results across the providers, a section a kind, the kind
+    /// that ranked best first. Opens on a spinner: a slow server shouldn't
+    /// hold the tap.
+    private func pushResults(for query: String) {
+        let template = CPListTemplate(title: query, sections: [])
+        template.showsSpinnerWhileEmpty = true
+        push(template)
+        Task { [weak self, weak template] in
+            let sections = await CarPlayLibrary.search(query)
+            guard let self, let template else { return }
+            template.showsSpinnerWhileEmpty = false
+            template.emptyViewTitleVariants = ["No Results"]
+            template.emptyViewSubtitleVariants = ["Nothing for “\(query)” can play on this iPhone."]
+            template.updateSections(sections.prefix(CPListTemplate.maximumSectionCount).map { self.resultSection($0) })
+            self.updatePlayingIndicators()
+        }
+    }
+
+    /// Songs and artists as rows under their kind, with a row for the rest;
+    /// albums, playlists, books and stations as a grid of covers whose
+    /// title opens them all.
+    private func resultSection(_ section: CarPlayLibrary.ResultSection) -> CPListSection {
+        let kind = section.kind
+        switch kind {
+        case .songs, .artists:
+            let shown = section.items.prefix(kind == .songs ? Self.resultRowCount : Self.resultArtistCount)
+            var rows: [CPListTemplateItem] = shown.map { row(for: $0) }
+            if section.items.count > shown.count {
+                let more = CPListItem(text: "See All \(kind.title)", detailText: nil)
+                more.accessoryType = .disclosureIndicator
+                more.handler = { [weak self] _, completion in
+                    MainActor.assumeIsolated {
+                        self?.pushRows(title: kind.title, items: section.items)
+                        completion()
+                    }
+                }
+                rows.append(more)
+            }
+            return CPListSection(items: rows, header: kind.title, sectionIndexTitle: nil)
+        case .albums, .playlists, .books, .stations:
+            return CPListSection(items: [imageGrid(title: kind.title, items: section.items)])
+        }
+    }
+
+    // MARK: - Artists
+
+    /// How many of an artist's songs are rows on their page; the rest are a
+    /// row away.
+    private static let artistSongCount = 10
+
+    /// An artist's page: their top songs and their albums
+    /// (`CarPlayArtist`), from an artist or from a song of theirs. From Now
+    /// Playing, the album or playlist that's playing (`source`) is on top,
+    /// where the artist line used to take it.
+    private func pushArtist(_ content: PlayableContent, playingFrom source: PlayableContent? = nil) {
+        let name = content.content.type.isArtist ? content.title : (content.metadata?.artist ?? content.title)
+        let template = CPListTemplate(title: name, sections: [])
+        template.showsSpinnerWhileEmpty = true
+        if let source {
+            // The way back to the album at once, with the artist under it
+            // still loading.
+            template.updateSections([
+                playingFromSection(source),
+                CPListSection(items: [note("Loading \(name)…")]),
+            ])
+        }
+        push(template)
+        updatePlayingIndicators()
+        Task { [weak self, weak template] in
+            let page = await CarPlayArtist.page(for: content)
+            guard let self, let template else { return }
+            self.fillArtist(template, name: name, page: page, source: source)
+        }
+    }
+
+    private func fillArtist(_ template: CPListTemplate, name: String, page: CarPlayArtist.Page?, source: PlayableContent?) {
+        template.showsSpinnerWhileEmpty = false
+        template.emptyViewTitleVariants = ["Nothing Here"]
+        template.emptyViewSubtitleVariants = ["Nothing by \(name) can play on this iPhone."]
+        var sections: [CPListSection] = []
+        if let source {
+            sections.append(playingFromSection(source))
+        }
+        guard let page, !page.isEmpty else {
+            if !sections.isEmpty {
+                sections.append(CPListSection(items: [note("Nothing Here", detail: "Nothing by \(name) can play on this iPhone.")]))
+            }
+            template.updateSections(sections)
+            return
+        }
+
+        // Play and Shuffle take the artist whole where the queue can (a
+        // Subsonic, Files or downloaded artist), else the songs listed.
+        let player = LocalPlaybackService.shared
+        let songs = page.songs
+        let whole = page.artist.flatMap { player.canPlayContainerLocally($0) ? $0 : nil }
+        if whole != nil || !songs.isEmpty {
+            let play: @MainActor () async throws -> Void = {
+                if let whole {
+                    try await CarPlayPlayback.play([whole])
+                } else {
+                    try await CarPlayPlayback.play(songs, startingAt: 0)
+                }
+            }
+            let shuffle: @MainActor () async throws -> Void = {
+                try await CarPlayPlayback.play(whole.map { [$0] } ?? songs, shuffle: true)
+            }
+            if #available(iOS 27.0, *), let artist = page.artist {
+                showDetailsHeader(on: template, for: artist, play: play, shuffle: shuffle)
+            } else {
+                sections.append(CPListSection(items: [playTiles(play: play, shuffle: shuffle)]))
+            }
+        }
+
+        if !songs.isEmpty {
+            let shown = songs.prefix(Self.artistSongCount)
+            var rows: [CPListTemplateItem] = shown.enumerated().map { index, song in
+                // The whole list from there on, not just the rows shown.
+                row(for: song) {
+                    try await CarPlayPlayback.play(songs, startingAt: index)
+                }
+            }
+            if songs.count > shown.count {
+                let listing = CarPlayLibrary.Listing(title: page.songsTitle, systemImage: "music.note", playsInOrder: true) { songs }
+                let more = CPListItem(text: "See All Songs", detailText: nil)
+                more.accessoryType = .disclosureIndicator
+                more.handler = { [weak self] _, completion in
+                    MainActor.assumeIsolated {
+                        self?.pushListing(listing)
+                        completion()
+                    }
+                }
+                rows.append(more)
+            }
+            sections.append(CPListSection(items: rows, header: page.songsTitle, sectionIndexTitle: nil))
+        }
+        if !page.albums.isEmpty {
+            sections.append(CPListSection(items: [imageGrid(title: "Albums", items: page.albums)]))
+        }
+        template.updateSections(Array(sections.prefix(CPListTemplate.maximumSectionCount)))
+        updatePlayingIndicators()
+    }
+
+    /// The album or playlist the queue is playing from, on the artist's
+    /// page Now Playing opened.
+    private func playingFromSection(_ source: PlayableContent) -> CPListSection {
+        CPListSection(items: [row(for: source)], header: "Playing From", sectionIndexTitle: nil)
     }
 
     // MARK: - Now Playing
@@ -802,9 +1078,11 @@ final class CarPlayInterface: NSObject {
         return PlaybackRoute.shared.destination == .device && player.isActive && player.isPlaying
     }
 
-    /// The album button while the device has a queue; shuffle and repeat for
-    /// a queue of songs (a station has neither); and the queue button. A
-    /// book has its speed and its chapters in their place.
+    /// The artist line while the song has an artist page, else the album
+    /// line while the device has a queue; the like button for a song its
+    /// service can like (the song on air, under a station); shuffle and
+    /// repeat for a queue of songs (a station has neither); and the queue
+    /// button. A book has its speed and its chapters in their place.
     ///
     /// The queue button is Cue's own, the song's place in the queue in a
     /// circle (`CarPlayArtwork.placeButton`), in place of the system's Up
@@ -822,16 +1100,21 @@ final class CarPlayInterface: NSObject {
         if nowPlaying.isUpNextButtonEnabled {
             nowPlaying.isUpNextButtonEnabled = false
         }
-        let albumArtist = onDevice && player.source.map { player.canPlayContainerLocally($0) } == true
-        if nowPlaying.isAlbumArtistButtonEnabled != albumArtist {
-            nowPlaying.isAlbumArtistButtonEnabled = albumArtist
-        }
-
         // A book has its speed in place of shuffle and repeat, and its
         // chapters in place of the queue: its files in order aren't anything
         // to pick from.
         let books = AudiobookPlayer.shared
         let isBook = onDevice && books.contains(player.nowPlaying)
+
+        let albumArtist = onDevice && (artistSong() != nil || player.source.map { player.canPlayContainerLocally($0) } == true)
+        if nowPlaying.isAlbumArtistButtonEnabled != albumArtist {
+            nowPlaying.isAlbumArtistButtonEnabled = albumArtist
+        }
+        let likeable = onDevice && !isBook ? likeableSong() : nil
+        if let likeable {
+            readLike(of: likeable)
+        }
+        let liked = likeable.map { isLiked($0) } ?? false
         let hasModes = onDevice && !player.isPlayingStation && !isBook
         // Whenever there's a queue of songs, on its last song too, as the
         // Music app's is — and under a station, which leaves the queue
@@ -841,6 +1124,7 @@ final class CarPlayInterface: NSObject {
         let chapters = isBook && books.hasChapters ? books.current?.chapters ?? [] : []
         let chapterPlace = Self.place(of: books.currentChapter, in: chapters)
         let signature = [
+            likeable.map { "\($0.id):\(liked)" } ?? "",
             hasModes ? "\(player.isShuffled),\(player.repeatMode.rawValue)" : "",
             hasQueue ? "\(player.queuePosition)" : "",
             isBook ? "book" : "",
@@ -850,6 +1134,13 @@ final class CarPlayInterface: NSObject {
         nowPlayingButtons = signature
 
         var buttons: [CPNowPlayingButton] = []
+        if let likeable {
+            buttons.append(CPNowPlayingImageButton(image: Self.likeImage(for: likeable, liked: liked)) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.toggleLike()
+                }
+            })
+        }
         if hasModes {
             // A tap reaches these handlers only while the matching remote
             // commands are enabled, which `LocalNowPlayingPresenter` sees
@@ -904,6 +1195,96 @@ final class CarPlayInterface: NSObject {
             })
         }
         nowPlaying.updateNowPlayingButtons(buttons)
+    }
+
+    // MARK: - Likes
+
+    /// The song Now Playing's like button goes to: the song on air under a
+    /// station (once Apple Music has it), else the song playing, where its
+    /// service can like a song. The phone's player's rule.
+    private func likeableSong() -> PlayableContent? {
+        let player = LocalPlaybackService.shared
+        let song = player.onAirMatch ?? (player.isPlayingStation ? nil : player.nowPlaying)
+        guard let song, song.content.type.isTrack, song.content.service.supportsFavoriteTrack else { return nil }
+        return song
+    }
+
+    /// Whether `song` is liked, as last known: what the phone's like button
+    /// draws from (`LiveActivityFavoriteStore`), else the rating it came
+    /// with (Plex's and Subsonic's rows carry one).
+    private func isLiked(_ song: PlayableContent) -> Bool {
+        if let liked = LiveActivityFavoriteStore.shared.favorites[song.id] {
+            return liked
+        }
+        if let rating = FavoriteRatingCache.shared.ratings[song.id] ?? song.metadata?.userRating {
+            return rating > 0
+        }
+        return false
+    }
+
+    /// Reads whether `song` is liked from its service, once a song and a
+    /// beat after it starts, so skipping through songs doesn't ask about
+    /// each. The answer lands in the store, which `trackedState` follows.
+    private func readLike(of song: PlayableContent) {
+        guard likeReadID != song.id else { return }
+        likeReadID = song.id
+        likeReadTask?.cancel()
+        likeReadTask = Task {
+            try? await Task.sleep(for: .milliseconds(400))
+            guard !Task.isCancelled else { return }
+            let service = song.content.service
+            let liked = await MusicSearchService.shared.isFavorite(trackID: song.id, service: service)
+            guard !Task.isCancelled, service == .plex || service == .subsonic else { return }
+            // The phone's rows draw these two from the rating cache.
+            FavoriteRatingCache.shared.set(liked ? (service == .plex ? 10 : 1) : 0, for: song.id)
+        }
+    }
+
+    /// Likes the song or takes the like away, at once on the button and the
+    /// phone's player, then on its service, as the phone's like button does.
+    private func toggleLike() {
+        guard let song = likeableSong() else { return }
+        let service = song.content.service
+        let liked = !isLiked(song)
+        // A read still under way would put the old state back.
+        likeReadTask?.cancel()
+        Self.log.notice("like \(song.content.id, privacy: .public) → \(liked)")
+        LiveActivityFavoriteStore.shared.set(liked, for: song.id)
+        switch service {
+        case .plex: FavoriteRatingCache.shared.set(liked ? 10 : 0, for: song.id)
+        case .subsonic: FavoriteRatingCache.shared.set(liked ? 1 : 0, for: song.id)
+        default: break
+        }
+        Task {
+            await MusicSearchService.shared.setFavorite(liked, trackID: song.id, service: service)
+        }
+    }
+
+    /// A heart, filled once liked; Apple Music's is a star, as Favorite is
+    /// there and on the phone. A plain system symbol, which the car draws
+    /// the size of its own buttons (see `CarPlayArtwork.placeButton`).
+    private static func likeImage(for song: PlayableContent, liked: Bool) -> UIImage {
+        let shape = song.content.service == .apple ? "star" : "heart"
+        return UIImage(systemName: liked ? "\(shape).fill" : shape) ?? UIImage()
+    }
+
+    // MARK: - The artist line
+
+    /// The song whose artist the artist line on Now Playing opens: the song
+    /// on air under a station, else the song playing; nil for a book's file
+    /// or a song with no artist page in the car (`CarPlayArtist.canOpen`).
+    /// Worked out once a song: a song on no service the car reads artists
+    /// of is looked for among the downloads.
+    private func artistSong() -> PlayableContent? {
+        let player = LocalPlaybackService.shared
+        guard let song = player.onAirMatch ?? player.nowPlaying,
+              song.content.type.isTrack, !AudiobookPlayer.shared.contains(song) else { return nil }
+        if let artistOpens, artistOpens.id == song.id {
+            return artistOpens.opens ? song : nil
+        }
+        let opens = CarPlayArtist.canOpen(for: song)
+        artistOpens = (song.id, opens)
+        return opens ? song : nil
     }
 
     /// Targets on the shuffle and repeat commands while the car is
@@ -1200,19 +1581,23 @@ final class CarPlayInterface: NSObject {
         return row
     }
 
-    /// Whether picking `content` opens its songs rather than playing it. A
-    /// book plays.
+    /// Whether picking `content` opens a list (its songs, or an artist's
+    /// page) rather than playing it. A book plays.
     private func opens(_ content: PlayableContent) -> Bool {
-        content.content.type != .audiobook && !LocalPlaybackService.shared.canPlayLocally(content)
+        content.content.type != .audiobook
+            && (content.content.type.isArtist || !LocalPlaybackService.shared.canPlayLocally(content))
     }
 
-    /// Plays a book from where it was left, opens an album or playlist, or
-    /// runs `play` for anything else.
+    /// Plays a book from where it was left, opens an artist's page or an
+    /// album's or playlist's songs, or runs `play` for anything else.
     private func select(_ content: PlayableContent, completion: @escaping () -> Void, _ play: @escaping @MainActor () async throws -> Void) {
         if content.content.type == .audiobook {
             perform(completion: completion) {
                 try await CarPlayPlayback.play(book: content)
             }
+        } else if content.content.type.isArtist {
+            pushArtist(content)
+            completion()
         } else if opens(content) {
             pushContainer(content)
             completion()
@@ -1456,9 +1841,9 @@ final class CarPlayInterface: NSObject {
 extension CarPlayInterface: CPTabBarTemplateDelegate {
     /// Home and Audiobooks read state that changes off screen — a sign-in on
     /// the phone, a provider switched off, a playlist or book added since —
-    /// so they're re-read on the way in. Downloads follow the on-device
-    /// library on their own. Radio is loaded once, and again if it came up
-    /// empty.
+    /// so they're re-read on the way in. Downloads and Search follow the
+    /// on-device library and the phone's searches on their own. Radio is
+    /// loaded once, and again if it came up empty.
     func tabBarTemplate(_ tabBarTemplate: CPTabBarTemplate, didSelect selectedTemplate: CPTemplate) {
         if selectedTemplate === homeTemplate {
             reloadHome(refresh: true)
@@ -1468,6 +1853,8 @@ extension CarPlayInterface: CPTabBarTemplateDelegate {
             if radioTemplate.sections.isEmpty {
                 reloadRadio()
             }
+        } else if selectedTemplate === searchTemplate {
+            fillSearch()
         }
     }
 }
@@ -1481,11 +1868,23 @@ extension CarPlayInterface: CPNowPlayingTemplateObserver {
         }
     }
 
-    /// The album, playlist or folder the queue was played from.
+    /// The artist's page, with the album, playlist or folder the queue was
+    /// played from on top of it; that alone for a song with no artist page
+    /// (a book, a service the car can't read artists of).
     nonisolated func nowPlayingTemplateAlbumArtistButtonTapped(_ nowPlayingTemplate: CPNowPlayingTemplate) {
         MainActor.assumeIsolated {
-            guard let source = LocalPlaybackService.shared.source else { return }
-            pushContainer(source)
+            let player = LocalPlaybackService.shared
+            let source = player.source.flatMap { player.canPlayContainerLocally($0) ? $0 : nil }
+            if let song = artistSong() {
+                // An artist the queue came from is the page itself.
+                pushArtist(song, playingFrom: source.flatMap { $0.content.type.isArtist ? nil : $0 })
+            } else if let source {
+                if source.content.type.isArtist {
+                    pushArtist(source)
+                } else {
+                    pushContainer(source)
+                }
+            }
         }
     }
 }
