@@ -230,7 +230,7 @@ final class WatchBookStore {
 
     private func share() {
         PhoneConnection.shared.send()
-        let written = cloud.write(placesToShare)
+        let written = cloud.write(placesToShare, books: cloudBooks, device: .watch)
         if !written.isEmpty {
             logger.info("Put \(written.count) book places in iCloud")
         }
@@ -297,19 +297,31 @@ final class WatchBookStore {
     }
 
     /// iCloud's places in, where they're newer than the watch's — the
-    /// iPhone's, from when it was out of reach — and the watch's up, where
-    /// they're newer than iCloud's: what was there may have been an older
-    /// place that reached iCloud last.
+    /// iPhone's, from when it was out of reach, or another device's — and
+    /// the watch's up, where they're newer than iCloud's: what was there
+    /// may have been an older place that reached iCloud last. Only the
+    /// books picked for the watch: the iPhone and the Mac put up every
+    /// book's.
     func reconcileWithCloud() {
         let before = places
-        _ = apply(cloud.read())
+        _ = apply(cloud.read().restricted(to: Set(WatchDownloadStore.shared.books.map(\.key))))
         for (key, place) in places.places where before[key] != place {
             logger.info("\(key, privacy: .public): iCloud's place, \(Int(place.position)) s, is newer")
         }
-        let written = cloud.write(placesToShare)
+        let written = cloud.write(placesToShare, books: cloudBooks, device: .watch)
         if !written.isEmpty {
             logger.info("Put \(written.count) book places in iCloud")
         }
+    }
+
+    /// Which book each picked book's place is in, for the devices in iCloud
+    /// that haven't seen it (the Mac).
+    private var cloudBooks: [String: CloudBookPlaces.CloudBook] {
+        var books: [String: CloudBookPlaces.CloudBook] = [:]
+        for pick in WatchDownloadStore.shared.books {
+            books[pick.key] = CloudBookPlaces.CloudBook(service: pick.source.rawValue, id: pick.id)
+        }
+        return books
     }
 
     /// Cue leaving the screen: what's held is written, and the iPhone hears

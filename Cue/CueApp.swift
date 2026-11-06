@@ -1834,6 +1834,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Early, so a status the watch sent while Cue was closed, and the
         // end of a library transfer, are delivered.
         WatchSyncService.shared.activate()
+        // Books' places to and from the listener's other devices, through
+        // iCloud: the Mac's here, and this device's there.
+        BookPlaceSync.shared.start()
         // Lyrics for downloads that don't have them yet, slowly.
         DownloadLyrics.shared.start()
         #if os(iOS) && !targetEnvironment(macCatalyst)

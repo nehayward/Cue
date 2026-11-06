@@ -26,8 +26,8 @@ final class AudiobookPlaceHistory {
             /// Left from here for somewhere else in the book: a chapter, a
             /// scrub, a skip, or a move nobody asked for.
             case jumpedFrom
-            /// This device's place, before another player's (the watch's
-            /// or the server's) took over.
+            /// This device's place, before another player's (another
+            /// device's, or the server's) took over.
             case replaced
             /// Here when something else took the player.
             case left
@@ -39,6 +39,9 @@ final class AudiobookPlaceHistory {
         enum Source: String, Codable {
             /// The Apple Watch's, through WatchConnectivity or iCloud.
             case watch
+            /// Another of the listener's devices, through iCloud
+            /// (`BookPlaceSync`).
+            case iPhone, iPad, mac, vision
             /// The book's server's, from whichever player told it.
             case plex
             case audiobookshelf
