@@ -55,9 +55,19 @@ struct MediaDetailView: View {
     /// What Find in Playlist looks for: a song shows while every word of
     /// it is in its title, artist or album.
     @State private var songQuery = ""
-    /// The Find in Playlist bar is up: pulled down from the top of the
-    /// list, or opened from the toolbar's magnifying glass.
-    @State private var showsSongSearch = false
+    /// The Find in Playlist bar, following a pull down from the top of the
+    /// list, and up once the pull got there or the toolbar's magnifying
+    /// glass put it up. Only the bar reads it (`SongSearchBar`), so a pull
+    /// doesn't redraw the page.
+    @State private var songSearch = PullReveal(distance: 60)
+    /// On the Mac, Find in Playlist is a field in the toolbar, always there
+    /// (`ToolbarSongSearchField`), as a Mac app's filter field is: no pull
+    /// and no bar coming in under the toolbar.
+#if targetEnvironment(macCatalyst)
+    private static let findsInToolbar = true
+#else
+    private static let findsInToolbar = false
+#endif
     @FocusState private var isSongSearchFocused: Bool
     /// The rest of the playlist is loading so all of it can be searched.
     @State private var isLoadingSearch = false
@@ -283,15 +293,33 @@ struct MediaDetailView: View {
         // below it and the Find in Playlist bar.
         .ignoresSafeArea(edges: isFindingSongs ? [] : .top)
         .onScrollOffset(exceeds: 300, set: $showNavigationTitle)
-        // Pulled down past the top, as Music's Find in Playlist is: up
-        // as the pull gets far enough, the cursor in it once it's let go.
-        .onPullDown(beyond: 60) {
-            showSongSearch()
-        } onRelease: {
-            if showsSongSearch { isSongSearchFocused = true }
+        // Pulled down past the top, as Music's Find in Playlist is: the bar
+        // comes in with the pull, up once it gets far enough, the cursor in
+        // it once it's let go.
+        .pullDownReveal(songSearch, isEnabled: sortsSongs && !Self.findsInToolbar) {
+            if songSearch.isShown { isSongSearchFocused = true }
         }
-        .sensoryFeedback(.impact(weight: .light), trigger: showsSongSearch) { _, shows in shows }
         .scrollEdgeEffectHidden26(!showNavigationTitle && !isFindingSongs)
+        // A scroll puts Find in Playlist's keyboard away, as Search's does,
+        // and the bar with it when it's empty. Only as a drag starts, so the
+        // cursor a pull puts in the field as it's let go stays.
+        .scrollDismissesKeyboard(.immediately)
+#if targetEnvironment(macCatalyst)
+        .background {
+            // ⇧⌘F, the Mac's toolbar field's shortcut, which a field can't
+            // carry: an unseen button's on the page. Not in the toolbar
+            // item, where a button made the toolbar take the whole item for
+            // a button, drawn as its magnifying glass with no field to type
+            // in. ⌘F is Search's, the window's own search.
+            if sortsSongs {
+                Button("Find in Playlist") { isSongSearchFocused = true }
+                    .keyboardShortcut("f", modifiers: [.command, .shift])
+                    .opacity(0)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+        }
+#endif
         .listStyle(.plain)
         .contentMargins(.top, 0, for: .scrollContent)
         .safeAreaInset(edge: .bottom) {
@@ -315,11 +343,16 @@ struct MediaDetailView: View {
             }
         }
         // Under the navigation bar, over the cover and the songs: the list
-        // runs up under both, so it doesn't move as the bar comes and goes,
-        // until there's something to look for (`ignoresSafeArea` above).
+        // runs up under both until there's something to look for
+        // (`ignoresSafeArea` above). Always there, hidden until a pull or
+        // the magnifying glass brings it up, so the safe area never changes
+        // under a pull and the field isn't made mid-pull.
         .safeAreaInset(edge: .top, spacing: 0) {
-            if showsSongSearch {
-                songSearchBar
+            if sortsSongs && !Self.findsInToolbar {
+                SongSearchBar(reveal: songSearch,
+                              query: $songQuery,
+                              isFocused: $isSongSearchFocused,
+                              onClose: closeSongSearch)
             }
         }
         .task(id: isFindingSongs && isLoaded) {
@@ -336,10 +369,17 @@ struct MediaDetailView: View {
             selection.formIntersection(songRows.map(\.index))
         }
         .onChange(of: isSongSearchFocused) { _, focused in
+            if focused {
+                // Reached while hidden (Tab from a keyboard): up with it.
+                if !songSearch.isShown {
+                    withAnimation(.smooth) { songSearch.isShown = true }
+                }
+                return
+            }
             // Put away once it's left with nothing in it (the keyboard
             // dismissed by a scroll, a song tapped).
-            guard !focused, songQuery.isEmpty else { return }
-            withAnimation(.smooth) { showsSongSearch = false }
+            guard songQuery.isEmpty else { return }
+            withAnimation(.smooth) { songSearch.hide() }
         }
         .task {
             editor.configure(playlist: playableContent)
@@ -353,6 +393,14 @@ struct MediaDetailView: View {
             restoreSongSort()
             if songSort != .playlistOrder {
                 await applySongSort()
+            }
+            // The rest of a long playlist, in the background once its first
+            // page shows, as the library's Songs list keeps every song ahead
+            // of a search: Find in Playlist then looks through all of it as
+            // it's typed in. Before, it began loading the rest only then,
+            // page after page, and found nothing it hadn't reached.
+            if sortsSongs {
+                await loadAllTracks()
             }
         }
         .onChange(of: isOnDevice ? OnDeviceLibrary.changeToken : 0) {
@@ -387,16 +435,33 @@ struct MediaDetailView: View {
                 .opacity(showNavigationTitle || isFindingSongs ? 1 : 0)
             }
             
+#if targetEnvironment(macCatalyst)
+            if sortsSongs {
+                ToolbarItem(placement: .topBarTrailing) {
+                    ToolbarSongSearchField(query: $songQuery,
+                                           isFocused: $isSongSearchFocused)
+                }
+#if !os(visionOS)
+                if #available(iOS 26.0, *) {
+                    ToolbarSpacer(.fixed, placement: .topBarTrailing)
+                }
+#endif
+            }
+#endif
             ToolbarItemGroup(placement: .topBarTrailing) {
                 if sortsSongs {
-                    // The pull down's bar, for a mouse, a keyboard and
-                    // anyone who doesn't know to pull.
+#if !targetEnvironment(macCatalyst)
+                    // The pull down's bar, for a keyboard and anyone who
+                    // doesn't know to pull.
                     Button {
                         revealSongSearch()
                     } label: {
                         Label("Find in Playlist", systemImage: "magnifyingglass")
                             .labelStyle(.iconOnly)
                     }
+                    // ⌘F is Search's, the window's own search.
+                    .keyboardShortcut("f", modifiers: [.command, .shift])
+#endif
                     songSortMenu
                 }
                 if isEditablePlaylist {
@@ -630,67 +695,16 @@ struct MediaDetailView: View {
         }
     }
     
-    /// Find in Playlist: the field, with Clear inside it while there's
-    /// something in it, and Close beside it, which clears it too.
-    private var songSearchBar: some View {
-        HStack(spacing: 10) {
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.secondary)
-                TextField("Find in Playlist", text: $songQuery)
-                    .focused($isSongSearchFocused)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .submitLabel(.search)
-                    .onSubmit { isSongSearchFocused = false }
-                if !songQuery.isEmpty {
-                    Button {
-                        songQuery = ""
-                        isSongSearchFocused = true
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Clear")
-                }
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .glassCapsule26()
-
-            Button {
-                closeSongSearch()
-            } label: {
-                Image(systemName: "xmark")
-                    .fontWeight(.semibold)
-                    .frame(width: 22, height: 22)
-            }
-            .glassButton()
-            .buttonBorderShape(.circle)
-            .accessibilityLabel("Close Find in Playlist")
-        }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
-        .transition(.move(edge: .top).combined(with: .opacity))
-    }
-
-    /// Puts up Find in Playlist, without the cursor: a pull shows it while
-    /// the finger is still down, and focuses it as it lets go.
-    private func showSongSearch() {
-        guard sortsSongs, !showsSongSearch else { return }
-        withAnimation(.smooth) { showsSongSearch = true }
-    }
-
     /// Puts up Find in Playlist and puts the cursor in it, or only the
     /// cursor when it's already up (the toolbar's button).
     private func revealSongSearch() {
         guard sortsSongs else { return }
-        showSongSearch()
-        // Once the field is in the window: in the pass that adds it there's
-        // nothing to focus yet.
+        if !songSearch.isShown {
+            withAnimation(.smooth) { songSearch.isShown = true }
+        }
+        // A turn later, once the field takes touches again: it's always in
+        // the window, but not while it's hidden.
         Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(150))
             isSongSearchFocused = true
         }
     }
@@ -699,7 +713,7 @@ struct MediaDetailView: View {
     private func closeSongSearch() {
         isSongSearchFocused = false
         songQuery = ""
-        withAnimation(.smooth) { showsSongSearch = false }
+        withAnimation(.smooth) { songSearch.hide() }
     }
 
     /// Sort By and, for an order that has one, its direction — the same
@@ -1130,6 +1144,135 @@ struct MediaDetailView: View {
         editor.moveTrack(from: source, to: destination, playlist: playableContent)
     }
 }
+
+/// Find in Playlist's bar on a phone or iPad: the field and Close beside
+/// it, which clears it too. It's always in place, hidden, and comes in with a
+/// pull down the list as the finger moves (`PullReveal.progress`), not as an
+/// animation of its own under the pull. Only this view reads the pull, so the
+/// page isn't redrawn for it. Clear is the text field's own, which every
+/// field in Cue shows while it's typed in (`AppBootstrapper`): one of the
+/// bar's own beside it made two.
+private struct SongSearchBar: View {
+    let reveal: PullReveal
+    @Binding var query: String
+    var isFocused: FocusState<Bool>.Binding
+    let onClose: () -> Void
+
+    var body: some View {
+        let progress = reveal.progress
+        let isShown = reveal.isShown
+        HStack(spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                TextField("Find in Playlist", text: $query)
+                    .focused(isFocused)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .submitLabel(.search)
+                    .onSubmit { isFocused.wrappedValue = false }
+                    .onKeyPress(.escape) {
+                        onClose()
+                        return .handled
+                    }
+                    // Only a tap puts the cursor in it (below), not a pull
+                    // down that starts on it: the bar isn't in the list, so
+                    // that pull moved nothing, and the field took the
+                    // finger's lift as a tap and brought the keyboard back.
+                    // Once it has the cursor it takes touches itself, to
+                    // move it and select.
+                    .allowsHitTesting(isFocused.wrappedValue)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .contentShape(.capsule)
+            .onTapGesture {
+                isFocused.wrappedValue = true
+            }
+            // The capsule is the field: no focus ring round it on an iPad
+            // with a keyboard.
+            .focusEffectDisabled()
+            .searchBarGlass26(progress > 0, in: .capsule)
+
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .fontWeight(.semibold)
+                    .frame(width: 42, height: 42)
+                    .contentShape(.circle)
+            }
+            .buttonStyle(.plain)
+            .searchBarGlass26(progress > 0, in: .circle)
+            .accessibilityLabel("Close Find in Playlist")
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        // Dropping into place and growing to its size as it fades in.
+        .opacity(progress)
+        .scaleEffect(0.9 + 0.1 * progress, anchor: .top)
+        .offset(y: -10 * (1 - progress))
+        .allowsHitTesting(isShown)
+        .accessibilityHidden(!isShown)
+        .sensoryFeedback(.impact(weight: .light), trigger: isShown) { _, shows in shows }
+    }
+}
+
+#if targetEnvironment(macCatalyst)
+/// Find in Playlist on the Mac: a field in the toolbar, always there, with
+/// its shortcut (⇧⌘F, the page's) in it while it's empty. Escape clears it
+/// and leaves it. A bar brought in under the toolbar, as the phone's pull
+/// does, read oddly with a pointer. Nothing in it may be a button: the
+/// toolbar takes an item holding one for a button.
+private struct ToolbarSongSearchField: View {
+    @Binding var query: String
+    var isFocused: FocusState<Bool>.Binding
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+            TextField("Find in Playlist", text: $query)
+                .focused(isFocused)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .onSubmit { isFocused.wrappedValue = false }
+                .onKeyPress(.escape) {
+                    query = ""
+                    isFocused.wrappedValue = false
+                    return .handled
+                }
+            if query.isEmpty {
+                KeyHint(keys: ["⇧", "⌘", "F"])
+            }
+        }
+        .padding(.horizontal, 10)
+        .frame(width: 240 * LargeWindowStyle.scale(typeSize))
+        .focusEffectDisabled()
+    }
+}
+
+/// A keyboard shortcut drawn as its keys, each in an outline of its own, as
+/// a Mac app shows one in an empty field.
+private struct KeyHint: View {
+    let keys: [String]
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(keys, id: \.self) { key in
+                Text(key)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(minWidth: 20, minHeight: 20)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 5)
+                            .strokeBorder(.tertiary, lineWidth: 1)
+                    }
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+#endif
 
 #if DEBUG
 #Preview {

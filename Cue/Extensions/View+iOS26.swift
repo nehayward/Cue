@@ -120,18 +120,21 @@ extension View {
         #endif
     }
 
-    /// A search field's capsule (a playlist's Find in Playlist): Liquid
-    /// Glass on iOS 26, a regular material before it and on visionOS.
+    /// A search bar's glass (a playlist's Find in Playlist, its field and
+    /// Close): Liquid Glass on iOS 26, a regular material before it and on
+    /// visionOS. With `isOn` off there's no glass on iOS 26 (`.identity`,
+    /// the same view), so a bar kept in place while it's hidden samples
+    /// nothing behind it.
     @ViewBuilder
-    func glassCapsule26() -> some View {
+    func searchBarGlass26(_ isOn: Bool = true, in shape: some Shape) -> some View {
         #if !os(visionOS)
         if #available(iOS 26.0, *) {
-            self.glassEffect(.regular.interactive(), in: .capsule)
+            self.glassEffect(isOn ? .regular.interactive() : .identity, in: shape)
         } else {
-            self.background(.regularMaterial, in: Capsule())
+            self.background(.regularMaterial, in: shape)
         }
         #else
-        self.background(.regularMaterial, in: Capsule())
+        self.background(.regularMaterial, in: shape)
         #endif
     }
 
