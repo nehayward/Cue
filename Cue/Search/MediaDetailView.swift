@@ -275,8 +275,13 @@ struct MediaDetailView: View {
         }
         .ignoresSafeArea(edges: .top)
         .onScrollOffset(exceeds: 300, set: $showNavigationTitle)
-        // Pulled down past the top, as Music's Find in Playlist is.
-        .onPullDown(beyond: 70) { revealSongSearch() }
+        // Pulled down past the top, as Music's Find in Playlist is: up
+        // as the pull gets far enough, the cursor in it once it's let go.
+        .onPullDown(beyond: 60) {
+            showSongSearch()
+        } onRelease: {
+            if showsSongSearch { isSongSearchFocused = true }
+        }
         .sensoryFeedback(.impact(weight: .light), trigger: showsSongSearch) { _, shows in shows }
         .scrollEdgeEffectHidden26(!showNavigationTitle)
         .listStyle(.plain)
@@ -659,13 +664,18 @@ struct MediaDetailView: View {
         .transition(.move(edge: .top).combined(with: .opacity))
     }
 
+    /// Puts up Find in Playlist, without the cursor: a pull shows it while
+    /// the finger is still down, and focuses it as it lets go.
+    private func showSongSearch() {
+        guard sortsSongs, !showsSongSearch else { return }
+        withAnimation(.smooth) { showsSongSearch = true }
+    }
+
     /// Puts up Find in Playlist and puts the cursor in it, or only the
-    /// cursor when it's already up.
+    /// cursor when it's already up (the toolbar's button).
     private func revealSongSearch() {
         guard sortsSongs else { return }
-        if !showsSongSearch {
-            withAnimation(.smooth) { showsSongSearch = true }
-        }
+        showSongSearch()
         // Once the field is in the window: in the pass that adds it there's
         // nothing to focus yet.
         Task { @MainActor in

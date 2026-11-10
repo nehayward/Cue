@@ -19,18 +19,19 @@ extension View {
         }
     }
 
-    /// Runs `action` when the scroll view is let go of while pulled down
-    /// past its top by more than `distance`, once a pull (nothing before
-    /// iOS 18). On letting go rather than as the pull gets there, so what
-    /// it opens (a field taking the keyboard) comes after the drag, which
-    /// would dismiss the keyboard.
+    /// A pull down past the top of the scroll view, as pull-to-refresh is
+    /// (nothing before iOS 18): `onPull` once the drag has pulled it down
+    /// more than `distance`, so what it brings up shows while the finger is
+    /// still down, and `onRelease` as that drag lets go. What wants the
+    /// keyboard waits for `onRelease`: the drag would dismiss it.
     @ViewBuilder
     func onPullDown(
         beyond distance: CGFloat,
-        perform action: @escaping () -> Void
+        onPull: @escaping () -> Void,
+        onRelease: @escaping () -> Void
     ) -> some View {
         if #available(iOS 18.0, *) {
-            modifier(PullDownAction(distance: distance, action: action))
+            modifier(PullDownAction(distance: distance, onPull: onPull, onRelease: onRelease))
         } else {
             self
         }
@@ -40,21 +41,36 @@ extension View {
 @available(iOS 18.0, *)
 private struct PullDownAction: ViewModifier {
     let distance: CGFloat
-    let action: () -> Void
-    /// Pulled down past `distance` right now.
-    @State private var isPulled = false
+    let onPull: () -> Void
+    let onRelease: () -> Void
+    /// A finger is dragging the scroll view.
+    @State private var isDragging = false
+    /// This drag has pulled past `distance` (and called `onPull`).
+    @State private var hasPulled = false
 
     func body(content: Content) -> some View {
         content
             .onScrollGeometryChange(for: Bool.self) { scroll in
+                // How far above its top the content has been pulled.
                 scroll.contentOffset.y + scroll.contentInsets.top < -distance
             } action: { _, pulled in
-                isPulled = pulled
+                // Only a finger's pull: not the bounce back, nor a fling
+                // landing on the top.
+                guard pulled, isDragging, !hasPulled else { return }
+                hasPulled = true
+                onPull()
             }
             .onScrollPhaseChange { oldPhase, newPhase in
-                // Let go, still pulled that far: not pushed back first.
-                guard oldPhase == .interacting, newPhase != .interacting, isPulled else { return }
-                action()
+                if newPhase == .interacting {
+                    isDragging = true
+                    hasPulled = false
+                } else if oldPhase == .interacting {
+                    isDragging = false
+                    if hasPulled {
+                        hasPulled = false
+                        onRelease()
+                    }
+                }
             }
     }
 }
