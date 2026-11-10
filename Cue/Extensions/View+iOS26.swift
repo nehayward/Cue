@@ -120,21 +120,6 @@ extension View {
         #endif
     }
 
-    /// A search field's capsule (a playlist's Find in Playlist): Liquid
-    /// Glass on iOS 26, a regular material before it and on visionOS.
-    @ViewBuilder
-    func glassCapsule26() -> some View {
-        #if !os(visionOS)
-        if #available(iOS 26.0, *) {
-            self.glassEffect(.regular.interactive(), in: .capsule)
-        } else {
-            self.background(.regularMaterial, in: Capsule())
-        }
-        #else
-        self.background(.regularMaterial, in: Capsule())
-        #endif
-    }
-
     /// Circular material backing for bottom-bar toolbar icons on OSes without
     /// Liquid Glass. iOS 26 and visionOS already render toolbar items in
     /// glass, so this only draws on older OSes.

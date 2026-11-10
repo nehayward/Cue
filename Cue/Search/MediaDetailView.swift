@@ -55,10 +55,9 @@ struct MediaDetailView: View {
     /// What Find in Playlist looks for: a song shows while every word of
     /// it is in its title, artist or album.
     @State private var songQuery = ""
-    /// The Find in Playlist bar is up: pulled down from the top of the
-    /// list, or opened from the toolbar's magnifying glass.
-    @State private var showsSongSearch = false
-    @FocusState private var isSongSearchFocused: Bool
+    /// Find in Playlist's field is active (the keyboard's in it, or it
+    /// holds a search).
+    @State private var isSongSearchPresented = false
     /// The rest of the playlist is loading so all of it can be searched.
     @State private var isLoadingSearch = false
 
@@ -275,14 +274,6 @@ struct MediaDetailView: View {
         }
         .ignoresSafeArea(edges: .top)
         .onScrollOffset(exceeds: 300, set: $showNavigationTitle)
-        // Pulled down past the top, as Music's Find in Playlist is: up
-        // as the pull gets far enough, the cursor in it once it's let go.
-        .onPullDown(beyond: 60) {
-            showSongSearch()
-        } onRelease: {
-            if showsSongSearch { isSongSearchFocused = true }
-        }
-        .sensoryFeedback(.impact(weight: .light), trigger: showsSongSearch) { _, shows in shows }
         .scrollEdgeEffectHidden26(!showNavigationTitle)
         .listStyle(.plain)
         .contentMargins(.top, 0, for: .scrollContent)
@@ -306,13 +297,7 @@ struct MediaDetailView: View {
 #endif
             }
         }
-        // Under the navigation bar, over the cover and the songs: the list
-        // runs up under both, so it doesn't move as the bar comes and goes.
-        .safeAreaInset(edge: .top, spacing: 0) {
-            if showsSongSearch {
-                songSearchBar
-            }
-        }
+        .findInPlaylist(text: $songQuery, isPresented: $isSongSearchPresented, enabled: sortsSongs)
         .task(id: isFindingSongs && isLoaded) {
             // Every song, so a match on a page not yet loaded isn't missed:
             // once the first page has said how many there are.
@@ -325,12 +310,6 @@ struct MediaDetailView: View {
             // Remove (N) takes only songs that show.
             guard !selection.isEmpty, isFindingSongs else { return }
             selection.formIntersection(songRows.map(\.index))
-        }
-        .onChange(of: isSongSearchFocused) { _, focused in
-            // Put away once it's left with nothing in it (the keyboard
-            // dismissed by a scroll, a song tapped).
-            guard !focused, songQuery.isEmpty else { return }
-            withAnimation(.smooth) { showsSongSearch = false }
         }
         .task {
             editor.configure(playlist: playableContent)
@@ -378,14 +357,6 @@ struct MediaDetailView: View {
             
             ToolbarItemGroup(placement: .topBarTrailing) {
                 if sortsSongs {
-                    // The pull down's bar, for a mouse, a keyboard and
-                    // anyone who doesn't know to pull.
-                    Button {
-                        revealSongSearch()
-                    } label: {
-                        Label("Find in Playlist", systemImage: "magnifyingglass")
-                            .labelStyle(.iconOnly)
-                    }
                     songSortMenu
                 }
                 if isEditablePlaylist {
@@ -400,7 +371,7 @@ struct MediaDetailView: View {
                     }
                     // Not while Find in Playlist is typed in: a bare E
                     // would turn Edit on instead of going in the field.
-                    .keyboardShortcut(isSongSearchFocused ? nil : KeyboardShortcut("e", modifiers: []))
+                    .keyboardShortcut(isSongSearchPresented ? nil : KeyboardShortcut("e", modifiers: []))
                 }
             }
         }
@@ -619,78 +590,6 @@ struct MediaDetailView: View {
         }
     }
     
-    /// Find in Playlist: the field, with Clear inside it while there's
-    /// something in it, and Close beside it, which clears it too.
-    private var songSearchBar: some View {
-        HStack(spacing: 10) {
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.secondary)
-                TextField("Find in Playlist", text: $songQuery)
-                    .focused($isSongSearchFocused)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .submitLabel(.search)
-                    .onSubmit { isSongSearchFocused = false }
-                if !songQuery.isEmpty {
-                    Button {
-                        songQuery = ""
-                        isSongSearchFocused = true
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Clear")
-                }
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .glassCapsule26()
-
-            Button {
-                closeSongSearch()
-            } label: {
-                Image(systemName: "xmark")
-                    .fontWeight(.semibold)
-                    .frame(width: 22, height: 22)
-            }
-            .glassButton()
-            .buttonBorderShape(.circle)
-            .accessibilityLabel("Close Find in Playlist")
-        }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
-        .transition(.move(edge: .top).combined(with: .opacity))
-    }
-
-    /// Puts up Find in Playlist, without the cursor: a pull shows it while
-    /// the finger is still down, and focuses it as it lets go.
-    private func showSongSearch() {
-        guard sortsSongs, !showsSongSearch else { return }
-        withAnimation(.smooth) { showsSongSearch = true }
-    }
-
-    /// Puts up Find in Playlist and puts the cursor in it, or only the
-    /// cursor when it's already up (the toolbar's button).
-    private func revealSongSearch() {
-        guard sortsSongs else { return }
-        showSongSearch()
-        // Once the field is in the window: in the pass that adds it there's
-        // nothing to focus yet.
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(150))
-            isSongSearchFocused = true
-        }
-    }
-
-    /// Clears Find in Playlist and puts it away, every song showing again.
-    private func closeSongSearch() {
-        isSongSearchFocused = false
-        songQuery = ""
-        withAnimation(.smooth) { showsSongSearch = false }
-    }
-
     /// Sort By and, for an order that has one, its direction — the same
     /// menu as the library's lists.
     private var songSortMenu: some View {
@@ -1117,6 +1016,27 @@ struct MediaDetailView: View {
 
     private func move(from source: IndexSet, to destination: Int) {
         editor.moveTrack(from: source, to: destination, playlist: playableContent)
+    }
+}
+
+private extension View {
+    /// Find in Playlist, the system's search field: on iOS in the
+    /// navigation bar's drawer, as the library lists have theirs
+    /// (`searchableIfAvailable`), tucked away as the list scrolls down and
+    /// pulled back down from the top of it. Only on a page that can search
+    /// its songs, which stays one or the other, so the list keeps its
+    /// identity.
+    @ViewBuilder
+    func findInPlaylist(text: Binding<String>, isPresented: Binding<Bool>, enabled: Bool) -> some View {
+        if enabled {
+#if os(iOS)
+            searchable(text: text, isPresented: isPresented, placement: .navigationBarDrawer(displayMode: .automatic), prompt: Text("Find in Playlist"))
+#else
+            searchable(text: text, isPresented: isPresented, prompt: Text("Find in Playlist"))
+#endif
+        } else {
+            self
+        }
     }
 }
 
