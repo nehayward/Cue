@@ -43,8 +43,8 @@ struct MediaDetailView: View {
     @State private var selection: Set<Int> = []
     @State private var nextCursor: String?
     @State private var showNavigationTitle: Bool = false
-    /// The order the songs are listed in. Only a Plex playlist offers
-    /// another (`sortsSongs`); the choice is remembered per playlist.
+    /// The order the songs are listed in. A playlist offers others
+    /// (`sortsSongs`); the choice is remembered per playlist.
     @State private var songSort: PlaylistSongSort = .playlistOrder
     @State private var songSortReversed = false
     /// The indices of `tracks` in `songSort`'s order, once every song is in
@@ -52,6 +52,15 @@ struct MediaDetailView: View {
     @State private var sortedOrder: [Int]?
     /// The rest of the playlist is loading so it can be sorted.
     @State private var isLoadingAllSongs = false
+    /// What Find in Playlist looks for: a song shows while every word of
+    /// it is in its title, artist or album.
+    @State private var songQuery = ""
+    /// The Find in Playlist bar is up: pulled down from the top of the
+    /// list, or opened from the toolbar's magnifying glass.
+    @State private var showsSongSearch = false
+    @FocusState private var isSongSearchFocused: Bool
+    /// The rest of the playlist is loading so all of it can be searched.
+    @State private var isLoadingSearch = false
 
     /// Proxies the view's existing `tracks` usage onto the coordinator (the source of truth),
     /// so native undo/redo mutations are reflected in the UI.
@@ -87,11 +96,27 @@ struct MediaDetailView: View {
         OnDeviceLibrary.isContainer(playableContent)
     }
 
-    /// Plex keeps a playlist in its own order and won't sort its items, but
-    /// says how many there are, so every page can be loaded and the songs
-    /// sorted here.
+    /// Whether the playlist's songs can be searched (Find in Playlist) and
+    /// listed in another order, both put together here: a playlist that
+    /// comes whole (Subsonic, Files, an Apple Music catalog playlist, one
+    /// on the device) or says how many songs it has (Plex, an Apple Music
+    /// library playlist), so every page can be loaded first. A playlist
+    /// that only says whether there's more would sort and search the
+    /// pages in hand.
     private var sortsSongs: Bool {
-        playableContent.content.service == .plex && playableContent.content.type == .playlist && !isOnDevice
+        guard playableContent.content.type.isPlaylist else { return false }
+        return isOnDevice || [.plex, .apple, .subsonic, .files].contains(playableContent.content.service)
+    }
+
+    /// The orders on offer: dates, plays and ratings only for Plex, whose
+    /// songs carry them.
+    private var songSortOptions: [PlaylistSongSort] {
+        PlaylistSongSort.options(withLibraryDetails: playableContent.content.service == .plex && !isOnDevice)
+    }
+
+    /// Find in Playlist has something to look for.
+    private var isFindingSongs: Bool {
+        !songQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     /// One row of the song list: the song, where it sits in the playlist
@@ -103,14 +128,35 @@ struct MediaDetailView: View {
         var id: String { song.trackID }
     }
 
-    /// The songs as listed: the playlist's order, or `sortedOrder`'s.
-    private var songRows: [SongRow] {
+    /// The songs as listed: the playlist's order, or `sortedOrder`'s. What
+    /// plays from a row, and the number it shows.
+    private var listedRows: [SongRow] {
         let tracks = tracks
         let order = sortedOrder ?? Array(tracks.indices)
         return order.enumerated().compactMap { offset, index in
             // An order a step behind an edit is put right by `onChange`.
             guard tracks.indices.contains(index) else { return nil }
             return SongRow(number: offset + 1, index: index, song: tracks[index])
+        }
+    }
+
+    /// The rows shown: `listedRows`, narrowed to Find in Playlist's matches
+    /// while it has something to look for. Each keeps its number in the
+    /// whole list, so a match says where it is, and a tap plays on from
+    /// there through the rest of the list, not just the matches.
+    private var songRows: [SongRow] {
+        let rows = listedRows
+        let words = songQuery.split(whereSeparator: \.isWhitespace)
+        guard !words.isEmpty else { return rows }
+        return rows.filter { Self.isMatch($0.song, for: words) }
+    }
+
+    /// Every word somewhere in the song's title, artist or album, case and
+    /// accents aside: "adele hello" finds Hello by Adele.
+    private static func isMatch(_ song: PlayableContent, for words: [Substring]) -> Bool {
+        let fields = [song.title, song.metadata?.artist, song.metadata?.album].compactMap { $0 }
+        return words.allSatisfy { word in
+            fields.contains { $0.localizedStandardContains(word) }
         }
     }
 
@@ -133,9 +179,10 @@ struct MediaDetailView: View {
         // toolbar's builder reads doesn't, and the sort menu's checkmarks
         // and spinner would lag behind.
         let _ = (songSort, songSortReversed, isLoadingAllSongs)
+        let rows = songRows
         List(selection: $selection) {
             artworkSection
-            ForEach(songRows) { row in
+            ForEach(rows) { row in
                 let index = row.index
                 let item = row.song
                 VStack {
@@ -183,8 +230,9 @@ struct MediaDetailView: View {
                 .listRowSeparator(.hidden)
                 .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
             }
-            // Moving a song means something only in the playlist's own order.
-            .onMove(perform: canReorderTracks && sortedOrder == nil ? move : nil)
+            // Moving a song means something only in the playlist's own
+            // order, with every song in it showing.
+            .onMove(perform: canReorderTracks && sortedOrder == nil && !isFindingSongs ? move : nil)
             if tracks.isEmpty {
                 if !isLoaded {
                     ProgressView()
@@ -201,6 +249,20 @@ struct MediaDetailView: View {
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.white.opacity(0.001))
                 }
+            } else if isFindingSongs {
+                // The matches so far show while the rest of the playlist
+                // loads to be searched.
+                if isLoadingSearch {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 24)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.white.opacity(0.001))
+                } else if rows.isEmpty {
+                    ContentUnavailableView.search(text: songQuery.trimmingCharacters(in: .whitespacesAndNewlines))
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.white.opacity(0.001))
+                }
             }
         }
         .environment(\.editMode, $editMode)
@@ -213,6 +275,9 @@ struct MediaDetailView: View {
         }
         .ignoresSafeArea(edges: .top)
         .onScrollOffset(exceeds: 300, set: $showNavigationTitle)
+        // Pulled down past the top, as Music's Find in Playlist is.
+        .onPullDown(beyond: 70) { revealSongSearch() }
+        .sensoryFeedback(.impact(weight: .light), trigger: showsSongSearch) { _, shows in shows }
         .scrollEdgeEffectHidden26(!showNavigationTitle)
         .listStyle(.plain)
         .contentMargins(.top, 0, for: .scrollContent)
@@ -235,6 +300,32 @@ struct MediaDetailView: View {
                 .padding(.bottom)
 #endif
             }
+        }
+        // Under the navigation bar, over the cover and the songs: the list
+        // runs up under both, so it doesn't move as the bar comes and goes.
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if showsSongSearch {
+                songSearchBar
+            }
+        }
+        .task(id: isFindingSongs && isLoaded) {
+            // Every song, so a match on a page not yet loaded isn't missed:
+            // once the first page has said how many there are.
+            guard isFindingSongs, isLoaded else { return }
+            isLoadingSearch = true
+            await loadAllTracks()
+            isLoadingSearch = false
+        }
+        .onChange(of: songQuery) {
+            // Remove (N) takes only songs that show.
+            guard !selection.isEmpty, isFindingSongs else { return }
+            selection.formIntersection(songRows.map(\.index))
+        }
+        .onChange(of: isSongSearchFocused) { _, focused in
+            // Put away once it's left with nothing in it (the keyboard
+            // dismissed by a scroll, a song tapped).
+            guard !focused, songQuery.isEmpty else { return }
+            withAnimation(.smooth) { showsSongSearch = false }
         }
         .task {
             editor.configure(playlist: playableContent)
@@ -282,6 +373,14 @@ struct MediaDetailView: View {
             
             ToolbarItemGroup(placement: .topBarTrailing) {
                 if sortsSongs {
+                    // The pull down's bar, for a mouse, a keyboard and
+                    // anyone who doesn't know to pull.
+                    Button {
+                        revealSongSearch()
+                    } label: {
+                        Label("Find in Playlist", systemImage: "magnifyingglass")
+                            .labelStyle(.iconOnly)
+                    }
                     songSortMenu
                 }
                 if isEditablePlaylist {
@@ -294,7 +393,9 @@ struct MediaDetailView: View {
                               systemImage: editMode.isEditing ? "checkmark" : "pencil")
                             .labelStyle(.iconOnly)
                     }
-                    .keyboardShortcut("e", modifiers: [])
+                    // Not while Find in Playlist is typed in: a bare E
+                    // would turn Edit on instead of going in the field.
+                    .keyboardShortcut(isSongSearchFocused ? nil : KeyboardShortcut("e", modifiers: []))
                 }
             }
         }
@@ -513,6 +614,73 @@ struct MediaDetailView: View {
         }
     }
     
+    /// Find in Playlist: the field, with Clear inside it while there's
+    /// something in it, and Close beside it, which clears it too.
+    private var songSearchBar: some View {
+        HStack(spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                TextField("Find in Playlist", text: $songQuery)
+                    .focused($isSongSearchFocused)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .submitLabel(.search)
+                    .onSubmit { isSongSearchFocused = false }
+                if !songQuery.isEmpty {
+                    Button {
+                        songQuery = ""
+                        isSongSearchFocused = true
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear")
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .glassCapsule26()
+
+            Button {
+                closeSongSearch()
+            } label: {
+                Image(systemName: "xmark")
+                    .fontWeight(.semibold)
+                    .frame(width: 22, height: 22)
+            }
+            .glassButton()
+            .buttonBorderShape(.circle)
+            .accessibilityLabel("Close Find in Playlist")
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .transition(.move(edge: .top).combined(with: .opacity))
+    }
+
+    /// Puts up Find in Playlist and puts the cursor in it, or only the
+    /// cursor when it's already up.
+    private func revealSongSearch() {
+        guard sortsSongs else { return }
+        if !showsSongSearch {
+            withAnimation(.smooth) { showsSongSearch = true }
+        }
+        // Once the field is in the window: in the pass that adds it there's
+        // nothing to focus yet.
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(150))
+            isSongSearchFocused = true
+        }
+    }
+
+    /// Clears Find in Playlist and puts it away, every song showing again.
+    private func closeSongSearch() {
+        isSongSearchFocused = false
+        songQuery = ""
+        withAnimation(.smooth) { showsSongSearch = false }
+    }
+
     /// Sort By and, for an order that has one, its direction — the same
     /// menu as the library's lists.
     private var songSortMenu: some View {
@@ -529,7 +697,7 @@ struct MediaDetailView: View {
                     Task { await applySongSort() }
                 }
             )) {
-                ForEach(PlaylistSongSort.allCases) { sort in
+                ForEach(songSortOptions) { sort in
                     Text(sort.label).tag(sort)
                 }
             }
@@ -600,7 +768,8 @@ struct MediaDetailView: View {
     private func restoreSongSort() {
         guard sortsSongs,
               let raw = UserDefaults.standard.string(forKey: songSortKey),
-              let sort = PlaylistSongSort(rawValue: raw) else { return }
+              let sort = PlaylistSongSort(rawValue: raw),
+              songSortOptions.contains(sort) else { return }
         songSort = sort
         songSortReversed = UserDefaults.standard.bool(forKey: songSortKey + ".reversed")
     }
@@ -620,7 +789,9 @@ struct MediaDetailView: View {
     /// playlist isn't the playlist's own order, so a speaker gets the songs
     /// rather than the playlist, and this device the list.
     private func playListed(from start: Int) {
-        let listed = songRows.map(\.song)
+        // The whole list, a match found in it included: `start` is a
+        // row's place in it.
+        let listed = listedRows.map(\.song)
         guard listed.indices.contains(start) else { return }
         let songs = listed[start...].filter(\.isPlayable)
         guard !songs.isEmpty else { return }
