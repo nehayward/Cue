@@ -6,49 +6,69 @@ import OrderedCollections
 import SonosKit
 import SwiftUI
 
+/// A cover with its title and artist under it, as the Music app draws its
+/// library: the title with its explicit and favorite marks, the artist in
+/// grey, and the menu on a long press (a right click on the Mac) rather than
+/// a ••• over the cover. A tap opens an album or playlist and plays the
+/// rest. Or, `artworkOnly`, just the cover, for a wall of artwork.
 struct PlayableCardView: View {
     @Environment(SonosService.self) private var sonosService
+    @Environment(FavoriteRatingCache.self) private var favoriteRatingCache
     @Environment(Router.self) private var router
     @Environment(ContentToAdd.self) private var adding: ContentToAdd?
     @Environment(AlertService.self) private var alertService: AlertService
     @Environment(PlaylistContainer.self) private var playlistsContainer: PlaylistContainer
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
-    
+    @Environment(\.zoomNamespace) private var zoomNamespace
+
     var item: PlayableContent
     var hideArtwork: Bool = false
     var hideAction: Bool = false
-    /// Just the cover, square and edge to edge — no title, no corners, no
-    /// menu button — for a wall of artwork where the tiles touch. Tap and
-    /// long-press keep working on the tile itself.
+    /// Just the cover, square and edge to edge — no title, no corners — for
+    /// a wall of artwork where the tiles touch. Tap and long-press keep
+    /// working on the tile itself.
     var artworkOnly: Bool = false
-    /// How wide the artwork-only tile, or a tile, is on screen, in points.
-    /// The cover is decoded no bigger than this needs, so a wall of 130pt
-    /// tiles doesn't hold a 1200px bitmap for every one of them.
+    /// How wide the cover is on screen, in points. The cover is decoded no
+    /// bigger than this needs, so a grid doesn't hold a 1200px bitmap for
+    /// every tile.
     var artworkSize: Double = 200
     /// The artwork-only tile's corner rounding: none for a wall of tiles
     /// that touch, some for tiles set apart, as the Radio tab's are.
     var artworkCornerRadius: CGFloat = 0
-    /// A square cover as wide as the tile is offered, with the title and
-    /// subtitle under it, and no menu button: a tile (`TileGrid`). Its
-    /// menu is the card's `Menu`, held or right-clicked, as Recently
-    /// Played's rows are: a context menu in a list row belongs to the
-    /// whole row, so on the phone a long press lifted every tile and on
-    /// the Mac every tile's right-click opened the first one's menu.
-    var isTile: Bool = false
-    /// Whether a tile has a line for its subtitle: a grid whose items have
-    /// none leaves it off every tile.
+    /// Whether the tile has a line under the title: a grid whose items have
+    /// none leaves it off every tile (`TileGrid`'s playlists).
     var tileShowsSubtitle: Bool = true
-    /// Set by a grid that has marked this card as a zoom source, so the
-    /// album screen it opens grows out of the card. The grid applies the
-    /// `matchedTransitionSource` itself; this only tells the push about it.
+    /// The menu as a context menu on a button, for a grid in a scroll view:
+    /// built only when it's opened, where a `Menu` per tile builds every
+    /// menu's content as the grid lays out. Off for tiles in a list row
+    /// (`TileGrid`): a context menu there belongs to the whole row, so on the
+    /// phone a long press lifted every tile and on the Mac every tile's right
+    /// click opened the first one's menu; the card's `Menu`, held or right
+    /// clicked, is theirs.
+    var usesContextMenu: Bool = false
+    /// Set by a grid whose tiles are zoom sources, so the album screen it
+    /// opens grows out of the cover. The cover is marked here, the push
+    /// told about it in `actions`.
     var zoomSource: ZoomTransitionSource? = nil
+
+    /// The artist, else the subtitle (a playlist's curator, a station's
+    /// kind).
+    private var secondLine: String {
+        item.metadata?.artist ?? item.subtitle
+    }
+
+    /// As the rows: Plex, Subsonic and the Apple Music library carry it.
+    private var isFavorite: Bool {
+        [.plex, .subsonic, .apple].contains(item.content.service)
+            && (favoriteRatingCache.ratings[item.id] ?? item.metadata?.userRating ?? 0) > 0
+    }
 
     var body: some View {
         VStack {
             if let add = adding?.add, add {
                 content
-            } else if artworkOnly {
+            } else if artworkOnly || usesContextMenu {
                 // A button with a context menu, not a `Menu` with a primary
                 // action: a grid lays out dozens of tiles at once, and the
                 // menu's content — nested menus, a download index refresh —
@@ -63,7 +83,7 @@ struct PlayableCardView: View {
                         .largeWindowHoverLift()
                 }
                 .buttonStyle(.plain)
-                .contentShape(.contextMenuPreview, .rect(cornerRadius: artworkCornerRadius))
+                .contentShape(.contextMenuPreview, .rect(cornerRadius: artworkOnly ? artworkCornerRadius : 8))
                 .contextMenu {
                     PlayableMenuView(item: item)
                 }
@@ -80,23 +100,8 @@ struct PlayableCardView: View {
         }
         .listRowBackground(Color.clear)
         .listRowSeparator(.hidden, edges: .all)
-        .overlay(alignment: .topTrailing) {
-            if adding == nil && !hideAction && !artworkOnly && !isTile {
-                Menu {
-                    PlayableMenuView(item: item)
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .accessibilityLabel("More Options for \(item.title)")
-                        .foregroundStyle(.white)
-                        .fontWeight(.semibold)
-                        .shadow(radius: 4)
-                        .frame(maxWidth: 44, maxHeight: 44)
-                }
-                .frame(maxWidth: 44, maxHeight: 44)
-            }
-        }
     }
-    
+
     @ViewBuilder
     private var content: some View {
         if artworkOnly {
@@ -116,81 +121,71 @@ struct PlayableCardView: View {
                 .contentShape(.rect(cornerRadius: artworkCornerRadius))
                 // Nothing written on the tile, so VoiceOver reads the name.
                 .accessibilityLabel(item.title)
-        } else if isTile {
-            tile
         } else {
-            card
+            tile
         }
     }
 
     private var tile: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Color.clear
-                .aspectRatio(1, contentMode: .fit)
-                .overlay {
-                    ContentArtworkView(content: item, showMusicSource: false, preferredSize: artworkSize, cornerRadius: 0)
-                        .scaledToFill()
-                }
-                .clipShape(.rect(cornerRadius: 6))
+        VStack(alignment: .leading, spacing: 6) {
+            cover
             VStack(alignment: .leading, spacing: 1) {
-                Text(item.title)
+                HStack(spacing: 4) {
+                    Text(item.title)
+                        .lineLimit(1)
+                    if item.metadata?.isExplicit == true {
+                        Image(systemName: "e.square.fill")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .accessibilityLabel("Explicit")
+                    }
+                    if isFavorite {
+                        Image(systemName: item.content.service == .apple ? "star.fill" : "heart.fill")
+                            .font(.caption)
+                            .foregroundStyle(item.content.service.brandColor)
+                            .accessibilityLabel("Favorite")
+                    }
+                }
                 if tileShowsSubtitle {
-                    Text(item.subtitle)
+                    // Kept a line tall when empty, so a row of tiles lines up.
+                    Text(secondLine)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1, reservesSpace: true)
                 }
             }
             .font(.subheadline)
-            .lineLimit(1)
+            // The default face even in the library page's rounded list, to
+            // read as the Music app's grid does.
+            .fontDesign(.default)
             // A menu's label takes the accent otherwise.
             .tint(.primary)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .contentShape(.rect)
     }
 
-    private var card: some View {
-        VStack {
-            if item.content.type == .folder {
-                PlaylistFolderCollageView(folderID: item.content.id)
-                    .overlay {
-                        LinearGradient(colors: [.black.opacity(0.55), .clear, .clear], startPoint: .bottom, endPoint: .top)
-                    }
-                    .overlay(alignment: .bottomLeading) {
-                        VStack(alignment: .leading) {
-                            Text(item.title)
-                                .bold()
-                            if !item.subtitle.isEmpty {
-                                Text(item.subtitle)
-                                    .opacity(0.8)
-                            }
-                        }
-                        .lineLimit(1)
-                        .foregroundStyle(.primary)
-                        .fontDesign(.rounded)
-                        .padding([.horizontal, .bottom], 12)
-                        .foregroundStyle(.white)
-                    }
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 20)
-            } else {
-                // Cards top out at 200pt in the grid and ~250pt in the three-up rows;
-                // 500 decoded ~1000px bitmaps for every visible card.
-                ContentArtworkView(content: item, showMusicSource: false, preferredSize: 250)
-                    .aspectRatio(contentMode: .fit)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                VStack(alignment: .leading) {
-                    Text(item.title)
-                        .fontWeight(.semibold)
-                    Text(item.subtitle)
-                        .opacity(0.8)
+    /// The square cover, or a folder's collage, marked as the zoom source
+    /// when the grid asked for one.
+    @ViewBuilder
+    private var cover: some View {
+        let square = Color.clear
+            .aspectRatio(1, contentMode: .fit)
+            .overlay {
+                if item.content.type == .folder {
+                    PlaylistFolderCollageView(folderID: item.content.id)
+                } else {
+                    ContentArtworkView(content: item, showMusicSource: false, preferredSize: artworkSize, cornerRadius: 0)
+                        .scaledToFill()
                 }
-                .lineLimit(1, reservesSpace: true)
-                .fontDesign(.rounded)
-                .tint(.primary)
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .clipShape(.rect(cornerRadius: 8))
+        if let zoomSource, let zoomNamespace {
+            square.zoomSource(zoomSource, in: zoomNamespace)
+        } else {
+            square
         }
     }
-    
+
     private func actions() {
         if !hideAction {
             switch item.content.type {

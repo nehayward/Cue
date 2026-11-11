@@ -280,8 +280,9 @@ extension AppleLibraryItem {
         return PlayableContent(
             title: name,
             subtitle:  [attributes.artistName, attributes.releaseDateFormatted].compactMap{ $0 }.joined(separator: " • "),
-            thumbnail: attributes.artwork?.urlWithSize(width: 100, height: 100),
-            artwork: attributes.artwork?.urlWithSize(width: 600, height: 600),
+            // The item's own, else its catalog item's (a library artist's).
+            thumbnail: artwork?.urlWithSize(width: 100, height: 100),
+            artwork: artwork?.urlWithSize(width: 600, height: 600),
             content: MediaContent(
                 service: .apple,
                 id: id.description,
@@ -296,7 +297,10 @@ extension AppleLibraryItem {
                 popularity: 50,
                 artist: attributes.artistName,
                 album: attributes.albumName,
-                isExplicit: attributes.contentRating == "explicit"
+                isExplicit: attributes.contentRating == "explicit",
+                // A favorite reads as a rating above zero, as Plex's and
+                // Subsonic's do; nil where Apple didn't say.
+                userRating: attributes.inFavorites.map { $0 ? 1 : 0 }
             )
         )
     }

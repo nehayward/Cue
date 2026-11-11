@@ -146,12 +146,13 @@ struct PlayableContentView: View {
 
                         Spacer(minLength: 0)
 
-                        // Both self-hosted services carry favorite state on
-                        // the row itself — Plex as a rating, Subsonic as the
-                        // starred date — so neither needs a fetch to know.
-                        if item.content.service == .plex || item.content.service == .subsonic,
+                        // Plex, Subsonic and Apple Music's library carry
+                        // favorite state on the row itself (a rating, the
+                        // starred date, `inFavorites`), so none needs a fetch
+                        // to know. Apple's is a star, as in the Music app.
+                        if [.plex, .subsonic, .apple].contains(item.content.service),
                            (favoriteRatingCache.ratings[item.id] ?? item.metadata?.userRating ?? 0) > 0 {
-                            Image(systemName: "heart.fill")
+                            Image(systemName: item.content.service == .apple ? "star.fill" : "heart.fill")
                                 .foregroundStyle(item.content.service.brandColor)
                                 .font(.caption2)
                         }

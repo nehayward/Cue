@@ -291,8 +291,9 @@ public final class PlexBrowseService {
         keep()
     }
     
-    public func artists(offset: Int? = 0) async -> [PlayableContent]  {
-        let artists = await plexAPI.artists(offset: offset ?? 0)
+    /// A page of artists, sorted on the server as albums are.
+    public func artists(offset: Int? = 0, sort: PlexAlbumSort = .title, reversed: Bool = false) async -> [PlayableContent]  {
+        let artists = await plexAPI.artists(sort: sort, reversed: reversed, offset: offset ?? 0)
         return artists.compactMap(\.toPlayable)
     }
     

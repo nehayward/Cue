@@ -8,6 +8,7 @@ enum AppleLibrarySection: String, Codable, CaseIterable {
     case albums
     case songs
     case playlistFolders
+    case favorites
     case playlists
     case recentlyPlayed
     case recentlyAdded
@@ -204,6 +205,7 @@ final class SectionConfigurationStores {
             (.albums, "Albums", "Apple Music"),
             (.songs, "Songs", "Apple Music"),
             (.playlistFolders, "Playlist Folders", "Apple Music"),
+            (.favorites, "Favorites", "Apple Music"),
             (.playlists, "Playlists", "Apple Music"),
             (.recentlyPlayed, "Recently Played", "Apple Music"),
             (.recentlyAdded, "Recently Added", "Apple Music"),

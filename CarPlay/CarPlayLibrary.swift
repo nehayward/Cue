@@ -153,7 +153,7 @@ enum CarPlayLibrary {
             let apple = AppleMusicBrowseService.shared
             return {
                 await collect(limit: recentLimit) { offset in
-                    await apple.libraryAlbums(offset: offset, sort: .recentlyAdded, descending: true)
+                    await apple.libraryAlbums(offset: offset, sort: .dateAdded, descending: true)
                 }
             }
         case (.apple, .albums):

@@ -1865,6 +1865,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // `-AudiobookAudit <title>`: what a Plex book's server and files
         // hold about its chapters.
         AudiobookAudit.startIfRequested()
+        // `-AppleLibraryAudit YES`: the Apple Music library's lists, every
+        // pick and order, read and logged.
+        AppleLibraryAudit.startIfRequested()
         #if os(iOS)
         // Cue's log as a file the Mac can copy off the phone. Not on the
         // Mac, whose console goes to a file already (`Scripts/mac-logs.sh`):

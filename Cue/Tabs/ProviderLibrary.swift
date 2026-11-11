@@ -81,23 +81,13 @@ struct ProviderLibrary {
 
         switch collection {
         case .artists:
-            return .playableLibraryList(title: "Artists", items: items.userArtists, action: { offset in
-                await apple.updateUsersAppleArtists(offset: offset)
-            })
+            return .appleLibrary(.artists)
         case .albums:
-            return .playableList(
-                title: "Albums",
-                // Off, as on the other paged libraries: the index would only
-                // reach the pages already loaded.
-                showSectionIndex: false,
-                allowsGrid: true,
-                sortOptions: AppleLibraryLists.albumSortOptions(browseService: apple),
-                sortKey: AppleLibraryLists.albumSortKey
-            )
+            return .appleLibrary(.albums)
         case .songs:
-            return .playableLibraryList(title: "Songs", items: items.userSongs, action: { _ in
-                await apple.updateUsersAppleSongs()
-            })
+            return .appleLibrary(.songs)
+        case .favorites:
+            return .appleLibrary(.favorites)
         case .playlists:
             return .playableGridScreen(title: "Playlists", items: items.userPlaylists, action: { offset in
                 await apple.updateUsersApplePlaylists(offset: offset)
@@ -396,8 +386,13 @@ struct ProviderLibrary {
         case .artists:
             return .playableList(
                 title: "Artists",
-                refreshAction: PlexLibraryLists.serverListRefresh(musicSearchService: musicSearchService),
-                action: { offset in await plex.artists(offset: offset) }
+                // Off, as on Albums: the index re-buckets the list A–Z by
+                // title, which silently undoes every sort but Title.
+                showSectionIndex: false,
+                allowsGrid: true,
+                sortOptions: PlexLibraryLists.artistSortOptions(plexBrowseService: plex),
+                sortKey: PlexLibraryLists.artistSortKey,
+                refreshAction: PlexLibraryLists.serverListRefresh(musicSearchService: musicSearchService)
             )
         case .albums:
             return .playableList(

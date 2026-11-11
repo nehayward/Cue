@@ -21,6 +21,18 @@ final class PlexAlbumSortTests: XCTestCase {
         XCTAssertEqual(PlexAlbumSort.recentlyAdded.queryValue(reversed: true), "addedAt:asc,titleSort:asc")
     }
 
+    func testPlaysAndFavoritesStartWithTheMost() {
+        XCTAssertEqual(PlexAlbumSort.playCount.queryValue(reversed: false), "viewCount:desc,titleSort:asc")
+        XCTAssertEqual(PlexAlbumSort.lastPlayed.queryValue(reversed: false), "lastViewedAt:desc,titleSort:asc")
+        XCTAssertEqual(PlexAlbumSort.favorites.queryValue(reversed: false), "userRating:desc,titleSort:asc")
+        XCTAssertFalse(PlexAlbumSort.favorites.isReversible)
+    }
+
+    func testArtistsHaveNoArtistOrYear() {
+        XCTAssertFalse(PlexAlbumSort.artistSorts.contains(.artist))
+        XCTAssertFalse(PlexAlbumSort.artistSorts.contains(.year))
+    }
+
     func testEveryOrderHasALabelForBothDirections() {
         for sort in PlexAlbumSort.allCases {
             XCTAssertFalse(sort.label.isEmpty)

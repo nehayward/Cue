@@ -1,15 +1,22 @@
 import Foundation
 
-/// How a list of Plex albums is ordered. Every case is a Plex `sort` field,
-/// so the server does the ordering and each page arrives already in it —
-/// reversing works on the whole library, not the page in front of you.
+/// How a list of Plex albums, or artists, is ordered. Every case is a Plex
+/// `sort` field, so the server does the ordering and each page arrives
+/// already in it — reversing works on the whole library, not the page in
+/// front of you.
 public enum PlexAlbumSort: String, CaseIterable, Sendable, Identifiable {
     case title
     case artist
     case year
     case recentlyAdded
+    case playCount
+    case lastPlayed
+    case favorites
 
     public var id: String { rawValue }
+
+    /// The orders an artist has: its own fields, with no artist or year.
+    public static let artistSorts: [PlexAlbumSort] = [.title, .recentlyAdded, .playCount, .lastPlayed, .favorites]
 
     public var label: String {
         switch self {
@@ -17,29 +24,55 @@ public enum PlexAlbumSort: String, CaseIterable, Sendable, Identifiable {
         case .artist: "Artist"
         case .year: "Year"
         case .recentlyAdded: "Recently Added"
+        case .playCount: "Play Count"
+        case .lastPlayed: "Last Played"
+        case .favorites: "Favorites"
         }
     }
 
-    /// The direction this order reads best in first — newest first for a
-    /// date, A–Z for anything named.
+    /// Favorites has no meaningful opposite — "least favorite first" is
+    /// just the rest of the library — so it offers no direction toggle, as
+    /// on Songs.
+    public var isReversible: Bool { self != .favorites }
+
+    /// The direction this order reads best in first — newest and
+    /// most-played first, A–Z for anything named.
     public var naturallyDescending: Bool {
         switch self {
         case .title, .artist: false
-        case .year, .recentlyAdded: true
+        case .year, .recentlyAdded, .playCount, .lastPlayed, .favorites: true
         }
     }
 
     public var ascendingLabel: String {
         switch self {
         case .title, .artist: "A – Z"
-        case .year, .recentlyAdded: "Newest First"
+        case .year, .recentlyAdded, .lastPlayed: "Newest First"
+        case .playCount: "Most Played"
+        case .favorites: "Favorites First"
         }
     }
 
     public var descendingLabel: String {
         switch self {
         case .title, .artist: "Z – A"
-        case .year, .recentlyAdded: "Oldest First"
+        case .year, .recentlyAdded, .lastPlayed: "Oldest First"
+        case .playCount: "Least Played"
+        case .favorites: "Favorites Last"
+        }
+    }
+
+    /// Plex's sort field. Favorites is a rating above zero, the same test
+    /// FavoriteMenuButton makes: Plex has no favorite flag of its own.
+    private var field: String {
+        switch self {
+        case .title: "titleSort"
+        case .artist: "artist.titleSort"
+        case .year: "year"
+        case .recentlyAdded: "addedAt"
+        case .playCount: "viewCount"
+        case .lastPlayed: "lastViewedAt"
+        case .favorites: "userRating"
         }
     }
 
@@ -52,9 +85,7 @@ public enum PlexAlbumSort: String, CaseIterable, Sendable, Identifiable {
         let direction = naturallyDescending != reversed ? "desc" : "asc"
         switch self {
         case .title: return "titleSort:\(direction)"
-        case .artist: return "artist.titleSort:\(direction),titleSort:asc"
-        case .year: return "year:\(direction),titleSort:asc"
-        case .recentlyAdded: return "addedAt:\(direction),titleSort:asc"
+        default: return "\(field):\(direction),titleSort:asc"
         }
     }
 }

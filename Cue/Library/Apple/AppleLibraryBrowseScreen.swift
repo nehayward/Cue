@@ -53,6 +53,12 @@ struct AppleLibraryBrowseScreen: View {
             }
             .withAppRouter()
             .toolbar {
+                // In the bar while the page reads, not over its sections.
+                if isLoading {
+                    ToolbarItem(placement: .primaryAction) {
+                        ProgressView()
+                    }
+                }
                 // The gear every provider's browse screen has; this one was
                 // missed when they got it.
                 ToolbarItem(placement: .topBarLeading) {
@@ -89,13 +95,6 @@ struct AppleLibraryBrowseScreen: View {
             }
 #endif
         }
-        .overlay {
-            if isLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .listRowBackground(Color.clear)
-            }
-        }
         .environment(router)
         .withSheetDestinations(sheetDestinations: $router.presentedSheet) {
             Task {
@@ -110,30 +109,26 @@ struct AppleLibraryBrowseScreen: View {
         
         switch section {
         case .artists:
-            NavigationLink(value: RouterDestination.playableLibraryList(title: "Artists", items: $appleMusicBrowseService.userArtists, action: { offset in
-                await appleMusicBrowseService.updateUsersAppleArtists(offset: offset)
-            })) {
+            NavigationLink(value: RouterDestination.appleLibrary(.artists)) {
                 Label("Artists", systemImage: "music.mic")
                     .foregroundStyle(.primary)
             }
         case .albums:
-            NavigationLink(value: RouterDestination.playableList(
-                title: "Albums",
-                // Off, as on the other paged libraries: the index would
-                // only reach the pages already loaded.
-                showSectionIndex: false,
-                allowsGrid: true,
-                sortOptions: AppleLibraryLists.albumSortOptions(browseService: appleMusicBrowseService),
-                sortKey: AppleLibraryLists.albumSortKey
-            )) {
+            NavigationLink(value: RouterDestination.appleLibrary(.albums)) {
                 Label("Albums", systemImage: "smallcircle.circle.fill")
             }
             
         case .songs:
-            NavigationLink(value: RouterDestination.playableLibraryList(title: "Songs", items: $appleMusicBrowseService.userSongs, action: { offset in
-                await appleMusicBrowseService.updateUsersAppleSongs()
-            })) {
+            NavigationLink(value: RouterDestination.appleLibrary(.songs)) {
                 Label("Songs", systemImage: "music.note")
+            }
+
+        case .favorites:
+            // A row like Playlist Folders', opening the favorite playlists
+            // (Favorite Songs among them), albums and artists: a grid at
+            // first, with the other lists' sort menu and list/grid button.
+            NavigationLink(value: RouterDestination.appleLibrary(.favorites)) {
+                Label("Favorites", systemImage: "star.fill")
             }
 
         case .playlistFolders:
@@ -244,15 +239,8 @@ struct AppleLibraryBrowseScreen: View {
             group.addTask {
                 await appleMusicBrowseService.updateRecommendedAlbums(offset: 0, limit: TileGrid.fillCount)
             }
-            
-            group.addTask {
-                await appleMusicBrowseService.updateUsersAppleAlbums()
-            }
-            
-            group.addTask {
-                await appleMusicBrowseService.updateUsersAppleArtists()
-            }
-            
+            // Albums, artists, songs and favorites read themselves when
+            // opened.
         }
         isLoading = false
     }

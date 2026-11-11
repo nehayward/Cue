@@ -54,6 +54,9 @@ public enum RouterDestination: Hashable, Identifiable {
     /// this pushes itself.
     case tuneInBrowse(title: String, url: URL)
     case plexCollections
+    /// The Apple Music library's albums, artists or songs, all of them or
+    /// only the favorites, or the library page's Favorites.
+    case appleLibrary(AppleLibraryList)
     case connectByIP
     /// One of Settings' own pages. Pushed by value like everything else on
     /// Settings' stack: pushed as a view, its value links (Downloaded in
@@ -125,6 +128,8 @@ public enum RouterDestination: Hashable, Identifiable {
             return "tuneInBrowse:\(url.absoluteString)"
         case .plexCollections:
             return "plexCollections"
+        case let .appleLibrary(list):
+            return "appleLibrary.\(list.rawValue)"
         case .connectByIP:
             return "connectByIP"
         case let .settingsPage(page):
@@ -192,6 +197,8 @@ public enum RouterDestination: Hashable, Identifiable {
             return true
         case (.plexCollections, .plexCollections):
             return true
+        case let (.appleLibrary(list1), .appleLibrary(list2)):
+            return list1 == list2
         case let (.settingsPage(page1), .settingsPage(page2)):
             return page1 == page2
         default:
@@ -275,6 +282,9 @@ public enum RouterDestination: Hashable, Identifiable {
             hasher.combine(url)
         case .plexCollections:
             hasher.combine("plexCollections")
+        case let .appleLibrary(list):
+            hasher.combine("appleLibrary")
+            hasher.combine(list)
         case .connectByIP:
             hasher.combine("connectByIP")
         case let .settingsPage(page):

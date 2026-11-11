@@ -47,12 +47,20 @@ struct FavoriteMenuButton: View {
                         await MusicSearchService.shared.unlikeDeezerTrack(id: contentID)
                     }
                 case .apple:
+                    // As Plex's: the row's star and the favorites lists
+                    // follow the tap, not the next read.
+                    favoriteRatingCache.set(newFavorite ? 1 : 0, for: contentID)
+                    // A row from MusicKit has the device's id, which Apple's
+                    // ratings don't know: the web's for the same item.
+                    let browse = AppleMusicBrowseService.shared
+                    let id = await browse.webLibraryID(for: item) ?? contentID
                     switch contentType {
                     case .album, .libraryAlbum:
-                        try? await AppleMusicAPI.shared.updateAlbumFavoriteStatus(albumId: contentID, favorite: newFavorite)
+                        try? await AppleMusicAPI.shared.updateAlbumFavoriteStatus(albumId: id, favorite: newFavorite)
                     default:
-                        try? await AppleMusicAPI.shared.updateFavoriteStatus(songId: contentID, favorite: newFavorite)
+                        try? await AppleMusicAPI.shared.updateFavoriteStatus(songId: id, favorite: newFavorite)
                     }
+                    browse.favoritesChanged()
                 case .plex:
                     let rating = newFavorite ? 10.0 : 0.0
                     favoriteRatingCache.set(rating, for: contentID)
@@ -94,6 +102,12 @@ struct FavoriteMenuButton: View {
             case .deezer:
                 isFavorite = await MusicSearchService.shared.isDeezerTrackLiked(id: contentID)
             case .apple:
+                // Library items carry it (`inFavorites`, or matched to the
+                // favorites for MusicKit's rows); others ask.
+                if let known = favoriteRatingCache.ratings[contentID] ?? item.metadata?.userRating {
+                    isFavorite = known > 0
+                    return
+                }
                 switch contentType {
                 case .album, .libraryAlbum:
                     isFavorite = (try? await AppleMusicAPI.shared.isAlbumFavorite(albumId: contentID)) ?? false

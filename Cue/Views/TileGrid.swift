@@ -28,7 +28,7 @@ struct TileGrid: View {
         // and its tiles keep their size (`TwoRowGrid`).
         TwoRowGrid(minimumTileWidth: 140, spacing: 12, rowSpacing: 16, fillsWidth: !usesPadLayout) {
             ForEach(items) { item in
-                PlayableCardView(item: item, artworkSize: 180, isTile: true, tileShowsSubtitle: showsSubtitle)
+                PlayableCardView(item: item, artworkSize: 180, tileShowsSubtitle: showsSubtitle)
             }
         }
         .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 12, trailing: 16))

@@ -575,22 +575,11 @@ public final class PlexAPI {
         return sort?.sort(playlists, reversed: reversed) ?? playlists
     }
     
-    public enum AlbumSortOrder {
-        case titleAscending
-        case titleDescending
-        
-        var queryValue: String {
-            switch self {
-            case .titleAscending:
-                return "titleSort:asc"
-            case .titleDescending:
-                return "titleSort:desc"
-            }
-        }
-    }
-    
+    /// A page of the library's artists in `sort`'s order (only the sorts
+    /// an artist has: `PlexAlbumSort.artistSorts`).
     public func artists(
-        sortOrder: AlbumSortOrder = .titleAscending,
+        sort: PlexAlbumSort = .title,
+        reversed: Bool = false,
         offset: Int = 0,
         limit: Int = 100
     ) async -> [PlexMetadata] {
@@ -615,7 +604,7 @@ public final class PlexAPI {
         
         let queryItems: [URLQueryItem] = [
             URLQueryItem(name: "type", value: "8"),
-            URLQueryItem(name: "sort", value: sortOrder.queryValue),
+            URLQueryItem(name: "sort", value: sort.queryValue(reversed: reversed)),
             URLQueryItem(name: "X-Plex-Container-Size", value: "\(limit)"),
             URLQueryItem(name: "X-Plex-Container-Start", value: "\(offset)")
         ]

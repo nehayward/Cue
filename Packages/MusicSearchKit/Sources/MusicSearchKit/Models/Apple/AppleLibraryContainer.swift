@@ -10,6 +10,23 @@ public struct AppleLibraryContainer: Codable {
         self.meta = meta
         self.next = next
     }
+
+    /// Where the next page starts, read from `next`'s `offset`; nil on the
+    /// last page. Read by name: `next` can carry other parameters after it
+    /// (`?filter%5BinFavorites%5D=true&offset=4`).
+    public var nextOffset: Int? {
+        guard let next, let components = URLComponents(string: next) else { return nil }
+        return components.queryItems?.first { $0.name == "offset" }?.value.flatMap(Int.init)
+    }
+}
+
+/// The parts of the library Cue lists from the web API, as it names them
+/// (`/v1/me/library/<rawValue>`).
+public enum AppleLibraryResource: String, Hashable, Sendable, CaseIterable {
+    case albums
+    case artists
+    case songs
+    case playlists
 }
 
 // MARK: - Radio Search Response
@@ -47,6 +64,12 @@ public struct AppleLibraryItem: Codable {
         guard let urlString = previews?.first?.url else { return nil }
         return URL(string: urlString)
     }
+
+    /// The item's artwork, else its catalog item's: a library artist has
+    /// none of its own, only through `include=catalog`.
+    public var artwork: AppleLibraryArtwork? {
+        attributes.artwork ?? relationships?.catalog?.data.first?.attributes.artwork
+    }
 }
 
 extension AppleLibraryItem {
@@ -64,6 +87,14 @@ extension AppleLibraryItem {
         public let contentRating: String?
         public let isLive: Bool?
         public let previews: [Preview]?
+        /// Whether it's one of the person's favorites. Library items carry
+        /// it only when asked for (`extend=inFavorites`).
+        public let inFavorites: Bool?
+        /// When it went into the library (library albums and playlists),
+        /// ISO 8601.
+        public let dateAdded: String?
+        /// Whether the person can change it (library playlists).
+        public let canEdit: Bool?
 
         public var releaseDateFormatted: String? {
             if let releaseDate {
@@ -79,6 +110,9 @@ extension AppleLibraryItem {
 
     public struct PlayParameters: Codable {
         public let catalogID: String?
+        /// A library playlist's id in the catalog: `pl.u-…` for a person's
+        /// own, `pl.` and a hash for a curator's.
+        public let globalId: String?
         public let id: String
         public let kind: String
     }

@@ -57,8 +57,14 @@ public final class AppleMusicAPI {
         }
     }
     
+    /// The ratings path for an album: a library album's id (`l.…`) is only
+    /// known to the library's ratings, a catalog album's to the catalog's.
+    private func albumRatingsPath(_ albumId: String) -> String {
+        albumId.hasPrefix("l.") ? "library-albums" : "albums"
+    }
+
     public func updateAlbumFavoriteStatus(albumId: String, favorite: Bool) async throws {
-        let ratingURL = URL(string: "https://api.music.apple.com/v1/me/ratings/albums/\(albumId)")!
+        let ratingURL = URL(string: "https://api.music.apple.com/v1/me/ratings/\(albumRatingsPath(albumId))/\(albumId)")!
         var ratingRequest = URLRequest(url: ratingURL)
         if favorite {
             ratingRequest.httpMethod = "PUT"
@@ -67,7 +73,8 @@ public final class AppleMusicAPI {
         } else {
             ratingRequest.httpMethod = "DELETE"
         }
-        if favorite {
+        // A library album is in the library already.
+        if favorite, !albumId.hasPrefix("l.") {
             let libraryURL = URL(string: "https://api.music.apple.com/v1/me/library?ids[albums]=\(albumId)")!
             var libraryRequest = URLRequest(url: libraryURL)
             libraryRequest.httpMethod = "POST"
@@ -77,7 +84,7 @@ public final class AppleMusicAPI {
     }
 
     public func isAlbumFavorite(albumId: String) async throws -> Bool {
-        let url = URL(string: "https://api.music.apple.com/v1/me/ratings/albums?ids=\(albumId)")!
+        let url = URL(string: "https://api.music.apple.com/v1/me/ratings/\(albumRatingsPath(albumId))?ids=\(albumId)")!
         let request = MusicDataRequest(urlRequest: URLRequest(url: url))
         guard let response = try? await request.response() else { return false }
         struct RatingResponse: Codable { let data: [RatingItem] }
@@ -193,7 +200,8 @@ public final class AppleMusicAPI {
         guard await requestMusicAuthorization() else { return nil }
 
         var urlComponents = URLComponents(string: "https://api.music.apple.com/v1/me/library/playlists")!
-        var queryItems = [URLQueryItem(name: "offset", value: String(offset))]
+        // Each saying whether it's a favorite, for the star on its tile.
+        var queryItems = [URLQueryItem(name: "offset", value: String(offset)), URLQueryItem(name: "extend", value: "inFavorites")]
         if let limit {
             queryItems.append(URLQueryItem(name: "limit", value: String(limit)))
         }
@@ -248,44 +256,64 @@ public final class AppleMusicAPI {
         }
     }
 
-    public func getUserArtists(offset: Int = 0) async throws -> [AppleLibraryItem] {
-        guard await requestMusicAuthorization() else { return [] }
-
-        let playlistsURL = URL(string: "https://api.music.apple.com/v1/me/library/artists?limit=100&offset=\(offset)&extend=attributes")!
-        let request = MusicDataRequest(urlRequest: .init(url: playlistsURL))
-        let response = try? await request.response()
-        guard let data = response?.data else { return [] }
-        do {
-            let appleUserPlaylistContainer = try decoder.decode(AppleLibraryContainer.self, from: data)
-            return appleUserPlaylistContainer.data
-        } catch {
-            print(error)
-            print(String(decoding: response!.data, as: UTF8.self))
-            return []
-        }
-    }
-
-    public func getUserAlbums(offset: Int = 0) async throws -> AppleLibraryContainer? {
+    /// A page of the person's library from the web API, alphabetical, each
+    /// item saying whether it's a favorite (`inFavorites`, `extend`ed:
+    /// library items leave it out otherwise).
+    ///
+    /// `favoritesOnly` has Apple leave out everything else
+    /// (`filter[inFavorites]=true`). The reference lists `inFavorites` as an
+    /// attribute but not the filter; checked against a real library on
+    /// 2026-11-10 for albums, songs, artists and playlists: it gives only the
+    /// favorites, pages with `next` as usual and has no `meta.total`, and
+    /// `=false` is an error rather than "all but the favorites".
+    ///
+    /// Artists and songs include their catalog item: a library artist has
+    /// no artwork of its own, and a library song no preview. Nil when the
+    /// read failed, so a caller can tell that from an empty list.
+    public func getLibrary(_ resource: AppleLibraryResource, offset: Int = 0, limit: Int = 100, favoritesOnly: Bool = false) async -> AppleLibraryContainer? {
         guard await requestMusicAuthorization() else { return nil }
 
-        let playlistsURL = URL(string: "https://api.music.apple.com/v1/me/library/albums?offset=\(offset)&limit=25")!
-        let request = MusicDataRequest(urlRequest: .init(url: playlistsURL))
-        let response = try? await request.response()
-        guard let data = response?.data else { return nil }
-        do {
-            let appleUserPlaylistContainer = try decoder.decode(AppleLibraryContainer.self, from: data)
-            return appleUserPlaylistContainer
-        } catch {
-            return nil
+        var components = URLComponents(string: "https://api.music.apple.com/v1/me/library/\(resource.rawValue)")!
+        var queryItems = [
+            URLQueryItem(name: "offset", value: String(offset)),
+            URLQueryItem(name: "limit", value: String(limit)),
+            URLQueryItem(name: "extend", value: "inFavorites"),
+        ]
+        if favoritesOnly {
+            queryItems.append(URLQueryItem(name: "filter[inFavorites]", value: "true"))
         }
+        if resource == .artists || resource == .songs {
+            queryItems.append(URLQueryItem(name: "include", value: "catalog"))
+        }
+        components.queryItems = queryItems
+        guard let url = components.url,
+              let response = try? await MusicDataRequest(urlRequest: URLRequest(url: url)).response() else { return nil }
+        return try? decoder.decode(AppleLibraryContainer.self, from: response.data)
     }
-    
+
+    /// A page of a library playlist's tracks, each saying whether it's a
+    /// favorite, as `getLibrary`'s songs.
+    public func getLibraryPlaylistTracks(id: String, offset: Int = 0, limit: Int = 100) async -> AppleLibraryContainer? {
+        guard await requestMusicAuthorization() else { return nil }
+
+        var components = URLComponents(string: "https://api.music.apple.com/v1/me/library/playlists/\(id)/tracks")!
+        components.queryItems = [
+            URLQueryItem(name: "offset", value: String(offset)),
+            URLQueryItem(name: "limit", value: String(limit)),
+            URLQueryItem(name: "extend", value: "inFavorites"),
+            URLQueryItem(name: "include", value: "catalog"),
+        ]
+        guard let url = components.url,
+              let response = try? await MusicDataRequest(urlRequest: URLRequest(url: url)).response() else { return nil }
+        return try? decoder.decode(AppleLibraryContainer.self, from: response.data)
+    }
+
     /// A page of the user's library albums in the requested order, from
     /// MusicKit's index of the library rather than the web API: the web
     /// API's `/me/library/albums` takes no sort, so an order other than its
     /// own would mean fetching the whole library first.
     public func libraryAlbums(
-        sort: AppleLibraryAlbumSort = .title,
+        sort: AppleLibrarySort = .title,
         descending: Bool = false,
         offset: Int = 0,
         limit: Int = 100
@@ -294,17 +322,81 @@ public final class AppleMusicAPI {
 
         var request = MusicLibraryRequest<Album>()
         switch sort {
-        case .title:
+        case .title, .album:
             request.sort(by: \.title, ascending: !descending)
         case .artist:
             request.sort(by: \.artistName, ascending: !descending)
-        case .recentlyAdded:
+        case .releaseDate:
+            request.sort(by: \.releaseDate, ascending: !descending)
+        case .dateAdded:
             request.sort(by: \.libraryAddedDate, ascending: !descending)
         }
         request.limit = limit
         request.offset = offset
         let response = try await request.response()
         return Array(response.items)
+    }
+
+    /// A page of the library's songs in the requested order, from MusicKit's
+    /// index of the library, as `libraryAlbums(sort:)`. Its ids are the
+    /// device's own, the ones `ApplicationMusicPlayer` plays (a downloaded
+    /// copy offline too). MusicKit doesn't sort songs by release date
+    /// (`librarySongReleaseDates` is for that); asked for it, this gives
+    /// them by title.
+    public func librarySongs(
+        sort: AppleLibrarySort = .title,
+        descending: Bool = false,
+        offset: Int = 0,
+        limit: Int = 100
+    ) async throws -> [Song] {
+        guard await requestMusicAuthorization() else { return [] }
+
+        var request = MusicLibraryRequest<Song>()
+        switch sort {
+        case .title, .releaseDate, .dateAdded:
+            request.sort(by: \.title, ascending: !descending)
+        case .artist:
+            request.sort(by: \.artistName, ascending: !descending)
+        case .album:
+            request.sort(by: \.albumTitle, ascending: !descending)
+        }
+        request.limit = limit
+        request.offset = offset
+        let response = try await request.response()
+        return Array(response.items)
+    }
+
+    /// Every library song's id and release date, in title order, for the
+    /// one song order MusicKit can't give. Read a thousand at a time and
+    /// kept as just those two, not the songs: ten thousand `Song`s are a
+    /// lot to hold for a sort. Nil when a read failed.
+    public func librarySongReleaseDates() async -> [(id: String, released: Date?)]? {
+        guard await requestMusicAuthorization() else { return nil }
+
+        var dates: [(id: String, released: Date?)] = []
+        let pageSize = 1000
+        while !Task.isCancelled {
+            var request = MusicLibraryRequest<Song>()
+            request.sort(by: \.title, ascending: true)
+            request.limit = pageSize
+            request.offset = dates.count
+            guard let page = try? await request.response().items else { return nil }
+            dates += page.map { (id: $0.id.rawValue, released: $0.releaseDate) }
+            guard page.count == pageSize else { return dates }
+        }
+        return nil
+    }
+
+    /// Library songs by MusicKit id, in the order asked for; an id MusicKit
+    /// doesn't have is left out.
+    public func librarySongs(ids: [String]) async -> [Song] {
+        guard !ids.isEmpty, await requestMusicAuthorization() else { return [] }
+        var request = MusicLibraryRequest<Song>()
+        request.filter(matching: \.id, memberOf: ids.map { MusicItemID($0) })
+        request.limit = ids.count
+        guard let songs = try? await request.response().items else { return [] }
+        let byID = Dictionary(songs.map { ($0.id.rawValue, $0) }, uniquingKeysWith: { first, _ in first })
+        return ids.compactMap { byID[$0] }
     }
 
     /// The web API's rows for library albums by id, in chunks. The rows
@@ -333,21 +425,6 @@ public final class AppleMusicAPI {
                 items.append(contentsOf: chunk)
             }
             return items
-        }
-    }
-
-    public func getUserSongs(offset: Int = 0) async throws -> AppleLibraryContainer? {
-        guard await requestMusicAuthorization() else { return nil }
-
-        let playlistsURL = URL(string: "https://api.music.apple.com/v1/me/library/songs?offset=\(offset)&limit=25&include=catalog")!
-        let request = MusicDataRequest(urlRequest: .init(url: playlistsURL))
-        let response = try? await request.response()
-        guard let data = response?.data else { return nil }
-        do {
-            let appleUserPlaylistContainer = try decoder.decode(AppleLibraryContainer.self, from: data)
-            return appleUserPlaylistContainer
-        } catch {
-            return nil
         }
     }
 
@@ -759,10 +836,18 @@ public final class AppleMusicAPI {
         return Array(songs.prefix(limit))
     }
 
-    public func librarySearch(term: String) async throws -> AppleLibrarySearchContainer? {
+    public func librarySearch(term: String, types: String = "library-albums,library-artists,library-playlists,library-songs") async throws -> AppleLibrarySearchContainer? {
         guard await requestMusicAuthorization() else { return nil }
 
-        let librarySongURL = URL(string: "https://api.music.apple.com/v1/me/library/search?term=\(term)&types=library-albums,library-artists,library-playlists,library-songs&limit=25")!
+        // Encoded as a query item: a title with an "&" or a "#" in it cut
+        // the address short.
+        var components = URLComponents(string: "https://api.music.apple.com/v1/me/library/search")!
+        components.queryItems = [
+            URLQueryItem(name: "term", value: term),
+            URLQueryItem(name: "types", value: types),
+            URLQueryItem(name: "limit", value: "25"),
+        ]
+        guard let librarySongURL = components.url else { return nil }
         let request = MusicDataRequest(urlRequest: .init(url: librarySongURL))
         let response = try? await request.response()
         

@@ -26,16 +26,32 @@ enum PlexLibraryLists {
     }
 
     /// The Albums list's sort menu. Plex sorts albums on the server as it
-    /// does songs, so every order pages in already sorted and every one
-    /// can be flipped.
+    /// does songs, so every order pages in already sorted and every one but
+    /// Favorites can be flipped.
     static func albumSortOptions(plexBrowseService: PlexBrowseService) -> [PlayableListSort] {
-        PlexAlbumSort.allCases.map { sort in
+        sortOptions(PlexAlbumSort.allCases) { offset, sort, reversed in
+            await plexBrowseService.updateUserAlbums(offset: offset, sort: sort, reversed: reversed)
+        }
+    }
+
+    /// The Artists list's: the same server-side orders, those an artist has
+    /// fields for (`PlexAlbumSort.artistSorts`).
+    static func artistSortOptions(plexBrowseService: PlexBrowseService) -> [PlayableListSort] {
+        sortOptions(PlexAlbumSort.artistSorts) { offset, sort, reversed in
+            await plexBrowseService.artists(offset: offset, sort: sort, reversed: reversed)
+        }
+    }
+
+    private static func sortOptions(_ sorts: [PlexAlbumSort], load: @escaping (Int, PlexAlbumSort, Bool) async -> [PlayableContent]) -> [PlayableListSort] {
+        sorts.map { sort in
             PlayableListSort(
                 name: sort.label,
-                ascendingLabel: sort.ascendingLabel,
-                descendingLabel: sort.descendingLabel
+                // Nil for an order with no meaningful opposite, which is
+                // how the menu knows to leave the direction picker out.
+                ascendingLabel: sort.isReversible ? sort.ascendingLabel : nil,
+                descendingLabel: sort.isReversible ? sort.descendingLabel : nil
             ) { offset, reversed in
-                await plexBrowseService.updateUserAlbums(offset: offset, sort: sort, reversed: reversed)
+                await load(offset, sort, reversed)
             }
         }
     }
@@ -101,4 +117,5 @@ enum PlexLibraryLists {
     /// Subsonic has a "Songs" too.
     static let songSortKey = "plex.songs"
     static let albumSortKey = "plex.albums"
+    static let artistSortKey = "plex.artists"
 }

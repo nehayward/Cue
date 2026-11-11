@@ -67,10 +67,10 @@ struct PlexBrowseScreen: View {
                     NavigationLink(value: RouterDestination.playableList(
                         title: "Artists",
                         showSectionIndex: false,
-                        refreshAction: serverListRefresh,
-                        action: { offset in
-                            await plexBrowseService.artists(offset: offset)
-                        }
+                        allowsGrid: true,
+                        sortOptions: PlexLibraryLists.artistSortOptions(plexBrowseService: plexBrowseService),
+                        sortKey: PlexLibraryLists.artistSortKey,
+                        refreshAction: serverListRefresh
                     )) {
                         Label("Artists", systemImage: "music.mic")
                     }

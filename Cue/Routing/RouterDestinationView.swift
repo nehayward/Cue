@@ -82,6 +82,9 @@ struct RouterDestinationView: View {
                     playAllItem: playAllItem,
                     showSectionIndex: showSectionIndex,
                     allowsGrid: allowsGrid,
+                    // Rows or grid, remembered per list under the same
+                    // name as its sort.
+                    layoutStorageKey: allowsGrid ? (sortKey ?? title) : nil,
                     sortOptions: sortOptions,
                     // Titles repeat across services — Plex and Subsonic
                     // both have a "Songs" — so a list with its own sort
@@ -93,7 +96,6 @@ struct RouterDestinationView: View {
                     changeToken: changeToken,
                     action: action
                 )
-                .navigationTitle(title)
             case let .playableGridScreen(title: title, items: items, sort: sort, action: action):
                 PlayableGridScreen(items: items, sort: sort, action: action)
                     .navigationTitle(title)
@@ -129,6 +131,8 @@ struct RouterDestinationView: View {
                 }
             case let .tuneInBrowse(title: title, url: url):
                 TuneInBrowseScreen(title: title, url: url)
+            case let .appleLibrary(list):
+                AppleLibraryListScreen(list: list)
             case .plexCollections:
                 PlexCollectionsScreen()
             case .connectByIP:

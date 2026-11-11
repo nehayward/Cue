@@ -9,6 +9,8 @@ enum ProviderCollection: String, CaseIterable, Hashable, Codable {
     case songs
     case playlists
     case playlistFolders
+    /// Apple Music's favorite playlists, albums and artists.
+    case favorites
     case recentlyPlayed
     case recentlyAdded
     case recommendedAlbums
@@ -32,6 +34,7 @@ enum ProviderCollection: String, CaseIterable, Hashable, Codable {
         case .songs: "Songs"
         case .playlists: "Playlists"
         case .playlistFolders: "Playlist Folders"
+        case .favorites: "Favorites"
         case .recentlyPlayed: "Recently Played"
         case .recentlyAdded: "Recently Added"
         case .recommendedAlbums: "Recommended Albums"
@@ -55,6 +58,7 @@ enum ProviderCollection: String, CaseIterable, Hashable, Codable {
         case .songs, .likedSongs, .favoriteTracks: "music.note"
         case .playlists, .importedPlaylists, .savedPlaylists: "rectangle.stack.badge.play"
         case .playlistFolders, .folders: "folder"
+        case .favorites: "star"
         case .recentlyPlayed: "clock.arrow.circlepath"
         case .recentlyAdded: "clock"
         case .personalStations: "dot.radiowaves.left.and.right"
@@ -73,7 +77,7 @@ extension MediaSearchService {
     var tabCollections: [ProviderCollection] {
         switch self {
         case .apple:
-            [.artists, .albums, .songs, .playlists, .playlistFolders, .recentlyPlayed, .recentlyAdded, .recommendedAlbums, .personalStations]
+            [.artists, .albums, .songs, .playlists, .playlistFolders, .favorites, .recentlyPlayed, .recentlyAdded, .recommendedAlbums, .personalStations]
         case .spotify:
             [.likedSongs, .albums, .playlists]
         case .soundcloud:

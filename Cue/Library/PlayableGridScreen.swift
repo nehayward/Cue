@@ -51,13 +51,13 @@ struct PlayableGridScreen: View {
     /// Nil for a grid with a single fixed order — no menu is shown then.
     var sort: PlayableGridSort? = nil
     var action: ((Int) async -> ())? = nil
-    private let adaptiveColumn = [GridItem(.adaptive(minimum: 120, maximum: 200), spacing: 16), GridItem(.adaptive(minimum: 120, maximum: 200), spacing: 16)]
 
     /// When this grid is showing a service's playlists, the service to create a new playlist on —
-    /// only services that can create an empty playlist.
+    /// only services that can create an empty playlist. Every tile a playlist, not just the
+    /// first: a mixed grid (Recently Played) with a playlist on top offered New Playlist.
     private var createPlaylistService: MusicService? {
         guard let service = items.first?.content.service,
-              items.first?.content.type.isPlaylist == true,
+              items.allSatisfy(\.content.type.isPlaylist),
               MusicSearchService.supportsEmptyPlaylistCreation(service) else { return nil }
         return service
     }
@@ -69,11 +69,8 @@ struct PlayableGridScreen: View {
         let _ = (sortName, isSortReversed)
 
         ScrollView {
-            LazyVGrid(columns: adaptiveColumn, spacing: 16) {
-                ForEach(items) { item in
-                    PlayableCardView(item: item)
-                        .onAppear { loadMoreIfNeeded(after: item) }
-                }
+            PlayableGrid(items: Array(items)) { item in
+                loadMoreIfNeeded(after: item)
             }
 
             // TODO: Improve

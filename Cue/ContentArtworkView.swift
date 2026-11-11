@@ -29,6 +29,13 @@ struct ContentArtworkView: View {
         content.content.type.isArtist || content.content.type == .artistRadio
     }
     
+    /// The picture found by name, in pixels: a row's 100, else three times
+    /// the size drawn, up to 600. A grid tile drawn from the row's 100 was
+    /// blurred.
+    private var fetchedArtworkSize: Int {
+        preferredSize <= 50 ? 100 : min(Int(preferredSize * 3), 600)
+    }
+
     private var needsArtworkFetch: Bool {
         content.thumbnail == nil && content.content.type.isArtist &&
         (content.content.service == .library || content.content.service == .apple)
@@ -203,7 +210,7 @@ struct ContentArtworkView: View {
         }
         .task(id: content.id) {
             guard needsArtworkFetch, fetchedArtworkURL == nil else { return }
-            fetchedArtworkURL = await MusicSearchService.shared.appleLibraryArtistArtwork(name: content.title)
+            fetchedArtworkURL = await MusicSearchService.shared.appleLibraryArtistArtwork(name: content.title, size: fetchedArtworkSize)
         }
     }
 
