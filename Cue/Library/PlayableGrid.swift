@@ -97,12 +97,15 @@ struct ArtistGridTile: View {
                             .scaledToFill()
                     }
                     .clipShape(.circle)
-                Text(item.title)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .fontDesign(.rounded)
-                    .lineLimit(1)
-                    .frame(maxWidth: .infinity)
+                HStack(spacing: 4) {
+                    Text(item.title)
+                        .lineLimit(1)
+                    FavoriteMark(item: item)
+                }
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .fontDesign(.rounded)
+                .frame(maxWidth: .infinity)
             }
             .contentShape(.rect)
             .largeWindowHoverLift()

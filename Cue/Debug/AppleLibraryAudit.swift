@@ -10,7 +10,8 @@ import UIKit
 
 /// Reads the Apple Music library the way its lists do, every Show pick,
 /// order and direction, and logs what each gives back: how many, the first
-/// few, which carry a favorite's star and how long it took. For checking
+/// few, which carry a favorite's star and how long it took. Plex's albums
+/// and artists by Favorites first, with their ratings. For checking
 /// the lists against a real library without opening each one. Debug builds
 /// only.
 ///
@@ -39,6 +40,7 @@ enum AppleLibraryAudit {
     }
 
     private static func run() async {
+        await plexFavorites()
         let browse = AppleMusicBrowseService.shared
         log.info("start: Apple Music \(String(describing: MusicAuthorization.currentStatus), privacy: .public), held \(AppleMusicPermission.isHeld)")
         // Songs and the Favorites page first: the slowest reads, and the
@@ -60,6 +62,24 @@ enum AppleLibraryAudit {
             }
         }
         log.info("done")
+    }
+
+    /// Plex's albums and artists by Favorites (rated first), with how many
+    /// carry a rating for the heart. First, as it needs no Apple Music
+    /// access: the Mac's Debug build waits on that prompt.
+    private static func plexFavorites() async {
+        let search = MusicSearchService.shared
+        guard search.isPlexAuthorized, search.plexServerID != nil else {
+            log.info("plex: not set up")
+            return
+        }
+        let plex = PlexBrowseService.shared
+        let albums = await plex.updateUserAlbums(sort: .favorites)
+        let artists = await plex.artists(sort: .favorites)
+        for (kind, rows) in [("albums", albums), ("artists", artists)] {
+            let rated = rows.filter { ($0.metadata?.userRating ?? 0) > 0 }
+            log.info("plex \(kind, privacy: .public): \(rated.count) of \(rows.count) rated | \(rated.prefix(8).map { "\($0.title) (\($0.metadata?.userRating ?? 0))" }.joined(separator: " | "), privacy: .public)")
+        }
     }
 
     /// Every library song read, its stars counted, beside what the library's

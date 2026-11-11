@@ -27,7 +27,11 @@ public struct PlexAlbumItem: Codable {
     public var parentTitle: String?
     public var summary: String?
     public var index: Int
+    /// Plex's critic rating, not the person's: that's `userRating`.
     public var rating: Double?
+    /// The person's star rating, 0–10, absent when unrated. Cue shows any
+    /// above zero as a favorite, as for songs.
+    public var userRating: Double?
     public var viewCount: Int?
     public var skipCount: Int?
     public var lastViewedAt: Date?
@@ -57,6 +61,7 @@ public struct PlexAlbumItem: Codable {
         case summary
         case index
         case rating
+        case userRating
         case viewCount
         case skipCount
         case lastViewedAt

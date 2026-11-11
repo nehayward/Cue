@@ -804,7 +804,7 @@ extension PlexAlbumItem {
                 thumbnail: thumbImageURL?.plexResized(to: PlexImageSize.thumbnail),
                 artwork: thumbImageURL?.plexResized(to: PlexImageSize.artwork),
                 content: .init(service: .plex, id: id, type: .artist, location: nil),
-                metadata: .init(popularity: nil)
+                metadata: .init(popularity: nil, userRating: userRating)
             )
         }
         return PlayableContent(
@@ -823,7 +823,9 @@ extension PlexAlbumItem {
                 artist: parentTitle,
                 artistID: parentRatingKey,
                 album: title,
-                albumYear: nil
+                albumYear: nil,
+                // The heart on a rated album, as on a rated song.
+                userRating: userRating
             )
         )
     }

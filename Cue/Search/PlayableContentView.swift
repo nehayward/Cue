@@ -15,7 +15,6 @@ struct PlayableContentView: View {
     @Environment(PlaylistContainer.self) private var playlistsContainer: PlaylistContainer
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService?
-    @Environment(FavoriteRatingCache.self) private var favoriteRatingCache
     @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
     @State private var audioService = AudioPlaybackService.shared
 
@@ -146,16 +145,7 @@ struct PlayableContentView: View {
 
                         Spacer(minLength: 0)
 
-                        // Plex, Subsonic and Apple Music's library carry
-                        // favorite state on the row itself (a rating, the
-                        // starred date, `inFavorites`), so none needs a fetch
-                        // to know. Apple's is a star, as in the Music app.
-                        if [.plex, .subsonic, .apple].contains(item.content.service),
-                           (favoriteRatingCache.ratings[item.id] ?? item.metadata?.userRating ?? 0) > 0 {
-                            Image(systemName: item.content.service == .apple ? "star.fill" : "heart.fill")
-                                .foregroundStyle(item.content.service.brandColor)
-                                .font(.caption2)
-                        }
+                        FavoriteMark(item: item, font: .caption2)
 
                         // Kept on this device, coming down, or still in iCloud.
                         DownloadStateBadge(item: item)

@@ -13,7 +13,6 @@ import SwiftUI
 /// rest. Or, `artworkOnly`, just the cover, for a wall of artwork.
 struct PlayableCardView: View {
     @Environment(SonosService.self) private var sonosService
-    @Environment(FavoriteRatingCache.self) private var favoriteRatingCache
     @Environment(Router.self) private var router
     @Environment(ContentToAdd.self) private var adding: ContentToAdd?
     @Environment(AlertService.self) private var alertService: AlertService
@@ -56,12 +55,6 @@ struct PlayableCardView: View {
     /// kind).
     private var secondLine: String {
         item.metadata?.artist ?? item.subtitle
-    }
-
-    /// As the rows: Plex, Subsonic and the Apple Music library carry it.
-    private var isFavorite: Bool {
-        [.plex, .subsonic, .apple].contains(item.content.service)
-            && (favoriteRatingCache.ratings[item.id] ?? item.metadata?.userRating ?? 0) > 0
     }
 
     var body: some View {
@@ -139,12 +132,7 @@ struct PlayableCardView: View {
                             .foregroundStyle(.secondary)
                             .accessibilityLabel("Explicit")
                     }
-                    if isFavorite {
-                        Image(systemName: item.content.service == .apple ? "star.fill" : "heart.fill")
-                            .font(.caption)
-                            .foregroundStyle(item.content.service.brandColor)
-                            .accessibilityLabel("Favorite")
-                    }
+                    FavoriteMark(item: item)
                 }
                 if tileShowsSubtitle {
                     // Kept a line tall when empty, so a row of tiles lines up.
