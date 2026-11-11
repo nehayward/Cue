@@ -4,6 +4,9 @@ import MusicKit
 import MusicSearchKit
 import OSLog
 import SonosKit
+#if os(iOS)
+import UIKit
+#endif
 
 /// Reads the Apple Music library the way its lists do, every Show pick,
 /// order and direction, and logs what each gives back: how many, the first
@@ -23,8 +26,14 @@ enum AppleLibraryAudit {
         guard UserDefaults.standard.bool(forKey: "AppleLibraryAudit")
                 || ProcessInfo.processInfo.environment["AppleLibraryAudit"] == "1" else { return }
         Task {
+            #if os(iOS) && !targetEnvironment(macCatalyst)
+            // Keeps reading for a while if the phone is locked or Cue leaves
+            // the screen mid-audit.
+            let background = UIApplication.shared.beginBackgroundTask(withName: "AppleLibraryAudit")
+            defer { UIApplication.shared.endBackgroundTask(background) }
+            #endif
             // After the launch's own reads, and Apple Music's authorization.
-            try? await Task.sleep(for: .seconds(3))
+            try? await Task.sleep(for: .seconds(1))
             await run()
         }
     }
@@ -32,7 +41,16 @@ enum AppleLibraryAudit {
     private static func run() async {
         let browse = AppleMusicBrowseService.shared
         log.info("start: Apple Music \(String(describing: MusicAuthorization.currentStatus), privacy: .public), held \(AppleMusicPermission.isHeld)")
-        for resource in [AppleLibraryResource.albums, .artists, .songs] {
+        // Songs and the Favorites page first: the slowest reads, and the
+        // ones that only read once.
+        await songStars(browse)
+        for resource in [AppleLibraryResource.songs, .albums, .artists] {
+            if resource == .albums {
+                for sort in AppleLibraryLists.favoritesShelfSortOptions(browseService: browse) {
+                    await report("Favorites by \(sort.name)", sort: sort, descending: sort.defaultsToDescending, showsDates: true)
+                }
+                await webIDs(browse)
+            }
             for filter in AppleLibraryLists.filters(for: resource, browseService: browse) {
                 for sort in filter.sortOptions {
                     for descending in sort.isReversible ? [false, true] : [false] {
@@ -41,20 +59,38 @@ enum AppleLibraryAudit {
                 }
             }
         }
-        for sort in AppleLibraryLists.favoritesShelfSortOptions(browseService: browse) {
-            await report("Favorites by \(sort.name)", sort: sort, descending: sort.defaultsToDescending, showsDates: true)
-        }
-
-        // A MusicKit album row marked a favorite finds its web id, which
-        // its favorite button sends.
-        let albums = await browse.libraryAlbums(marksFavorites: true)
-        if let favorite = albums.first(where: { ($0.metadata?.userRating ?? 0) > 0 }) {
-            let id = await browse.webLibraryID(for: favorite)
-            log.info("web id of \(favorite.title, privacy: .public) (\(favorite.id, privacy: .public)): \(id ?? "none", privacy: .public)")
-        } else {
-            log.info("no favorite among the first page of albums")
-        }
         log.info("done")
+    }
+
+    /// Every library song read, its stars counted, beside what the library's
+    /// favorites filter says is a favorite song in the library: a star on a
+    /// song that isn't one shows as more.
+    private static func songStars(_ browse: AppleMusicBrowseService) async {
+        var songs: [PlayableContent] = []
+        while true {
+            let page = await browse.librarySongs(offset: songs.count)
+            guard !page.isEmpty else { break }
+            songs += page
+        }
+        let starred = songs.filter { ($0.metadata?.userRating ?? 0) > 0 }
+        var inLibrary = 0
+        var next: Int? = 0
+        while let offset = next, let page = await AppleMusicAPI.shared.getLibrary(.songs, offset: offset, favoritesOnly: true) {
+            inLibrary += page.data.count
+            next = page.nextOffset
+        }
+        log.info("song stars: \(starred.count) of \(songs.count) songs starred; the library filter has \(inLibrary) favorite songs | \(starred.prefix(30).map { "\($0.title) – \($0.metadata?.artist ?? "")" }.joined(separator: " | "), privacy: .public)")
+    }
+
+    /// A MusicKit row marked a favorite finds its web id, which its
+    /// favorite button sends.
+    private static func webIDs(_ browse: AppleMusicBrowseService) async {
+        let albums = await browse.libraryAlbums(marksFavorites: true)
+        let songs = await browse.librarySongs()
+        for row in [albums.first { ($0.metadata?.userRating ?? 0) > 0 }, songs.first { ($0.metadata?.userRating ?? 0) > 0 }].compactMap({ $0 }) {
+            let id = await browse.webLibraryID(for: row)
+            log.info("web id of \(row.title, privacy: .public) (\(row.id, privacy: .public)): \(id ?? "none", privacy: .public)")
+        }
     }
 
     private static func report(_ name: String, sort: PlayableListSort, descending: Bool, showsDates: Bool = false) async {

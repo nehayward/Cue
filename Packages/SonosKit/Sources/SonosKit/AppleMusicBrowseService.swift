@@ -107,33 +107,34 @@ public final class AppleMusicBrowseService {
     /// Apple's largest page.
     private let libraryPageSize = 100
 
-    /// Every library song's MusicKit id by release date, oldest first, a
-    /// song with none at the end; titles keep MusicKit's title order. Kept
-    /// five minutes, from one read of the library (`librarySongReleaseDates`).
+    /// Every library song's MusicKit id by release date, a song with none
+    /// at the end either way, and songs of one date in MusicKit's title
+    /// order. From one read of the library (`librarySongReleaseDates`), kept
+    /// five minutes, and each direction's order kept with it.
     private func songIDsByReleaseDate(descending: Bool) async -> [String]? {
-        let sorted: [(id: String, released: Date?)]
-        if let songsByRelease, songsByRelease.readAt.timeIntervalSinceNow > -300 {
-            sorted = songsByRelease.songs
-        } else {
+        if songsByRelease == nil || songsByRelease!.readAt.timeIntervalSinceNow < -300 {
             guard let dates = await apple.librarySongReleaseDates() else { return nil }
-            sorted = dates.enumerated().sorted { a, b in
-                switch (a.element.released, b.element.released) {
-                case (nil, nil): a.offset < b.offset
-                case (nil, _): false
-                case (_, nil): true
-                case let (x?, y?): x == y ? a.offset < b.offset : x < y
-                }
-            }
-            .map(\.element)
-            songsByRelease = (sorted, Date())
+            songsByRelease = (dates, Date(), [:])
         }
-        // Newest first keeps the songs with no date at the end.
-        guard descending else { return sorted.map(\.id) }
-        let dated = sorted.filter { $0.released != nil }
-        return (dated.reversed() + sorted.filter { $0.released == nil }).map(\.id)
+        guard var kept = songsByRelease else { return nil }
+        if let ordered = kept.ordered[descending] { return ordered }
+        let ordered = kept.songs.enumerated().sorted { a, b in
+            switch (a.element.released, b.element.released) {
+            case (nil, nil): a.offset < b.offset
+            case (nil, _): false
+            case (_, nil): true
+            case let (x?, y?): x == y ? a.offset < b.offset : (descending ? x > y : x < y)
+            }
+        }
+        .map(\.element.id)
+        kept.ordered[descending] = ordered
+        songsByRelease = kept
+        return ordered
     }
 
-    @ObservationIgnored private var songsByRelease: (songs: [(id: String, released: Date?)], readAt: Date)?
+    /// Every song's id and release date in title order, when it was read,
+    /// and the orders made from it, by direction.
+    @ObservationIgnored private var songsByRelease: (songs: [(id: String, released: Date?)], readAt: Date, ordered: [Bool: [String]])?
 
     // MARK: - Favorites
 
@@ -243,32 +244,56 @@ public final class AppleMusicBrowseService {
 
     // MARK: - Favorites on MusicKit's rows
 
-    /// The favorites of a kind as match keys (`favoriteKey`), or nil when
-    /// they've never been read: a row is then left saying nothing, rather
-    /// than "not a favorite". Read once a screen; the library page's
-    /// Favorites or a favorite set from a menu reads them again.
-    private func favoriteKeys(for resource: AppleLibraryResource) async -> Set<String>? {
+    /// What a row is matched to the favorites by: their ids, and their
+    /// names (`favoriteKey`) for a row whose id is the device's own.
+    private struct FavoriteMatch {
+        let ids: Set<String>
+        let names: Set<String>
+
+        func contains(_ row: PlayableContent) -> Bool {
+            if ids.contains(row.content.id) { return true }
+            // A web id the favorites don't have isn't one, though its name
+            // may be: the same song on two albums, one of them favorited.
+            guard AppleMusicBrowseService.isDeviceID(row.content.id) else { return false }
+            return names.contains(AppleMusicBrowseService.favoriteKey(row))
+        }
+    }
+
+    /// The favorites of a kind to match rows to, or nil when they've never
+    /// been read: a row is then left saying nothing, rather than "not a
+    /// favorite". Read once a screen; the library page's Favorites or a
+    /// favorite set from a menu reads them again.
+    private func favoriteKeys(for resource: AppleLibraryResource) async -> FavoriteMatch? {
         if favoriteItems[resource] == nil {
             _ = await favorites(resource)
         }
-        return favoriteItems[resource].map { Set($0.map(Self.favoriteKey)) }
+        return favoriteItems[resource].map { favorites in
+            FavoriteMatch(ids: Set(favorites.map(\.content.id)), names: Set(favorites.map(Self.favoriteKey)))
+        }
     }
 
-    /// MusicKit's ids are the device's own and the web API's favorites
-    /// carry the web's, so a MusicKit row is matched to a favorite by name:
+    /// Whether an id is MusicKit's own for this device (a long number),
+    /// which the web API doesn't know: an album's on the iPhone, an album's
+    /// and a song's on the Mac. A library song's on the iPhone is the web's
+    /// (`i.…`).
+    nonisolated static func isDeviceID(_ id: String) -> Bool {
+        !id.isEmpty && id.allSatisfy(\.isNumber)
+    }
+
+    /// A MusicKit row with the device's id is matched to a favorite by name:
     /// its title and artist, folded for case and accents. Favorites are few,
     /// and an album's or a song's title and artist are the library's own on
     /// both sides.
-    private static func favoriteKey(_ item: PlayableContent) -> String {
+    private nonisolated static func favoriteKey(_ item: PlayableContent) -> String {
         [item.title, item.metadata?.artist ?? ""]
             .map { $0.folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: nil) }
             .joined(separator: "\u{1F}")
     }
 
-    private static func markingFavorites(_ rows: [PlayableContent], keys: Set<String>?) -> [PlayableContent] {
+    private static func markingFavorites(_ rows: [PlayableContent], keys: FavoriteMatch?) -> [PlayableContent] {
         guard let keys else { return rows }
         return rows.map { row in
-            let isFavorite = keys.contains(favoriteKey(row))
+            let isFavorite = keys.contains(row)
             var row = row
             row.metadata?.userRating = isFavorite ? 1 : 0
             return row
@@ -282,11 +307,11 @@ public final class AppleMusicBrowseService {
     /// (its id is the web's already) or that can't be found.
     public func webLibraryID(for item: PlayableContent) async -> String? {
         guard item.content.type == .libraryAlbum || item.content.type == .libraryTrack,
-              item.content.id.allSatisfy(\.isNumber) else { return nil }
+              Self.isDeviceID(item.content.id) else { return nil }
         let resource: AppleLibraryResource = item.content.type == .libraryAlbum ? .albums : .songs
         let key = Self.favoriteKey(item)
         if let favorite = favoriteItems[resource]?.first(where: { Self.favoriteKey($0) == key }),
-           !favorite.content.id.allSatisfy(\.isNumber) {
+           !Self.isDeviceID(favorite.content.id) {
             return favorite.content.id
         }
         let type = resource == .albums ? "library-albums" : "library-songs"
