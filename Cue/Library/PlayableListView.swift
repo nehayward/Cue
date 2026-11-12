@@ -56,53 +56,6 @@ public struct PlayableListSort: Identifiable, Equatable {
     }
 }
 
-extension PlayableListSort {
-    /// An order Cue makes itself, for a list the service gives in another
-    /// or none: the first page is the whole list, sorted, and there's no
-    /// second. Each key is worked out once and compared as plain text, names
-    /// folded for case and accents and dates as ISO 8601 (`compare` in the
-    /// comparator cost ~2 µs a call, a quarter of a second for ten thousand
-    /// rows); ties keep the service's order, and a row without the value
-    /// goes last either way. `defaultsToDescending` for an order read
-    /// newest first.
-    static func whole(
-        name: String,
-        ascendingLabel: String = "A – Z",
-        descendingLabel: String = "Z – A",
-        defaultsToDescending: Bool = false,
-        load: @escaping @MainActor () async -> [PlayableContent],
-        key: @escaping @MainActor (PlayableContent) -> String?
-    ) -> PlayableListSort {
-        // On the main actor: the loaders and keys handed in read a view's
-        // services, which live there.
-        PlayableListSort(
-            name: name,
-            ascendingLabel: ascendingLabel,
-            descendingLabel: descendingLabel,
-            defaultsToDescending: defaultsToDescending
-        ) { @MainActor offset, descending in
-            guard offset == 0 else { return [] }
-            let keyed = await load().enumerated().map { (offset: $0.offset, item: $0.element, key: key($0.element)) }
-            return keyed.sorted { a, b in
-                switch (a.key, b.key) {
-                case (nil, nil): return a.offset < b.offset
-                case (nil, _): return false
-                case (_, nil): return true
-                case let (x?, y?):
-                    guard x != y else { return a.offset < b.offset }
-                    return descending ? x > y : x < y
-                }
-            }
-            .map(\.item)
-        }
-    }
-
-    /// A name as `whole` compares it: folded for case, accents and width.
-    static func sortingKey(_ name: String?) -> String? {
-        name?.folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: nil)
-    }
-}
-
 /// What a list shows, picked at the top of its sort menu under Show: all of
 /// a library or only its favorites (the Apple Music library's lists). Each
 /// brings its own orders, and the list remembers the pick as it does the
@@ -214,8 +167,8 @@ struct PlayableListView: View {
     /// The Show pick, by name; nil for the first.
     @State private var filterName: String?
     /// A new sort, filter or query is being read while the old rows stay
-    /// up. A whole-list sort (`PlayableListSort.whole`, MusicKit's songs by
-    /// release date) can take a moment, and nothing said so.
+    /// up. A whole-list sort (`LocalSorts`, MusicKit's songs by release
+    /// date) can take a moment, and nothing said so.
     @State private var isReloading = false
 
     var title: String = ""

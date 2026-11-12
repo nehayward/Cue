@@ -153,8 +153,9 @@ public final class AppleMusicBrowseService {
         libraryDates[id]
     }
 
-    /// Each kind's favorites, as last read in full.
+    /// Each kind's favorites, as last read in full, and when.
     @ObservationIgnored private var favoriteItems: [AppleLibraryResource: [PlayableContent]] = [:]
+    @ObservationIgnored private var favoritesReadAt: [AppleLibraryResource: Date] = [:]
     /// The read each kind has on its way. A second ask waits for it rather
     /// than sending another, so a list opening while the library page's
     /// read is out doesn't take an empty list for "no favorites".
@@ -164,8 +165,14 @@ public final class AppleMusicBrowseService {
     /// few, a page or two, and every order Cue gives them is made from all
     /// of them. The read runs in a task of its own, so a screen leaving
     /// mid-read can't cancel it into an empty list, and a failed read
-    /// changes nothing: the last good one is given back.
+    /// changes nothing: the last good one is given back. A read from the
+    /// last minute is reused, so picking another sort or order reorders at
+    /// once rather than reading them all again; opening a list later reads
+    /// afresh, picking up anything favorited since.
     public func favorites(_ resource: AppleLibraryResource) async -> [PlayableContent] {
+        if let readAt = favoritesReadAt[resource], readAt.timeIntervalSinceNow > -60, let kept = favoriteItems[resource] {
+            return kept
+        }
         if let running = favoritesInFlight[resource] {
             return await running.value ?? favoriteItems[resource] ?? []
         }
@@ -175,6 +182,7 @@ public final class AppleMusicBrowseService {
         favoritesInFlight[resource] = nil
         guard let read else { return favoriteItems[resource] ?? [] }
         favoriteItems[resource] = read
+        favoritesReadAt[resource] = Date()
         return read
     }
 
@@ -326,6 +334,7 @@ public final class AppleMusicBrowseService {
     /// next time, so MusicKit's rows are marked from what's true now.
     public func favoritesChanged() {
         favoriteItems = [:]
+        favoritesReadAt = [:]
     }
 
     public func updateUsersApplePlaylists(offset: Int, limit: Int? = nil) async {

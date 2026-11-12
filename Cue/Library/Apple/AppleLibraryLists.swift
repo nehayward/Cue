@@ -116,22 +116,15 @@ enum AppleLibraryLists {
 
     /// The favorites, read whole (they're few) and put in order here.
     private static func favoriteSortOptions(for resource: AppleLibraryResource, browseService: AppleMusicBrowseService) -> [PlayableListSort] {
-        let load = { await browseService.favorites(resource) }
+        let favorites = LocalSorts { await browseService.favorites(resource) }
         return AppleLibrarySort.options(for: resource).map { sort in
-            .whole(
-                name: sort.label(for: resource),
-                ascendingLabel: sort.ascendingLabel,
-                descendingLabel: sort.descendingLabel,
-                defaultsToDescending: sort.prefersDescending,
-                load: load
-            ) { item in
-                switch sort {
-                case .title: PlayableListSort.sortingKey(item.title)
-                case .artist: PlayableListSort.sortingKey(item.metadata?.artist)
-                case .album: PlayableListSort.sortingKey(item.metadata?.album)
-                case .releaseDate: browseService.dates(of: item.id)?.released
-                case .dateAdded: browseService.dates(of: item.id)?.added
-                }
+            let name = sort.label(for: resource)
+            return switch sort {
+            case .title: favorites.byName(name) { $0.title }
+            case .artist: favorites.byName(name) { $0.metadata?.artist }
+            case .album: favorites.byName(name) { $0.metadata?.album }
+            case .releaseDate: favorites.byDate(name) { browseService.dates(of: $0.id)?.released }
+            case .dateAdded: favorites.byDate(name) { browseService.dates(of: $0.id)?.added }
             }
         }
     }
@@ -140,27 +133,13 @@ enum AppleLibraryLists {
     /// doesn't say when something was favorited, so Date Added is when it
     /// went into the library; artists have no such date and go last.
     static func favoritesShelfSortOptions(browseService: AppleMusicBrowseService) -> [PlayableListSort] {
-        let load = { await browseService.favoritesShelf() }
+        let favorites = LocalSorts { await browseService.favoritesShelf() }
         return [
-            .whole(
-                name: "Date Added",
-                ascendingLabel: "Oldest First",
-                descendingLabel: "Newest First",
-                defaultsToDescending: true,
-                load: load
-            ) { browseService.dates(of: $0.id)?.added },
-            .whole(name: "Title", load: load) { PlayableListSort.sortingKey($0.title) },
+            favorites.byDate("Date Added") { browseService.dates(of: $0.id)?.added },
+            favorites.byName("Title") { $0.title },
             // An artist's own name, so artists sit among their albums.
-            .whole(name: "Artist", load: load) {
-                PlayableListSort.sortingKey($0.content.type.isArtist ? $0.title : $0.metadata?.artist)
-            },
-            .whole(
-                name: "Release Date",
-                ascendingLabel: "Oldest First",
-                descendingLabel: "Newest First",
-                defaultsToDescending: true,
-                load: load
-            ) { browseService.dates(of: $0.id)?.released },
+            favorites.byName("Artist") { $0.content.type.isArtist ? $0.title : $0.metadata?.artist },
+            favorites.byDate("Release Date") { browseService.dates(of: $0.id)?.released },
         ]
     }
 }
