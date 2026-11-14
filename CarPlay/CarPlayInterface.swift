@@ -26,12 +26,12 @@ import UIKit
 ///   grids of squares.
 ///
 /// Everything picked here plays on this device (see `CarPlayPlayback`). A
-/// car is no place for a speaker, so nothing here offers one, unless Sonos
-/// in CarPlay is on (`SonosService.allowsSpeakersInCar`) and the iPhone is
-/// on Wi‑Fi, as in a car parked at home: then Now Playing has a Play On
-/// button, and Home a Play On row while nothing plays here, opening a list
-/// of this iPhone and the Sonos groups (`showPlayOn`), and Home leads with
-/// the speaker the route is on. Picking a speaker, there or in Play On,
+/// car is no place for a speaker, so nothing here offers one, unless the
+/// speakers answer from the car, as in one parked at home on its Wi‑Fi (the
+/// car looks for them itself, `detectSpeakers`): then Now Playing has a Play
+/// On button, and Home a Play On row while nothing plays here, opening a
+/// list of this iPhone and the Sonos groups (`showPlayOn`), and Home leads
+/// with the speaker the phone was last on. Picking a speaker, there or in Play On,
 /// moves what's playing to it and hands the car the speaker
 /// (`CarSpeakerControl`): the car's picks play on it, and its card comes to
 /// the car's Now Playing, whose buttons play, pause and skip it, until This
@@ -82,6 +82,11 @@ final class CarPlayInterface: NSObject {
     /// True while Play On reads the speakers on its way in, so an empty list
     /// says it's looking rather than that there are none.
     private var isLoadingSpeakers = false
+    /// The look for the speakers under way (`detectSpeakers`), and whether
+    /// the iPhone was on Wi‑Fi with Sonos on when last seen, to look again
+    /// as it joins.
+    private var speakerSearch: Task<Void, Never>?
+    private var wasOnWiFi = false
     /// What Now Playing's buttons were last set to show (`updateNowPlaying`);
     /// nil until they've been set this connection.
     private var nowPlayingButtons: String?
@@ -189,6 +194,7 @@ final class CarPlayInterface: NSObject {
         reloadDownloads()
         reloadRadio()
         updateNowPlaying()
+        detectSpeakers()
         // With no signal, what's on this iPhone is all that will play.
         if OfflineMode.shared.isActive {
             tabBar.select(downloadsTemplate)
@@ -209,6 +215,8 @@ final class CarPlayInterface: NSObject {
         libraryTask = nil
         audiobooksTask?.cancel()
         audiobooksTask = nil
+        speakerSearch?.cancel()
+        speakerSearch = nil
     }
 
     /// Audiobooks only while there are books. Radio last: a car with room
@@ -282,11 +290,15 @@ final class CarPlayInterface: NSObject {
         _ = player.onAirMatch
         // Likes, from here, the phone's player or the service as read.
         _ = LiveActivityFavoriteStore.shared.favorites
-        // Whether Play On is offered: Sonos in CarPlay, with the iPhone on
-        // Wi‑Fi. Then Home's Play On row names the speaker the route is on
-        // and its song.
+        // The iPhone joining Wi‑Fi, to look for the speakers
+        // (`detectSpeakers`), and whether they answered: Play On is offered
+        // then, and Home's row names the speaker the phone was last on, with
+        // its song.
+        let sonos = SonosService.shared
+        _ = sonos.isEnabled
+        _ = sonos.isCellular
         if offersPlayOn {
-            let group = PlaybackRoute.shared.group
+            let group = chosenSpeaker
             _ = group?.coordinatorRoom.track
             _ = group?.coordinatorRoom.isPlaying
             // A speaker picked from the car, which its picks now play on.
@@ -295,6 +307,7 @@ final class CarPlayInterface: NSObject {
     }
 
     private func stateChanged() {
+        detectSpeakersOnWiFi()
         updateNowPlaying()
         updateTabs()
         reloadHome()
@@ -484,11 +497,10 @@ final class CarPlayInterface: NSObject {
         // The device's queue, waiting: restored from the last launch, just
         // paused, or parked when the phone handed playback over.
         let waiting = isPlayingOnDevice ? nil : player.nowPlaying
-        // With the speakers in the car (Sonos in CarPlay, on Wi‑Fi): the
-        // speaker the route is on, for the car to drive (`takeSpeaker`), and
-        // Play On while nothing plays here, where Now Playing's button isn't
-        // to hand.
-        let speaker = offersPlayOn ? PlaybackRoute.shared.group : nil
+        // With the speakers answering from the car: the speaker the phone
+        // was last on, for the car to drive (`takeSpeaker`), and Play On
+        // while nothing plays here, where Now Playing's button isn't to hand.
+        let speaker = offersPlayOn ? chosenSpeaker : nil
         let offersChoice = offersPlayOn && !isPlayingOnDevice
         let sections = homeSections
         let shelves = homeShelves
@@ -970,7 +982,7 @@ final class CarPlayInterface: NSObject {
     /// service can like (the song on air, under a station); shuffle and
     /// repeat for a queue of songs (a station has neither); and the queue
     /// button. A book has its speed and its chapters in their place. Play On
-    /// last, with Sonos in CarPlay on Wi‑Fi, also beside a speaker's card
+    /// last, while the speakers answer from the car, also beside a speaker's card
     /// while the car drives one (the card itself is the speaker mirror's,
     /// `NowPlayingSessionService`).
     ///
@@ -1006,8 +1018,8 @@ final class CarPlayInterface: NSObject {
         }
         let liked = likeable.map { isLiked($0) } ?? false
         let hasModes = onDevice && !player.isPlayingStation && !isBook
-        // Play On, while the speakers are in the car (Sonos in CarPlay, on
-        // Wi‑Fi): filled while the route is on one.
+        // Play On, while the speakers answer from the car: filled while the
+        // car drives one.
         let playOn = offersPlayOn
         let onSpeaker = PlaybackRoute.shared.destination != .device
         // Whenever there's a queue of songs, on its last song too, as the
@@ -1105,12 +1117,64 @@ final class CarPlayInterface: NSObject {
 
     // MARK: - Play On
 
-    /// Whether Play On is offered: Sonos in CarPlay is on (Settings ▸
-    /// Sonos) and the speakers are in reach, the iPhone on Wi‑Fi. On
-    /// cellular, which is most of a drive, there's nothing to offer.
+    /// Whether Play On is offered: the speakers answered from the car
+    /// (`detectSpeakers`), as they do with it parked at home on its Wi‑Fi.
+    /// On cellular, which is most of a drive, or another Wi‑Fi (the car's
+    /// own), there's nothing to offer. Not `isAvailable`, which reads false
+    /// in the car until a speaker is picked: the phone keeps acting as if
+    /// Sonos were off till then (`SonosService.isInCar`).
     private var offersPlayOn: Bool {
         let sonos = SonosService.shared
-        return sonos.allowsSpeakersInCar && sonos.isAvailable
+        return sonos.isEnabled && !sonos.isCellular && !sonos.groups.isEmpty
+    }
+
+    /// The speaker the phone was last on (the route's choice, kept while the
+    /// car reads this device), when it answered from the car.
+    private var chosenSpeaker: GroupRoom? {
+        guard let id = PlaybackRoute.shared.chosen.groupID else { return nil }
+        return SonosService.shared.groups.first { $0.coordinatorID == id }
+    }
+
+    /// Looks for the speakers: as the car connects, and as the iPhone joins
+    /// Wi‑Fi in it (pulling into the drive). Nothing else does in the car,
+    /// where the phone is often locked in a pocket and nothing polls, and
+    /// going in put the house's away (`SonosService.setInCar`). Found, the
+    /// car is at home and Play On shows; none, and there's nothing to offer.
+    private func detectSpeakers() {
+        let sonos = SonosService.shared
+        wasOnWiFi = sonos.isEnabled && !sonos.isCellular
+        guard wasOnWiFi, speakerSearch == nil else { return }
+        speakerSearch = Task { [weak self] in
+            do {
+                try await sonos.updateGroups()
+            } catch {
+                Self.log.notice("no speakers answered: \(error.localizedDescription, privacy: .public)")
+            }
+            // Each group's song, once, for Home's row and Play On: groups
+            // found afresh have none yet, and nothing polls them in the car.
+            sonos.readOtherGroups()
+            guard let self, !Task.isCancelled else { return }
+            self.speakerSearch = nil
+            Self.log.notice("speakers: \(sonos.groups.count) groups answered from the car")
+            if let template = self.playOnTemplate {
+                self.fillPlayOn(template)
+            }
+        }
+    }
+
+    /// Looks again as the iPhone joins Wi‑Fi (or Sonos is switched on).
+    /// Off Wi‑Fi, driving away, the car lets go of a speaker it drove: back
+    /// home later it's picked again, never taken up by itself.
+    private func detectSpeakersOnWiFi() {
+        let sonos = SonosService.shared
+        let onWiFi = sonos.isEnabled && !sonos.isCellular
+        guard onWiFi != wasOnWiFi else { return }
+        wasOnWiFi = onWiFi
+        if onWiFi {
+            detectSpeakers()
+        } else {
+            CarSpeakerControl.shared.release()
+        }
     }
 
     /// Home's Play On row, while nothing plays here: Now Playing's button
@@ -1138,9 +1202,9 @@ final class CarPlayInterface: NSObject {
                 room.track.artworkURL?.absoluteString ?? "", "\(locked)"].joined(separator: ",")
     }
 
-    /// The speaker the route is on, at the top of Home while the speakers
-    /// are in the car: its song and cover, and a picked row hands the car
-    /// the speaker (`takeSpeaker`) and opens Now Playing on it.
+    /// The speaker the phone was last on, at the top of Home while the
+    /// speakers answer from the car: its song and cover, and a picked row
+    /// hands the car the speaker (`takeSpeaker`) and opens Now Playing on it.
     private func speakerRow(_ group: GroupRoom) -> CPListItem {
         let room = group.coordinatorRoom
         let track = room.track
@@ -1185,9 +1249,10 @@ final class CarPlayInterface: NSObject {
         return row
     }
 
-    /// The car takes the speaker the route is on (`CarSpeakerControl`): its
-    /// picks play there from now on and the speaker's card comes to the car.
-    /// A speaker paused on a song plays, as Resume does here.
+    /// The car takes the speaker the phone was last on (`CarSpeakerControl`),
+    /// which makes it the route again: the car's picks play there from now
+    /// on and the speaker's card comes to the car. A speaker paused on a
+    /// song plays, as Resume does here.
     private func takeSpeaker(_ group: GroupRoom) async {
         CarSpeakerControl.shared.take()
         let room = group.coordinatorRoom
@@ -1243,13 +1308,14 @@ final class CarPlayInterface: NSObject {
         let sonos = SonosService.shared
         let route = PlaybackRoute.shared
         let destination = route.destination
-        let isAvailable = sonos.isAvailable
+        // Not `isAvailable`: see `offersPlayOn`.
+        let isAvailable = sonos.isEnabled && !sonos.isCellular
         let groups = isAvailable ? Self.playOnGroups() : []
         let player = LocalPlaybackService.shared
         let deviceDetail = destination == .device && player.isActive ? player.nowPlaying?.title : nil
         let signature = [
             "\(destination)",
-            "\(isAvailable),\(isLoadingSpeakers)",
+            "\(isAvailable),\(isLoadingSpeakers || speakerSearch != nil)",
             deviceDetail ?? "",
         ] + groups.map { group in
             let room = group.coordinatorRoom
@@ -1261,7 +1327,7 @@ final class CarPlayInterface: NSObject {
             if !isAvailable {
                 sections.append(CPListSection(items: [note("No Speakers in Reach", detail: "Sonos plays from here while your iPhone is on Wi‑Fi.")]))
             } else if groups.isEmpty {
-                sections.append(CPListSection(items: [note(isLoadingSpeakers ? "Looking for Speakers…" : "No Speakers Found")]))
+                sections.append(CPListSection(items: [note(isLoadingSpeakers || speakerSearch != nil ? "Looking for Speakers…" : "No Speakers Found")]))
             } else {
                 let rows: [CPListTemplateItem] = groups.map { group in
                     playOnRow(for: group, isCurrent: destination.groupID == group.coordinatorID)
@@ -1337,17 +1403,29 @@ final class CarPlayInterface: NSObject {
     /// and shows Now Playing once there's something carried to play here.
     private func choosePlayOn(_ target: PlayDestination) {
         let route = PlaybackRoute.shared
+        let control = CarSpeakerControl.shared
         if let id = target.groupID, !FeatureGate.shared.isGroupUnlocked(id) { return }
         let carrying = QueueTransferPreference.current != .never
-        let carries = carrying && route.hasSomethingToCarry(to: target)
+        let carries: Bool
         if target == .device {
-            CarSpeakerControl.shared.release()
+            // Switched while the car still drives the speaker: let go first,
+            // the route would already read this device, and nothing would
+            // come across.
+            carries = carrying && route.hasSomethingToCarry(to: target)
+            switchRoute(to: target, carrying: carrying, carries: carries)
+            control.release()
         } else {
-            CarSpeakerControl.shared.take()
-        }
-        if target != route.destination {
-            Self.log.notice("Play On → \(String(describing: target), privacy: .public), \(carries ? "moving what's playing" : "nothing moved", privacy: .public)")
-            route.switchTo(target, carrying: carrying)
+            // Until the car takes a speaker the route reads this device
+            // whatever the phone chose, and the choice may still be a speaker
+            // from the house: made this device first, so taking a speaker
+            // starts from here and what plays here comes across. Only the
+            // choice moves: the route already reads this device.
+            if !control.isTaken, route.destination == .device, route.chosen != .device {
+                route.switchTo(.device, carrying: false)
+            }
+            control.take()
+            carries = carrying && route.hasSomethingToCarry(to: target)
+            switchRoute(to: target, carrying: carrying, carries: carries)
         }
         let showsCard = target == .device ? carries : FeatureGate.shared.isAvailable(.lockScreenNowPlaying)
         if showsCard {
@@ -1361,6 +1439,17 @@ final class CarPlayInterface: NSObject {
         } else {
             interfaceController.popToRootTemplate(animated: true, completion: nil)
         }
+    }
+
+    /// The switch itself. Picking where it already reads still makes it the
+    /// choice (`switchTo` only remembers it then), so This iPhone picked in
+    /// the car stops Home offering the speaker from the house.
+    private func switchRoute(to target: PlayDestination, carrying: Bool, carries: Bool) {
+        let route = PlaybackRoute.shared
+        if target != route.destination {
+            Self.log.notice("Play On → \(String(describing: target), privacy: .public), \(carries ? "moving what's playing" : "nothing moved", privacy: .public)")
+        }
+        route.switchTo(target, carrying: carrying)
     }
 
     /// Follows the speakers while Play On is up: their songs, what plays,

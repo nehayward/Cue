@@ -14,9 +14,9 @@ import UIKit
 /// device without carrying anything, so whatever was playing elsewhere is
 /// left as it was — someone may still be listening there.
 ///
-/// Unless the car drives a speaker (`CarSpeakerControl`: Sonos in CarPlay,
-/// the iPhone on Wi‑Fi, a speaker picked from the car since it connected,
-/// as in a car parked at home): then a pick plays on that speaker, through
+/// Unless the car drives a speaker (`CarSpeakerControl`: the speakers in
+/// reach from the car, as parked at home, and one picked in CarPlay since it
+/// connected): then a pick plays on that speaker, through
 /// the phone's own funnel (`PlayDestinationRouter`), as a tap on the phone
 /// would with the speaker chosen. A Files song still plays here, as no
 /// speaker can reach it.
@@ -236,13 +236,16 @@ enum CarPlayPlayback {
     /// Points the route at this device if it's elsewhere. See the type's
     /// comment for why nothing is carried. A play here means the car is no
     /// longer driving a speaker (Resume on the device's queue, or one gone
-    /// out of reach), so it lets go of it.
+    /// out of reach), so it lets go of it, after the switch: let go first,
+    /// the route would already read this device, and the switch would find
+    /// nothing to do.
     private static func takeRoute() {
-        CarSpeakerControl.shared.release()
         let route = PlaybackRoute.shared
-        guard route.destination != .device else { return }
-        log.notice("route → device for a play from CarPlay")
-        route.switchTo(.device, carrying: false)
+        if route.destination != .device {
+            log.notice("route → device for a play from CarPlay")
+            route.switchTo(.device, carrying: false)
+        }
+        CarSpeakerControl.shared.release()
     }
 
     /// Into Recently Played, the same as a play from the phone — see

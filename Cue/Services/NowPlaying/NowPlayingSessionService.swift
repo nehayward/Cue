@@ -342,8 +342,9 @@ final class NowPlayingSessionService {
     /// moment local playback ends.
     ///
     /// The one external route it runs on is a car driving a speaker
-    /// (`CarSpeakerControl`: Sonos in CarPlay, a speaker picked from the car
-    /// since it connected), and then only for that speaker (`resolveTarget`):
+    /// (`CarSpeakerControl`: the speakers answering from the car, as parked
+    /// at home, and one picked in CarPlay since it connected), and then only
+    /// for that speaker (`resolveTarget`):
     /// the car's buttons are meant for it. The volume bridge stays inert
     /// there all the same (`HardwareVolumeService` suspends on any external
     /// route), so the car's volume and the speaker's never meet.
