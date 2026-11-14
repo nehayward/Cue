@@ -61,6 +61,7 @@ public final class SonosService {
         } else {
             isEnabled = !sonosSystemDiscoverService.knownHouseholds.isEmpty
         }
+        allowsSpeakersInCar = UserDefaults.standard.bool(forKey: AppStorageKeys.sonosInCarPlay)
     }
 
     /// Turns speaker support on or off and remembers the choice. Turning it on
@@ -102,33 +103,64 @@ public final class SonosService {
     public var isCellular: Bool { sonosSystemDiscoverService.isCellular }
 
     /// Whether speakers can be reached from here: Sonos is on, this device
-    /// is on Wi‑Fi or Ethernet, and it isn't in a car. Speakers are only ever
-    /// on the local network, so on cellular alone there are none to show or
-    /// play to, and in a car there's no place for one (`isInCar`).
+    /// is on Wi‑Fi or Ethernet, and it isn't in a car, unless Sonos in
+    /// CarPlay is on (`allowsSpeakersInCar`). Speakers are only ever on the
+    /// local network, so on cellular alone there are none to show or play
+    /// to, and in a car there's no place for one otherwise (`isInCar`).
     /// Observable, so anything derived from it follows by itself. Gate
     /// speaker UI and routing on this; `isEnabled` is the setting.
-    public var isAvailable: Bool { isEnabled && !isCellular && !isInCar }
+    public var isAvailable: Bool { isEnabled && !isCellular && !isKeptOutOfCar }
 
     /// True while this iPhone is in a car: CarPlay's screen is up or the
     /// sound goes to CarPlay. Set by the app (`CarConnection`). Speakers have
     /// no place in a car, so while it's true Cue acts as if Sonos were off:
     /// the groups are put away, and nothing looks for speakers or loads
     /// their groups, even on Wi‑Fi (a garage within reach of home, or the
-    /// car's own Wi‑Fi). Out of the car they're looked for again.
+    /// car's own Wi‑Fi). Out of the car they're looked for again. Not while
+    /// `allowsSpeakersInCar`: then the car changes nothing here, and only
+    /// leaving Wi‑Fi puts them away.
     public private(set) var isInCar = false
 
+    /// Settings ▸ Sonos ▸ Sonos in CarPlay (`AppStorageKeys.sonosInCarPlay`,
+    /// off by default): speakers stay in reach in a car, for CarPlay's Play
+    /// On, so music can move from the car into the house on arriving, or out
+    /// to the car on leaving, while the iPhone is on the home Wi‑Fi. Read at
+    /// launch by `loadEnabledPreference()`; set with `setAllowsSpeakersInCar`.
+    public private(set) var allowsSpeakersInCar = false
+
+    /// In a car with speakers kept out of it: Cue acts as if Sonos were off.
+    private var isKeptOutOfCar: Bool { isInCar && !allowsSpeakersInCar }
+
     /// Whether looking for speakers or loading their groups may touch the
-    /// network: Sonos is on and this device isn't in a car.
-    private var mayLookForSpeakers: Bool { isEnabled && !isInCar }
+    /// network: Sonos is on and this device isn't in a car that keeps them
+    /// out.
+    private var mayLookForSpeakers: Bool { isEnabled && !isKeptOutOfCar }
 
     /// Into a car, the groups are put away as on cellular (`clearDevices`);
-    /// out of one, on Wi‑Fi, they're looked for again.
+    /// out of one, on Wi‑Fi, they're looked for again. Nothing changes
+    /// either way while speakers are allowed in the car.
     @MainActor
     public func setInCar(_ inCar: Bool) {
         guard inCar != isInCar else { return }
         isInCar = inCar
-        guard isEnabled else { return }
+        guard isEnabled, !allowsSpeakersInCar else { return }
         if inCar {
+            clearDevices()
+        } else if !isCellular {
+            monitor()
+        }
+    }
+
+    /// Turns Sonos in CarPlay on or off and remembers the choice. In a car
+    /// at the time, the speakers are looked for (on Wi‑Fi) or put away at
+    /// once, as getting into or out of the car would.
+    @MainActor
+    public func setAllowsSpeakersInCar(_ allows: Bool) {
+        UserDefaults.standard.set(allows, forKey: AppStorageKeys.sonosInCarPlay)
+        guard allows != allowsSpeakersInCar else { return }
+        allowsSpeakersInCar = allows
+        guard isEnabled, isInCar else { return }
+        if !allows {
             clearDevices()
         } else if !isCellular {
             monitor()
@@ -665,6 +697,14 @@ public final class SonosService {
     public func beginShowingOtherGroups() {
         otherGroupViewers += 1
         guard otherGroupViewers == 1 else { return }
+        readOtherGroups()
+    }
+
+    /// Reads the other groups' songs, play state and levels once, for a
+    /// screen that shows them and is up only a moment, or can't say when it
+    /// goes (CarPlay's Play On).
+    @MainActor
+    public func readOtherGroups() {
         let others = groups.filter { $0 != selectedGroup }
         guard !others.isEmpty else { return }
         Task { @MainActor [weak self] in

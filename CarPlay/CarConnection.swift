@@ -7,6 +7,8 @@ import UIKit
 /// has no place there, so while it is, the phone's app acts as if Sonos
 /// were off, as on cellular. The route reads This Device, speaker UI hides,
 /// the Play On button is the AirPlay picker and nothing looks for speakers.
+/// Unless Sonos in CarPlay is on (`SonosService.allowsSpeakersInCar`):
+/// then the car changes none of that, and CarPlay has a Play On of its own.
 ///
 /// In a car means CarPlay's screen is up (`CarPlaySceneDelegate`) or the
 /// sound goes to CarPlay. Either alone misses a case: the car connects

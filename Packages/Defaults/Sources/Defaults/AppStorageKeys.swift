@@ -8,6 +8,12 @@ public enum AppStorageKeys {
     /// `SonosService.isEnabled`, never directly: unset is decided there, and
     /// only the iOS and Mac app reads this key at all.
     public static let sonosEnabled = "\(Prefix.id).sonosEnabled"
+    /// Whether speakers stay in reach while the iPhone is in a car (Settings
+    /// ▸ Sonos ▸ Sonos in CarPlay), for CarPlay's Play On: in the driveway on
+    /// the home Wi‑Fi, what's playing can go indoors or come out to the car.
+    /// Off when unset: a car is no place for a speaker otherwise. Read and
+    /// written through `SonosService.allowsSpeakersInCar`.
+    public static let sonosInCarPlay = "\(Prefix.id).sonosInCarPlay"
     /// The search's selected services as one ordered comma-separated list,
     /// primary first (up to 3). Replaced the split `mediaService` +
     /// `searchAlsoServices` keys — deliberately not migrated; the selection

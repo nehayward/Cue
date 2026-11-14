@@ -12,7 +12,9 @@ import UIKit
 /// Always on this device, whatever the phone was last pointed at: something
 /// picked in the car is meant to be heard in the car. The route is moved to
 /// this device without carrying anything, so whatever was playing elsewhere
-/// is left as it was — someone may still be listening there.
+/// is left as it was — someone may still be listening there. That goes for a
+/// speaker the car's Play On moved music to (Sonos in CarPlay) as well: Play
+/// On is how the car moves music, and a pick from its lists isn't one.
 @MainActor
 enum CarPlayPlayback {
     /// `log stream --predicate 'subsystem == "dance.cue" AND category == "carplay"' --level debug`

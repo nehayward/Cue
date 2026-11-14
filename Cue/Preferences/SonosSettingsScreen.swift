@@ -56,6 +56,7 @@ struct SonosSettingsScreen: View {
                 speakersSection
 #if os(iOS) && !targetEnvironment(macCatalyst)
                 volumeButtonsSection
+                carPlaySection
 #endif
 #if targetEnvironment(macCatalyst)
                 cueMiniSection
@@ -170,6 +171,26 @@ struct SonosSettingsScreen: View {
             // require it, so the row is editable in exactly the cases where
             // it changes anything.
             .gated(.hardwareVolumeButtons)
+        }
+    }
+
+    /// Sonos in CarPlay: off by default, as a car is no place for a speaker
+    /// unless asked for. On, the speakers stay in reach in the car while the
+    /// iPhone is on Wi‑Fi, and CarPlay's Now Playing gets Play On (see
+    /// `CarPlayInterface`).
+    private var carPlaySection: some View {
+        Section {
+            Label {
+                Toggle(isOn: Binding(
+                    get: { sonosService.allowsSpeakersInCar },
+                    set: { sonosService.setAllowsSpeakersInCar($0) }
+                )) {
+                    SettingsRowText(title: "Sonos in CarPlay", detail: "Move what's playing between the car and your speakers from Play On in CarPlay, while your iPhone is on Wi‑Fi")
+                }
+                .tint(.accent)
+            } icon: {
+                SettingsIcon(symbol: "car.fill", colors: [Color(red: 0.3, green: 0.55, blue: 0.95), Color(red: 0.2, green: 0.4, blue: 0.85)])
+            }
         }
     }
 #endif
