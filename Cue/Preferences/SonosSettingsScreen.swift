@@ -176,8 +176,9 @@ struct SonosSettingsScreen: View {
 
     /// Sonos in CarPlay: off by default, as a car is no place for a speaker
     /// unless asked for. On, the speakers stay in reach in the car while the
-    /// iPhone is on Wi‑Fi, and CarPlay's Now Playing gets Play On (see
-    /// `CarPlayInterface`).
+    /// iPhone is on Wi‑Fi, for a car parked at home, which Cue can't tell
+    /// from one on the road: CarPlay gets Play On, and a speaker picked there
+    /// is played to and controlled from the car (`CarSpeakerControl`).
     private var carPlaySection: some View {
         Section {
             Label {
@@ -185,7 +186,7 @@ struct SonosSettingsScreen: View {
                     get: { sonosService.allowsSpeakersInCar },
                     set: { sonosService.setAllowsSpeakersInCar($0) }
                 )) {
-                    SettingsRowText(title: "Sonos in CarPlay", detail: "Move what's playing between the car and your speakers from Play On in CarPlay, while your iPhone is on Wi‑Fi")
+                    SettingsRowText(title: "Sonos in CarPlay", detail: "Play on and control your speakers from CarPlay when the car is at home on your Wi‑Fi. Pick a speaker in CarPlay's Play On to use it.")
                 }
                 .tint(.accent)
             } icon: {

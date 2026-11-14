@@ -28,10 +28,14 @@ import UIKit
 /// Everything picked here plays on this device (see `CarPlayPlayback`). A
 /// car is no place for a speaker, so nothing here offers one, unless Sonos
 /// in CarPlay is on (`SonosService.allowsSpeakersInCar`) and the iPhone is
-/// on Wi‑Fi: then Now Playing has a Play On button, and Home a Play On row
-/// while nothing plays here, opening a list of this iPhone and the Sonos
-/// groups (`showPlayOn`). A pick moves what's playing there, into the house
-/// on arriving or out to the car on leaving. The car's Now Playing
+/// on Wi‑Fi, as in a car parked at home: then Now Playing has a Play On
+/// button, and Home a Play On row while nothing plays here, opening a list
+/// of this iPhone and the Sonos groups (`showPlayOn`), and Home leads with
+/// the speaker the route is on. Picking a speaker, there or in Play On,
+/// moves what's playing to it and hands the car the speaker
+/// (`CarSpeakerControl`): the car's picks play on it, and its card comes to
+/// the car's Now Playing, whose buttons play, pause and skip it, until This
+/// iPhone is picked or the car goes. The car's Now Playing
 /// screen is the system's, filled from the card the device player publishes
 /// (see `LocalNowPlayingPresenter`), or MusicKit's own for Apple Music; this
 /// adds the like button, the queue button and Up Next (with shuffle and
@@ -285,6 +289,8 @@ final class CarPlayInterface: NSObject {
             let group = PlaybackRoute.shared.group
             _ = group?.coordinatorRoom.track
             _ = group?.coordinatorRoom.isPlaying
+            // A speaker picked from the car, which its picks now play on.
+            _ = CarSpeakerControl.shared.isTaken
         }
     }
 
@@ -478,9 +484,12 @@ final class CarPlayInterface: NSObject {
         // The device's queue, waiting: restored from the last launch, just
         // paused, or parked when the phone handed playback over.
         let waiting = isPlayingOnDevice ? nil : player.nowPlaying
-        // Play On while nothing plays here, where Now Playing's button
-        // isn't to hand: a speaker's music to bring out to the car.
-        let speakers = offersPlayOn && !isPlayingOnDevice ? playOnSummary() : nil
+        // With the speakers in the car (Sonos in CarPlay, on Wi‑Fi): the
+        // speaker the route is on, for the car to drive (`takeSpeaker`), and
+        // Play On while nothing plays here, where Now Playing's button isn't
+        // to hand.
+        let speaker = offersPlayOn ? PlaybackRoute.shared.group : nil
+        let offersChoice = offersPlayOn && !isPlayingOnDevice
         let sections = homeSections
         let shelves = homeShelves
         let section = librarySection
@@ -492,18 +501,22 @@ final class CarPlayInterface: NSObject {
             homeTemplate.emptyViewTitleVariants = ["Nothing Here Yet"]
             homeTemplate.emptyViewSubtitleVariants = ["Set up Apple Music, Plex, Subsonic or a Files folder in Cue on your iPhone."]
         }
-        let played = ([waiting?.id ?? "", speakers ?? "-"] + newest.map(\.id)).joined(separator: "|")
+        let speakerSignature = speaker.map { speakerRowSignature($0) } ?? "-"
+        let played = ([waiting?.id ?? "", speakerSignature, offersChoice ? "playOn" : ""] + newest.map(\.id)).joined(separator: "|")
         let tiles = sections.map { $0 == section ? "[\($0.rawValue)]" : $0.rawValue }.joined(separator: ",")
         let body = shelves.map { shelves in
             shelves.map { ([$0.title] + $0.items.map(\.id)).joined(separator: ",") }.joined(separator: "|")
         }
         update(homeTemplate, signature: [played, tiles, body ?? "…"].joined(separator: "/")) {
             var list: [CPListSection] = []
+            if let speaker {
+                list.append(CPListSection(items: [speakerRow(speaker)]))
+            }
             if let waiting {
                 list.append(CPListSection(items: [resumeRow(for: waiting)]))
             }
-            if let speakers {
-                list.append(CPListSection(items: [playOnRow(detail: speakers)]))
+            if offersChoice {
+                list.append(CPListSection(items: [playOnRow()]))
             }
             if !newest.isEmpty {
                 let cards = cardRow(title: "Recently Played", items: newest) { [weak self] in
@@ -606,7 +619,9 @@ final class CarPlayInterface: NSObject {
                 sections.append(CPListSection(items: [self.playTiles(play: play, shuffle: shuffle)]))
             }
             let limit = CarPlayLibrary.rowLimit - sections.count
-            let rows: [CPListTemplateItem] = tracks.prefix(limit).map { self.row(for: $0, in: container) }
+            let rows: [CPListTemplateItem] = tracks.prefix(limit).enumerated().map { index, track in
+                self.row(for: track, in: container, at: index)
+            }
             sections.append(CPListSection(items: rows))
             template.updateSections(sections)
             self.updatePlayingIndicators()
@@ -955,7 +970,9 @@ final class CarPlayInterface: NSObject {
     /// service can like (the song on air, under a station); shuffle and
     /// repeat for a queue of songs (a station has neither); and the queue
     /// button. A book has its speed and its chapters in their place. Play On
-    /// last, with Sonos in CarPlay on Wi‑Fi, a speaker playing or not.
+    /// last, with Sonos in CarPlay on Wi‑Fi, also beside a speaker's card
+    /// while the car drives one (the card itself is the speaker mirror's,
+    /// `NowPlayingSessionService`).
     ///
     /// The queue button is Cue's own, the song's place in the queue in a
     /// circle (`CarPlayArtwork.placeButton`), in place of the system's Up
@@ -1096,17 +1113,12 @@ final class CarPlayInterface: NSObject {
         return sonos.allowsSpeakersInCar && sonos.isAvailable
     }
 
-    /// Home's Play On row's line: the speaker the route is on, with its
-    /// song, else what the list is for.
-    private func playOnSummary() -> String {
-        guard let group = PlaybackRoute.shared.group else { return "Move music to or from your speakers" }
-        let track = group.coordinatorRoom.track
-        return track.isEmpty ? group.nameWithCount : "\(group.nameWithCount) · \(track.song)"
-    }
-
-    private func playOnRow(detail: String) -> CPListItem {
+    /// Home's Play On row, while nothing plays here: Now Playing's button
+    /// isn't to hand then, and a speaker's music may be what to bring out to
+    /// the car.
+    private func playOnRow() -> CPListItem {
         let onSpeaker = PlaybackRoute.shared.destination != .device
-        let row = CPListItem(text: "Play On", detailText: detail, image: CarPlayArtwork.symbol(onSpeaker ? "hifispeaker.2.fill" : "hifispeaker.2"))
+        let row = CPListItem(text: "Play On", detailText: "This iPhone or your speakers", image: CarPlayArtwork.symbol(onSpeaker ? "hifispeaker.2.fill" : "hifispeaker.2"))
         row.accessoryType = .disclosureIndicator
         row.handler = { [weak self] _, completion in
             MainActor.assumeIsolated {
@@ -1115,6 +1127,73 @@ final class CarPlayInterface: NSObject {
             }
         }
         return row
+    }
+
+    /// What Home's speaker row shows, so it's built again only when that
+    /// changes.
+    private func speakerRowSignature(_ group: GroupRoom) -> String {
+        let room = group.coordinatorRoom
+        let locked = !FeatureGate.shared.isGroupUnlocked(group.coordinatorID)
+        return [group.coordinatorID, group.nameWithCount, "\(room.isPlaying)", room.track.song, room.track.artist,
+                room.track.artworkURL?.absoluteString ?? "", "\(locked)"].joined(separator: ",")
+    }
+
+    /// The speaker the route is on, at the top of Home while the speakers
+    /// are in the car: its song and cover, and a picked row hands the car
+    /// the speaker (`takeSpeaker`) and opens Now Playing on it.
+    private func speakerRow(_ group: GroupRoom) -> CPListItem {
+        let room = group.coordinatorRoom
+        let track = room.track
+        let isLocked = !FeatureGate.shared.isGroupUnlocked(group.coordinatorID)
+        let detail = if isLocked {
+            "Needs Cue Super"
+        } else if track.isEmpty {
+            "Nothing playing"
+        } else {
+            [track.song, track.artist].filter { !$0.isEmpty }.joined(separator: " – ")
+        }
+        let row = CPListItem(text: group.nameWithCount, detailText: detail, image: CarPlayArtwork.symbol(group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill"))
+        if let url = track.artworkURL {
+            CarPlayArtwork.load(url: url, width: CarPlayArtwork.rowWidth) { [weak row] image in
+                row?.setImage(image)
+            }
+        }
+        // No `userInfo`: `updatePlayingIndicators` marks content, and leaves
+        // this as set here.
+        row.isPlaying = room.isPlaying && !track.isEmpty
+        row.isEnabled = !isLocked
+        row.handler = { [weak self] _, completion in
+            MainActor.assumeIsolated {
+                guard let self else {
+                    completion()
+                    return
+                }
+                // Now Playing only once the speaker's card is coming: it's
+                // Cue Super's, as on the Lock Screen.
+                guard FeatureGate.shared.isAvailable(.lockScreenNowPlaying) else {
+                    Task {
+                        await self.takeSpeaker(group)
+                        completion()
+                    }
+                    return
+                }
+                self.perform(completion: completion) {
+                    await self.takeSpeaker(group)
+                }
+            }
+        }
+        return row
+    }
+
+    /// The car takes the speaker the route is on (`CarSpeakerControl`): its
+    /// picks play there from now on and the speaker's card comes to the car.
+    /// A speaker paused on a song plays, as Resume does here.
+    private func takeSpeaker(_ group: GroupRoom) async {
+        CarSpeakerControl.shared.take()
+        let room = group.coordinatorRoom
+        Self.log.notice("car drives \(group.nameWithCount, privacy: .public), \(room.isPlaying ? "playing" : "paused", privacy: .public)")
+        guard !room.isPlaying, !room.track.isEmpty else { return }
+        await PlaybackRoute.shared.controller.togglePlayback()
     }
 
     /// Where playback goes, as the phone's Play On sheet has it: this
@@ -1249,30 +1328,36 @@ final class CarPlayInterface: NSObject {
 
     /// Moves playback to `target` as the phone's Play On does, carrying
     /// what's playing unless Settings says not to move it (there's no Move
-    /// prompt in the car: moving is what the list is for). To a speaker it
-    /// goes back to Home, whose Play On row then names the speaker; the car's
-    /// Now Playing has nothing to show for it, as the speaker's card stands
-    /// down while the sound goes to the car (`NowPlayingSessionService`, so
-    /// the car's own buttons never drive the speakers). To this iPhone it
-    /// shows Now Playing once there's something to carry.
+    /// prompt in the car: moving is what the list is for). A speaker picked
+    /// is one the car drives from then on (`CarSpeakerControl`): the car's
+    /// picks play there, and its card comes to the car's Now Playing, which
+    /// opens on it, so the car's buttons play, pause and skip it. That card
+    /// is Cue Super's, as on the Lock Screen; without it the car goes back to
+    /// Home, whose row names the speaker. This iPhone lets go of the speaker
+    /// and shows Now Playing once there's something carried to play here.
     private func choosePlayOn(_ target: PlayDestination) {
         let route = PlaybackRoute.shared
-        guard target != route.destination else {
-            interfaceController.popTemplate(animated: true, completion: nil)
-            return
-        }
         if let id = target.groupID, !FeatureGate.shared.isGroupUnlocked(id) { return }
         let carrying = QueueTransferPreference.current != .never
         let carries = carrying && route.hasSomethingToCarry(to: target)
-        Self.log.notice("Play On → \(String(describing: target), privacy: .public), \(carries ? "moving what's playing" : "nothing moved", privacy: .public)")
-        route.switchTo(target, carrying: carrying)
         if target == .device {
+            CarSpeakerControl.shared.release()
+        } else {
+            CarSpeakerControl.shared.take()
+        }
+        if target != route.destination {
+            Self.log.notice("Play On → \(String(describing: target), privacy: .public), \(carries ? "moving what's playing" : "nothing moved", privacy: .public)")
+            route.switchTo(target, carrying: carrying)
+        }
+        let showsCard = target == .device ? carries : FeatureGate.shared.isAvailable(.lockScreenNowPlaying)
+        if showsCard {
             interfaceController.popTemplate(animated: true) { [weak self] _, _ in
-                guard carries else { return }
                 Task { @MainActor in
                     self?.showNowPlaying()
                 }
             }
+        } else if target == .device {
+            interfaceController.popTemplate(animated: true, completion: nil)
         } else {
             interfaceController.popToRootTemplate(animated: true, completion: nil)
         }
@@ -1659,12 +1744,13 @@ final class CarPlayInterface: NSObject {
     // MARK: - Rows
 
     /// A row for a song, station, album or playlist. Songs and stations play
-    /// when picked — from there on in `container` when they're in one; an
-    /// album or playlist opens its songs.
-    private func row(for content: PlayableContent, in container: PlayableContent? = nil) -> CPListItem {
+    /// when picked — from there on in `container` when they're in one (at
+    /// `index` among its songs, for a speaker); an album or playlist opens
+    /// its songs.
+    private func row(for content: PlayableContent, in container: PlayableContent? = nil, at index: Int? = nil) -> CPListItem {
         row(for: content) {
             if let container {
-                try await CarPlayPlayback.play(content, in: container)
+                try await CarPlayPlayback.play(content, in: container, at: index)
             } else {
                 try await CarPlayPlayback.play([content])
             }

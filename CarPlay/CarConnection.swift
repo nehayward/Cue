@@ -1,5 +1,6 @@
 #if os(iOS) && !targetEnvironment(macCatalyst)
 import AVFoundation
+import Observation
 import SonosKit
 import UIKit
 
@@ -41,9 +42,13 @@ enum CarConnection {
         readRoute()
     }
 
-    /// CarPlay's scene connected or went.
+    /// CarPlay's scene connected or went. Going, the car lets go of a speaker
+    /// it was driving (`CarSpeakerControl`).
     static func sceneConnected(_ connected: Bool) {
         hasScene = connected
+        if !connected {
+            CarSpeakerControl.shared.release()
+        }
         update()
     }
 
@@ -55,6 +60,49 @@ enum CarConnection {
 
     private static func update() {
         SonosService.shared.setInCar(hasScene || routesToCar)
+    }
+}
+
+/// Whether the car is driving a Sonos speaker: Sonos in CarPlay is on, the
+/// speakers are in reach (the iPhone on Wi‑Fi, a car parked at home), and a
+/// speaker was picked from the car since it connected: in CarPlay's Play
+/// On, or Home's row for the speaker the phone was on. While it is, the
+/// car's picks play on that speaker (`CarPlayPlayback`) and the speaker's
+/// Now Playing card comes to the car, so the car's screen and its buttons
+/// play, pause and skip it (`NowPlayingSessionService`).
+///
+/// Only from a pick, never from the route alone: nothing tells a car parked
+/// at home from one about to leave, and a speaker remembered from the house
+/// would otherwise take an album picked for the drive, or have its card,
+/// and the car's play button, take over the car's audio as someone played
+/// it indoors. Picking This iPhone, or the car going, lets go.
+@MainActor
+@Observable
+final class CarSpeakerControl {
+    static let shared = CarSpeakerControl()
+
+    /// A speaker was picked from the car since it connected.
+    private(set) var isTaken = false
+
+    private init() {}
+
+    /// The group the car drives: the route's, while taken and the speakers
+    /// are in the car. Nil plays here, and keeps the card off the car.
+    var group: GroupRoom? {
+        guard isTaken else { return nil }
+        let sonos = SonosService.shared
+        guard sonos.isInCar, sonos.allowsSpeakersInCar, sonos.isAvailable else { return nil }
+        return PlaybackRoute.shared.group
+    }
+
+    func take() {
+        guard !isTaken else { return }
+        isTaken = true
+    }
+
+    func release() {
+        guard isTaken else { return }
+        isTaken = false
     }
 }
 #endif

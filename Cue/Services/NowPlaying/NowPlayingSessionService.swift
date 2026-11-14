@@ -309,7 +309,10 @@ final class NowPlayingSessionService {
             isRouteExternal = false
         }
 
-        if isRouteExternal { stop() }
+        // Not the speaker the car drives (`CarSpeakerControl`): the car asked
+        // for that one, and standing down for it on every route change would
+        // flicker the car's audio as the session came and went.
+        if isRouteExternal, CarSpeakerControl.shared.group == nil { stop() }
         notifyChanged.yield()
     }
 
@@ -337,8 +340,21 @@ final class NowPlayingSessionService {
     /// buttons moved the group while the phone's own slider sat greyed out.
     /// Read inside `evaluate()`'s observation, so the mirror comes back the
     /// moment local playback ends.
+    ///
+    /// The one external route it runs on is a car driving a speaker
+    /// (`CarSpeakerControl`: Sonos in CarPlay, a speaker picked from the car
+    /// since it connected), and then only for that speaker (`resolveTarget`):
+    /// the car's buttons are meant for it. The volume bridge stays inert
+    /// there all the same (`HardwareVolumeService` suspends on any external
+    /// route), so the car's volume and the speaker's never meet.
     private var canMirror: Bool {
-        isEnabled && !isRouteExternal && !LocalPlaybackService.shared.isPlayingLocalStream && !isPlayingOnDevice
+        isEnabled && (!isRouteExternal || drivenFromCar != nil)
+            && !LocalPlaybackService.shared.isPlayingLocalStream && !isPlayingOnDevice
+    }
+
+    /// The speaker the car drives, while the sound goes to the car.
+    private var drivenFromCar: GroupRoom? {
+        CarSpeakerControl.shared.group
     }
 
     /// The route points at this device and its player has something queued.
@@ -368,6 +384,14 @@ final class NowPlayingSessionService {
     /// unrelated group change. `sorted` is the order the user sees in the speaker
     /// list, so the pick is stable and explicable.
     private func resolveTarget() -> GroupRoom? {
+        // In the car, the speaker the car drives and no other, paused too
+        // and with no idle window: the car's screen is where it's watched,
+        // and its Play is how it starts again. A group playing elsewhere in
+        // the house stays off the car.
+        if isRouteExternal {
+            guard let driven = drivenFromCar, isMirrorable(driven) else { return nil }
+            return driven
+        }
         let sonosService = SonosService.shared
         let selected = Router.main.selectedID.flatMap { id in
             sonosService.groups.first(where: { $0.coordinatorID == id })
@@ -609,7 +633,9 @@ final class NowPlayingSessionService {
         // no card worth showing for it either. `isActive` keeps it once taken,
         // so a pause doesn't hand the audio back and forth; releasing is the
         // idle window's job.
-        if isActive || group.coordinatorRoom.isPlaying {
+        // A speaker the car drives has its card up paused as well: the car
+        // picked it, and the card's Play is how the car starts it.
+        if isActive || group.coordinatorRoom.isPlaying || (isRouteExternal && drivenFromCar != nil) {
             beginSessionIfNeeded()
         }
 
