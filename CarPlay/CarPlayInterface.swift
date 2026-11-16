@@ -1151,17 +1151,24 @@ final class CarPlayInterface: NSObject {
     /// of 100: a car's screen is no place for twenty taps.
     private static let volumeStep = 5
 
+    /// Writes the car's volume taps, as the Play On sheet's rows write a
+    /// drag: the group's level in the model at once, which the speaker's
+    /// card in the car shows beside its name (`NowPlayingSessionService`),
+    /// the speaker given the latest level at most every 80 ms, and the level
+    /// held against the speaker's echoes until a moment after the last tap.
+    private let volumes = SpeakerVolumeWriter()
+
     /// Turns the speaker the car drives up or down by `step`, the whole
-    /// group as the phone's volume buttons do it: relative, so taps sent
-    /// quickly add up whatever order they land in, and the rooms keep their
-    /// balance.
+    /// group as the phone's volume buttons do it, the rooms keeping their
+    /// balance. Taps add up on the level shown, so quick ones land as many
+    /// steps whatever order the speaker hears them in. Down on a muted
+    /// speaker leaves it muted; up unmutes it.
     private func nudgeSpeakerVolume(by step: Int) {
         guard let group = PlaybackRoute.shared.group else { return }
-        let ip = group.ip
-        Self.log.notice("car volume \(step > 0 ? "up" : "down", privacy: .public) on \(group.nameWithCount, privacy: .public)")
-        Task {
-            await SonosService.shared.setRelativeGroupVolume(ip: ip, volume: step)
-        }
+        guard !(group.isMuted && step < 0) else { return }
+        let level = min(100, max(0, group.groupVolume + Double(step)))
+        Self.log.notice("car volume \(step > 0 ? "up" : "down", privacy: .public) on \(group.nameWithCount, privacy: .public) to \(Int(level))")
+        volumes.set(group, to: level)
     }
 
     /// The speaker the phone was last on (the route's choice, kept while the
