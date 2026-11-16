@@ -163,6 +163,15 @@ final class AlbumShelfWidgetPublisher {
         schedule.now()
     }
 
+    /// Clear Image Cache: the covers and Edit Widget's thumbnails go, and
+    /// the shelves are written again, each cover fetched afresh.
+    func rewriteCovers() {
+        covers.removeAll()
+        thumbnails.removeAll()
+        catalogSourceCount = -1
+        schedule.now()
+    }
+
     // MARK: - Writing
 
     private func publish() {

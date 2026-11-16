@@ -49,12 +49,19 @@ final class WidgetCovers {
 
     /// `content`'s cover at the widget's size, named for its key; nil for
     /// one with no cover.
+    ///
+    /// The name carries the image cache's key for it as well as its URL: a
+    /// file is written from that cache, so one written when the cache
+    /// answered a new URL with an old picture (Plex covers were cached by
+    /// album alone, and The Hobbit's widget kept its earlier edition's
+    /// cover) is written again once the key changes, not kept for good.
     static func source(for content: PlayableContent, key: String, isLead: Bool) -> Source? {
         guard let url = content.artwork ?? content.thumbnail else { return nil }
         let points = isLead ? leadPoints : Self.points
         let request = ContentArtworkView.artworkRequest(for: content, url: url, preferredSize: points)
         let pixels = Int(ContentArtworkView.maxPixelSize(for: points))
-        return Source(name: BookShelfWidgetState.coverName(for: key, source: url.absoluteString, pixels: pixels), request: request)
+        let source = "\(url.absoluteString)|\(request.imageID ?? "")"
+        return Source(name: BookShelfWidgetState.coverName(for: key, source: source, pixels: pixels), request: request)
     }
 
     /// The file a shelf names for `source`: it, once written, else one
@@ -85,6 +92,17 @@ final class WidgetCovers {
                 onWritten()
             }
         }
+    }
+
+    /// Takes away every cover written, for Clear Image Cache: the shelves
+    /// write theirs again, fetched afresh.
+    func removeAll() {
+        guard let directory = BookShelfWidgetState.directory(folder) else { return }
+        for name in written {
+            try? FileManager.default.removeItem(at: directory.appendingPathComponent(name))
+        }
+        written = []
+        failures = [:]
     }
 
     /// Takes away the covers `named` leaves out. One on its way isn't named
