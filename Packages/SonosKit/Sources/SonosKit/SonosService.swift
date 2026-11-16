@@ -102,37 +102,66 @@ public final class SonosService {
     public var isCellular: Bool { sonosSystemDiscoverService.isCellular }
 
     /// Whether speakers can be reached from here: Sonos is on, this device
-    /// is on Wi‑Fi or Ethernet, and it isn't in a car. Speakers are only ever
-    /// on the local network, so on cellular alone there are none to show or
-    /// play to, and in a car there's no place for one (`isInCar`).
-    /// Observable, so anything derived from it follows by itself. Gate
-    /// speaker UI and routing on this; `isEnabled` is the setting.
-    public var isAvailable: Bool { isEnabled && !isCellular && !isInCar }
+    /// is on Wi‑Fi or Ethernet, and it isn't in a car, unless the car drives
+    /// a speaker (`carDrivesSpeaker`). Speakers are only ever on the local
+    /// network, so on cellular alone there are none to show or play to, and
+    /// in a car there's no place for one otherwise (`isInCar`). Observable,
+    /// so anything derived from it follows by itself. Gate speaker UI and
+    /// routing on this; `isEnabled` is the setting.
+    public var isAvailable: Bool { isEnabled && !isCellular && !isKeptOutOfCar }
 
     /// True while this iPhone is in a car: CarPlay's screen is up or the
     /// sound goes to CarPlay. Set by the app (`CarConnection`). Speakers have
     /// no place in a car, so while it's true Cue acts as if Sonos were off:
-    /// the groups are put away, and nothing looks for speakers or loads
-    /// their groups, even on Wi‑Fi (a garage within reach of home, or the
-    /// car's own Wi‑Fi). Out of the car they're looked for again.
+    /// the groups are put away going in, the route reads this device, and
+    /// nothing polls the speakers, even on Wi‑Fi (a garage within reach of
+    /// home, or the car's own Wi‑Fi). Out of the car they're looked for
+    /// again.
+    ///
+    /// Two things differ in the car. A load asked for still runs
+    /// (`updateGroups`): CarPlay looks for the speakers as it connects and
+    /// as the iPhone joins Wi‑Fi, and finding them is how it tells a car
+    /// parked at home, which it then offers them in. And once a speaker is
+    /// picked there (`carDrivesSpeaker`), the car changes nothing here.
     public private(set) var isInCar = false
 
-    /// Whether looking for speakers or loading their groups may touch the
-    /// network: Sonos is on and this device isn't in a car.
-    private var mayLookForSpeakers: Bool { isEnabled && !isInCar }
+    /// Set by the app while the car drives a speaker: one was picked in
+    /// CarPlay since it connected (`CarSpeakerControl`). Then speakers are
+    /// available in the car as out of it, the route the speaker's.
+    public private(set) var carDrivesSpeaker = false
 
-    /// Into a car, the groups are put away as on cellular (`clearDevices`);
-    /// out of one, on Wi‑Fi, they're looked for again.
+    /// In a car that hasn't picked a speaker: Cue acts as if Sonos were off.
+    private var isKeptOutOfCar: Bool { isInCar && !carDrivesSpeaker }
+
+    /// Whether looking for speakers or loading their groups may touch the
+    /// network: Sonos is on. In a car the polling stays off (`monitor()`
+    /// checks `isKeptOutOfCar` too), but a load asked for runs: that's
+    /// CarPlay looking for the speakers, as above.
+    private var mayLookForSpeakers: Bool { isEnabled }
+
+    /// Into a car, the groups are put away as on cellular (`clearDevices`),
+    /// so a car away from home never offers the house's speakers; CarPlay
+    /// looks for them again itself. Out of one, on Wi‑Fi, they're looked
+    /// for again.
     @MainActor
     public func setInCar(_ inCar: Bool) {
         guard inCar != isInCar else { return }
         isInCar = inCar
         guard isEnabled else { return }
         if inCar {
-            clearDevices()
+            if !carDrivesSpeaker {
+                clearDevices()
+            }
         } else if !isCellular {
             monitor()
         }
+    }
+
+    /// The car took a speaker, or let it go (`carDrivesSpeaker`).
+    @MainActor
+    public func setCarDrivesSpeaker(_ drives: Bool) {
+        guard drives != carDrivesSpeaker else { return }
+        carDrivesSpeaker = drives
     }
 
     /// Off Wi‑Fi the groups on hand are the last ones seen, and nothing can
@@ -553,7 +582,7 @@ public final class SonosService {
 
     @MainActor
     public func monitor(retry: Bool = true, useCache: Bool = true) {
-        guard mayLookForSpeakers, allowsMonitoring else { return }
+        guard mayLookForSpeakers, !isKeptOutOfCar, allowsMonitoring else { return }
         if isRunning { return }
         print("Monitoring!")
 
@@ -665,6 +694,14 @@ public final class SonosService {
     public func beginShowingOtherGroups() {
         otherGroupViewers += 1
         guard otherGroupViewers == 1 else { return }
+        readOtherGroups()
+    }
+
+    /// Reads the other groups' songs, play state and levels once, for a
+    /// screen that shows them and is up only a moment, or can't say when it
+    /// goes (CarPlay's Play On).
+    @MainActor
+    public func readOtherGroups() {
         let others = groups.filter { $0 != selectedGroup }
         guard !others.isEmpty else { return }
         Task { @MainActor [weak self] in

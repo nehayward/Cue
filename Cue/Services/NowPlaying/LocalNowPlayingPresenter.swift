@@ -15,6 +15,10 @@ import UIKit
 /// is armed. From one stream run to the next the card stays up, and the new
 /// run puts its song on it (`noteHandOff`).
 ///
+/// In a car it publishes Apple Music runs as well, and a queue loaded with
+/// nothing in a player as paused, so the car's Now Playing never leaves
+/// this card for MusicKit's (`LocalPlaybackService.publishesCarCard`).
+///
 /// A TuneIn station's card is live (`MPNowPlayingInfoPropertyIsLiveStream`):
 /// the LIVE bar in place of a timeline, and play and pause alone. iOS draws
 /// a live card's pause as a stop button (the Music app's radio is the same),
@@ -55,9 +59,24 @@ final class LocalNowPlayingPresenter {
     private var publishedArtworkURL: URL?
     private var publishedArtwork: MPMediaItemArtwork?
 
+    /// Whether the last update asked for the clock to be restated (see
+    /// `update`), so a seek's publish states the card the same way.
+    private var restatesClock = false
+
     /// Marks the card as this presenter's, so it can tell when something
-    /// else has replaced or cleared it.
-    private static let identifierPrefix = "cue.local."
+    /// else has replaced or cleared it. In the collection identifier, not
+    /// `MPNowPlayingInfoPropertyExternalContentIdentifier`: a card carrying
+    /// that one ran into CarPlay's metadata throttle ("Application exceeded
+    /// audio metadata throttle limit") once restated (`restateInterval`),
+    /// after which the car's Now Playing took none of the card's updates.
+    private static let marker = "cue.local"
+
+    /// How often a card that restates its clock is published again (see
+    /// `update`). At rate 0 each restate is a real change, and once a second
+    /// ran into CarPlay's metadata throttle, past which the car took no more
+    /// updates, a new song included. A new song still publishes at once;
+    /// this only spaces the restates, so the clock steps every few seconds.
+    private static let restateInterval: TimeInterval = 5
 
     private static let log = Logger(subsystem: "dance.cue", category: "nowplaying")
 
@@ -93,6 +112,8 @@ final class LocalNowPlayingPresenter {
     /// stream run). So a new player gets a new session, the commands and
     /// the song move over to it, and the old session goes.
     func attach(_ player: AVPlayer) {
+        // A stream run takes the card over from the car's silent player.
+        leaveCarSession()
         guard UserDefaults.standard.bool(forKey: AppStorageKeys.nowPlayingSession) else { return }
         if let session, session.players.contains(where: { $0 === player }) { return }
         let hadCommands = !commandTokens.isEmpty
@@ -113,6 +134,95 @@ final class LocalNowPlayingPresenter {
         session.becomeActiveIfPossible { active in
             Self.log.notice("now playing session \(active ? "active" : "not active", privacy: .public)")
         }
+    }
+
+    /// A silent player of this app's own under the car's card while no
+    /// stream player is (see `forCar`), and what keeps it looping.
+    private var carPlayer: AVQueuePlayer?
+    private var carLooper: AVPlayerLooper?
+
+    /// A card with no stream player under it, an Apple Music run's or a
+    /// parked queue's for a car (`LocalPlaybackService.publishesCarCard`):
+    /// it moves to a Now Playing session of a silent player of its own,
+    /// played and paused with the music. iOS reads a card's play state from
+    /// what its process plays, and the silence beside MusicKit has to mix,
+    /// which doesn't count, so on the app's own center the car showed ▶
+    /// over Apple Music with its clock stood still; a session's state comes
+    /// from its player. The commands move over with the card.
+    func forCar(playing: Bool) {
+        if carPlayer == nil {
+            guard let (player, looper) = Self.makeSilentPlayer() else { return }
+            carPlayer = player
+            carLooper = looper
+            let hadCommands = !commandTokens.isEmpty
+            if hadCommands {
+                unregisterCommands()
+            }
+            let session = MPNowPlayingSession(players: [player])
+            session.automaticallyPublishesNowPlayingInfo = false
+            self.session = session
+            if hadCommands {
+                registerCommands()
+            }
+            published = nil
+            session.becomeActiveIfPossible { active in
+                Self.log.notice("car session \(active ? "active" : "not active", privacy: .public)")
+            }
+        }
+        guard let carPlayer else { return }
+        if playing, carPlayer.timeControlStatus == .paused {
+            carPlayer.play()
+        } else if !playing, carPlayer.timeControlStatus != .paused {
+            carPlayer.pause()
+        }
+    }
+
+    /// The car's silent player goes, and the card back to the app's shared
+    /// center, commands and all: a stream run's card is the stream player's.
+    private func leaveCarSession() {
+        guard let carPlayer else { return }
+        carPlayer.pause()
+        self.carPlayer = nil
+        carLooper = nil
+        guard session != nil else { return }
+        let hadCommands = !commandTokens.isEmpty
+        if hadCommands {
+            unregisterCommands()
+        }
+        session = nil
+        if hadCommands {
+            registerCommands()
+        }
+        published = nil
+    }
+
+    /// A second of silence, looped, for the car's session.
+    private static func makeSilentPlayer() -> (AVQueuePlayer, AVPlayerLooper)? {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("cue-car-silence.wav")
+        if !FileManager.default.fileExists(atPath: url.path) {
+            let rate = 44_100
+            let samples = rate
+            var data = Data()
+            func append32(_ value: UInt32) { withUnsafeBytes(of: value.littleEndian) { data.append(contentsOf: $0) } }
+            func append16(_ value: UInt16) { withUnsafeBytes(of: value.littleEndian) { data.append(contentsOf: $0) } }
+            data.append(contentsOf: Array("RIFF".utf8))
+            append32(UInt32(36 + samples * 2))
+            data.append(contentsOf: Array("WAVEfmt ".utf8))
+            append32(16)
+            append16(1)
+            append16(1)
+            append32(UInt32(rate))
+            append32(UInt32(rate * 2))
+            append16(2)
+            append16(16)
+            data.append(contentsOf: Array("data".utf8))
+            append32(UInt32(samples * 2))
+            data.append(Data(count: samples * 2))
+            guard (try? data.write(to: url)) != nil else { return nil }
+        }
+        let player = AVQueuePlayer()
+        let looper = AVPlayerLooper(player: player, templateItem: AVPlayerItem(url: url))
+        return (player, looper)
     }
 
     /// The audio session has stopped mixing (it mixed to start in the
@@ -163,6 +273,10 @@ final class LocalNowPlayingPresenter {
         published = nil
         publishedArtworkURL = nil
         publishedArtwork = nil
+        restatesClock = false
+        carPlayer?.pause()
+        carPlayer = nil
+        carLooper = nil
         // The app's own card is the shared center's again, for the Sonos
         // mirror and whatever plays next.
         session = nil
@@ -176,15 +290,30 @@ final class LocalNowPlayingPresenter {
     /// `isLive` is a station's card: no timeline, so no drift to correct,
     /// only a write when what's on air or the play state changes. The
     /// station's name goes where an album's would.
+    ///
+    /// `restatesClock` publishes every `restateInterval` while playing, for
+    /// a card the system won't run the clock on: Apple Music's in a car
+    /// (`LocalPlaybackService.publishesCarCard`) when the car's silent
+    /// player couldn't be made (`forCar`). iOS reads a card on the shared
+    /// center as playing only while its process makes sound that doesn't
+    /// mix, and the silence beside MusicKit has to mix or it would stop the
+    /// music, so the car read the card as paused, ▶ and all, and its clock
+    /// stood at the last publish. Stepping beats standing still. Such a card is stated at
+    /// rate 0, as the car reads it anyway: at rate 1 each restate says only
+    /// what the system's own clock already predicts, which it can take as no
+    /// change at all.
     func update(
         item: PlayableContent?,
         isPlaying: Bool,
         duration: TimeInterval,
         elapsed: TimeInterval,
         canSkip: Bool,
-        isLive: Bool = false
+        isLive: Bool = false,
+        restatesClock: Bool = false
     ) {
         guard let item else { return }
+        // A card on the car's silent player has its clock run by the system.
+        self.restatesClock = restatesClock && !isLive && carPlayer == nil
         // The station's name where an album's would go, unless it's the
         // title already (nothing said to be on air yet).
         var album = item.metadata?.album ?? ""
@@ -221,7 +350,8 @@ final class LocalNowPlayingPresenter {
             ? publishedElapsed + Date.now.timeIntervalSince(publishedAt) * (published?.rate ?? 1)
             : publishedElapsed
         let drifted = !isLive && abs(elapsed - expected) > 2
-        guard snapshot != published || !cardIsOurs || drifted else { return }
+        let restate = self.restatesClock && isPlaying && Date.now.timeIntervalSince(publishedAt) >= Self.restateInterval
+        guard snapshot != published || !cardIsOurs || drifted || restate else { return }
         publish(snapshot, elapsed: elapsed, item: item)
     }
 
@@ -238,9 +368,9 @@ final class LocalNowPlayingPresenter {
             MPMediaItemPropertyTitle: snapshot.title,
             MPMediaItemPropertyArtist: snapshot.artist,
             MPMediaItemPropertyAlbumTitle: snapshot.album,
-            MPNowPlayingInfoPropertyExternalContentIdentifier: Self.identifierPrefix + snapshot.identity,
+            MPNowPlayingInfoCollectionIdentifier: Self.marker,
             MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.audio.rawValue,
-            MPNowPlayingInfoPropertyPlaybackRate: snapshot.isPlaying ? snapshot.rate : 0.0,
+            MPNowPlayingInfoPropertyPlaybackRate: snapshot.isPlaying && !restatesClock ? snapshot.rate : 0.0,
             MPNowPlayingInfoPropertyDefaultPlaybackRate: 1.0,
             MPNowPlayingInfoPropertyIsLiveStream: snapshot.isLive,
         ]
@@ -299,7 +429,7 @@ final class LocalNowPlayingPresenter {
     }
 
     private func isOurs(_ info: [String: Any]?) -> Bool {
-        (info?[MPNowPlayingInfoPropertyExternalContentIdentifier] as? String)?.hasPrefix(Self.identifierPrefix) ?? false
+        (info?[MPNowPlayingInfoCollectionIdentifier] as? String) == Self.marker
     }
 
     /// Sets a command's state only when it changes, so a republish (a new

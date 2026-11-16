@@ -329,15 +329,17 @@ final class SilentAudioSession {
 #endif
 
 /// Silence the on-device player plays, mixed with others, beside an Apple
-/// Music run with a Plex, Subsonic or Files song after it
-/// (`LocalPlaybackService.syncKeepAwake`).
+/// Music run with a Plex, Subsonic or Files song after it, and beside any
+/// Apple Music run in a car (`LocalPlaybackService.syncKeepAwake`).
 ///
 /// MusicKit's player makes the sound in a process of its own, so this one
 /// makes none, and iOS treats it accordingly: once the phone locks it is
 /// suspended within seconds. The poll that notices the run's end and starts
 /// the stream player after it then never runs, and the music stopped at the
 /// end of the Apple song until the phone was unlocked. Playing silence
-/// keeps Cue running to start that song.
+/// keeps Cue running to start that song. In a car it also keeps this app's
+/// card following the music, and makes the car read it as playing
+/// (`LocalPlaybackService.publishesCarCard`).
 ///
 /// Mixed with others because the music beside it isn't this process's:
 /// MusicKit's player has its own audio session, and taking a session that
