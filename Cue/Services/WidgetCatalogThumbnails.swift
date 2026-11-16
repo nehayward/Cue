@@ -23,6 +23,14 @@ final class WidgetCatalogThumbnails {
         self.folder = folder
     }
 
+    /// Takes away every thumbnail written, for Clear Image Cache: the next
+    /// pass writes them again, fetched afresh.
+    func removeAll() {
+        failures = []
+        guard let directory = BookShelfWidgetState.Catalog.thumbnailDirectory(folder) else { return }
+        try? FileManager.default.removeItem(at: directory)
+    }
+
     /// Writes the covers `items` have none for yet, in their order.
     func writeMissing(for items: [(key: String, content: PlayableContent)]) {
         guard !isWriting, let directory = BookShelfWidgetState.Catalog.thumbnailDirectory(folder) else { return }

@@ -98,6 +98,12 @@ struct CachesSection: View {
             dataCache.removeAll()
             dataCache.flush()
         }
+        // The widgets' covers are copies of what was in it: written again
+        // from the server, so a stale one doesn't outlive the clear.
+        #if !targetEnvironment(macCatalyst)
+        BookShelfWidgetPublisher.shared.rewriteCovers()
+        AlbumShelfWidgetPublisher.shared.rewriteCovers()
+        #endif
         // Zero at once: it was just emptied.
         cacheSize = 0
         AlertService.shared.showAlert(with: "Cache Cleared", imageName: "trash")
