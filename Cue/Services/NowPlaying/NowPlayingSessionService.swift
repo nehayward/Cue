@@ -1228,7 +1228,14 @@ final class NowPlayingSessionService {
         // same moment — so `currentRoute` is the only account of where the
         // phone is that's guaranteed to be current at the instant a command
         // arrives. See `canMirror`.
-        guard !AudioOutputRoute.isExternal else { return .noSuchContent }
+        //
+        // The one exception is the speaker a car drives (`drivenFromCar`):
+        // picked in CarPlay since the car connected, so its card's buttons
+        // are meant for it. Refused, the car's pause on that card did
+        // nothing. A command racing the car connecting still finds no
+        // speaker driven, as one is only ever driven from a pick.
+        let isCarsSpeaker = drivenFromCar?.coordinatorID == group.coordinatorID
+        guard !AudioOutputRoute.isExternal || isCarsSpeaker else { return .noSuchContent }
         Task { @MainActor in
             await action(SonosService.shared, group)
             publish()
