@@ -14,7 +14,11 @@ import UIKit
 /// an edition as long as the book names its narrator: Audible's first
 /// answer was often another edition (Jim Dale's for Stephen Fry's), so with
 /// none that fits the narrator stays unknown. A book Audible has nothing on
-/// is asked again after a week.
+/// is asked again after a week, and one renamed on its server since it was
+/// asked is asked again under its new name: Plex had The Hobbit as "The Lord
+/// of the Rings" until its album was renamed, and Audible's answer for that
+/// title, kept by the book's id, went on giving it the wrong narrator and
+/// cover (`Details.isAnswer(for:)`).
 @MainActor
 @Observable
 final class AudiobookDetails {
@@ -31,6 +35,14 @@ final class AudiobookDetails {
         /// The Audible edition it was matched to by length, and its cover.
         var asin: String?
         var cover: URL?
+        /// The title Audible was asked about, for a book asked about.
+        var title: String?
+
+        /// Whether these are `book`'s: not an answer from Audible for a title
+        /// the book no longer has.
+        func isAnswer(for book: PlayableContent) -> Bool {
+            checked == nil || title == book.title
+        }
 
         /// `sequence` as a number, to put a series in order.
         var place: Double? { sequence.flatMap { Double($0.trimmingCharacters(in: .whitespaces)) } }
@@ -62,7 +74,8 @@ final class AudiobookDetails {
     /// another version is ignored and written over, so every book is asked
     /// about again.
     private struct Store: Codable, Sendable {
-        static let currentVersion = 5
+        /// 6: what Audible was asked about (`Details.title`).
+        static let currentVersion = 6
         var version: Int
         var books: [String: Details]
         var repeatedCovers: Set<String>?
@@ -99,8 +112,10 @@ final class AudiobookDetails {
         return try? JSONDecoder().decode(Store.self, from: data)
     }
 
+    /// What's known of `book`, unless Audible's answer was for a title it
+    /// no longer has (`request(_:)` asks again).
     func details(for book: PlayableContent) -> Details? {
-        books[AudiobookProgressStore.key(for: book)]
+        books[AudiobookProgressStore.key(for: book)].flatMap { $0.isAnswer(for: book) ? $0 : nil }
     }
 
     /// What a reading is called on a series' page: who reads it, or Full
@@ -121,7 +136,7 @@ final class AudiobookDetails {
     /// the book.
     func coverContent(for book: PlayableContent) -> PlayableContent {
         let key = AudiobookProgressStore.key(for: book)
-        guard repeatedCovers.contains(key), let found = books[key], let asin = found.asin, let cover = found.cover else { return book }
+        guard repeatedCovers.contains(key), let found = details(for: book), let asin = found.asin, let cover = found.cover else { return book }
         return PlayableContent(
             title: book.title,
             subtitle: book.subtitle,
@@ -174,6 +189,7 @@ final class AudiobookDetails {
                 details.checked = asked.checked
                 details.asin = asked.asin
                 details.cover = asked.cover
+                details.title = asked.title
             }
             if books[key] != details {
                 books[key] = details
@@ -203,11 +219,11 @@ final class AudiobookDetails {
             let key = AudiobookProgressStore.key(for: book)
             guard !asking.contains(key) else { return false }
             if let failed = unansweredAt[key], Date.now.timeIntervalSince(failed) < Self.retryAfter { return false }
-            if let known = self.books[key] {
+            if let known = self.books[key], known.isAnswer(for: book) {
                 // Who reads it known, or asked lately.
                 guard known.narrators.isEmpty,
                       Date.now.timeIntervalSince(known.checked ?? .distantPast) > Self.recheckAfter else { return false }
-            } else if book.content.service == .audiobookshelf {
+            } else if self.books[key] == nil, book.content.service == .audiobookshelf {
                 // Not listed by the server yet: its own answer comes first.
                 return false
             }
@@ -238,12 +254,12 @@ final class AudiobookDetails {
         while !pending.isEmpty {
             let batch = Array(pending.prefix(Self.concurrency))
             pending.removeFirst(batch.count)
-            await withTaskGroup(of: (String, Details?).self) { group in
+            await withTaskGroup(of: (PlayableContent, Details?).self) { group in
                 for book in batch {
-                    let key = AudiobookProgressStore.key(for: book)
-                    group.addTask { (key, await Self.lookUp(book)) }
+                    group.addTask { (book, await Self.lookUp(book)) }
                 }
-                for await (key, details) in group {
+                for await (book, details) in group {
+                    let key = AudiobookProgressStore.key(for: book)
                     asking.remove(key)
                     // Unanswered: asked again after a while.
                     guard var details else {
@@ -251,8 +267,9 @@ final class AudiobookDetails {
                         continue
                     }
                     unansweredAt[key] = nil
-                    // A server's own series wins over Audible's.
-                    if let known = books[key], known.series != nil {
+                    // A server's own series wins over Audible's; not one
+                    // from an answer for the title the book had before.
+                    if let known = books[key], known.isAnswer(for: book), known.series != nil {
                         details.series = known.series
                         details.sequence = known.sequence
                     }
@@ -268,7 +285,7 @@ final class AudiobookDetails {
     /// same are one picture, which the earliest of them keeps (it's most
     /// likely that book's own). The others draw their Audible edition's.
     private func findRepeatedCovers() async {
-        let bySeries = Dictionary(grouping: seen) { books[$0.key]?.series ?? "" }
+        let bySeries = Dictionary(grouping: seen) { details(for: $0.value)?.series ?? "" }
         var found: Set<String> = []
         for (series, members) in bySeries where !series.isEmpty && members.count > 1 {
             var prints: [(key: String, place: Double, print: UInt64)] = []
@@ -283,7 +300,7 @@ final class AudiobookDetails {
                     fingerprints[printKey] = measured
                     print = measured
                 }
-                prints.append((key, books[key]?.place ?? .infinity, print))
+                prints.append((key, details(for: book)?.place ?? .infinity, print))
             }
             for entry in prints {
                 let alike = prints.filter { ($0.print ^ entry.print).nonzeroBitCount <= 3 }
@@ -331,7 +348,7 @@ final class AudiobookDetails {
             return nil
         }
         let home = AudibleCatalog.region()
-        var details = Details(checked: .now)
+        var details = Details(checked: .now, title: book.title)
         var seriesFound: [AudibleCatalog.Product.Series] = []
         // The title first, then keywords, which find editions the title
         // search misses; in the listener's store, then the UK's or the US's.
