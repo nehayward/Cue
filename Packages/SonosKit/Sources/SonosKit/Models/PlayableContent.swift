@@ -65,7 +65,16 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
         // Plex items without an album key (Sonos queue rows) keep the shared
         // title+artist key — a per-item key there would re-download the same
         // art once per row of a queued album.
+        //
+        // With the cover's version: Plex ends a cover's path in when it last
+        // changed (`/library/metadata/<key>/thumb/<time>`). Keyed by the
+        // album alone, a cover changed on the server never came again: The
+        // Hobbit, renamed from "The Lord of the Rings" with its new cover,
+        // kept the old one from the cache under the same key.
         if content.service == .plex, let albumID = metadata?.albumID, !albumID.isEmpty {
+            if let version = Self.plexArtworkVersion(thumbnail ?? artwork) {
+                return "plex.\(albumID).\(version)"
+            }
             return "plex.\(albumID)"
         }
         if let albumID = metadata?.album, !albumID.isEmpty {
@@ -79,6 +88,22 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
         return (thumbnail ?? artwork)?.absoluteString ?? ""
     }
     
+    /// When a Plex cover last changed, from the end of its path
+    /// (`/library/metadata/<key>/thumb/<time>`), or of the path a transcode
+    /// URL asks for in its `url`. Nil for anything else.
+    static func plexArtworkVersion(_ url: URL?) -> String? {
+        guard let url else { return nil }
+        var path = url.path
+        if path.hasSuffix("/transcode"),
+           let inner = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "url" })?.value {
+            path = URLComponents(string: inner)?.path ?? inner
+        }
+        let parts = path.split(separator: "/")
+        guard parts.count >= 2, parts[parts.count - 2] == "thumb" || parts[parts.count - 2] == "art",
+              let last = parts.last, last.allSatisfy(\.isNumber) else { return nil }
+        return String(last)
+    }
+
     public var isPlayable: Bool { metadata?.isPlayable ?? true }
 
     public var serviceWebURL: URL? {
