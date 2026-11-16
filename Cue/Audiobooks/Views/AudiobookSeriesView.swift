@@ -25,6 +25,12 @@ struct AudiobookSeriesView: View {
             let book: PlayableContent
             let label: String
             var id: String { book.id }
+
+            /// What the Play and Continue button calls it: "Book 2", or the
+            /// book's title for a prequel ("Continue The Hobbit").
+            var buttonName: String {
+                label == AudiobookSeriesView.prequelLabel ? book.title : label
+            }
         }
 
         /// Who reads it, "Full Cast", or `unknownReading` for books whose
@@ -40,6 +46,9 @@ struct AudiobookSeriesView: View {
     /// without their tags.
     static let unknownReading = "Unknown Narrator"
 
+    /// A book before the series' first (`placeLabel`).
+    static let prequelLabel = "Prequel"
+
     /// `books` by who reads them, each in the series' order; the reading
     /// listened to last first, then the one with the most books, and the
     /// books no one could name a reader for last.
@@ -48,6 +57,17 @@ struct AudiobookSeriesView: View {
     /// place in the series, when only one does: Stephen Fry's first six
     /// Harry Potters are editions Audible's public catalog no longer lists,
     /// but his seventh matched, and the full cast already has all seven.
+    /// A book's place in its series as the page names it: "Book 2", or
+    /// Prequel for a place before the first, as Audible numbers one (The
+    /// Hobbit is The Lord of the Rings' 0.5). Without a place, its place in
+    /// this reading.
+    static func placeLabel(_ details: AudiobookDetails.Details?, index: Int) -> String {
+        if let place = details?.place, place < 1 {
+            return prequelLabel
+        }
+        return "Book \(details?.sequence ?? "\(index + 1)")"
+    }
+
     @MainActor
     static func narrations(of books: [PlayableContent]) -> [Narration] {
         let details = AudiobookDetails.shared
@@ -81,7 +101,7 @@ struct AudiobookSeriesView: View {
                 let ordered = books.sorted(by: details.inSeriesOrder)
                 // Its place in the series, else in this reading.
                 let entries = ordered.enumerated().map { index, book in
-                    Narration.Entry(book: book, label: "Book \(details.details(for: book)?.sequence ?? "\(index + 1)")")
+                    Narration.Entry(book: book, label: Self.placeLabel(details.details(for: book), index: index))
                 }
                 return Narration(id: label, entries: entries)
             }
@@ -194,9 +214,9 @@ private struct AudiobookSeriesNextButton: View {
             return progress.isStarted && !progress.isFinished
         }
         if let partway {
-            AudiobookSeriesPlayButton(book: partway.book, label: "Continue \(partway.label)")
+            AudiobookSeriesPlayButton(book: partway.book, label: "Continue \(partway.buttonName)")
         } else if let first = narration.entries.first(where: { store.progress(for: $0.book)?.isFinished != true }) {
-            AudiobookSeriesPlayButton(book: first.book, label: "Play \(first.label)")
+            AudiobookSeriesPlayButton(book: first.book, label: "Play \(first.buttonName)")
         }
     }
 }
