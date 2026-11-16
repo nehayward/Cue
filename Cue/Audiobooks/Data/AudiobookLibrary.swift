@@ -488,10 +488,14 @@ enum AudiobookLibrary {
                 chapters = audible
             }
         }
-        // Nor matched there: Audible's edition as long as the book, found by
-        // its title and author.
-        if chapters.count <= 1, !missing,
+        // Nor matched there, or marked only "Track 001" and on: Audible's
+        // edition as long as the book, found by its title and author.
+        let placeholders = AudiobookChapterReader.namesArePlaceholders(chapters)
+        if chapters.count <= 1 || placeholders, !missing,
            let audible = await AudiobookChapterReader.searchedAudibleChapters(title: item?.title ?? book.title, author: item?.parentTitle, duration: timeline.duration) {
+            if placeholders {
+                log.info("plex book \(key, privacy: .public): \(audible.count) chapters from Audible in place of \(chapters.count) numbered only")
+            }
             chapters = audible
         }
         return Audiobook(

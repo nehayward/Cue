@@ -123,6 +123,19 @@ enum AudiobookChapterReader {
 
     // MARK: - Audible's chapters
 
+    /// Whether every chapter is named only as a ripper numbered it: a track,
+    /// part or disc ("The Hobbit - Track 001", as Libro.fm marks its files,
+    /// "Part 3", "CD 2"), or a bare number. Audible's names for the edition
+    /// are better when its edition is as long as the book
+    /// (`searchedAudibleChapters`). "Chapter 4" isn't one: Audible's are
+    /// often no more than that.
+    static func namesArePlaceholders(_ chapters: [AudiobookChapter]) -> Bool {
+        guard chapters.count > 1 else { return false }
+        return chapters.allSatisfy { chapter in
+            chapter.title.range(of: #"^(?:.*[\s\-–—:_])?(?:track|part|disc|cd)\s*#?\s*\d+$|^\s*\d+\s*$"#, options: [.regularExpression, .caseInsensitive]) != nil
+        }
+    }
+
     /// Audible's chapters for a book with no marks anywhere, by its ASIN
     /// (`AudnexusChapters`), laid on a book `duration` long. Nil when
     /// Audible has none, or none that fit this edition. `lookup` asks the
