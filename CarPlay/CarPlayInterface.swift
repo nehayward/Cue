@@ -13,7 +13,7 @@ import UIKit
 /// - **Home** — what was last played in Cue, with Resume on top when the
 ///   device has a queue waiting, then the signed-in providers' library a
 ///   section at a time: Playlists, Recently Added and Albums are a switch
-///   of tiles, and the section shows under it as grids of covers.
+///   of tiles, and the section shows under it as shelves of covers.
 /// - **Audiobooks** — while there are books (as the phone's tab): the books
 ///   partway through, each with how far in it is, then each server's books.
 ///   A book plays from where it was left (`AudiobookPlayer`), with its speed
@@ -23,7 +23,7 @@ import UIKit
 /// - **Downloads** — what's on this iPhone, which plays with no signal:
 ///   Shuffle All, Albums, Artists and Songs, and the newest albums.
 /// - **Radio** — TuneIn's and Apple Music's stations, as on the phone, as
-///   grids of squares.
+///   shelves of covers.
 ///
 /// Everything picked here plays on this device (see `CarPlayPlayback`). A
 /// car is no place for a speaker, so nothing here offers one, unless the
@@ -37,15 +37,17 @@ import UIKit
 /// the car's Now Playing, whose buttons play, pause and skip it, until This
 /// iPhone is picked or the car goes. The car's Now Playing
 /// screen is the system's, filled from the card the device player publishes
-/// (see `LocalNowPlayingPresenter`), or MusicKit's own for Apple Music; this
+/// (see `LocalNowPlayingPresenter`), Apple Music's included while in a car
+/// (`LocalPlaybackService.publishesCarCard`); this
 /// adds the like button, the queue button and Up Next (with shuffle and
 /// repeat over it), the artist's page from the artist line, shuffle and
 /// repeat to it.
 ///
-/// The newest plays and downloads are iOS 26 card rows, the stations, the
-/// library's sections and the books image grids, and the buttons (the Library's
-/// sections, the Downloads tab's ways in, Play and Shuffle, shuffle and
-/// repeat) tiles on the car's platters (`tileRow`). From iOS 27 an album or
+/// The newest plays and downloads, the stations, the library's sections and
+/// the books are shelves of large covers, as the Music app's (`coverShelf`),
+/// and the buttons (the Library's sections, the Downloads tab's ways in,
+/// Play and Shuffle, shuffle and repeat) tiles on the car's platters
+/// (`tileRow`). From iOS 27 an album or
 /// playlist opens under a details header with its cover, and the system's
 /// MiniPlayer shows what's playing without any work here.
 ///
@@ -308,6 +310,9 @@ final class CarPlayInterface: NSObject {
 
     private func stateChanged() {
         detectSpeakersOnWiFi()
+        // A queue loaded with nothing playing, or the route gone to a
+        // speaker: the player's paused card for the car, or none.
+        LocalPlaybackService.shared.updateIdleCard()
         updateNowPlaying()
         updateTabs()
         reloadHome()
@@ -324,8 +329,8 @@ final class CarPlayInterface: NSObject {
 
     /// Marks the row of what's playing on every list up, the way the Music
     /// app does. Rows carry their content's id in `userInfo` for this; a
-    /// grid of stations carries its stations' ids, and the one playing gets
-    /// a speaker under it.
+    /// shelf of covers carries its covers' ids (`ShelfCovers`), and the one
+    /// playing reads Now Playing under it.
     private func updatePlayingIndicators() {
         let player = LocalPlaybackService.shared
         var playing: Set<String> = []
@@ -350,27 +355,24 @@ final class CarPlayInterface: NSObject {
                         item.isPlaying = isPlaying
                     }
                 }
-                for case let grid as CPListImageRowItem in section.items {
-                    guard let ids = grid.userInfo as? [String] else { continue }
+                for case let shelf as CPListImageRowItem in section.items {
+                    guard let covers = shelf.userInfo as? ShelfCovers else { continue }
                     var changed = false
-                    for case let (element as CPListImageRowItemImageGridElement, id) in zip(grid.elements, ids) {
-                        let symbol = playing.contains(id) ? Self.playingSymbol : nil
-                        if element.accessorySymbolName != symbol {
-                            element.accessorySymbolName = symbol
+                    for case let (element as CPListImageRowItemRowElement, (id, subtitle)) in zip(shelf.elements, zip(covers.ids, covers.subtitles)) {
+                        let shown = playing.contains(id) ? Self.playingSubtitle : subtitle
+                        if element.subtitle != shown {
+                            element.subtitle = shown
                             changed = true
                         }
                     }
                     if changed {
                         // Set again so the car redraws the row.
-                        grid.elements = grid.elements
+                        shelf.elements = shelf.elements
                     }
                 }
             }
         }
     }
-
-    /// Under the station that's playing in a grid of them.
-    private static let playingSymbol = "speaker.wave.2.fill"
 
     // MARK: - Home
 
@@ -487,9 +489,8 @@ final class CarPlayInterface: NSObject {
     /// dropped to placeholders and loaded each of its covers again.
     private var homeLibrary: (signature: String, sections: [CPListSection])?
 
-    /// Resume and the newest plays as cards, then the tiles and the
-    /// section's shelves as grids of covers, the way Radio lays out its
-    /// stations: a provider's each, titled with its name when there's more
+    /// Resume and the newest plays as a shelf of covers, then the tiles and
+    /// the section's shelves, the way Radio lays out its stations: a provider's each, titled with its name when there's more
     /// than one and with the section's when there's one.
     private func fillHome() {
         let player = LocalPlaybackService.shared
@@ -531,7 +532,7 @@ final class CarPlayInterface: NSObject {
                 list.append(CPListSection(items: [playOnRow()]))
             }
             if !newest.isEmpty {
-                let cards = cardRow(title: "Recently Played", items: newest) { [weak self] in
+                let cards = coverShelf(title: "Recently Played", items: newest) { [weak self] in
                     self?.pushRecents()
                 }
                 list.append(CPListSection(items: [cards]))
@@ -548,7 +549,7 @@ final class CarPlayInterface: NSObject {
                 let named = shelves.count > 1
                 built += shelves.prefix(room).map { shelf -> CPListSection in
                     let title = named ? shelf.title : section.title
-                    return CPListSection(items: [imageGrid(title: title, items: shelf.items)])
+                    return CPListSection(items: [coverShelf(title: title, items: shelf.items)])
                 }
             } else if shelves == nil {
                 built.append(CPListSection(items: [note("Loading \(section.title)…")]))
@@ -740,7 +741,7 @@ final class CarPlayInterface: NSObject {
             if let shelves {
                 let room = max(CPListTemplate.maximumSectionCount - list.count, 0)
                 list += shelves.prefix(room).map { shelf in
-                    CPListSection(items: [imageGrid(title: shelf.title, items: shelf.items)])
+                    CPListSection(items: [coverShelf(title: shelf.title, items: shelf.items)])
                 }
             } else {
                 list.append(CPListSection(items: [note("Loading Books…")]))
@@ -801,7 +802,7 @@ final class CarPlayInterface: NSObject {
     // MARK: - Downloads
 
     /// Shuffle All, Albums, Artists and Songs as tiles on top, then the
-    /// albums that arrived last as cards. Refilled only when what's on the
+    /// albums that arrived last as a shelf. Refilled only when what's on the
     /// device has changed.
     private func reloadDownloads() {
         let token = OnDeviceLibrary.changeToken
@@ -830,7 +831,7 @@ final class CarPlayInterface: NSObject {
         var sections = [CPListSection(items: [tileRow([shuffle] + browse)])]
         let recent = CarPlayLibrary.recentlyDownloaded()
         if !recent.isEmpty {
-            let cards = cardRow(title: "Recently Downloaded", items: recent) { [weak self] in
+            let cards = coverShelf(title: "Recently Downloaded", items: recent) { [weak self] in
                 self?.pushListing(CarPlayLibrary.recentlyDownloadedListing)
             }
             sections.append(CPListSection(items: [cards]))
@@ -840,7 +841,7 @@ final class CarPlayInterface: NSObject {
 
     // MARK: - Radio
 
-    /// Each section's stations as a grid of squares, the way the Music app
+    /// Each section's stations as a shelf of covers, the way the Music app
     /// lays out its radio.
     private func reloadRadio() {
         radioTask?.cancel()
@@ -856,7 +857,7 @@ final class CarPlayInterface: NSObject {
                 .joined(separator: "|")
             self.update(self.radioTemplate, signature: signature) {
                 sections.prefix(CPListTemplate.maximumSectionCount).map { section in
-                    CPListSection(items: [self.imageGrid(title: section.title, items: section.stations)])
+                    CPListSection(items: [self.coverShelf(title: section.title, items: section.stations)])
                 }
             }
             self.updatePlayingIndicators()
@@ -956,7 +957,7 @@ final class CarPlayInterface: NSObject {
             sections.append(CPListSection(items: rows, header: page.songsTitle, sectionIndexTitle: nil))
         }
         if !page.albums.isEmpty {
-            sections.append(CPListSection(items: [imageGrid(title: "Albums", items: page.albums)]))
+            sections.append(CPListSection(items: [coverShelf(title: "Albums", items: page.albums)]))
         }
         template.updateSections(Array(sections.prefix(CPListTemplate.maximumSectionCount)))
         updatePlayingIndicators()
@@ -1949,49 +1950,48 @@ final class CarPlayInterface: NSObject {
         }
     }
 
-    /// The newest of a list as a row of cards, cover on top and name under
-    /// it: a song or station plays when its card is picked, an album or
-    /// playlist opens. Picking the row's title runs `showAll`.
-    private func cardRow(title: String, items: [PlayableContent], showAll: (@MainActor () -> Void)?) -> CPListImageRowItem {
-        let elements = items.map { item in
-            CPListImageRowItemCardElement(
-                image: CarPlayArtwork.requiredPlaceholder(for: item),
-                showsImageFullHeight: false,
-                title: item.title,
-                subtitle: detail(for: item),
-                tintColor: nil
-            )
-        }
-        let row = CPListImageRowItem(text: title, cardElements: elements, allowsMultipleLines: false)
-        attach(items, to: row, showAll: showAll)
-        return row
+    /// How many covers a shelf hands the car, which shows as many as fit
+    /// across its screen.
+    private static let coversPerShelf = 12
+
+    /// How many covers a shelf shows on a car's screen of the usual width;
+    /// past that, its title opens them all.
+    private static let coversInView = 4
+
+    /// What a shelf's covers stand for, for `updatePlayingIndicators`: each
+    /// one's content id ("" for an album or playlist, which opens rather
+    /// than plays) and the line under it, which reads Now Playing instead
+    /// while it plays.
+    private struct ShelfCovers {
+        let ids: [String]
+        let subtitles: [String?]
     }
 
-    /// Squares in a grid: a few lines of them. The grid's title opens the
-    /// rest.
-    private static let squaresPerGrid = 12
+    /// Under the cover of what's playing on a shelf.
+    private static let playingSubtitle = "Now Playing"
 
-    /// Stations, albums or playlists as a grid of squares with their names
-    /// under them, a few lines of them: the Music app's radio and its
-    /// Recently Added. A station or song plays when its square is picked,
-    /// and the one playing gets a speaker under it (`updatePlayingIndicators`,
-    /// from the ids in `userInfo`); an album or playlist opens, so it has
-    /// nothing to mark. When there are more than fit, the grid's title opens
-    /// them all as rows.
-    private func imageGrid(title: String, items: [PlayableContent]) -> CPListImageRowItem {
-        let shown = Array(items.prefix(Self.squaresPerGrid))
-        let elements = shown.map { item in
-            CPListImageRowItemImageGridElement(
+    /// A shelf of large covers, each with its name and a line under it, on
+    /// one line across the screen: the Music app's shelves in the car. A
+    /// song, station or book plays when its cover is picked, an album or
+    /// playlist opens. The shelf's title runs `showAll`, or without one
+    /// opens all of `items` as rows once there are more than fit.
+    ///
+    /// The row elements are the large covers the Music app draws; the image
+    /// grid's squares are smaller, and the cards sit on platters.
+    private func coverShelf(title: String, items: [PlayableContent], showAll: (@MainActor () -> Void)? = nil) -> CPListImageRowItem {
+        let shown = Array(items.prefix(Self.coversPerShelf))
+        let subtitles = shown.map { detail(for: $0) }
+        let elements = zip(shown, subtitles).map { item, subtitle in
+            CPListImageRowItemRowElement(
                 image: CarPlayArtwork.requiredPlaceholder(for: item),
-                imageShape: .roundedRectangle,
                 title: item.title,
-                accessorySymbolName: nil
+                subtitle: subtitle
             )
         }
-        let row = CPListImageRowItem(text: title, imageGridElements: elements, allowsMultipleLines: true)
-        row.userInfo = shown.map { opens($0) ? "" : $0.id }
-        var showAll: (@MainActor () -> Void)?
-        if items.count > shown.count {
+        let row = CPListImageRowItem(text: title, elements: elements, allowsMultipleLines: false)
+        row.userInfo = ShelfCovers(ids: shown.map { opens($0) ? "" : $0.id }, subtitles: subtitles)
+        var showAll = showAll
+        if showAll == nil, items.count > Self.coversInView {
             showAll = { [weak self] in
                 self?.pushRows(title: title, items: items)
             }

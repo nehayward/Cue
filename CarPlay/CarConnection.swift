@@ -59,7 +59,11 @@ enum CarConnection {
     }
 
     private static func update() {
-        SonosService.shared.setInCar(hasScene || routesToCar)
+        let inCar = hasScene || routesToCar
+        SonosService.shared.setInCar(inCar)
+        // The car's Now Playing reads this app's own card, for Apple Music
+        // too (`LocalPlaybackService.publishesCarCard`).
+        LocalPlaybackService.shared.publishesCarCard = inCar
     }
 }
 

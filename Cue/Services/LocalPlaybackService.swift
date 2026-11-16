@@ -580,11 +580,52 @@ final class LocalPlaybackService {
     /// for a run the user has already skipped away from.
     @ObservationIgnored private var playToken = 0
     /// The Lock Screen card for the stream backend. Apple Music's player
-    /// publishes its own.
+    /// publishes its own — except to a car, see `publishesCarCard`.
     @ObservationIgnored private lazy var nowPlayingCard = LocalNowPlayingPresenter(player: self)
     /// Silence beside an Apple Music run with a stream song next, so Cue is
-    /// still running at the run's end to start it (`syncKeepAwake`).
+    /// still running at the run's end to start it, and beside any Apple
+    /// Music run in a car, for the car's card (`syncKeepAwake`).
     @ObservationIgnored private lazy var keepAwake = KeepAwakeAudio()
+    /// Whether Apple Music runs, and a queue loaded with nothing in a
+    /// player, get this app's own Now Playing card too, beside the one
+    /// MusicKit's player publishes. On while the iPhone is in a car
+    /// (`CarConnection`).
+    ///
+    /// On iOS 27 the car's Now Playing stays on whichever of the app's two
+    /// cards it was on, this process's or MusicKit's, rather than following
+    /// the one making sound (FB24840951). It starts on this one. With no
+    /// card here while Apple Music played, it read blank with a Play button,
+    /// and a Play there, finding no command here, went to MusicKit's player
+    /// and moved the car onto MusicKit's card for good. That card is emptied
+    /// when a stream run takes over (`releaseAppleQueue`), so Plex after
+    /// Apple Music read blank again, and its Play started MusicKit's empty
+    /// player, which took the audio and paused Plex. So in a car this card
+    /// is up for every run, with commands that reach this player, and the
+    /// car never leaves it. The Lock Screen follows the card whose process
+    /// makes the sound, MusicKit's, so the phone's own card is unchanged.
+    /// The car reads this card as playing only while this process makes
+    /// sound, hence the silence beside Apple Music in a car (`syncKeepAwake`),
+    /// which also keeps Cue running to follow the music with the phone
+    /// locked.
+    @ObservationIgnored var publishesCarCard = false {
+        didSet {
+            guard publishesCarCard != oldValue else { return }
+            Self.log.notice("car card \(self.publishesCarCard ? "on" : "off", privacy: .public)")
+            switch backend {
+            case .appleMusic, .appleStation:
+                if publishesCarCard {
+                    updateAppleMusicCard()
+                } else {
+                    nowPlayingCard.end()
+                }
+                syncKeepAwake(playing: isPlaying)
+            case nil:
+                updateIdleCard()
+            case .stream:
+                break
+            }
+        }
+    }
     /// When the Apple run with `keepAwake` held was paused.
     @ObservationIgnored private var keepAwakePausedSince: Date?
     /// True while the stream backend is armed — the Sonos Lock Screen mirror
@@ -1081,6 +1122,9 @@ final class LocalPlaybackService {
         switch backend {
         case .appleMusic:
             musicPlayer.playbackTime = seconds
+            if publishesCarCard {
+                nowPlayingCard.noteSeek(elapsed: seconds)
+            }
         case .stream:
             moveToLocalCopy()
             streamPlayer?.seek(to: CMTime(seconds: seconds, preferredTimescale: 600))
@@ -1665,6 +1709,7 @@ final class LocalPlaybackService {
         isLoading = false
         progress = 0
         duration = 0
+        updateIdleCard()
     }
 
     /// Takes the player down but keeps the queue: nothing armed, paused on
@@ -1699,6 +1744,7 @@ final class LocalPlaybackService {
             resumePosition = position > 2 ? position : nil
         }
         savePosition()
+        updateIdleCard()
     }
 
     /// Arms the current track again and plays it, from the parked spot when
@@ -1873,12 +1919,15 @@ final class LocalPlaybackService {
         }
         // Straight on from a stream player, as `arm(at:)` does.
         let handsToStream = kind == .stream
-        teardownRun(keepingAudioSession: handsToStream, keepingCard: handsToStream)
+        teardownRun(keepingAudioSession: handsToStream, keepingCard: handsToStream || publishesCarCard)
         defer {
             if handsToStream, playToken == token, backend != .stream {
                 nowPlayingCard.end()
                 keepAwake.release(deactivating: false)
                 releaseAudioSession()
+            }
+            if playToken == token, backend == nil {
+                updateIdleCard()
             }
         }
         self.station = station
@@ -1975,7 +2024,15 @@ final class LocalPlaybackService {
         playToken += 1
         let token = playToken
         armingIndex = index
-        defer { if playToken == token { armingIndex = nil } }
+        defer {
+            if playToken == token {
+                armingIndex = nil
+                // Nothing ended up playing: a car's card goes to paused.
+                if backend == nil {
+                    updateIdleCard()
+                }
+            }
+        }
         // Straight back to a stream player: the audio session stays ours.
         // Letting it go and taking it back on every Previous or long skip
         // was a round trip to the audio server each way, and told other
@@ -1983,7 +2040,10 @@ final class LocalPlaybackService {
         // Now Playing card, for the new run to put its song on
         // (`teardownRun`).
         let handsToStream = queue.indices.contains(index) && backendKind(for: queue[index]) == .stream
-        teardownRun(keepingAudioSession: handsToStream, keepingCard: handsToStream)
+        // In a car the card stays for an Apple run too, which puts its song
+        // on it (`publishesCarCard`): gone between the two, the car could let
+        // go of it.
+        teardownRun(keepingAudioSession: handsToStream, keepingCard: handsToStream || publishesCarCard)
         // Unless nothing ended up playing on them.
         defer {
             if handsToStream, playToken == token, backend != .stream {
@@ -2132,7 +2192,9 @@ final class LocalPlaybackService {
     private func finishRun(endingAt end: Int) {
         let next = sleepsAtEndOfTrack ? nil : rowAfterRun(endingAt: end)
         let handsToStream = next.flatMap { queue[safe: $0] }.map { backendKind(for: $0) == .stream } ?? false
-        teardownRun(keepingAudioSession: handsToStream, keepingCard: handsToStream)
+        // In a car the card stays for an Apple run too (`publishesCarCard`),
+        // and goes to paused if nothing follows.
+        teardownRun(keepingAudioSession: handsToStream, keepingCard: handsToStream || publishesCarCard)
         advancePastRun(endingAt: end)
     }
 
@@ -2163,6 +2225,7 @@ final class LocalPlaybackService {
             // Parked at the start of the next track: show its length, as a
             // paused speaker would, rather than no scrubber at all.
             duration = catalogDuration(at: currentIndex)
+            updateIdleCard()
             return
         }
         guard let next = rowAfterRun(endingAt: end) else {
@@ -2200,6 +2263,7 @@ final class LocalPlaybackService {
         // would, rather than no scrubber at all.
         duration = catalogDuration(at: 0)
         savePosition()
+        updateIdleCard()
     }
 
     private func restartCurrent() {
@@ -2363,7 +2427,18 @@ final class LocalPlaybackService {
     /// MusicKit, not Cue, and Cue asleep at the end would stop again. It's
     /// given up past that, when the next song isn't a stream any more, or
     /// once the stream player has the session (`armStream`).
+    ///
+    /// In a car it's held through every Apple Music run and follows the
+    /// music, playing and pausing with it: the car reads this app's card
+    /// (`publishesCarCard`) as playing only while this process makes sound,
+    /// and the card follows the music only while Cue runs. A Play from the
+    /// car's card wakes Cue, as it reaches this player's commands.
     private func syncKeepAwake(playing: Bool) {
+        if publishesCarCard, backend == .appleMusic || backend == .appleStation {
+            keepAwakePausedSince = nil
+            keepAwake.hold(playing: playing)
+            return
+        }
         let next = sleepsAtEndOfTrack ? nil : rowAfterRun(endingAt: runEnd)
         let streamNext = next.flatMap { queue[safe: $0] }.map { backendKind(for: $0) == .stream } ?? false
         if playing {
@@ -2377,6 +2452,55 @@ final class LocalPlaybackService {
         } else {
             keepAwake.release(deactivating: true)
         }
+    }
+
+    /// This app's card for an Apple Music run, in a car (see
+    /// `publishesCarCard`): the song, its cover and clock, and commands that
+    /// drive this player, which drives MusicKit's. From the poll; the card
+    /// writes when the song or the play state changed, and every few seconds
+    /// for the clock, which the car won't run on a card whose process makes
+    /// no sound of its own (`restatesClock`).
+    private func updateAppleMusicCard() {
+        guard publishesCarCard, backend == .appleMusic || backend == .appleStation else { return }
+        nowPlayingCard.forCar(playing: isPlaying)
+        nowPlayingCard.begin()
+        nowPlayingCard.update(
+            item: nowPlayingDisplay,
+            isPlaying: isPlaying,
+            duration: duration,
+            elapsed: progress,
+            canSkip: hasNext,
+            isLive: station != nil,
+            restatesClock: station == nil
+        )
+    }
+
+    /// The card for a queue or station loaded with nothing in a player, in a
+    /// car: restored from the last launch, played to its end, a run that
+    /// wouldn't start, parked by a sleep timer. Paused, at the spot Play
+    /// picks up from, and its commands arm it. With no card of ours, the
+    /// car's Now Playing read blank, and its Play went to MusicKit's player
+    /// and took the car onto MusicKit's card (`publishesCarCard`). Taken
+    /// down on a speaker's route, whose card is the Sonos mirror's, and with
+    /// nothing loaded.
+    func updateIdleCard() {
+        // A run on its way keeps the card it's handed (`teardownRun`), or
+        // the car read the last song as paused while the next one loaded.
+        guard backend == nil, armingIndex == nil, !isLoading else { return }
+        guard publishesCarCard, isActive, PlaybackRoute.shared.destination == .device else {
+            nowPlayingCard.end()
+            return
+        }
+        nowPlayingCard.forCar(playing: false)
+        nowPlayingCard.begin()
+        nowPlayingCard.update(
+            item: nowPlayingDisplay,
+            isPlaying: false,
+            duration: duration,
+            elapsed: resumePosition ?? progress,
+            canSkip: hasNext,
+            isLive: station != nil
+        )
     }
 
     /// Empties the Apple player once the stream player has taken over from
@@ -3713,6 +3837,7 @@ final class LocalPlaybackService {
             }
             fillAppleRun()
             prepareNextRun()
+            updateAppleMusicCard()
             // Past the end of the last entry by the clock, and parked either
             // at its end or back at the top — some OS versions rewind the
             // finished queue (to zero, or to its first entry) and read
