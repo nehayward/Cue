@@ -324,11 +324,16 @@ enum CarPlayArtwork {
         placeholder(for: content) ?? symbol("music.note") ?? UIImage()
     }
 
-    /// A system symbol in white on a dark screen and black on a light one
-    /// (`looks`). The car tints the tab bar's symbols but draws a row's as
-    /// it gets them, and a plain symbol is black.
+    /// Cue's own speaker-with-arrow symbol, the phone's Play On button's
+    /// (`PlaybackRouteButton`), in the app's asset catalog.
+    static let playOnSymbol = "hifispeaker.arrow.forward.fill"
+
+    /// A system symbol, or one of Cue's own from its asset catalog, in white
+    /// on a dark screen and black on a light one (`looks`). The car tints
+    /// the tab bar's symbols but draws a row's as it gets them, and a plain
+    /// symbol is black.
     static func symbol(_ name: String) -> UIImage? {
-        guard let symbol = UIImage(systemName: name) else { return nil }
+        guard let symbol = UIImage(systemName: name) ?? UIImage(named: name) else { return nil }
         return looks { color in symbol.withTintColor(color, renderingMode: .alwaysOriginal) }
     }
 

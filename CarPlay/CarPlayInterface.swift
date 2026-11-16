@@ -1018,10 +1018,12 @@ final class CarPlayInterface: NSObject {
         }
         let liked = likeable.map { isLiked($0) } ?? false
         let hasModes = onDevice && !player.isPlayingStation && !isBook
-        // Play On, while the speakers answer from the car: filled while the
-        // car drives one.
+        // Play On, while the speakers answer from the car: lit while the car
+        // drives one, with the speaker's volume beside it then (the car's
+        // own knob only turns the car's sound).
         let playOn = offersPlayOn
         let onSpeaker = PlaybackRoute.shared.destination != .device
+        let hasVolume = playOn && onSpeaker && PlaybackRoute.shared.group != nil
         // Whenever there's a queue of songs, on its last song too, as the
         // Music app's is — and under a station, which leaves the queue
         // waiting behind it, at place zero. A station alone has no queue.
@@ -1036,6 +1038,7 @@ final class CarPlayInterface: NSObject {
             isBook ? "book" : "",
             chapters.isEmpty ? "" : "\(chapterPlace)",
             playOn ? "playOn:\(onSpeaker)" : "",
+            hasVolume ? "volume" : "",
         ].joined(separator: "|")
         guard signature != nowPlayingButtons else { return }
         nowPlayingButtons = signature
@@ -1103,14 +1106,29 @@ final class CarPlayInterface: NSObject {
         }
         // Last, as the phone's player has Play On at its foot; five at most
         // with the like, shuffle, repeat and queue buttons, which is all the
-        // car takes. A plain system symbol, as `placeButton`'s.
+        // car takes. The phone's speaker-with-arrow symbol, plain for the
+        // car to recolour as it does `placeButton`'s, and selected (lit, as
+        // shuffle is when on) while a speaker plays.
+        if hasVolume {
+            for step in [-Self.volumeStep, Self.volumeStep] {
+                let name = step < 0 ? "speaker.minus.fill" : "speaker.plus.fill"
+                let image = UIImage(systemName: name) ?? UIImage(systemName: step < 0 ? "minus" : "plus") ?? UIImage()
+                buttons.append(CPNowPlayingImageButton(image: image) { [weak self] _ in
+                    MainActor.assumeIsolated {
+                        self?.nudgeSpeakerVolume(by: step)
+                    }
+                })
+            }
+        }
         if playOn {
-            let image = UIImage(systemName: onSpeaker ? "hifispeaker.2.fill" : "hifispeaker.2") ?? UIImage()
-            buttons.append(CPNowPlayingImageButton(image: image) { [weak self] _ in
+            let image = UIImage(named: CarPlayArtwork.playOnSymbol) ?? UIImage(systemName: "hifispeaker.2.fill") ?? UIImage()
+            let button = CPNowPlayingImageButton(image: image) { [weak self] _ in
                 MainActor.assumeIsolated {
                     self?.showPlayOn()
                 }
-            })
+            }
+            button.isSelected = onSpeaker
+            buttons.append(button)
         }
         nowPlaying.updateNowPlayingButtons(buttons)
     }
@@ -1126,6 +1144,23 @@ final class CarPlayInterface: NSObject {
     private var offersPlayOn: Bool {
         let sonos = SonosService.shared
         return sonos.isEnabled && !sonos.isCellular && !sonos.groups.isEmpty
+    }
+
+    /// How far a tap on Now Playing's volume buttons moves the speaker, out
+    /// of 100: a car's screen is no place for twenty taps.
+    private static let volumeStep = 5
+
+    /// Turns the speaker the car drives up or down by `step`, the whole
+    /// group as the phone's volume buttons do it: relative, so taps sent
+    /// quickly add up whatever order they land in, and the rooms keep their
+    /// balance.
+    private func nudgeSpeakerVolume(by step: Int) {
+        guard let group = PlaybackRoute.shared.group else { return }
+        let ip = group.ip
+        Self.log.notice("car volume \(step > 0 ? "up" : "down", privacy: .public) on \(group.nameWithCount, privacy: .public)")
+        Task {
+            await SonosService.shared.setRelativeGroupVolume(ip: ip, volume: step)
+        }
     }
 
     /// The speaker the phone was last on (the route's choice, kept while the
@@ -1181,8 +1216,7 @@ final class CarPlayInterface: NSObject {
     /// isn't to hand then, and a speaker's music may be what to bring out to
     /// the car.
     private func playOnRow() -> CPListItem {
-        let onSpeaker = PlaybackRoute.shared.destination != .device
-        let row = CPListItem(text: "Play On", detailText: "This iPhone or your speakers", image: CarPlayArtwork.symbol(onSpeaker ? "hifispeaker.2.fill" : "hifispeaker.2"))
+        let row = CPListItem(text: "Play On", detailText: "This iPhone or your speakers", image: CarPlayArtwork.symbol(CarPlayArtwork.playOnSymbol))
         row.accessoryType = .disclosureIndicator
         row.handler = { [weak self] _, completion in
             MainActor.assumeIsolated {
@@ -1216,15 +1250,8 @@ final class CarPlayInterface: NSObject {
         } else {
             [track.song, track.artist].filter { !$0.isEmpty }.joined(separator: " – ")
         }
-        let row = CPListItem(text: group.nameWithCount, detailText: detail, image: CarPlayArtwork.symbol(group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill"))
-        if let url = track.artworkURL {
-            CarPlayArtwork.load(url: url, width: CarPlayArtwork.rowWidth) { [weak row] image in
-                row?.setImage(image)
-            }
-        }
-        // No `userInfo`: `updatePlayingIndicators` marks content, and leaves
-        // this as set here.
-        row.isPlaying = room.isPlaying && !track.isEmpty
+        let row = CPListItem(text: group.nameWithCount, detailText: detail, image: CarPlayArtwork.symbol(Self.speakerSymbol(for: group)))
+        showCover(of: group, on: row)
         row.isEnabled = !isLocked
         row.handler = { [weak self] _, completion in
             MainActor.assumeIsolated {
@@ -1312,18 +1339,19 @@ final class CarPlayInterface: NSObject {
         let isAvailable = sonos.isEnabled && !sonos.isCellular
         let groups = isAvailable ? Self.playOnGroups() : []
         let player = LocalPlaybackService.shared
-        let deviceDetail = destination == .device && player.isActive ? player.nowPlaying?.title : nil
+        let devicePlaying = destination == .device && player.isActive ? player.nowPlaying : nil
         let signature = [
             "\(destination)",
             "\(isAvailable),\(isLoadingSpeakers || speakerSearch != nil)",
-            deviceDetail ?? "",
+            devicePlaying.map { "\($0.id):\($0.title)" } ?? "",
         ] + groups.map { group in
             let room = group.coordinatorRoom
             let locked = !FeatureGate.shared.isGroupUnlocked(group.coordinatorID)
-            return "\(group.coordinatorID):\(group.nameWithCount):\(room.isPlaying):\(room.track.song):\(room.track.artist):\(locked)"
+            let cover = room.track.artworkURL?.absoluteString ?? ""
+            return "\(group.coordinatorID):\(group.nameWithCount):\(room.isPlaying):\(room.track.song):\(room.track.artist):\(cover):\(locked)"
         }
         update(template, signature: signature.joined(separator: "|")) {
-            var sections = [CPListSection(items: [playOnDeviceRow(isCurrent: destination == .device, detail: deviceDetail)])]
+            var sections = [CPListSection(items: [playOnDeviceRow(isCurrent: destination == .device, playing: devicePlaying)])]
             if !isAvailable {
                 sections.append(CPListSection(items: [note("No Speakers in Reach", detail: "Sonos plays from here while your iPhone is on Wi‑Fi.")]))
             } else if groups.isEmpty {
@@ -1338,14 +1366,19 @@ final class CarPlayInterface: NSObject {
         }
     }
 
-    private func playOnDeviceRow(isCurrent: Bool, detail: String?) -> CPListItem {
+    /// This iPhone: what it's playing, with its cover, while the route is
+    /// here and something plays; the phone's symbol otherwise.
+    private func playOnDeviceRow(isCurrent: Bool, playing: PlayableContent?) -> CPListItem {
         let row = CPListItem(
             text: ThisDevice.name,
-            detailText: detail,
+            detailText: playing?.title,
             image: CarPlayArtwork.symbol(ThisDevice.symbol),
             accessoryImage: isCurrent ? CarPlayArtwork.symbol("checkmark") : nil,
             accessoryType: .none
         )
+        if let playing {
+            CarPlayArtwork.load(playing, into: row)
+        }
         row.handler = { [weak self] _, completion in
             MainActor.assumeIsolated {
                 self?.choosePlayOn(.device)
@@ -1355,10 +1388,36 @@ final class CarPlayInterface: NSObject {
         return row
     }
 
-    /// A group: its rooms' names, what it's playing or has paused (playing
-    /// with the list's playing mark), a check while the route is on it.
-    /// Without Super only the free tier's one group can be picked, as in the
-    /// phone's sheet; the paywall is the phone's, so the others are greyed.
+    /// A group's symbol, for its row before its cover comes and when it has
+    /// none.
+    private static func speakerSymbol(for group: GroupRoom) -> String {
+        group.rooms.count > 1 ? "hifispeaker.2.fill" : group.coordinatorRoom.isSoundbar ? "tv.and.hifispeaker.fill" : "hifispeaker.fill"
+    }
+
+    /// A speaker's row as the car's lists draw a song's: its song's cover in
+    /// place of the symbol once loaded, and the playing mark at the trailing
+    /// end (at the leading end it pushed the row's text in past the other
+    /// rows').
+    ///
+    /// No `userInfo` on the row: `updatePlayingIndicators` marks content,
+    /// and leaves this as set here.
+    private func showCover(of group: GroupRoom, on row: CPListItem) {
+        let room = group.coordinatorRoom
+        let track = room.track
+        if !track.isEmpty, let url = track.artworkURL {
+            CarPlayArtwork.load(url: url, width: CarPlayArtwork.rowWidth) { [weak row] image in
+                row?.setImage(image)
+            }
+        }
+        row.playingIndicatorLocation = .trailing
+        row.isPlaying = room.isPlaying && !track.isEmpty
+    }
+
+    /// A group: its rooms' names, its cover and what it's playing or has
+    /// paused (playing with the list's playing mark), a check while the
+    /// route is on it. Without Super only the free tier's one group can be
+    /// picked, as in the phone's sheet; the paywall is the phone's, so the
+    /// others are greyed.
     private func playOnRow(for group: GroupRoom, isCurrent: Bool) -> CPListItem {
         let room = group.coordinatorRoom
         let track = room.track
@@ -1370,17 +1429,14 @@ final class CarPlayInterface: NSObject {
         } else {
             nil
         }
-        let symbol = group.rooms.count > 1 ? "hifispeaker.2.fill" : room.isSoundbar ? "tv.and.hifispeaker.fill" : "hifispeaker.fill"
         let row = CPListItem(
             text: group.nameWithCount,
             detailText: detail,
-            image: CarPlayArtwork.symbol(symbol),
+            image: CarPlayArtwork.symbol(Self.speakerSymbol(for: group)),
             accessoryImage: isCurrent ? CarPlayArtwork.symbol("checkmark") : nil,
             accessoryType: .none
         )
-        // No `userInfo`: `updatePlayingIndicators` marks content, and leaves
-        // this as set here.
-        row.isPlaying = room.isPlaying && !track.isEmpty
+        showCover(of: group, on: row)
         row.isEnabled = !isLocked
         let target = PlayDestination.group(group.coordinatorID)
         row.handler = { [weak self] _, completion in
