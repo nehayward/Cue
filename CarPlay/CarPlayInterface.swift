@@ -65,6 +65,10 @@ final class CarPlayInterface: NSObject {
 
     /// Up Next, pushed from Now Playing, follows the player while it's up.
     private weak var upNextTemplate: CPListTemplate?
+    /// The queue of the speaker the car drives, as last read for its Up Next
+    /// (`fillSpeakerUpNext`), and the read under way.
+    private var speakerQueue: SpeakerQueue?
+    private var speakerQueueRead: (key: String, task: Task<Void, Never>)?
     /// A book's chapters, pushed from Now Playing, follow the book the same
     /// way.
     private weak var chaptersTemplate: CPListTemplate?
@@ -207,6 +211,9 @@ final class CarPlayInterface: NSObject {
     func stop() {
         isConnected = false
         nowPlayingButtons = nil
+        speakerQueueRead?.task.cancel()
+        speakerQueueRead = nil
+        speakerQueue = nil
         likeReadTask?.cancel()
         likeReadTask = nil
         likeReadID = nil
@@ -305,6 +312,15 @@ final class CarPlayInterface: NSObject {
             _ = group?.coordinatorRoom.isPlaying
             // A speaker picked from the car, which its picks now play on.
             _ = CarSpeakerControl.shared.isTaken
+        }
+        // The speaker the car drives: its place in its queue and the queue's
+        // length for the queue button, and its shuffle and repeat for Up
+        // Next's tiles.
+        if let speaker = drivenSpeaker {
+            _ = speaker.coordinatorRoom.track
+            _ = speaker.coordinatorRoom.queueTotal
+            _ = speaker.playbackService
+            _ = speaker.playMode
         }
     }
 
@@ -985,7 +1001,8 @@ final class CarPlayInterface: NSObject {
     /// button. A book has its speed and its chapters in their place. Play On
     /// last, while the speakers answer from the car, also beside a speaker's card
     /// while the car drives one (the card itself is the speaker mirror's,
-    /// `NowPlayingSessionService`).
+    /// `NowPlayingSessionService`), with the speaker's queue button and its
+    /// volume before it.
     ///
     /// The queue button is Cue's own, the song's place in the queue in a
     /// circle (`CarPlayArtwork.placeButton`), in place of the system's Up
@@ -1024,11 +1041,15 @@ final class CarPlayInterface: NSObject {
         // own knob only turns the car's sound).
         let playOn = offersPlayOn
         let onSpeaker = PlaybackRoute.shared.destination != .device
-        let hasVolume = playOn && onSpeaker && PlaybackRoute.shared.group != nil
+        let speaker = drivenSpeaker
+        let hasVolume = speaker != nil
         // Whenever there's a queue of songs, on its last song too, as the
         // Music app's is — and under a station, which leaves the queue
         // waiting behind it, at place zero. A station alone has no queue.
         let hasQueue = onDevice && !player.queue.isEmpty && !isBook
+        // The same for the speaker's own queue, waiting at place zero while
+        // it plays radio or TV.
+        let speakerPlace = speaker.flatMap { $0.coordinatorRoom.queueTotal > 0 ? Self.queuePlace(of: $0) : nil }
         // A book that's one chapter, itself, has none to list.
         let chapters = isBook && books.hasChapters ? books.current?.chapters ?? [] : []
         let chapterPlace = Self.place(of: books.currentChapter, in: chapters)
@@ -1036,6 +1057,7 @@ final class CarPlayInterface: NSObject {
             likeable.map { "\($0.id):\(liked)" } ?? "",
             hasModes ? "\(player.isShuffled),\(player.repeatMode.rawValue)" : "",
             hasQueue ? "\(player.queuePosition)" : "",
+            speakerPlace.map { "speakerQueue:\($0)" } ?? "",
             isBook ? "book" : "",
             chapters.isEmpty ? "" : "\(chapterPlace)",
             playOn ? "playOn:\(onSpeaker)" : "",
@@ -1098,8 +1120,8 @@ final class CarPlayInterface: NSObject {
                 }
             })
         }
-        if hasQueue {
-            buttons.append(CPNowPlayingImageButton(image: CarPlayArtwork.placeButton(player.queuePosition)) { [weak self] _ in
+        if let place = hasQueue ? player.queuePosition : speakerPlace {
+            buttons.append(CPNowPlayingImageButton(image: CarPlayArtwork.placeButton(place)) { [weak self] _ in
                 MainActor.assumeIsolated {
                     self?.showUpNext()
                 }
@@ -1107,9 +1129,10 @@ final class CarPlayInterface: NSObject {
         }
         // Last, as the phone's player has Play On at its foot; five at most
         // with the like, shuffle, repeat and queue buttons, which is all the
-        // car takes. The phone's speaker-with-arrow symbol, plain for the
-        // car to recolour as it does `placeButton`'s, and selected (lit, as
-        // shuffle is when on) while a speaker plays.
+        // car takes (a speaker's card has its queue, − and + beside it). The
+        // phone's speaker-with-arrow symbol, plain for the car to recolour as
+        // it does `placeButton`'s, and selected (lit, as shuffle is when on)
+        // while a speaker plays.
         if hasVolume {
             for step in [-Self.volumeStep, Self.volumeStep] {
                 let name = step < 0 ? "speaker.minus.fill" : "speaker.plus.fill"
@@ -1151,17 +1174,24 @@ final class CarPlayInterface: NSObject {
     /// of 100: a car's screen is no place for twenty taps.
     private static let volumeStep = 5
 
+    /// Writes the car's volume taps, as the Play On sheet's rows write a
+    /// drag: the group's level in the model at once, which the speaker's
+    /// card in the car shows beside its name (`NowPlayingSessionService`),
+    /// the speaker given the latest level at most every 80 ms, and the level
+    /// held against the speaker's echoes until a moment after the last tap.
+    private let volumes = SpeakerVolumeWriter()
+
     /// Turns the speaker the car drives up or down by `step`, the whole
-    /// group as the phone's volume buttons do it: relative, so taps sent
-    /// quickly add up whatever order they land in, and the rooms keep their
-    /// balance.
+    /// group as the phone's volume buttons do it, the rooms keeping their
+    /// balance. Taps add up on the level shown, so quick ones land as many
+    /// steps whatever order the speaker hears them in. Down on a muted
+    /// speaker leaves it muted; up unmutes it.
     private func nudgeSpeakerVolume(by step: Int) {
         guard let group = PlaybackRoute.shared.group else { return }
-        let ip = group.ip
-        Self.log.notice("car volume \(step > 0 ? "up" : "down", privacy: .public) on \(group.nameWithCount, privacy: .public)")
-        Task {
-            await SonosService.shared.setRelativeGroupVolume(ip: ip, volume: step)
-        }
+        guard !(group.isMuted && step < 0) else { return }
+        let level = min(100, max(0, group.groupVolume + Double(step)))
+        Self.log.notice("car volume \(step > 0 ? "up" : "down", privacy: .public) on \(group.nameWithCount, privacy: .public) to \(Int(level))")
+        volumes.set(group, to: level)
     }
 
     /// The speaker the phone was last on (the route's choice, kept while the
@@ -1169,6 +1199,21 @@ final class CarPlayInterface: NSObject {
     private var chosenSpeaker: GroupRoom? {
         guard let id = PlaybackRoute.shared.chosen.groupID else { return nil }
         return SonosService.shared.groups.first { $0.coordinatorID == id }
+    }
+
+    /// The speaker the car drives, whose card is up in the car: the route on
+    /// a group, which in a car it only is once a speaker is picked there
+    /// (`CarSpeakerControl`; until then the route reads This Device).
+    private var drivenSpeaker: GroupRoom? {
+        guard offersPlayOn, PlaybackRoute.shared.destination != .device else { return nil }
+        return PlaybackRoute.shared.group
+    }
+
+    /// A speaker's song's place in its queue, from 1, as the player counts
+    /// it (`SonosGroupController.queuePosition`); zero while it plays radio
+    /// or TV, which leaves the queue waiting.
+    private static func queuePlace(of speaker: GroupRoom) -> Int {
+        speaker.playbackService == .queue ? speaker.coordinatorRoom.track.position : 0
     }
 
     /// Looks for the speakers: as the car connects, and as the iPhone joins
@@ -1673,6 +1718,9 @@ final class CarPlayInterface: NSObject {
         let template = CPListTemplate(title: "Up Next", sections: [])
         template.emptyViewTitleVariants = ["Nothing Up Next"]
         upNextTemplate = template
+        // A speaker's queue is read again each time the list opens, as it
+        // may have changed from the Sonos app; the last read shows meanwhile.
+        speakerQueue?.key = nil
         fillUpNext(template)
         push(template)
     }
@@ -1684,6 +1732,10 @@ final class CarPlayInterface: NSObject {
     /// where the queue goes on from — the song it was left on, then the rest.
     /// A row picked leaves the station for the queue there.
     private func fillUpNext(_ template: CPListTemplate) {
+        if let speaker = drivenSpeaker {
+            fillSpeakerUpNext(template, speaker)
+            return
+        }
         let player = LocalPlaybackService.shared
         let isParked = player.isPlayingStation
         let hasModes = !isParked
@@ -1726,22 +1778,141 @@ final class CarPlayInterface: NSObject {
     /// tiles and the order under them redraw on their own.
     private func playModeTiles() -> CPListImageRowItem {
         let player = LocalPlaybackService.shared
-        let repeatMode = player.repeatMode
+        return playModeTiles(isShuffled: player.isShuffled, repeatMode: player.repeatMode, toggleShuffle: {
+            let player = LocalPlaybackService.shared
+            player.setShuffle(!player.isShuffled)
+        }, cycleRepeat: {
+            let player = LocalPlaybackService.shared
+            player.setRepeatMode(player.repeatMode.next)
+        })
+    }
+
+    private func playModeTiles(
+        isShuffled: Bool,
+        repeatMode: LocalPlaybackService.RepeatMode,
+        toggleShuffle: @escaping @MainActor () -> Void,
+        cycleRepeat: @escaping @MainActor () -> Void
+    ) -> CPListImageRowItem {
         let repeatState = switch repeatMode {
         case .off: "Off"
         case .all: "All"
         case .one: "One"
         }
         return tileRow([
-            Tile(title: "Shuffle", systemImage: "shuffle", subtitle: player.isShuffled ? "On" : "Off", isSelected: player.isShuffled, action: .run {
-                let player = LocalPlaybackService.shared
-                player.setShuffle(!player.isShuffled)
-            }),
-            Tile(title: "Repeat", systemImage: repeatMode.systemImage, subtitle: repeatState, isSelected: repeatMode != .off, action: .run {
-                let player = LocalPlaybackService.shared
-                player.setRepeatMode(player.repeatMode.next)
-            }),
+            Tile(title: "Shuffle", systemImage: "shuffle", subtitle: isShuffled ? "On" : "Off", isSelected: isShuffled, action: .run(toggleShuffle)),
+            Tile(title: "Repeat", systemImage: repeatMode.systemImage, subtitle: repeatState, isSelected: repeatMode != .off, action: .run(cycleRepeat)),
         ])
+    }
+
+    // MARK: - A speaker's Up Next
+
+    /// A speaker's queue as read for the car's Up Next: the songs after the
+    /// one playing (from its top while it plays radio or TV), and what they
+    /// were read for, so a song moving on or the queue growing reads again.
+    private struct SpeakerQueue {
+        /// The speaker, its place and its queue's length when read; nil to
+        /// read again while the songs still show.
+        var key: String?
+        let speakerID: String
+        let songs: [PlayableContent]
+    }
+
+    /// Up Next for the speaker the car drives: shuffle and repeat on top, as
+    /// for this iPhone's queue, set on the speaker, then what it plays next,
+    /// read from it (`getQueue`), the stretch after its song. On radio or TV
+    /// the speaker's queue waits, as this iPhone's does behind a station: a
+    /// note says so, and the list is the queue from its top. A row picked
+    /// plays there on the speaker, and the car goes back to Now Playing.
+    private func fillSpeakerUpNext(_ template: CPListTemplate, _ speaker: GroupRoom) {
+        let place = Self.queuePlace(of: speaker)
+        let isParked = place == 0
+        let key = "\(speaker.coordinatorID)|\(place)|\(speaker.coordinatorRoom.queueTotal)"
+        if speakerQueue?.key != key {
+            readSpeakerQueue(of: speaker, after: place, key: key)
+        }
+        // While a new read is out, the last one of this speaker stands rather
+        // than the list emptying; with none yet, only the tiles show.
+        let queue = speakerQueue?.speakerID == speaker.coordinatorID ? speakerQueue : nil
+        let songs = queue?.songs ?? []
+        let controller = PlaybackRoute.shared.controller
+        let isShuffled = controller.isShuffled
+        let repeatMode = controller.repeatMode
+        let modes = isParked ? "parked" : "\(isShuffled),\(repeatMode.rawValue)"
+        let rows = songs.map { "\($0.metadata?.position ?? 0):\($0.id)" }
+        let signature = ([speaker.coordinatorID, modes, queue == nil ? "reading" : "read"] + rows).joined(separator: "|")
+        update(template, signature: signature) {
+            var sections: [CPListSection] = []
+            if !isParked {
+                sections.append(CPListSection(items: [playModeTiles(isShuffled: isShuffled, repeatMode: repeatMode, toggleShuffle: {
+                    Task { await PlaybackRoute.shared.controller.setShuffle(!isShuffled) }
+                }, cycleRepeat: {
+                    Task { await PlaybackRoute.shared.controller.setRepeatMode(repeatMode.next) }
+                })]))
+            } else if !songs.isEmpty {
+                sections.append(CPListSection(items: [note("Not Playing", detail: "\(speaker.nameWithCount) isn't playing its queue. Pick a song to go back to it.")]))
+            }
+            guard !songs.isEmpty else {
+                // With the tiles up, the list's own empty note doesn't show.
+                if !isParked, queue != nil {
+                    sections.append(CPListSection(items: [note("Nothing Up Next")]))
+                }
+                return sections
+            }
+            let rows: [CPListTemplateItem] = songs.compactMap { content -> CPListTemplateItem? in
+                guard let position = content.metadata?.position else { return nil }
+                let row = CPListItem(text: content.title, detailText: detail(for: content), image: CarPlayArtwork.placeholder(for: content))
+                CarPlayArtwork.load(content, into: row)
+                row.handler = { [weak self] _, completion in
+                    MainActor.assumeIsolated {
+                        self?.playSpeakerQueue(at: position, completion: completion)
+                    }
+                }
+                return row
+            }
+            sections.append(CPListSection(items: rows))
+            return sections
+        }
+    }
+
+    /// Reads the speaker's queue for Up Next: the songs after `place` (from
+    /// 1, as the speaker counts; `getQueue` counts from 0, so `place` is the
+    /// song after it), or from the top at place zero, as many as a list
+    /// shows. One read a key; a newer key cancels an older read. Up Next,
+    /// if it's still up, draws what comes.
+    private func readSpeakerQueue(of speaker: GroupRoom, after place: Int, key: String) {
+        guard speakerQueueRead?.key != key else { return }
+        speakerQueueRead?.task.cancel()
+        let ip = speaker.ip
+        let speakerID = speaker.coordinatorID
+        let task = Task { [weak self] in
+            let songs = await SonosService.shared.getQueue(ip: ip, with: place, total: CarPlayLibrary.rowLimit - 1)
+            guard let self, !Task.isCancelled else { return }
+            Self.log.notice("car up next: \(songs.count) songs after \(place) on the speaker")
+            self.speakerQueue = SpeakerQueue(key: key, speakerID: speakerID, songs: songs)
+            self.speakerQueueRead = nil
+            if let template = self.upNextTemplate {
+                self.fillUpNext(template)
+            }
+        }
+        speakerQueueRead = (key, task)
+    }
+
+    /// Plays an Up Next row on the speaker the car drives, by its place in
+    /// the speaker's queue (`seek(trackNumber:on:)`, which points it back at
+    /// its queue from radio or TV), then goes back to Now Playing. Not while
+    /// a hand-off holds the player: the rows are the source's, on their way
+    /// out.
+    private func playSpeakerQueue(at position: Int, completion: @escaping () -> Void) {
+        guard let speaker = drivenSpeaker, !PlaybackRoute.shared.isHolding else {
+            completion()
+            return
+        }
+        Self.log.notice("car up next: song \(position) on \(speaker.nameWithCount, privacy: .public)")
+        Task { [weak self] in
+            await SonosService.shared.seek(trackNumber: position, on: speaker)
+            completion()
+            self?.interfaceController.popTemplate(animated: true, completion: nil)
+        }
     }
 
     /// Plays an Up Next row and goes back to Now Playing. Looked up again

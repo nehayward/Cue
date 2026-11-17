@@ -572,6 +572,8 @@ final class NowPlayingSessionService {
         // phone's slider — so a change made on the speaker, in the Sonos app, or
         // anywhere else in Cue has to reach `syncSystemVolume`.
         _ = group.groupVolume
+        // Beside the level in a car (`carLevel`).
+        _ = group.isMuted
         // Every favorite path writes this store, so reading it is what makes a
         // like made on the player screen reach `likeCommand`, and vice versa.
         _ = LiveActivityFavoriteStore.shared.get(room.track.trackID)
@@ -904,7 +906,12 @@ final class NowPlayingSessionService {
         // there. The album line still carries the real album for the surfaces
         // that do show it (Control Centre, CarPlay), so nothing is lost by
         // borrowing this one.
-        let artistLine = [track.artist, group.nameWithCount]
+        // In a car driving this speaker, its level goes beside its name
+        // (`carLevel`).
+        let roomLine = [group.nameWithCount, carLevel(of: group)]
+            .compactMap { $0 }
+            .joined(separator: " ")
+        let artistLine = [track.artist, roomLine]
             .filter { !$0.isEmpty }
             .joined(separator: " • ")
 
@@ -1114,6 +1121,15 @@ final class NowPlayingSessionService {
         center.changeShuffleModeCommand.isEnabled = false
     }
 
+    /// The speaker's level for the card, while a car drives it: "35%", or
+    /// "Muted". The car's knob turns only the car, and its − and + on Now
+    /// Playing (`CarPlayInterface`) had nothing to show where they'd left
+    /// the speaker. Nowhere else: the Lock Screen's slider is the level.
+    private func carLevel(of group: GroupRoom) -> String? {
+        guard isRouteExternal, drivenFromCar?.coordinatorID == group.coordinatorID else { return nil }
+        return group.isMuted ? "Muted" : "\(Int(group.groupVolume.rounded()))%"
+    }
+
     private func allows(_ action: AvailableActions, in group: GroupRoom) -> Bool {
         group.availableActions.isEmpty || group.availableActions.contains(action)
     }
@@ -1228,7 +1244,14 @@ final class NowPlayingSessionService {
         // same moment — so `currentRoute` is the only account of where the
         // phone is that's guaranteed to be current at the instant a command
         // arrives. See `canMirror`.
-        guard !AudioOutputRoute.isExternal else { return .noSuchContent }
+        //
+        // The one exception is the speaker a car drives (`drivenFromCar`):
+        // picked in CarPlay since the car connected, so its card's buttons
+        // are meant for it. Refused, the car's pause on that card did
+        // nothing. A command racing the car connecting still finds no
+        // speaker driven, as one is only ever driven from a pick.
+        let isCarsSpeaker = drivenFromCar?.coordinatorID == group.coordinatorID
+        guard !AudioOutputRoute.isExternal || isCarsSpeaker else { return .noSuchContent }
         Task { @MainActor in
             await action(SonosService.shared, group)
             publish()
