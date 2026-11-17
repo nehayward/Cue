@@ -52,7 +52,8 @@ struct PlayerView: View {
     @State private var isArtworkVisible: Bool = true
     @State private var showSleepTimerCancelConfirmation: Bool = false
     /// Full-screen lyrics on a phone put the controls away while the song
-    /// plays (`lyricsChromeTask`); a touch brings them back.
+    /// plays (`lyricsChromeTask`); the header's Show Controls brings them
+    /// back, not a scroll or a tap on the lyrics.
     @State private var lyricsControlsHidden: Bool = false
     @State private var lyricsTouchedAt: Date = .now
     /// The Sonos artwork's crossfade window — see `GroupMediaControlsView`,
@@ -230,7 +231,7 @@ struct PlayerView: View {
         // The switch to and from full-screen lyrics, whatever made it: the
         // button, the header, or a song with or without lyrics coming on.
         .animation(.lyricsSwitch, value: showsLyrics)
-        .task(id: LyricsChrome(isActive: isPhoneLayout && showsLyrics && controller.isPlaying, touchedAt: lyricsTouchedAt)) {
+        .task(id: LyricsChrome(isFullScreen: isFullScreenLyrics, isBook: isBookPresented, isPlaying: controller.isPlaying, touchedAt: lyricsTouchedAt)) {
             await lyricsChromeTask()
         }
         .fontDesign(.rounded)
@@ -268,9 +269,9 @@ struct PlayerView: View {
     @ViewBuilder
     private func lyricsOrTranscript(fullScreen: Bool) -> some View {
         if isBookPresented {
-            BookTranscriptView(isFullScreen: fullScreen, onInteraction: fullScreen ? noteLyricsTouch : {})
+            BookTranscriptView(isFullScreen: fullScreen)
         } else if fullScreen {
-            LyricsView(style: .fullScreen, onInteraction: noteLyricsTouch)
+            LyricsView(style: .fullScreen)
         } else {
             LyricsView()
         }
@@ -296,8 +297,9 @@ struct PlayerView: View {
     /// lines fade for the header's, the lyrics take the space the cover and
     /// the title lines had, and the controls slide down under them. In lyrics the controls
     /// go away a few seconds into the song (`lyricsChromeTask`; not a book's
-    /// transcript's) or with the header's Full Screen, and a touch on the
-    /// lyrics brings them back.
+    /// transcript's) or with the header's Full Screen, and only the header's
+    /// Show Controls brings them back: scrolling or tapping the lyrics
+    /// doesn't.
     ///
     /// iPad's too: a bigger cover, wider gaps between the controls (their
     /// least, as a landscape iPad's cover takes the height first), and the
@@ -350,10 +352,11 @@ struct PlayerView: View {
         .layoutPriority(isLyrics ? 0 : 1)
 
         if isLyrics {
+            // A scroll or a tap here leaves full screen as it is: only the
+            // header's switch brings the controls back. Brought back
+            // mid-scroll, they resized the lyrics under the finger.
             lyricsOrTranscript(fullScreen: true)
                 .frame(maxWidth: 500, maxHeight: .infinity)
-                .contentShape(Rectangle())
-                .onTapGesture { noteLyricsTouch() }
                 .layoutPriority(1)
                 .transition(.lyricsBody)
         } else {
@@ -411,20 +414,30 @@ struct PlayerView: View {
     /// after the last touch while the song plays; never while it's paused,
     /// for a book's transcript, or outside full-screen lyrics.
     private struct LyricsChrome: Equatable {
-        let isActive: Bool
+        let isFullScreen: Bool
+        let isBook: Bool
+        let isPlaying: Bool
         let touchedAt: Date
     }
 
     private func lyricsChromeTask() async {
-        guard isFullScreenLyrics, controller.isPlaying else {
+        guard isFullScreenLyrics else {
             if lyricsControlsHidden {
                 lyricsControlsHidden = false
             }
             return
         }
         // A book's transcript goes full screen only from the header's Full
-        // Screen: it's read for long stretches, with the controls to hand.
+        // Screen, and stays so, paused too, until it's pressed again: it's
+        // read for long stretches, with the controls to hand when wanted.
         guard !isBookPresented else { return }
+        // A song brings its controls back when it pauses.
+        guard controller.isPlaying else {
+            if lyricsControlsHidden {
+                lyricsControlsHidden = false
+            }
+            return
+        }
         try? await Task.sleep(for: .seconds(4))
         guard !Task.isCancelled else { return }
         lyricsControlsHidden = true

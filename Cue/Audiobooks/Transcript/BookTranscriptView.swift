@@ -53,9 +53,6 @@ enum BookTranscriptFont: String, CaseIterable, Identifiable {
 /// Share, since a tap is the word's.
 struct BookTranscriptView: View {
     var isFullScreen = false
-    /// A finger on the transcript, for the full-screen player to bring its
-    /// controls back.
-    var onInteraction: () -> Void = {}
 
     private var transcriber: BookTranscriber { .shared }
 
@@ -128,7 +125,7 @@ struct BookTranscriptView: View {
                         .foregroundStyle(.secondary)
                 }
             } else {
-                BookTranscriptFollower(isFullScreen: isFullScreen, onInteraction: onInteraction)
+                BookTranscriptFollower(isFullScreen: isFullScreen)
                     .id(transcriber.fileKey)
             }
         }
@@ -145,7 +142,10 @@ struct BookTranscriptView: View {
 /// of the voice already.
 private struct BookTranscriptFollower: View {
     let isFullScreen: Bool
-    let onInteraction: () -> Void
+    /// A line's menu is open: the lines hold still under it until it
+    /// closes. Drawn again with each word said and each bit of new text,
+    /// the menu and its line flickered.
+    @State private var isMenuOpen = false
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 0.1)) { context in
@@ -162,7 +162,8 @@ private struct BookTranscriptFollower: View {
                     transcript.lines[index].words.lastIndex { ($0.start ?? .infinity) <= position }.map { $0 + 1 } ?? 0
                 },
                 isFullScreen: isFullScreen,
-                onInteraction: onInteraction
+                isHeld: isMenuOpen,
+                onMenu: { isMenuOpen = $0 }
             )
             .equatable()
         }
@@ -180,7 +181,11 @@ private struct BookTranscriptLines: View, Equatable {
     /// How many of the current line's words have been said.
     let spoken: Int?
     let isFullScreen: Bool
-    let onInteraction: () -> Void
+    /// A line's menu is open: drawn as they were until it closes, then
+    /// caught up.
+    let isHeld: Bool
+    /// A line's menu opened or closed.
+    let onMenu: (Bool) -> Void
 
     @AppStorage(AppStorageKeys.bookTranscriptFont) private var font: BookTranscriptFont = .serif
     @AppStorage(AppStorageKeys.bookTranscriptSize) private var size: Double = 24
@@ -214,7 +219,8 @@ private struct BookTranscriptLines: View, Equatable {
     private static let landing: Duration = .milliseconds(650)
 
     static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.revision == rhs.revision && lhs.volatileText == rhs.volatileText
+        if lhs.isHeld && rhs.isHeld { return true }
+        return lhs.isHeld == rhs.isHeld && lhs.revision == rhs.revision && lhs.volatileText == rhs.volatileText
             && lhs.current == rhs.current && lhs.spoken == rhs.spoken && lhs.isFullScreen == rhs.isFullScreen
     }
 
@@ -242,7 +248,13 @@ private struct BookTranscriptLines: View, Equatable {
                     )
                     .equatable()
                     .id(line.id)
-                    .contextMenu { lineMenu(line) }
+                    .contextMenu {
+                        // The menu's items appear as it opens and go as it
+                        // closes: the lines hold still in between.
+                        lineMenu(line)
+                            .onAppear { onMenu(true) }
+                            .onDisappear { onMenu(false) }
+                    }
                 }
                 if let volatileText {
                     Text(volatileText)
@@ -267,7 +279,9 @@ private struct BookTranscriptLines: View, Equatable {
             if phase == .interacting {
                 isFollowing = false
                 landingCheck?.cancel()
-                onInteraction()
+                // No menu is open under a finger scrolling: never left
+                // held, should a closing menu go unnoticed.
+                if isHeld { onMenu(false) }
             }
             isScrolling = phase == .interacting || phase == .decelerating
         }
@@ -326,7 +340,6 @@ private struct BookTranscriptLines: View, Equatable {
             guard Date.now.timeIntervalSince(lookupAskedAt) > 0.4 else { return .handled }
             lookupAskedAt = .now
             HapticManager.shared.fireHaptic(.selection)
-            onInteraction()
             if lookup?.line == word.line && lookup?.index == word.index {
                 closeLookup()
             } else {
@@ -407,7 +420,6 @@ private struct BookTranscriptLines: View, Equatable {
     @ViewBuilder
     private func lineMenu(_ line: BookTranscript.Line) -> some View {
         Button("Play from Here", systemImage: "play") {
-            onInteraction()
             isFollowing = true
             Task { await BookTranscriptLineRow.play(from: line.start) }
         }
