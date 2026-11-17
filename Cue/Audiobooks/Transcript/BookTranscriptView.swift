@@ -209,9 +209,9 @@ private struct BookTranscriptLines: View, Equatable {
     /// over everything else, dimmed, with its menu under it. The lines hold
     /// still beneath.
     @State private var menuLine: BookTranscript.Line.ID?
-    /// Select Text: the lifted copy's words selected, to select from, and
-    /// the menu put away for the system's own (Copy, Look Up, Translate,
-    /// Share).
+    /// The line was lifted straight into Select Text (the Mac's right-click
+    /// menu has it); from the menu, the card itself goes into it
+    /// (`LiftedLineStack`).
     @State private var isSelectingLine = false
     /// A line asked to be translated, and the system's sheet for it: here
     /// rather than on the menu's button, which goes as the menu closes.
@@ -367,15 +367,15 @@ private struct BookTranscriptLines: View, Equatable {
                             .offset(x: place.window.minX, y: place.window.minY)
                             .gesture(DragGesture(minimumDistance: 0).onEnded { _ in closeMenu() })
                         LiftLayout(place: place) {
-                            VStack(alignment: .leading, spacing: 10) {
-                                LiftedLine(text: target.text, font: font.uiFont(size: pointSize), width: place.textWidth, isSelecting: isSelectingLine)
-                                if !isSelectingLine {
-                                    BookTranscriptLineMenu { action in
-                                        perform(action, on: target, from: place.lineInWindow)
-                                    }
-                                    .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .top)))
-                                }
+                            LiftedLineStack(
+                                text: target.text,
+                                font: font.uiFont(size: pointSize),
+                                width: place.textWidth,
+                                startsSelecting: isSelectingLine
+                            ) { action in
+                                perform(action, on: target, from: place.lineInWindow)
                             }
+                            .id(menuLine)
                         }
                     }
                     .transition(.opacity)
@@ -496,14 +496,10 @@ private struct BookTranscriptLines: View, Equatable {
         withAnimation(.smooth(duration: 0.2)) { menuLine = nil }
     }
 
-    /// A menu's choice for `line`; `frame` is the line's, in the window,
-    /// for the share sheet to point at on iPad. Select Text keeps the card
-    /// up, its words selected; the rest put it away.
+    /// A menu's choice for `line`, which puts the card away; `frame` is the
+    /// line's, in the window, for the share sheet to point at on iPad.
+    /// Select Text isn't one: the card handles it, and stays.
     private func perform(_ action: BookTranscriptLineMenu.Action, on line: BookTranscript.Line, from frame: CGRect) {
-        if action == .select {
-            withAnimation(.smooth(duration: 0.2)) { isSelectingLine = true }
-            return
-        }
         closeMenu()
         switch action {
         case .play:
@@ -718,6 +714,44 @@ private struct LiftLayout: Layout {
                 anchor: .topLeading,
                 proposal: ProposedViewSize(size)
             )
+        }
+    }
+}
+
+/// A lifted line's card, and under it its menu until Select Text, which
+/// selects the card's words in place and puts the menu away for the
+/// system's own. Whether it's selecting is its own: the overlay it's in is
+/// built from the line's bounds (`MenuLineBounds`) and drawn again only
+/// when they change, so state of the transcript's that it read, as Select
+/// Text's did, stayed as it was when the line was lifted.
+private struct LiftedLineStack: View {
+    let text: String
+    let font: UIFont
+    let width: CGFloat
+    let onAction: (BookTranscriptLineMenu.Action) -> Void
+    @State private var isSelecting: Bool
+
+    init(text: String, font: UIFont, width: CGFloat, startsSelecting: Bool, onAction: @escaping (BookTranscriptLineMenu.Action) -> Void) {
+        self.text = text
+        self.font = font
+        self.width = width
+        self.onAction = onAction
+        _isSelecting = State(initialValue: startsSelecting)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            LiftedLine(text: text, font: font, width: width, isSelecting: isSelecting)
+            if !isSelecting {
+                BookTranscriptLineMenu { action in
+                    if action == .select {
+                        withAnimation(.smooth(duration: 0.2)) { isSelecting = true }
+                    } else {
+                        onAction(action)
+                    }
+                }
+                .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .top)))
+            }
         }
     }
 }
