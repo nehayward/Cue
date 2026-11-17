@@ -18,9 +18,6 @@ import VibesDS
 /// top corner with where the lyrics came from.
 struct LyricsView: View {
     var style: LyricsStyle = .inline
-    /// A finger on the lyrics — a scroll, a tap on a line — for the
-    /// full-screen player to bring its controls back.
-    var onInteraction: () -> Void = {}
 
     private var service: LyricsService { .shared }
 
@@ -32,10 +29,10 @@ struct LyricsView: View {
             case .loaded(let lyrics) where lyrics.isSynced:
                 // A view per song, so the next song's lyrics open on their
                 // own line rather than at this one's scroll position.
-                SyncedLyricsView(lyrics: lyrics, style: style, onInteraction: onInteraction)
+                SyncedLyricsView(lyrics: lyrics, style: style)
                     .id(service.key)
             case .loaded(let lyrics):
-                PlainLyricsView(lyrics: lyrics, style: style, onInteraction: onInteraction)
+                PlainLyricsView(lyrics: lyrics, style: style)
                     .id(service.key)
             case .loading:
                 // Only once a lookup has taken a moment: from the cache the
@@ -115,7 +112,6 @@ private struct LyricsClock: Equatable {
 private struct SyncedLyricsView: View {
     let lyrics: Lyrics
     let style: LyricsStyle
-    let onInteraction: () -> Void
 
     var body: some View {
         let route = PlaybackRoute.shared
@@ -126,8 +122,7 @@ private struct SyncedLyricsView: View {
                 style: style,
                 current: lyrics.lineIndex(at: clock.position(at: context.date)),
                 clock: clock,
-                canSeek: route.presented.isActive && !route.isHolding,
-                onInteraction: onInteraction
+                canSeek: route.presented.isActive && !route.isHolding
             )
         }
     }
@@ -163,11 +158,10 @@ private struct LineStarts: TimelineSchedule {
 /// A finger scrolling them stops the following and brings up Back to Now,
 /// which glides back to the line being sung; that, or a tap on a line,
 /// starts the following again. A fling still moving the lyrics would carry
-/// on over a glide, so it's stopped where it is first. Nothing that
-/// resizes the lyrics starts with a glide — a resize cuts it short — so
-/// the full-screen controls only come back once a tapped line has landed.
-/// And every glide is checked once it should have landed: if the line
-/// being sung isn't on screen by then, it's jumped to.
+/// on over a glide, so it's stopped where it is first. Neither a scroll
+/// nor a tap brings the full-screen player's controls back: only the
+/// header's switch does. And every glide is checked once it should have
+/// landed: if the line being sung isn't on screen by then, it's jumped to.
 ///
 /// A line is drawn again only when it changes (`LyricLineRow` is
 /// `Equatable`): on a new line, the one before and the one now. Not lazy:
@@ -181,7 +175,6 @@ private struct LyricsLines: View {
     let current: Int?
     let clock: LyricsClock
     let canSeek: Bool
-    let onInteraction: () -> Void
 
     /// How long a glide is given to land before it's checked.
     private static let landing: Duration = .milliseconds(650)
@@ -208,7 +201,7 @@ private struct LyricsLines: View {
                         clock: clock,
                         canSeek: canSeek
                     ) { start in
-                        follow(to: line.id, then: onInteraction)
+                        follow(to: line.id)
                         Task { await PlaybackRoute.shared.presented.seek(to: start) }
                     }
                     .equatable()
@@ -226,7 +219,6 @@ private struct LyricsLines: View {
             if phase == .interacting {
                 isFollowing = false
                 landingCheck?.cancel()
-                onInteraction()
             }
             isScrolling = phase == .interacting || phase == .decelerating
         }
@@ -260,29 +252,27 @@ private struct LyricsLines: View {
         }
     }
 
-    /// Back to following, gliding to `id`; `then` once it's there.
-    private func follow(to id: Int, then: (() -> Void)? = nil) {
+    /// Back to following, gliding to `id`.
+    private func follow(to id: Int) {
         HapticManager.shared.fireHaptic(.selection)
         isFollowing = true
-        scroll(to: id, then: then)
+        scroll(to: id)
     }
 
     /// Puts line `id` at the style's anchor, gliding unless told not to.
-    private func scroll(to id: Int, glides: Bool = true, then: (() -> Void)? = nil) {
+    private func scroll(to id: Int, glides: Bool = true) {
         defer { checkLanding(on: id) }
         guard glides else { return jump(to: id) }
-        guard isScrolling, let top = visibleLines.min() else { return glide(to: id, then: then) }
+        guard isScrolling, let top = visibleLines.min() else { return glide(to: id) }
         // A fling still running would carry on over the glide: stop it
         // where it is — at most half a line's shift — and glide from there.
         jump(to: top, anchor: .top)
-        Task { glide(to: id, then: then) }
+        Task { glide(to: id) }
     }
 
-    private func glide(to id: Int, then: (() -> Void)?) {
+    private func glide(to id: Int) {
         withAnimation(.smooth(duration: 0.45)) {
             position.scrollTo(id: id, anchor: style.anchor)
-        } completion: {
-            then?()
         }
     }
 
@@ -592,7 +582,6 @@ private struct FillBars: View {
 private struct PlainLyricsView: View {
     let lyrics: Lyrics
     let style: LyricsStyle
-    let onInteraction: () -> Void
 
     var body: some View {
         ScrollView {
@@ -607,10 +596,6 @@ private struct PlainLyricsView: View {
             .padding(.horizontal, 4)
         }
         .lyricsScrollStyle(bottomMargin: 24)
-        .onScrollPhaseChange { _, phase in
-            // Not `.tracking`: that's any touch.
-            if phase == .interacting { onInteraction() }
-        }
     }
 }
 

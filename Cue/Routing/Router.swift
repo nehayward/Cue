@@ -220,6 +220,20 @@ enum AppTab: Hashable, Codable {
         }
     }
 
+    /// The Search tab at its start, its field asked for so the keyboard
+    /// comes up, with the player and any page over the tabs put away: the
+    /// Home Screen's Search quick action. It used to open Search as a sheet
+    /// on the main router, which no tab on a phone presents from (each has
+    /// its own), so nothing came up.
+    @MainActor
+    static func showSearch() {
+        main.isPlayerPresented = false
+        MediaDetailPresenter.dismissPresented()
+        search.path.removeAll()
+        main.selectedTab = .search
+        SearchActivator.shared.requestFocus()
+    }
+
     @MainActor
     func navigate(to: RouterDestination) {
         if !path.contains(to) {

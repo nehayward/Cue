@@ -1942,22 +1942,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 #if targetEnvironment(macCatalyst)
          isSettingsWindow = PaywallWindow.shared.claims(connectingSceneSession) || SettingsWindow.shared.claims(connectingSceneSession)
 #endif
+         // Launched from the Home Screen's Search: the window opens on the
+         // Search tab, set before it's made so it's there from the start.
+         if options.shortcutItem?.type == "com.cue.search" {
+             Router.showSearch()
+         }
          if connectingSceneSession.role == .windowApplication, !isSettingsWindow,
             Router.main.selectedTab != .home, Router.main.selectedTab != .browse {
              UIView.setAnimationsEnabled(false)
              Task { @MainActor in
                  try? await Task.sleep(for: .seconds(3))
                  UIView.setAnimationsEnabled(true)
-             }
-         }
-         if let shortcutItem = options.shortcutItem {
-             if shortcutItem.type == "com.cue.search" {
-                 Task { @MainActor in
-                     // MARK: Delay for Toolbar
-                     try await Task.sleep(for: .milliseconds(200))
-                     Router.main.path.removeAll()
-                     Router.main.presentedSheet = .search()
-                 }
              }
          }
 
@@ -2425,13 +2420,11 @@ class CueSceneDelegate: NSObject, UIWindowSceneDelegate {
                      performActionFor shortcutItem: UIApplicationShortcutItem,
                      completionHandler: @escaping (Bool) -> Void) {
 
-        if shortcutItem.type == "com.cue.search" {
-            Task { @MainActor in
-                // MARK: Delay for Toolbar
-                try await Task.sleep(for: .milliseconds(200))
-                Router.main.path.removeAll()
-                Router.main.presentedSheet = .search()
-            }
+        guard shortcutItem.type == "com.cue.search" else {
+            completionHandler(false)
+            return
         }
+        Router.showSearch()
+        completionHandler(true)
     }
 }

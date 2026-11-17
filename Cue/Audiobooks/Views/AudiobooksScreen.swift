@@ -548,41 +548,30 @@ private struct AudiobookSectionTitle: View {
 // MARK: - Series
 
 /// Each series the servers have two or more books of, by name, as a row of
-/// tiles: its first books' covers stacked, its name and how many books. A
-/// tap opens its page (`AudiobookSeriesView`). A view of its own: Plex's
-/// series come from what Audible says of each book (`AudiobookDetails`),
-/// which fills in as the answers come, and only this redraws with it.
+/// tiles (`AudiobookSeriesCard`), bigger than the shelves' covers. A tap
+/// opens its page (`AudiobookSeriesView`); the title, every series as a
+/// grid (`AudiobookAllSeriesView`). A view of its own: Plex's series come
+/// from what Audible says of each book (`AudiobookDetails`), which fills in
+/// as the answers come, and only this redraws with it.
 private struct AudiobookSeriesSection: View {
     let plexBooks: [PlayableContent]
     let shelfSeries: [AudiobookSeries]
 
     @Environment(Router.self) private var router
 
-    /// The servers' series, one a name: a series on both is one tile.
-    private var series: [AudiobookSeries] {
-        let all = AudiobookLibrary.plexSeries(plexBooks) + shelfSeries
-        return Dictionary(grouping: all) { $0.name.lowercased() }
-            .compactMap { _, same in
-                guard let first = same.first else { return nil }
-                return AudiobookSeries(id: first.name.lowercased(), name: first.name, books: same.flatMap(\.books))
-            }
-            .filter { $0.books.count > 1 }
-            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-    }
-
     var body: some View {
-        let series = series
+        let series = AudiobookSeries.merged(AudiobookLibrary.plexSeries(plexBooks) + shelfSeries)
         if !series.isEmpty {
             VStack(alignment: .leading, spacing: 0) {
-                AudiobookSectionTitle(title: "Series")
+                AudiobookSectionTitle(title: "Series", destination: .audiobookAllSeries)
                 ScrollView(.horizontal) {
-                    LazyHStack(alignment: .top, spacing: 12) {
+                    LazyHStack(alignment: .top, spacing: 14) {
                         ForEach(series) { series in
                             Button {
                                 HapticManager.shared.fireHaptic(.buttonPress)
                                 router.navigate(to: .audiobookSeries(name: series.name, books: series.books))
                             } label: {
-                                tile(series)
+                                AudiobookSeriesCard(series: series, size: AudiobookSeriesCard.shelfSize)
                             }
                             .buttonStyle(.plain)
                         }
@@ -595,26 +584,6 @@ private struct AudiobookSeriesSection: View {
             }
             .fontDesign(.rounded)
         }
-    }
-
-    private func tile(_ series: AudiobookSeries) -> some View {
-        let narrations = AudiobookSeriesView.narrations(of: series.books)
-        let lead = narrations.first?.books ?? series.books
-        let count = narrations.map(\.books.count).max() ?? series.books.count
-        let size = AudiobookCoverRow.coverSize
-        return VStack(alignment: .leading, spacing: 4) {
-            AudiobookCoverStack(books: lead, size: size)
-            Text(series.name)
-                .font(.footnote)
-                .lineLimit(1)
-            Text(narrations.count > 1 ? "^[\(count) book](inflect: true) · \(narrations.count) readings" : "^[\(count) book](inflect: true)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-        }
-        .frame(width: size)
-        .contentShape(.rect)
-        .accessibilityElement(children: .combine)
     }
 }
 
