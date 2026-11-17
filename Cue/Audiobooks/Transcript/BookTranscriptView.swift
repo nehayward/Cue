@@ -213,8 +213,6 @@ private struct BookTranscriptLines: View, Equatable {
     /// the menu put away for the system's own (Copy, Look Up, Translate,
     /// Share).
     @State private var isSelectingLine = false
-    /// The card and menu's size, measured, to place them.
-    @State private var liftSize: CGSize = .zero
     /// A line asked to be translated, and the system's sheet for it: here
     /// rather than on the menu's button, which goes as the menu closes.
     @State private var translation = ""
@@ -368,20 +366,17 @@ private struct BookTranscriptLines: View, Equatable {
                             .contentShape(.rect)
                             .offset(x: place.window.minX, y: place.window.minY)
                             .gesture(DragGesture(minimumDistance: 0).onEnded { _ in closeMenu() })
-                        VStack(alignment: .leading, spacing: 10) {
-                            LiftedLine(text: target.text, font: font.uiFont(size: pointSize), width: place.textWidth, isSelecting: isSelectingLine)
-                            if !isSelectingLine {
-                                BookTranscriptLineMenu { action in
-                                    perform(action, on: target, from: place.lineInWindow)
+                        LiftLayout(place: place) {
+                            VStack(alignment: .leading, spacing: 10) {
+                                LiftedLine(text: target.text, font: font.uiFont(size: pointSize), width: place.textWidth, isSelecting: isSelectingLine)
+                                if !isSelectingLine {
+                                    BookTranscriptLineMenu { action in
+                                        perform(action, on: target, from: place.lineInWindow)
+                                    }
+                                    .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .top)))
                                 }
-                                .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .top)))
                             }
                         }
-                        .onGeometryChange(for: CGSize.self) { $0.size } action: { liftSize = $0 }
-                        .offset(place.offset(for: liftSize))
-                        // Placed once it's measured.
-                        .opacity(liftSize == .zero ? 0 : 1)
-                        .animation(.smooth(duration: 0.2), value: liftSize)
                     }
                     .transition(.opacity)
                 }
@@ -492,8 +487,6 @@ private struct BookTranscriptLines: View, Equatable {
         guard menuLine != id else { return }
         HapticManager.shared.fireHaptic(.buttonPress)
         if lookup != nil { closeLookup() }
-        // Measured afresh: another line's card is another height.
-        liftSize = .zero
         isSelectingLine = selecting
         withAnimation(.smooth(duration: 0.2)) { menuLine = id }
     }
@@ -663,7 +656,6 @@ private enum TranscriptShareSheet {
 /// takes to end inside the window, and down to start inside it. The window
 /// rather than the transcript: with the controls out, the transcript is
 /// too short for the card and the menu together.
-@MainActor
 private struct LiftPlace {
     /// The card's room around its text.
     static let padding: CGFloat = 14
@@ -678,6 +670,7 @@ private struct LiftPlace {
     /// a little in from its edges.
     let area: CGRect
 
+    @MainActor
     init(line: CGRect, transcript: CGRect) {
         let window = TranscriptWindow.current
         let bounds = window?.bounds ?? transcript
@@ -702,6 +695,30 @@ private struct LiftPlace {
         y = max(min(y, area.maxY - size.height), area.minY)
         x = max(min(x, area.maxX - size.width), area.minX)
         return CGSize(width: x, height: y)
+    }
+}
+
+/// Puts a lifted line's card and menu where `LiftPlace` says, at the size
+/// they ask for, in the same pass that lays them out. Placed by a measured
+/// size instead, they were kept hidden until it came, and it didn't: the
+/// line went and the screen dimmed with nothing over it.
+private struct LiftLayout: Layout {
+    let place: LiftPlace
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        proposal.replacingUnspecifiedDimensions()
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            let offset = place.offset(for: size)
+            subview.place(
+                at: CGPoint(x: bounds.minX + offset.width, y: bounds.minY + offset.height),
+                anchor: .topLeading,
+                proposal: ProposedViewSize(size)
+            )
+        }
     }
 }
 
@@ -762,8 +779,11 @@ private struct LiftedLineText: UIViewRepresentable {
         }
     }
 
+    /// Its words' height at the width given, which the card always gives
+    /// (`.frame(width:)`); a guess at a sensible one otherwise, never the
+    /// text view's own, which with no width yet is a glyph a line.
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize? {
-        guard let width = proposal.width, width.isFinite else { return nil }
+        let width = proposal.width.flatMap { $0.isFinite && $0 > 0 ? $0 : nil } ?? 300
         let fitted = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
         return CGSize(width: width, height: ceil(fitted.height))
     }
