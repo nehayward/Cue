@@ -142,10 +142,6 @@ struct BookTranscriptView: View {
 /// of the voice already.
 private struct BookTranscriptFollower: View {
     let isFullScreen: Bool
-    /// A line's menu is open: the lines hold still under it until it
-    /// closes. Drawn again with each word said and each bit of new text,
-    /// the menu and its line flickered.
-    @State private var isMenuOpen = false
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 0.1)) { context in
@@ -161,9 +157,7 @@ private struct BookTranscriptFollower: View {
                 spoken: current.map { index in
                     transcript.lines[index].words.lastIndex { ($0.start ?? .infinity) <= position }.map { $0 + 1 } ?? 0
                 },
-                isFullScreen: isFullScreen,
-                isHeld: isMenuOpen,
-                onMenu: { isMenuOpen = $0 }
+                isFullScreen: isFullScreen
             )
             .equatable()
         }
@@ -181,11 +175,6 @@ private struct BookTranscriptLines: View, Equatable {
     /// How many of the current line's words have been said.
     let spoken: Int?
     let isFullScreen: Bool
-    /// A line's menu is open: drawn as they were until it closes, then
-    /// caught up.
-    let isHeld: Bool
-    /// A line's menu opened or closed.
-    let onMenu: (Bool) -> Void
 
     @AppStorage(AppStorageKeys.bookTranscriptFont) private var font: BookTranscriptFont = .serif
     @AppStorage(AppStorageKeys.bookTranscriptSize) private var size: Double = 24
@@ -219,8 +208,7 @@ private struct BookTranscriptLines: View, Equatable {
     private static let landing: Duration = .milliseconds(650)
 
     static func == (lhs: Self, rhs: Self) -> Bool {
-        if lhs.isHeld && rhs.isHeld { return true }
-        return lhs.isHeld == rhs.isHeld && lhs.revision == rhs.revision && lhs.volatileText == rhs.volatileText
+        lhs.revision == rhs.revision && lhs.volatileText == rhs.volatileText
             && lhs.current == rhs.current && lhs.spoken == rhs.spoken && lhs.isFullScreen == rhs.isFullScreen
     }
 
@@ -248,13 +236,7 @@ private struct BookTranscriptLines: View, Equatable {
                     )
                     .equatable()
                     .id(line.id)
-                    .contextMenu {
-                        // The menu's items appear as it opens and go as it
-                        // closes: the lines hold still in between.
-                        lineMenu(line)
-                            .onAppear { onMenu(true) }
-                            .onDisappear { onMenu(false) }
-                    }
+                    .contextMenu { lineMenu(line) }
                 }
                 if let volatileText {
                     Text(volatileText)
@@ -279,9 +261,6 @@ private struct BookTranscriptLines: View, Equatable {
             if phase == .interacting {
                 isFollowing = false
                 landingCheck?.cancel()
-                // No menu is open under a finger scrolling: never left
-                // held, should a closing menu go unnoticed.
-                if isHeld { onMenu(false) }
             }
             isScrolling = phase == .interacting || phase == .decelerating
         }
