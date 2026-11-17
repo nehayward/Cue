@@ -350,6 +350,9 @@ struct PlayerView: View {
         // equal priority they split the height with it and the cover
         // shrank to a thumbnail.
         .layoutPriority(isLyrics ? 0 : 1)
+        // Over the controls after it: a book's transcript in the cover's
+        // place (iPad) lifts a line out over them.
+        .zIndex(1)
 
         if isLyrics {
             // A scroll or a tap here leaves full screen as it is: only the
@@ -358,6 +361,9 @@ struct PlayerView: View {
             lyricsOrTranscript(fullScreen: true)
                 .frame(maxWidth: 500, maxHeight: .infinity)
                 .layoutPriority(1)
+                // Over the controls after it, for a transcript line lifted
+                // out with its menu, which spill over them where they must.
+                .zIndex(1)
                 .transition(.lyricsBody)
         } else {
             Spacer(minLength: isPadLayout ? 24 : 12)
@@ -456,6 +462,9 @@ struct PlayerView: View {
             } action: { isArtworkVisible = $0 }
             .opacity(isArtworkVisible ? 1 : 0)
             .animation(.interactiveSpring, value: isArtworkVisible)
+            // Over what follows: a book's transcript in the cover's place
+            // lifts a line out over it.
+            .zIndex(1)
 
         titleLines
 

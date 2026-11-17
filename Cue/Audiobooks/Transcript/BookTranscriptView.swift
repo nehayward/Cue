@@ -205,17 +205,20 @@ private struct BookTranscriptLines: View, Equatable {
     /// The lines at least half on screen.
     @State private var visibleLines: Set<BookTranscript.Line.ID> = []
     @State private var landingCheck: Task<Void, Never>?
-    /// The line whose menu is open (a long press): bright over the rest,
-    /// which dim, with its menu beside it. The lines hold still under it.
+    /// The line lifted out by a long press: a still copy of it in a card
+    /// over everything else, dimmed, with its menu under it. The lines hold
+    /// still beneath.
     @State private var menuLine: BookTranscript.Line.ID?
-    /// The menu's size, measured, to place it beside the line.
-    @State private var menuSize: CGSize = .zero
+    /// Select Text: the lifted copy's words selected, to select from, and
+    /// the menu put away for the system's own (Copy, Look Up, Translate,
+    /// Share).
+    @State private var isSelectingLine = false
+    /// The card and menu's size, measured, to place them.
+    @State private var liftSize: CGSize = .zero
     /// A line asked to be translated, and the system's sheet for it: here
     /// rather than on the menu's button, which goes as the menu closes.
     @State private var translation = ""
     @State private var isTranslating = false
-    /// The lines around one, opened to select from (Select Text).
-    @State private var selecting: SelectableExcerpt?
 
     /// Where the line being read sits.
     private static let anchor = UnitPoint(x: 0.5, y: 0.2)
@@ -253,6 +256,7 @@ private struct BookTranscriptLines: View, Equatable {
                     )
                     .equatable()
                     .id(line.id)
+                    .anchorPreference(key: MenuLineBounds.self, value: .bounds) { menuLine == line.id ? $0 : nil }
 #if targetEnvironment(macCatalyst)
                     .contextMenu { macLineMenu(line) }
 #else
@@ -263,7 +267,6 @@ private struct BookTranscriptLines: View, Equatable {
                     .simultaneousGesture(
                         LongPressGesture(minimumDuration: 0.4).onEnded { _ in openMenu(on: line.id) }
                     )
-                    .anchorPreference(key: MenuLineBounds.self, value: .bounds) { menuLine == line.id ? $0 : nil }
                     .accessibilityAction(named: "Line Actions") { openMenu(on: line.id) }
 #endif
                 }
@@ -350,37 +353,43 @@ private struct BookTranscriptLines: View, Equatable {
                 scroll(to: currentID)
             }
         }
-#if !targetEnvironment(macCatalyst)
-        // A line's menu beside the line, over the rest dimmed; a tap or a
-        // drag anywhere else puts it away.
+        // The lifted line: a still copy of it in a card where it was, its
+        // menu under it, the two moved up or down as far as it takes to fit
+        // the window, over everything else dimmed (the transcript is drawn
+        // over the player's controls for it, `PlayerView`). A tap or a drag
+        // on the dimmed rest puts it away.
         .overlayPreferenceValue(MenuLineBounds.self) { anchor in
             GeometryReader { proxy in
                 if let anchor, let menuLine, let target = self.line(withID: menuLine) {
-                    let rect = proxy[anchor]
-                    let origin = proxy.frame(in: .global).origin
+                    let place = LiftPlace(line: proxy[anchor], transcript: proxy.frame(in: .global))
                     ZStack(alignment: .topLeading) {
-                        Color.clear
+                        Color.black.opacity(0.35)
+                            .frame(width: place.window.width, height: place.window.height)
                             .contentShape(.rect)
+                            .offset(x: place.window.minX, y: place.window.minY)
                             .gesture(DragGesture(minimumDistance: 0).onEnded { _ in closeMenu() })
-                        BookTranscriptLineMenu { action in
-                            perform(action, on: target, from: rect.offsetBy(dx: origin.x, dy: origin.y))
+                        VStack(alignment: .leading, spacing: 10) {
+                            LiftedLine(text: target.text, font: font.uiFont(size: pointSize), width: place.textWidth, isSelecting: isSelectingLine)
+                            if !isSelectingLine {
+                                BookTranscriptLineMenu { action in
+                                    perform(action, on: target, from: place.lineInWindow)
+                                }
+                                .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .top)))
+                            }
                         }
-                        .onGeometryChange(for: CGSize.self) { $0.size } action: { menuSize = $0 }
-                        .offset(menuOffset(beside: rect, in: proxy.size))
+                        .onGeometryChange(for: CGSize.self) { $0.size } action: { liftSize = $0 }
+                        .offset(place.offset(for: liftSize))
                         // Placed once it's measured.
-                        .opacity(menuSize == .zero ? 0 : 1)
+                        .opacity(liftSize == .zero ? 0 : 1)
+                        .animation(.smooth(duration: 0.2), value: liftSize)
                     }
                     .transition(.opacity)
                 }
             }
         }
-#endif
 #if canImport(Translation) && !os(visionOS) && !targetEnvironment(macCatalyst)
         .translationPresentation(isPresented: $isTranslating, text: translation)
 #endif
-        .sheet(item: $selecting) { excerpt in
-            BookTranscriptSelectSheet(excerpt: excerpt, font: font.uiFont(size: CGFloat(min(size, 26)), weight: .regular))
-        }
         .onDisappear { landingCheck?.cancel() }
         // A tap on a word: its link, opened here as a lookup. Another word
         // shows its definition instead; the same word again puts it away.
@@ -462,10 +471,10 @@ private struct BookTranscriptLines: View, Equatable {
     }
 
     /// How bright a line is: the one being read full, the rest dim; the
-    /// one with a word looked up full too. With a line's menu open, that
-    /// line alone, the rest dimmer still.
+    /// one with a word looked up full too. A line lifted out for its menu
+    /// isn't drawn: its copy is, in the card.
     private func emphasis(of index: Int) -> Double {
-        if let menuLine { return transcript.lines[index].id == menuLine ? 1 : 0.25 }
+        if menuLine == transcript.lines[index].id { return 0 }
         if lookup?.line == transcript.lines[index].id { return 1 }
         guard let current else { return 0.85 }
         return index == current ? 1 : 0.4
@@ -477,10 +486,15 @@ private struct BookTranscriptLines: View, Equatable {
         return transcript.lines[index]
     }
 
-    private func openMenu(on id: BookTranscript.Line.ID) {
+    /// Lifts line `id` out with its menu; `selecting`, straight into Select
+    /// Text (the Mac's right-click menu has it).
+    private func openMenu(on id: BookTranscript.Line.ID, selecting: Bool = false) {
         guard menuLine != id else { return }
         HapticManager.shared.fireHaptic(.buttonPress)
         if lookup != nil { closeLookup() }
+        // Measured afresh: another line's card is another height.
+        liftSize = .zero
+        isSelectingLine = selecting
         withAnimation(.smooth(duration: 0.2)) { menuLine = id }
     }
 
@@ -489,26 +503,14 @@ private struct BookTranscriptLines: View, Equatable {
         withAnimation(.smooth(duration: 0.2)) { menuLine = nil }
     }
 
-    /// Where the menu goes: under the line where it fits, else over it,
-    /// else as low as it fits; from the line's leading edge, kept on screen.
-    private func menuOffset(beside line: CGRect, in size: CGSize) -> CGSize {
-        let margin: CGFloat = 8
-        let below = line.maxY + margin
-        let above = line.minY - margin - menuSize.height
-        let y = if below + menuSize.height <= size.height - margin {
-            below
-        } else if above >= margin {
-            above
-        } else {
-            max(margin, size.height - menuSize.height - margin)
-        }
-        let x = min(max(margin, line.minX), max(margin, size.width - menuSize.width - margin))
-        return CGSize(width: x, height: y)
-    }
-
     /// A menu's choice for `line`; `frame` is the line's, in the window,
-    /// for the share sheet to point at on iPad.
+    /// for the share sheet to point at on iPad. Select Text keeps the card
+    /// up, its words selected; the rest put it away.
     private func perform(_ action: BookTranscriptLineMenu.Action, on line: BookTranscript.Line, from frame: CGRect) {
+        if action == .select {
+            withAnimation(.smooth(duration: 0.2)) { isSelectingLine = true }
+            return
+        }
         closeMenu()
         switch action {
         case .play:
@@ -517,7 +519,7 @@ private struct BookTranscriptLines: View, Equatable {
         case .copy:
             UIPasteboard.general.string = line.text
         case .select:
-            selecting = SelectableExcerpt(around: line.id, in: transcript)
+            break
         case .share:
             TranscriptShareSheet.present(line.text, from: frame)
         case .translate:
@@ -539,7 +541,7 @@ private struct BookTranscriptLines: View, Equatable {
             UIPasteboard.general.string = line.text
         }
         Button("Select Text", systemImage: "selection.pin.in.out") {
-            selecting = SelectableExcerpt(around: line.id, in: transcript)
+            openMenu(on: line.id, selecting: true)
         }
         ShareLink(item: line.text) {
             Label("Share", systemImage: "square.and.arrow.up")
@@ -559,10 +561,10 @@ private struct MenuLineBounds: PreferenceKey {
     }
 }
 
-/// A line's actions, beside it, after a long press. Cue's own rather than
-/// the system's context menu: that one lifted a picture of the line that
-/// flickered as the transcript redrew under it, and never said it had
-/// closed, so the lines couldn't be held still for it.
+/// A line's actions, under its lifted copy, after a long press. Cue's own
+/// rather than the system's context menu: that one lifted a picture of the
+/// line that flickered as the transcript redrew under it, and never said it
+/// had closed, so the lines couldn't be held still for it.
 private struct BookTranscriptLineMenu: View {
     enum Action {
         case play, copy, select, share, translate
@@ -625,15 +627,23 @@ private struct LineMenuRowStyle: ButtonStyle {
     }
 }
 
+/// The window the transcript is in: the one in front.
+@MainActor
+private enum TranscriptWindow {
+    static var current: UIWindow? {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+        return scene?.keyWindow ?? scene?.windows.first
+    }
+}
+
 /// The system's share sheet, presented over whatever is on top: from the
 /// menu, which goes as it's chosen, a `ShareLink` would have gone with it.
 /// On iPad it points at the line.
 @MainActor
 private enum TranscriptShareSheet {
     static func present(_ text: String, from frame: CGRect) {
-        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-        let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
-        guard let window = scene?.keyWindow ?? scene?.windows.first, var top = window.rootViewController else { return }
+        guard let window = TranscriptWindow.current, var top = window.rootViewController else { return }
         while let presented = top.presentedViewController, !presented.isBeingDismissed {
             top = presented
         }
@@ -646,106 +656,116 @@ private enum TranscriptShareSheet {
     }
 }
 
-// MARK: - Select Text
+// MARK: - The Lifted Line
 
-/// The lines around one, as one passage to select from, the line itself
-/// selected to begin with.
-private struct SelectableExcerpt: Identifiable {
-    let id = UUID()
-    let text: String
-    /// The line's place in `text`, in UTF-16, as UIKit counts.
-    let selection: NSRange
+/// Where a lifted line's card and its menu go, in the transcript's space:
+/// the card's text over the line's own, the two moved up as far as it
+/// takes to end inside the window, and down to start inside it. The window
+/// rather than the transcript: with the controls out, the transcript is
+/// too short for the card and the menu together.
+@MainActor
+private struct LiftPlace {
+    /// The card's room around its text.
+    static let padding: CGFloat = 14
 
-    /// How many lines either side of the line come with it.
-    private static let reach = 8
+    /// The line, in the transcript's space.
+    let line: CGRect
+    /// The line, in the window's.
+    let lineInWindow: CGRect
+    /// The whole window, in the transcript's space, for the dimming.
+    let window: CGRect
+    /// What the card and menu may cover: the window inside its safe area,
+    /// a little in from its edges.
+    let area: CGRect
 
-    init?(around id: BookTranscript.Line.ID, in transcript: BookTranscript) {
-        guard let index = transcript.lineIndex(at: id), transcript.lines[index].id == id else { return nil }
-        let lines = transcript.lines
-        var text = ""
-        var selection = NSRange(location: 0, length: 0)
-        for place in max(0, index - Self.reach) ... min(lines.count - 1, index + Self.reach) {
-            let line = lines[place].text
-            guard !line.isEmpty else { continue }
-            if !text.isEmpty { text += " " }
-            if place == index {
-                selection = NSRange(location: text.utf16.count, length: line.utf16.count)
-            }
-            text += line
-        }
-        self.text = text
-        self.selection = selection
+    init(line: CGRect, transcript: CGRect) {
+        let window = TranscriptWindow.current
+        let bounds = window?.bounds ?? transcript
+        let insets = window?.safeAreaInsets ?? .zero
+        let toTranscript = CGAffineTransform(translationX: -transcript.minX, y: -transcript.minY)
+        self.line = line
+        lineInWindow = line.offsetBy(dx: transcript.minX, dy: transcript.minY)
+        self.window = bounds.applying(toTranscript)
+        area = bounds.inset(by: insets).insetBy(dx: 12, dy: 8).applying(toTranscript)
+    }
+
+    /// The card's text as wide as the line's, so it wraps as the line
+    /// does, and never wider than there's room for.
+    var textWidth: CGFloat {
+        max(0, min(line.width, area.width - 2 * Self.padding))
+    }
+
+    /// The card and menu's offset, `size` their size together.
+    func offset(for size: CGSize) -> CGSize {
+        var x = line.minX - Self.padding
+        var y = line.minY - Self.padding
+        y = max(min(y, area.maxY - size.height), area.minY)
+        x = max(min(x, area.maxX - size.width), area.minX)
+        return CGSize(width: x, height: y)
     }
 }
 
-/// Select Text: the passage around a line, still and selectable a word at
-/// a time, which the live transcript can't be (SwiftUI's text on iPhone
-/// copies a line whole, and a line redrawn as it's read would drop the
-/// selection). What's selected gets the system's own menu: Copy, Look Up,
-/// Translate, Share.
-private struct BookTranscriptSelectSheet: View {
-    let excerpt: SelectableExcerpt
+/// A lifted line's card: a still copy of the line, in the transcript's
+/// face and size, so nothing in it changes as the book is read. Its words
+/// select as any text's do (a long press, or Select Text), with the
+/// system's own menu for them: Copy, Look Up, Translate, Share.
+private struct LiftedLine: View {
+    let text: String
     let font: UIFont
-    @Environment(\.dismiss) private var dismiss
+    let width: CGFloat
+    let isSelecting: Bool
 
     var body: some View {
-        NavigationStack {
-            SelectableTextView(text: excerpt.text, selection: excerpt.selection, font: font)
-                .ignoresSafeArea(edges: .bottom)
-                .navigationTitle("Select Text")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Done") { dismiss() }
-                    }
-                }
-        }
-        .presentationDetents([.medium, .large])
+        LiftedLineText(text: text, font: font, isSelecting: isSelecting)
+            .frame(width: width)
+            .padding(LiftPlace.padding)
+            .background(.regularMaterial, in: .rect(cornerRadius: 18, style: .continuous))
+            .shadow(color: .black.opacity(0.25), radius: 20, y: 6)
     }
 }
 
-/// A passage in a read-only text view, selectable.
-private struct SelectableTextView: UIViewRepresentable {
+/// The card's text: a read-only text view, sized to its words at the width
+/// it's given. With `isSelecting`, it selects all of them, once.
+private struct LiftedLineText: UIViewRepresentable {
     let text: String
-    let selection: NSRange
     let font: UIFont
+    let isSelecting: Bool
 
-    func makeUIView(context: Context) -> ExcerptTextView {
-        let view = ExcerptTextView()
+    final class Coordinator {
+        var hasSelected = false
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    func makeUIView(context: Context) -> UITextView {
+        let view = UITextView()
         view.isEditable = false
         view.isSelectable = true
+        view.isScrollEnabled = false
         view.backgroundColor = .clear
-        view.textContainerInset = UIEdgeInsets(top: 12, left: 16, bottom: 40, right: 16)
-        let paragraph = NSMutableParagraphStyle()
-        paragraph.lineHeightMultiple = 1.2
-        view.attributedText = NSAttributedString(string: text, attributes: [
-            .font: font,
-            .foregroundColor: UIColor.label,
-            .paragraphStyle: paragraph
-        ])
-        view.initialSelection = selection
+        view.textContainerInset = .zero
+        view.textContainer.lineFragmentPadding = 0
+        view.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        view.attributedText = NSAttributedString(string: text, attributes: [.font: font, .foregroundColor: UIColor.label])
         return view
     }
 
-    func updateUIView(_ view: ExcerptTextView, context: Context) {}
-}
-
-/// Selects its first selection once it's on screen: a selection made
-/// before shows no handles.
-private final class ExcerptTextView: UITextView {
-    var initialSelection: NSRange?
-
-    override func didMoveToWindow() {
-        super.didMoveToWindow()
-        guard window != nil, let range = initialSelection else { return }
-        initialSelection = nil
-        // After the sheet's first layout, so the range scrolls into view.
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            becomeFirstResponder()
-            selectedRange = range
-            scrollRangeToVisible(range)
+    func updateUIView(_ view: UITextView, context: Context) {
+        guard isSelecting, !context.coordinator.hasSelected else { return }
+        context.coordinator.hasSelected = true
+        // Once it's on screen: a selection made before shows no handles.
+        Task { @MainActor in
+            view.becomeFirstResponder()
+            view.selectedRange = NSRange(location: 0, length: (view.text as NSString).length)
         }
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize? {
+        guard let width = proposal.width, width.isFinite else { return nil }
+        let fitted = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
+        return CGSize(width: width, height: ceil(fitted.height))
     }
 }
 
