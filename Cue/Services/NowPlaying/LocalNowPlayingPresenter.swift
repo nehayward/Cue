@@ -18,6 +18,9 @@ import UIKit
 /// In a car it publishes Apple Music runs as well, and a queue loaded with
 /// nothing in a player as paused, so the car's Now Playing never leaves
 /// this card for MusicKit's (`LocalPlaybackService.publishesCarCard`).
+/// There every card, a stream run's too, is on a Now Playing session of a
+/// silent player of its own (`forCar`), so the car never has to move from
+/// one of the app's players to another.
 ///
 /// A TuneIn station's card is live (`MPNowPlayingInfoPropertyIsLiveStream`):
 /// the LIVE bar in place of a timeline, and play and pause alone. iOS draws
@@ -112,8 +115,13 @@ final class LocalNowPlayingPresenter {
     /// stream run). So a new player gets a new session, the commands and
     /// the song move over to it, and the old session goes.
     func attach(_ player: AVPlayer) {
-        // A stream run takes the card over from the car's silent player.
-        leaveCarSession()
+        // In a car the card stays on the car's session, a stream run's too
+        // (see `forCar`), and so does a card already there once the car
+        // has gone, until it comes down.
+        if carPlayer != nil || self.player?.publishesCarCard == true {
+            takeCarSession()
+            return
+        }
         guard UserDefaults.standard.bool(forKey: AppStorageKeys.nowPlayingSession) else { return }
         if let session, session.players.contains(where: { $0 === player }) { return }
         let hadCommands = !commandTokens.isEmpty
@@ -149,51 +157,62 @@ final class LocalNowPlayingPresenter {
     /// which doesn't count, so on the app's own center the car showed ▶
     /// over Apple Music with its clock stood still; a session's state comes
     /// from its player. The commands move over with the card.
+    ///
+    /// A stream run in a car stays on that session too (`attach`), the
+    /// silent player playing beside the stream with the card's state
+    /// (`update`). The car's Now Playing stays on the player it was showing
+    /// (FB24840951), and the card moved back to the app's shared center as
+    /// a book or a Plex song took over from Apple Music, the session going:
+    /// the car stayed on the session that had gone and read blank while the
+    /// book played. A session asking to be active (`becomeActiveIfPossible`)
+    /// takes the car with it; the shared center has no way to ask.
     func forCar(playing: Bool) {
-        if carPlayer == nil {
-            guard let (player, looper) = Self.makeSilentPlayer() else { return }
-            carPlayer = player
-            carLooper = looper
-            let hadCommands = !commandTokens.isEmpty
-            if hadCommands {
-                unregisterCommands()
-            }
-            let session = MPNowPlayingSession(players: [player])
-            session.automaticallyPublishesNowPlayingInfo = false
-            self.session = session
-            if hadCommands {
-                registerCommands()
-            }
-            published = nil
-            session.becomeActiveIfPossible { active in
-                Self.log.notice("car session \(active ? "active" : "not active", privacy: .public)")
+        takeCarSession()
+        syncCarPlayer(playing: playing)
+    }
+
+    /// Puts the card, commands and all, on the car's session, made with its
+    /// silent player if it isn't up.
+    private func takeCarSession() {
+        guard carPlayer == nil else { return }
+        guard let (player, looper) = Self.makeSilentPlayer() else { return }
+        carPlayer = player
+        carLooper = looper
+        let hadCommands = !commandTokens.isEmpty
+        if hadCommands {
+            unregisterCommands()
+        }
+        let session = MPNowPlayingSession(players: [player])
+        session.automaticallyPublishesNowPlayingInfo = false
+        self.session = session
+        if hadCommands {
+            registerCommands()
+        }
+        published = nil
+        session.becomeActiveIfPossible { active in
+            Self.log.notice("car session \(active ? "active" : "not active", privacy: .public)")
+        }
+    }
+
+    /// Plays or pauses the car's silent player with the card, at the card's
+    /// rate (a book's speed), as the session's state is read from it. `rate`
+    /// nil leaves the rate as it is.
+    private func syncCarPlayer(playing: Bool, rate: Double? = nil) {
+        guard let carPlayer else { return }
+        if let rate {
+            let rate = Float(rate)
+            if carPlayer.defaultRate != rate {
+                carPlayer.defaultRate = rate
+                if carPlayer.timeControlStatus == .playing {
+                    carPlayer.rate = rate
+                }
             }
         }
-        guard let carPlayer else { return }
         if playing, carPlayer.timeControlStatus == .paused {
             carPlayer.play()
         } else if !playing, carPlayer.timeControlStatus != .paused {
             carPlayer.pause()
         }
-    }
-
-    /// The car's silent player goes, and the card back to the app's shared
-    /// center, commands and all: a stream run's card is the stream player's.
-    private func leaveCarSession() {
-        guard let carPlayer else { return }
-        carPlayer.pause()
-        self.carPlayer = nil
-        carLooper = nil
-        guard session != nil else { return }
-        let hadCommands = !commandTokens.isEmpty
-        if hadCommands {
-            unregisterCommands()
-        }
-        session = nil
-        if hadCommands {
-            registerCommands()
-        }
-        published = nil
     }
 
     /// A second of silence, looped, for the car's session.
@@ -221,6 +240,8 @@ final class LocalNowPlayingPresenter {
             guard (try? data.write(to: url)) != nil else { return nil }
         }
         let player = AVQueuePlayer()
+        // Never handed to an AirPlay receiver, as the stream player isn't.
+        player.allowsExternalPlayback = false
         let looper = AVPlayerLooper(player: player, templateItem: AVPlayerItem(url: url))
         return (player, looper)
     }
@@ -341,6 +362,9 @@ final class LocalNowPlayingPresenter {
             snapshot.artist = book.book.subtitle
             snapshot.artworkURL = book.book.artwork ?? snapshot.artworkURL
         }
+        // On the car's session, the silent player says whether it plays.
+        syncCarPlayer(playing: isPlaying, rate: snapshot.rate)
+        showModes()
         let cardIsOurs = isOurs(infoCenter.nowPlayingInfo)
         // A stall or a hiccup can leave the system's clock well off; a
         // drift past a couple of seconds is worth a republish. The clock
@@ -425,6 +449,25 @@ final class LocalNowPlayingPresenter {
 
         if publishedArtworkURL != snapshot.artworkURL {
             loadArtwork(from: snapshot.artworkURL, item: item)
+        }
+    }
+
+    /// The player's shuffle and repeat on a session's commands, as
+    /// `CarPlayInterface` sets them on the shared center's: a car's shuffle
+    /// or repeat button sends the mode after the one its command shows, and
+    /// a session's showed off whatever the player's were, so a tap could
+    /// land as the command undoing what the button's own handler did. The
+    /// shared center's are left to `CarPlayInterface`.
+    private func showModes() {
+        guard session != nil, let player else { return }
+        let center = commandCenter
+        let shuffle: MPShuffleType = player.isShuffled ? .items : .off
+        if center.changeShuffleModeCommand.currentShuffleType != shuffle {
+            center.changeShuffleModeCommand.currentShuffleType = shuffle
+        }
+        let repeatType = player.repeatMode.repeatType
+        if center.changeRepeatModeCommand.currentRepeatType != repeatType {
+            center.changeRepeatModeCommand.currentRepeatType = repeatType
         }
     }
 
