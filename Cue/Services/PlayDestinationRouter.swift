@@ -250,14 +250,14 @@ enum PlayDestinationRouter {
             // song, not the song alone — what a speaker does with the same
             // tap, since the queue closure hands it the parent.
             if let origin, contents.count == 1, !shuffle, [.now, .replace].contains(position),
-               origin.content.type == .album || origin.content.type == .libraryAlbum || origin.content.type.isPlaylist,
+               isList(origin),
                try await LocalPlaybackService.shared.play(contents[0], in: origin) {
-                record(contents)
+                record(contents, from: origin, position: position)
                 announce(contents, position: position)
                 return true
             }
             try await LocalPlaybackService.shared.enqueue(contents, at: position, shuffle: shuffle, from: origin)
-            record(contents)
+            record(contents, from: origin, position: position)
             announce(contents, position: position)
             return true
         } catch {
@@ -277,11 +277,29 @@ enum PlayDestinationRouter {
     /// Sonos side (which records the one thing that was queued, album or
     /// playlist included) and the banner below: a run of an artist's tracks is
     /// one action, and logging twenty rows would bury everything else.
-    private static func record(_ contents: [PlayableContent]) {
-        guard let first = contents.first else { return }
-        withAnimation {
-            PlayHistoryService.shared.record(first)
+    ///
+    /// A song tapped in an album or playlist, or a sorted playlist's Play
+    /// (its songs as listed), plays the list, so the list goes in, as the
+    /// speaker's tap records the parent it was handed: recording the song
+    /// left a playlist played on this device out of Play History. Play
+    /// Next and Add to Queue on a song are the song.
+    private static func record(_ contents: [PlayableContent], from origin: PlayableContent?, position: QueuePosition) {
+        let played: PlayableContent?
+        if let origin, isList(origin), [.now, .replace].contains(position) {
+            played = origin
+        } else {
+            played = contents.first
         }
+        guard let played else { return }
+        withAnimation {
+            PlayHistoryService.shared.record(played)
+        }
+    }
+
+    /// An album or playlist, which a song played from it plays through.
+    private static func isList(_ content: PlayableContent) -> Bool {
+        let type = content.content.type
+        return type == .album || type == .libraryAlbum || type.isPlaylist
     }
 
     /// One item gets the artwork banner it always got; a run of them gets a

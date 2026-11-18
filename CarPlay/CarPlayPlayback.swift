@@ -89,7 +89,9 @@ enum CarPlayPlayback {
         if !played {
             try await player.enqueue([track], at: .now, from: container)
         }
-        record(track)
+        // The list it played, as on the phone; the song alone when the
+        // list no longer held it.
+        record(played ? container : track)
     }
 
     /// Plays a book from where it was left, through the book player, which
