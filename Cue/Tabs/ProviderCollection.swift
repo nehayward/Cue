@@ -17,6 +17,8 @@ enum ProviderCollection: String, CaseIterable, Hashable, Codable {
     case favoriteTracks
     case favoriteAlbums
     case favoriteArtists
+    /// Everything starred on a Subsonic server: artists, albums and songs.
+    case favorites
     case genres
     case folders
     case importedPlaylists
@@ -40,6 +42,7 @@ enum ProviderCollection: String, CaseIterable, Hashable, Codable {
         case .favoriteTracks: "Favorite Tracks"
         case .favoriteAlbums: "Favorite Albums"
         case .favoriteArtists: "Favorite Artists"
+        case .favorites: "Favorites"
         case .genres: "Genres"
         case .folders: "Folders"
         case .importedPlaylists: "Imported Playlists"
@@ -60,6 +63,7 @@ enum ProviderCollection: String, CaseIterable, Hashable, Codable {
         case .personalStations: "dot.radiowaves.left.and.right"
         case .genres: "theatermasks"
         case .collections: "square.stack.3d.up"
+        case .favorites: "heart"
         }
     }
 }
@@ -81,7 +85,7 @@ extension MediaSearchService {
         case .deezer:
             [.favoriteTracks, .favoriteAlbums, .favoriteArtists, .playlists]
         case .subsonic:
-            [.artists, .albums, .songs, .recentlyAdded, .playlists]
+            [.artists, .albums, .songs, .favorites, .recentlyAdded, .playlists]
         case .library:
             [.artists, .albums, .songs, .genres, .folders, .importedPlaylists, .savedPlaylists]
         case .plex:
@@ -102,7 +106,7 @@ extension MediaSearchService {
     var defaultTabCollections: [ProviderCollection] {
         let core: Set<ProviderCollection> = [
             .artists, .albums, .songs, .playlists,
-            .likedSongs, .favoriteTracks, .favoriteAlbums, .favoriteArtists
+            .likedSongs, .favoriteTracks, .favoriteAlbums, .favoriteArtists, .favorites
         ]
         let defaults = tabCollections.filter { core.contains($0) }
         return defaults.isEmpty ? tabCollections : defaults

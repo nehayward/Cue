@@ -322,6 +322,12 @@ struct ArtistDetailView: View {
             if let artistContent, artistContent.content.location != nil {
                 OpenInServiceView(item: artistContent)
             }
+            // Read from the artist the server sent, which carries whether
+            // it's starred; not for an artist gathered from the device.
+            if let artistContent, !isOnDevice, artistContent.content.type.isArtist,
+               artistContent.content.service.supportsFavoriteArtist {
+                FavoriteMenuButton(item: artistContent)
+            }
             Divider()
             if !tracks.isEmpty {
                 Section("Popular Tracks") {

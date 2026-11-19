@@ -50,8 +50,21 @@ struct PlayableGridScreen: View {
 
     /// Nil for a grid with a single fixed order — no menu is shown then.
     var sort: PlayableGridSort? = nil
+    /// Where a grid that can also be rows remembers which it is
+    /// (`PlayableListLayout.remembered(under:)`); nil keeps it a grid, with
+    /// no button.
+    var layoutKey: String? = nil
     var action: ((Int) async -> ())? = nil
     private let adaptiveColumn = [GridItem(.adaptive(minimum: 120, maximum: 200), spacing: 16), GridItem(.adaptive(minimum: 120, maximum: 200), spacing: 16)]
+    /// The layout picked on this screen; before that, the one remembered.
+    @State private var pickedLayout: PlayableListLayout?
+
+    /// Read from the defaults until one is picked here, so a list left as
+    /// rows opens as rows, without a frame of the grid first.
+    private var layout: PlayableListLayout {
+        guard let layoutKey else { return .grid }
+        return pickedLayout ?? PlayableListLayout.remembered(under: layoutKey)
+    }
 
     /// When this grid is showing a service's playlists, the service to create a new playlist on —
     /// only services that can create an empty playlist.
@@ -68,19 +81,36 @@ struct PlayableGridScreen: View {
         // the old checkmarks.
         let _ = (sortName, isSortReversed)
 
-        ScrollView {
-            LazyVGrid(columns: adaptiveColumn, spacing: 16) {
-                ForEach(items) { item in
-                    PlayableCardView(item: item)
-                        .onAppear { loadMoreIfNeeded(after: item) }
+        // A real container, not a `Group`, so flipping the layout keeps the
+        // task, toolbar and refresh rather than rebuilding them with the
+        // branch. Either way the rows are `items` itself, so a playlist made
+        // or deleted elsewhere shows at once.
+        VStack(spacing: 0) {
+            if layout == .list {
+                List {
+                    ForEach(items) { item in
+                        PlayableContentView(item: item)
+                            .onAppear { loadMoreIfNeeded(after: item) }
+                    }
+                    if items.isEmpty, !isLoading {
+                        noItems
+                    }
                 }
-            }
+                .listStyle(.plain)
+            } else {
+                ScrollView {
+                    LazyVGrid(columns: adaptiveColumn, spacing: 16) {
+                        ForEach(items) { item in
+                            PlayableCardView(item: item)
+                                .onAppear { loadMoreIfNeeded(after: item) }
+                        }
+                    }
 
-            // TODO: Improve
-            if items.isEmpty, !isLoading {
-                ContentUnavailableView {
-                    Text("No Items")
+                    if items.isEmpty, !isLoading {
+                        noItems
+                    }
                 }
+                .contentMargins(.horizontal, 16, for: .scrollContent)
             }
         }
         .refreshable {
@@ -93,9 +123,22 @@ struct PlayableGridScreen: View {
                     .frame(maxWidth: .infinity, alignment: .center)
             }
         }
-        .contentMargins(.horizontal, 16, for: .scrollContent)
         .animation(.interactiveSpring, value: items)
         .toolbar {
+            if let layoutKey {
+                // Named for the layout a tap gives you, as the album lists'.
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        let next = layout.other
+                        pickedLayout = next
+                        // Saved on the tap alone: a write to the defaults
+                        // re-runs every view holding `@AppStorage`.
+                        UserDefaults.standard.set(next.rawValue, forKey: layoutKey)
+                    } label: {
+                        Label("Show as \(layout.other.label)", systemImage: layout.other.systemImage)
+                    }
+                }
+            }
             if action != nil {
                 // An explicit refresh that works on every platform (pull-to-refresh isn't available
                 // on Mac/Catalyst), so deletes/creates made elsewhere can be pulled in.
@@ -139,6 +182,13 @@ struct PlayableGridScreen: View {
 }
 
 extension PlayableGridScreen {
+    // TODO: Improve
+    fileprivate var noItems: some View {
+        ContentUnavailableView {
+            Text("No Items")
+        }
+    }
+
     /// Sort By and, for the chosen order, its direction — the same menu as
     /// `PlayableListView`'s. A pick sets the service's order and fetches
     /// again.

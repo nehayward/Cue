@@ -2,6 +2,8 @@ import Foundation
 
 /// How a list of Subsonic albums is ordered. Unlike songs, albums *are*
 /// sorted by the server: each case is one of `getAlbumList2`'s list types.
+/// Favorites lists only part of the library, as the server's own list
+/// does: the albums starred.
 ///
 /// The server's `frequent` and `recent` lists are deliberately not here.
 /// They rank albums by the plays clients have scrobbled to the server, and
@@ -11,6 +13,7 @@ public enum SubsonicAlbumSort: String, CaseIterable, Sendable, Identifiable {
     case title
     case artist
     case recentlyAdded
+    case favorites
 
     public var id: String { rawValue }
 
@@ -19,6 +22,7 @@ public enum SubsonicAlbumSort: String, CaseIterable, Sendable, Identifiable {
         case .title: "Title"
         case .artist: "Artist"
         case .recentlyAdded: "Recently Added"
+        case .favorites: "Favorites"
         }
     }
 
@@ -28,6 +32,7 @@ public enum SubsonicAlbumSort: String, CaseIterable, Sendable, Identifiable {
         case .title: "alphabeticalByName"
         case .artist: "alphabeticalByArtist"
         case .recentlyAdded: "newest"
+        case .favorites: "starred"
         }
     }
 }

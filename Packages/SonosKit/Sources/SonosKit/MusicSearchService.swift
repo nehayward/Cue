@@ -136,6 +136,9 @@ public final class MusicSearchService {
     /// loading before Songs could show anything, which is worse than a list
     /// that stops short.
     private static let subsonicSyncLimit = 25_000
+    /// When each artist, album and song in the last read of the Favorites
+    /// list was starred, for its Date Favorited order.
+    @ObservationIgnored private var subsonicFavoriteDates: [String: String] = [:]
     /// Persisting the rotated token means the next launch's stored credentials
     /// are already fresh, skipping the 401 → refreshAuthToken → retry round
     /// trips on every cold start.
@@ -3110,14 +3113,68 @@ public final class MusicSearchService {
     // MARK: - Subsonic favorites
 
     public func likeSubsonicTrack(id: String) async -> Bool {
-        await subsonic.star(id: id)
+        await setSubsonicFavorite(true, id: id, type: .track)
     }
 
     public func unlikeSubsonicTrack(id: String) async -> Bool {
-        await subsonic.unstar(id: id)
+        await setSubsonicFavorite(false, id: id, type: .track)
     }
 
     public func isSubsonicTrackLiked(id: String) async -> Bool {
-        await subsonic.isStarred(id: id)
+        await isSubsonicFavorite(id: id, type: .track)
+    }
+
+    /// Stars or unstars a song, album or artist on the server. Playlists
+    /// can't be starred: the API has no parameter for them.
+    @discardableResult
+    public func setSubsonicFavorite(_ favorite: Bool, id: String, type: ContentType) async -> Bool {
+        let kind = Self.subsonicStarKind(of: type)
+        return favorite
+            ? await subsonic.star(id: id, kind: kind)
+            : await subsonic.unstar(id: id, kind: kind)
+    }
+
+    /// Whether a song, album or artist is starred, read from the server, for
+    /// a row that doesn't carry the answer.
+    public func isSubsonicFavorite(id: String, type: ContentType) async -> Bool {
+        await subsonic.isStarred(id: id, kind: Self.subsonicStarKind(of: type))
+    }
+
+    private static func subsonicStarKind(of type: ContentType) -> SubsonicAPI.StarKind {
+        if type.isArtist { return .artist }
+        if [.album, .libraryAlbum].contains(type) { return .album }
+        return .song
+    }
+
+    /// The artists, albums and songs starred on the server (Navidrome's
+    /// favorites), in that order, for the Favorites list. Read on every
+    /// open, one request, so a star set in another app shows at once. Empty
+    /// when the server doesn't answer.
+    public func subsonicFavorites() async -> [PlayableContent] {
+        guard let starred = await subsonic.starredFavorites() else { return [] }
+        var dates: [String: String] = [:]
+        for artist in starred.artists { dates[artist.id] = artist.starred }
+        for album in starred.albums { dates[album.id] = album.starred }
+        for song in starred.songs { dates[song.id] = song.starred }
+        subsonicFavoriteDates = dates
+        return starred.artists.map(\.toPlayable)
+            + starred.albums.map(\.toPlayable)
+            + starred.songs.map(\.toPlayable)
+    }
+
+    /// When a favorite in the last read of `subsonicFavorites()` was starred,
+    /// as the server wrote it (ISO 8601, so it orders as text).
+    public func subsonicFavoriteDate(of id: String) -> String? {
+        subsonicFavoriteDates[id]
+    }
+
+    /// The starred artists, A – Z, for the Artists list's Favorites. The API
+    /// has no paged list of starred artists as it has of albums, so this is
+    /// `getStarred2`'s, whole on the first page.
+    public func subsonicFavoriteArtists(offset: Int = 0) async -> [PlayableContent] {
+        guard offset == 0, let starred = await subsonic.starredFavorites() else { return [] }
+        return starred.artists
+            .sorted { ($0.name ?? "").localizedStandardCompare($1.name ?? "") == .orderedAscending }
+            .map(\.toPlayable)
     }
 }

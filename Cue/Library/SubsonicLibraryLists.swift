@@ -1,11 +1,54 @@
+import Defaults
 import MusicSearchKit
 import SonosKit
 
-/// The pieces of Subsonic's Albums and Songs lists that the library's front
-/// page and the collection tabs both build — one place for the sort menus
-/// and the sync status, so the screens can't drift.
+/// The pieces of Subsonic's lists that the library's front page and the
+/// collection tabs both build — one place for the sort menus and the sync
+/// status, so the screens can't drift.
 @MainActor
 enum SubsonicLibraryLists {
+    /// The Artists list's menu: every artist, or only the starred ones.
+    /// `getArtists` has no order to choose, so that's all there is to pick.
+    static func artistSortOptions(musicSearchService: MusicSearchService) -> [PlayableListSort] {
+        [
+            PlayableListSort(name: "Name") { offset, _ in
+                await musicSearchService.subsonicArtists(offset: offset)
+            },
+            PlayableListSort(name: "Favorites") { offset, _ in
+                await musicSearchService.subsonicFavoriteArtists(offset: offset)
+            },
+        ]
+    }
+
+    /// The Favorites list's orders: the artists, albums and songs starred on
+    /// the server, read whole with one `getStarred2` each time the list
+    /// opens or is pulled, and ordered here (`LocalSorts`).
+    static func favoriteSortOptions(musicSearchService: MusicSearchService) -> [PlayableListSort] {
+        let favorites = LocalSorts { await musicSearchService.subsonicFavorites() }
+        return [
+            favorites.byDate("Date Favorited") { musicSearchService.subsonicFavoriteDate(of: $0.id) },
+            favorites.byName("Title") { $0.title },
+            // An artist's own name, so artists sit among their albums.
+            favorites.byName("Artist") { $0.content.type.isArtist ? $0.title : $0.metadata?.artist },
+        ]
+    }
+
+    /// The Favorites list: a grid at first, its layout its own
+    /// (`AppStorageKeys.subsonicFavoritesLayout`) since it mixes artists,
+    /// albums and songs, with a pull that reads the server again.
+    static func favoritesDestination(musicSearchService: MusicSearchService) -> RouterDestination {
+        .playableList(
+            title: "Favorites",
+            showSectionIndex: false,
+            allowsGrid: true,
+            layoutKey: AppStorageKeys.subsonicFavoritesLayout,
+            sortOptions: favoriteSortOptions(musicSearchService: musicSearchService),
+            sortKey: favoritesSortKey,
+            // Nothing to do first: the list's reload is the read.
+            refreshAction: {}
+        )
+    }
+
     /// The Songs list's sort menu. Sorting happens on the synced copy of the
     /// library rather than on the server, which has no sort for songs.
     static func songSortOptions(musicSearchService: MusicSearchService) -> [PlayableListSort] {
@@ -65,4 +108,6 @@ enum SubsonicLibraryLists {
 
     static let songSortKey = "subsonic.songs"
     static let albumSortKey = "subsonic.albums"
+    static let artistSortKey = "subsonic.artists"
+    static let favoritesSortKey = "subsonic.favorites"
 }

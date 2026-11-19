@@ -1,3 +1,4 @@
+import Defaults
 import OrderedCollections
 import SwiftUI
 import SonosKit
@@ -28,8 +29,12 @@ struct SubsonicBrowseScreen: View {
                         // Off for now: the index fights the paginated loads
                         // (scrolling to a letter jumps past unloaded pages).
                         showSectionIndex: false,
-                        refreshAction: serverListRefresh,
-                        action: { offset in await musicSearchService.subsonicArtists(offset: offset) }
+                        // Rows or a wall of their pictures, as the albums.
+                        allowsGrid: true,
+                        // All of them, or only the favorites.
+                        sortOptions: artistSortOptions,
+                        sortKey: SubsonicLibraryLists.artistSortKey,
+                        refreshAction: serverListRefresh
                     )) {
                         Label("Artists", systemImage: "music.mic")
                     }
@@ -68,9 +73,18 @@ struct SubsonicBrowseScreen: View {
                         Label("Songs", systemImage: "music.note")
                     }
 
+                    // The artists, albums and songs starred on the server,
+                    // newest first, read again each time it opens.
+                    NavigationLink(value: SubsonicLibraryLists.favoritesDestination(musicSearchService: musicSearchService)) {
+                        Label("Favorites", systemImage: "heart")
+                    }
+
                     NavigationLink(value: RouterDestination.playableGridScreen(
                         title: "Playlists",
+                        // Bound to the service's own list, so a playlist made
+                        // or deleted shows at once, as a grid or rows.
                         items: $subsonicBrowseService.userPlaylists,
+                        layoutKey: AppStorageKeys.subsonicPlaylistsLayout,
                         action: { _ in }
                     )) {
                         Label("Playlists (\(subsonicBrowseService.userPlaylists.count))", systemImage: "rectangle.stack.badge.play")
@@ -182,6 +196,11 @@ struct SubsonicBrowseScreen: View {
     /// The Albums list's sort menu, shared with the Albums tab.
     private var albumSortOptions: [PlayableListSort] {
         SubsonicLibraryLists.albumSortOptions(musicSearchService: musicSearchService)
+    }
+
+    /// The Artists list's menu, shared with the Artists tab.
+    private var artistSortOptions: [PlayableListSort] {
+        SubsonicLibraryLists.artistSortOptions(musicSearchService: musicSearchService)
     }
 
     /// The pull to refresh on Artists, Albums and Recently Added, shared

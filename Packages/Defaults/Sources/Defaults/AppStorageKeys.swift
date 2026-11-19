@@ -212,6 +212,13 @@ public enum AppStorageKeys {
     public static let plexCollectionsLayout = "\(Prefix.id).plexCollectionsLayout"
     /// The layout inside a Plex collection (`PlayableListLayout` raw value).
     public static let plexCollectionLayout = "\(Prefix.id).plexCollectionLayout"
+    /// Subsonic's Favorites list's layout (`PlayableListLayout` raw value),
+    /// its own rather than the album lists' (`albumsLayout`), as it mixes
+    /// artists, albums and songs. A grid when unset.
+    public static let subsonicFavoritesLayout = "\(Prefix.id).subsonicFavoritesLayout"
+    /// Subsonic's Playlists screen's layout (`PlayableListLayout` raw
+    /// value). A grid when unset.
+    public static let subsonicPlaylistsLayout = "\(Prefix.id).subsonicPlaylistsLayout"
 }
 
 public extension UserDefaults {
