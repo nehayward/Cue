@@ -921,7 +921,12 @@ extension PlexMetadata {
                 discNumber: discNumber,
                 audioCodec: audioCodec,
                 userRating: userRating,
-                playlistItemID: playlistItemID.map(String.init)
+                playlistItemID: playlistItemID.map(String.init),
+                // Unix seconds. Plex leaves `viewCount` out until a song has
+                // been played, so a track's missing count is none.
+                addedAt: addedAt.map { Date(timeIntervalSince1970: TimeInterval($0)) },
+                playCount: viewCount ?? (type == "track" ? 0 : nil),
+                lastPlayedAt: lastViewedAt.map { Date(timeIntervalSince1970: TimeInterval($0)) }
             )
         )
     }

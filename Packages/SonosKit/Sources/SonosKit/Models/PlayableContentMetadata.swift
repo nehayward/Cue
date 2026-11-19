@@ -26,6 +26,13 @@ public struct PlayableContentMetadata: Sendable, Equatable, Codable, Hashable {
     public var userRating: Double?
     /// Identifies a track's position within a specific playlist (used by Plex to remove items).
     public let playlistItemID: String?
+    /// When the song came into the library, how often it's been played and
+    /// when last, where the service says (Plex), for a playlist sorted by
+    /// them (`PlaylistSongSort`). Left out of `==` and `hash`: a row draws
+    /// the same whatever they read.
+    public let addedAt: Date?
+    public let playCount: Int?
+    public let lastPlayedAt: Date?
 
     // Initializer
     public init(
@@ -48,7 +55,10 @@ public struct PlayableContentMetadata: Sendable, Equatable, Codable, Hashable {
         fingerprint: String? = nil,
         librarySectionID: String? = nil,
         userRating: Double? = nil,
-        playlistItemID: String? = nil
+        playlistItemID: String? = nil,
+        addedAt: Date? = nil,
+        playCount: Int? = nil,
+        lastPlayedAt: Date? = nil
     ) {
         self.duration = duration
         self.popularity = popularity
@@ -70,6 +80,9 @@ public struct PlayableContentMetadata: Sendable, Equatable, Codable, Hashable {
         self.librarySectionID = librarySectionID
         self.userRating = userRating
         self.playlistItemID = playlistItemID
+        self.addedAt = addedAt
+        self.playCount = playCount
+        self.lastPlayedAt = lastPlayedAt
     }
 
     /// A copy with the quality-signal fields replaced — used to graft
@@ -96,7 +109,10 @@ public struct PlayableContentMetadata: Sendable, Equatable, Codable, Hashable {
             fingerprint: fingerprint,
             librarySectionID: librarySectionID,
             userRating: userRating,
-            playlistItemID: playlistItemID
+            playlistItemID: playlistItemID,
+            addedAt: addedAt,
+            playCount: playCount,
+            lastPlayedAt: lastPlayedAt
         )
     }
 

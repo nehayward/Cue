@@ -43,8 +43,8 @@ struct MediaDetailView: View {
     @State private var selection: Set<Int> = []
     @State private var nextCursor: String?
     @State private var showNavigationTitle: Bool = false
-    /// The order the songs are listed in. Only a Plex playlist offers
-    /// another (`sortsSongs`); the choice is remembered per playlist.
+    /// The order the songs are listed in. A playlist offers others
+    /// (`sortsSongs`); the choice is remembered per playlist.
     @State private var songSort: PlaylistSongSort = .playlistOrder
     @State private var songSortReversed = false
     /// The indices of `tracks` in `songSort`'s order, once every song is in
@@ -52,6 +52,25 @@ struct MediaDetailView: View {
     @State private var sortedOrder: [Int]?
     /// The rest of the playlist is loading so it can be sorted.
     @State private var isLoadingAllSongs = false
+    /// What Find in Playlist looks for: a song shows while every word of
+    /// it is in its title, artist or album.
+    @State private var songQuery = ""
+    /// The Find in Playlist bar, following a pull down from the top of the
+    /// list, and up once the pull got there or the toolbar's magnifying
+    /// glass put it up. Only the bar reads it (`SongSearchBar`), so a pull
+    /// doesn't redraw the page.
+    @State private var songSearch = PullReveal(distance: 60)
+    /// On the Mac, Find in Playlist is a field in the toolbar, always there
+    /// (`ToolbarSongSearchField`), as a Mac app's filter field is: no pull
+    /// and no bar coming in under the toolbar.
+#if targetEnvironment(macCatalyst)
+    private static let findsInToolbar = true
+#else
+    private static let findsInToolbar = false
+#endif
+    @FocusState private var isSongSearchFocused: Bool
+    /// The rest of the playlist is loading so all of it can be searched.
+    @State private var isLoadingSearch = false
 
     /// Proxies the view's existing `tracks` usage onto the coordinator (the source of truth),
     /// so native undo/redo mutations are reflected in the UI.
@@ -87,11 +106,27 @@ struct MediaDetailView: View {
         OnDeviceLibrary.isContainer(playableContent)
     }
 
-    /// Plex keeps a playlist in its own order and won't sort its items, but
-    /// says how many there are, so every page can be loaded and the songs
-    /// sorted here.
+    /// Whether the playlist's songs can be searched (Find in Playlist) and
+    /// listed in another order, both put together here: a playlist that
+    /// comes whole (Subsonic, Files, an Apple Music catalog playlist, one
+    /// on the device) or says how many songs it has (Plex, an Apple Music
+    /// library playlist), so every page can be loaded first. A playlist
+    /// that only says whether there's more would sort and search the
+    /// pages in hand.
     private var sortsSongs: Bool {
-        playableContent.content.service == .plex && playableContent.content.type == .playlist && !isOnDevice
+        guard playableContent.content.type.isPlaylist else { return false }
+        return isOnDevice || [.plex, .apple, .subsonic, .files].contains(playableContent.content.service)
+    }
+
+    /// The orders on offer: dates, plays and ratings only for Plex, whose
+    /// songs carry them.
+    private var songSortOptions: [PlaylistSongSort] {
+        PlaylistSongSort.options(withLibraryDetails: playableContent.content.service == .plex && !isOnDevice)
+    }
+
+    /// Find in Playlist has something to look for.
+    private var isFindingSongs: Bool {
+        !songQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     /// One row of the song list: the song, where it sits in the playlist
@@ -103,14 +138,35 @@ struct MediaDetailView: View {
         var id: String { song.trackID }
     }
 
-    /// The songs as listed: the playlist's order, or `sortedOrder`'s.
-    private var songRows: [SongRow] {
+    /// The songs as listed: the playlist's order, or `sortedOrder`'s. What
+    /// plays from a row, and the number it shows.
+    private var listedRows: [SongRow] {
         let tracks = tracks
         let order = sortedOrder ?? Array(tracks.indices)
         return order.enumerated().compactMap { offset, index in
             // An order a step behind an edit is put right by `onChange`.
             guard tracks.indices.contains(index) else { return nil }
             return SongRow(number: offset + 1, index: index, song: tracks[index])
+        }
+    }
+
+    /// The rows shown: `listedRows`, narrowed to Find in Playlist's matches
+    /// while it has something to look for. Each keeps its number in the
+    /// whole list, so a match says where it is, and a tap plays on from
+    /// there through the rest of the list, not just the matches.
+    private var songRows: [SongRow] {
+        let rows = listedRows
+        let words = songQuery.split(whereSeparator: \.isWhitespace)
+        guard !words.isEmpty else { return rows }
+        return rows.filter { Self.isMatch($0.song, for: words) }
+    }
+
+    /// Every word somewhere in the song's title, artist or album, case and
+    /// accents aside: "adele hello" finds Hello by Adele.
+    private static func isMatch(_ song: PlayableContent, for words: [Substring]) -> Bool {
+        let fields = [song.title, song.metadata?.artist, song.metadata?.album].compactMap { $0 }
+        return words.allSatisfy { word in
+            fields.contains { $0.localizedStandardContains(word) }
         }
     }
 
@@ -133,9 +189,16 @@ struct MediaDetailView: View {
         // toolbar's builder reads doesn't, and the sort menu's checkmarks
         // and spinner would lag behind.
         let _ = (songSort, songSortReversed, isLoadingAllSongs)
+        let rows = songRows
         List(selection: $selection) {
-            artworkSection
-            ForEach(songRows) { row in
+            // While Find in Playlist has something to look for, the matches
+            // lead, right under its bar: below the cover and its buttons
+            // they'd be behind the keyboard, and typing would seem to do
+            // nothing.
+            if !isFindingSongs {
+                artworkSection
+            }
+            ForEach(rows) { row in
                 let index = row.index
                 let item = row.song
                 VStack {
@@ -183,8 +246,9 @@ struct MediaDetailView: View {
                 .listRowSeparator(.hidden)
                 .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
             }
-            // Moving a song means something only in the playlist's own order.
-            .onMove(perform: canReorderTracks && sortedOrder == nil ? move : nil)
+            // Moving a song means something only in the playlist's own
+            // order, with every song in it showing.
+            .onMove(perform: canReorderTracks && sortedOrder == nil && !isFindingSongs ? move : nil)
             if tracks.isEmpty {
                 if !isLoaded {
                     ProgressView()
@@ -201,6 +265,20 @@ struct MediaDetailView: View {
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.white.opacity(0.001))
                 }
+            } else if isFindingSongs {
+                // The matches so far show while the rest of the playlist
+                // loads to be searched.
+                if isLoadingSearch {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 24)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.white.opacity(0.001))
+                } else if rows.isEmpty {
+                    ContentUnavailableView.search(text: songQuery.trimmingCharacters(in: .whitespacesAndNewlines))
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.white.opacity(0.001))
+                }
             }
         }
         .environment(\.editMode, $editMode)
@@ -211,9 +289,37 @@ struct MediaDetailView: View {
             miniPlayerManager.hidden = false
             AudioPlaybackService.shared.stopPreview()
         }
-        .ignoresSafeArea(edges: .top)
+        // The cover runs up under the navigation bar; the matches keep
+        // below it and the Find in Playlist bar.
+        .ignoresSafeArea(edges: isFindingSongs ? [] : .top)
         .onScrollOffset(exceeds: 300, set: $showNavigationTitle)
-        .scrollEdgeEffectHidden26(!showNavigationTitle)
+        // Pulled down past the top, as Music's Find in Playlist is: the bar
+        // comes in with the pull, up once it gets far enough, the cursor in
+        // it once it's let go.
+        .pullDownReveal(songSearch, isEnabled: sortsSongs && !Self.findsInToolbar) {
+            if songSearch.isShown { isSongSearchFocused = true }
+        }
+        .scrollEdgeEffectHidden26(!showNavigationTitle && !isFindingSongs)
+        // A scroll puts Find in Playlist's keyboard away, as Search's does,
+        // and the bar with it when it's empty. Only as a drag starts, so the
+        // cursor a pull puts in the field as it's let go stays.
+        .scrollDismissesKeyboard(.immediately)
+#if targetEnvironment(macCatalyst)
+        .background {
+            // ⇧⌘F, the Mac's toolbar field's shortcut, which a field can't
+            // carry: an unseen button's on the page. Not in the toolbar
+            // item, where a button made the toolbar take the whole item for
+            // a button, drawn as its magnifying glass with no field to type
+            // in. ⌘F is Search's, the window's own search.
+            if sortsSongs {
+                Button("Find in Playlist") { isSongSearchFocused = true }
+                    .keyboardShortcut("f", modifiers: [.command, .shift])
+                    .opacity(0)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+        }
+#endif
         .listStyle(.plain)
         .contentMargins(.top, 0, for: .scrollContent)
         .safeAreaInset(edge: .bottom) {
@@ -236,6 +342,45 @@ struct MediaDetailView: View {
 #endif
             }
         }
+        // Under the navigation bar, over the cover and the songs: the list
+        // runs up under both until there's something to look for
+        // (`ignoresSafeArea` above). Always there, hidden until a pull or
+        // the magnifying glass brings it up, so the safe area never changes
+        // under a pull and the field isn't made mid-pull.
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if sortsSongs && !Self.findsInToolbar {
+                SongSearchBar(reveal: songSearch,
+                              query: $songQuery,
+                              isFocused: $isSongSearchFocused,
+                              onClose: closeSongSearch)
+            }
+        }
+        .task(id: isFindingSongs && isLoaded) {
+            // Every song, so a match on a page not yet loaded isn't missed:
+            // once the first page has said how many there are.
+            guard isFindingSongs, isLoaded else { return }
+            isLoadingSearch = true
+            await loadAllTracks()
+            isLoadingSearch = false
+        }
+        .onChange(of: songQuery) {
+            // Remove (N) takes only songs that show.
+            guard !selection.isEmpty, isFindingSongs else { return }
+            selection.formIntersection(songRows.map(\.index))
+        }
+        .onChange(of: isSongSearchFocused) { _, focused in
+            if focused {
+                // Reached while hidden (Tab from a keyboard): up with it.
+                if !songSearch.isShown {
+                    withAnimation(.smooth) { songSearch.isShown = true }
+                }
+                return
+            }
+            // Put away once it's left with nothing in it (the keyboard
+            // dismissed by a scroll, a song tapped).
+            guard songQuery.isEmpty else { return }
+            withAnimation(.smooth) { songSearch.hide() }
+        }
         .task {
             editor.configure(playlist: playableContent)
             // Point the Catalyst Edit-menu bridge at this editor so native Edit ▸ Undo/Redo can
@@ -248,6 +393,14 @@ struct MediaDetailView: View {
             restoreSongSort()
             if songSort != .playlistOrder {
                 await applySongSort()
+            }
+            // The rest of a long playlist, in the background once its first
+            // page shows, as the library's Songs list keeps every song ahead
+            // of a search: Find in Playlist then looks through all of it as
+            // it's typed in. Before, it began loading the rest only then,
+            // page after page, and found nothing it hadn't reached.
+            if sortsSongs {
+                await loadAllTracks()
             }
         }
         .onChange(of: isOnDevice ? OnDeviceLibrary.changeToken : 0) {
@@ -277,11 +430,38 @@ struct MediaDetailView: View {
                         .bold()
                         .multilineTextAlignment(.center)
                 }
-                .opacity(showNavigationTitle ? 1 : 0)
+                // The playlist's name, as its header is put away while it's
+                // searched.
+                .opacity(showNavigationTitle || isFindingSongs ? 1 : 0)
             }
             
+#if targetEnvironment(macCatalyst)
+            if sortsSongs {
+                ToolbarItem(placement: .topBarTrailing) {
+                    ToolbarSongSearchField(query: $songQuery,
+                                           isFocused: $isSongSearchFocused)
+                }
+#if !os(visionOS)
+                if #available(iOS 26.0, *) {
+                    ToolbarSpacer(.fixed, placement: .topBarTrailing)
+                }
+#endif
+            }
+#endif
             ToolbarItemGroup(placement: .topBarTrailing) {
                 if sortsSongs {
+#if !targetEnvironment(macCatalyst)
+                    // The pull down's bar, for a keyboard and anyone who
+                    // doesn't know to pull.
+                    Button {
+                        revealSongSearch()
+                    } label: {
+                        Label("Find in Playlist", systemImage: "magnifyingglass")
+                            .labelStyle(.iconOnly)
+                    }
+                    // ⌘F is Search's, the window's own search.
+                    .keyboardShortcut("f", modifiers: [.command, .shift])
+#endif
                     songSortMenu
                 }
                 if isEditablePlaylist {
@@ -294,7 +474,9 @@ struct MediaDetailView: View {
                               systemImage: editMode.isEditing ? "checkmark" : "pencil")
                             .labelStyle(.iconOnly)
                     }
-                    .keyboardShortcut("e", modifiers: [])
+                    // Not while Find in Playlist is typed in: a bare E
+                    // would turn Edit on instead of going in the field.
+                    .keyboardShortcut(isSongSearchFocused ? nil : KeyboardShortcut("e", modifiers: []))
                 }
             }
         }
@@ -513,6 +695,27 @@ struct MediaDetailView: View {
         }
     }
     
+    /// Puts up Find in Playlist and puts the cursor in it, or only the
+    /// cursor when it's already up (the toolbar's button).
+    private func revealSongSearch() {
+        guard sortsSongs else { return }
+        if !songSearch.isShown {
+            withAnimation(.smooth) { songSearch.isShown = true }
+        }
+        // A turn later, once the field takes touches again: it's always in
+        // the window, but not while it's hidden.
+        Task { @MainActor in
+            isSongSearchFocused = true
+        }
+    }
+
+    /// Clears Find in Playlist and puts it away, every song showing again.
+    private func closeSongSearch() {
+        isSongSearchFocused = false
+        songQuery = ""
+        withAnimation(.smooth) { songSearch.hide() }
+    }
+
     /// Sort By and, for an order that has one, its direction — the same
     /// menu as the library's lists.
     private var songSortMenu: some View {
@@ -529,7 +732,7 @@ struct MediaDetailView: View {
                     Task { await applySongSort() }
                 }
             )) {
-                ForEach(PlaylistSongSort.allCases) { sort in
+                ForEach(songSortOptions) { sort in
                     Text(sort.label).tag(sort)
                 }
             }
@@ -600,7 +803,8 @@ struct MediaDetailView: View {
     private func restoreSongSort() {
         guard sortsSongs,
               let raw = UserDefaults.standard.string(forKey: songSortKey),
-              let sort = PlaylistSongSort(rawValue: raw) else { return }
+              let sort = PlaylistSongSort(rawValue: raw),
+              songSortOptions.contains(sort) else { return }
         songSort = sort
         songSortReversed = UserDefaults.standard.bool(forKey: songSortKey + ".reversed")
     }
@@ -620,7 +824,9 @@ struct MediaDetailView: View {
     /// playlist isn't the playlist's own order, so a speaker gets the songs
     /// rather than the playlist, and this device the list.
     private func playListed(from start: Int) {
-        let listed = songRows.map(\.song)
+        // The whole list, a match found in it included: `start` is a
+        // row's place in it.
+        let listed = listedRows.map(\.song)
         guard listed.indices.contains(start) else { return }
         let songs = listed[start...].filter(\.isPlayable)
         guard !songs.isEmpty else { return }
@@ -938,6 +1144,135 @@ struct MediaDetailView: View {
         editor.moveTrack(from: source, to: destination, playlist: playableContent)
     }
 }
+
+/// Find in Playlist's bar on a phone or iPad: the field and Close beside
+/// it, which clears it too. It's always in place, hidden, and comes in with a
+/// pull down the list as the finger moves (`PullReveal.progress`), not as an
+/// animation of its own under the pull. Only this view reads the pull, so the
+/// page isn't redrawn for it. Clear is the text field's own, which every
+/// field in Cue shows while it's typed in (`AppBootstrapper`): one of the
+/// bar's own beside it made two.
+private struct SongSearchBar: View {
+    let reveal: PullReveal
+    @Binding var query: String
+    var isFocused: FocusState<Bool>.Binding
+    let onClose: () -> Void
+
+    var body: some View {
+        let progress = reveal.progress
+        let isShown = reveal.isShown
+        HStack(spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                TextField("Find in Playlist", text: $query)
+                    .focused(isFocused)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .submitLabel(.search)
+                    .onSubmit { isFocused.wrappedValue = false }
+                    .onKeyPress(.escape) {
+                        onClose()
+                        return .handled
+                    }
+                    // Only a tap puts the cursor in it (below), not a pull
+                    // down that starts on it: the bar isn't in the list, so
+                    // that pull moved nothing, and the field took the
+                    // finger's lift as a tap and brought the keyboard back.
+                    // Once it has the cursor it takes touches itself, to
+                    // move it and select.
+                    .allowsHitTesting(isFocused.wrappedValue)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .contentShape(.capsule)
+            .onTapGesture {
+                isFocused.wrappedValue = true
+            }
+            // The capsule is the field: no focus ring round it on an iPad
+            // with a keyboard.
+            .focusEffectDisabled()
+            .searchBarGlass26(progress > 0, in: .capsule)
+
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .fontWeight(.semibold)
+                    .frame(width: 42, height: 42)
+                    .contentShape(.circle)
+            }
+            .buttonStyle(.plain)
+            .searchBarGlass26(progress > 0, in: .circle)
+            .accessibilityLabel("Close Find in Playlist")
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        // Dropping into place and growing to its size as it fades in.
+        .opacity(progress)
+        .scaleEffect(0.9 + 0.1 * progress, anchor: .top)
+        .offset(y: -10 * (1 - progress))
+        .allowsHitTesting(isShown)
+        .accessibilityHidden(!isShown)
+        .sensoryFeedback(.impact(weight: .light), trigger: isShown) { _, shows in shows }
+    }
+}
+
+#if targetEnvironment(macCatalyst)
+/// Find in Playlist on the Mac: a field in the toolbar, always there, with
+/// its shortcut (⇧⌘F, the page's) in it while it's empty. Escape clears it
+/// and leaves it. A bar brought in under the toolbar, as the phone's pull
+/// does, read oddly with a pointer. Nothing in it may be a button: the
+/// toolbar takes an item holding one for a button.
+private struct ToolbarSongSearchField: View {
+    @Binding var query: String
+    var isFocused: FocusState<Bool>.Binding
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+            TextField("Find in Playlist", text: $query)
+                .focused(isFocused)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .onSubmit { isFocused.wrappedValue = false }
+                .onKeyPress(.escape) {
+                    query = ""
+                    isFocused.wrappedValue = false
+                    return .handled
+                }
+            if query.isEmpty {
+                KeyHint(keys: ["⇧", "⌘", "F"])
+            }
+        }
+        .padding(.horizontal, 10)
+        .frame(width: 240 * LargeWindowStyle.scale(typeSize))
+        .focusEffectDisabled()
+    }
+}
+
+/// A keyboard shortcut drawn as its keys, each in an outline of its own, as
+/// a Mac app shows one in an empty field.
+private struct KeyHint: View {
+    let keys: [String]
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(keys, id: \.self) { key in
+                Text(key)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(minWidth: 20, minHeight: 20)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 5)
+                            .strokeBorder(.tertiary, lineWidth: 1)
+                    }
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+#endif
 
 #if DEBUG
 #Preview {
