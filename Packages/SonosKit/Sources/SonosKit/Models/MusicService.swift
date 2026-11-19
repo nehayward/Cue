@@ -384,9 +384,15 @@ public enum MusicService: Sendable, Codable, CaseIterable {
     /// Service supports saving / favoriting albums.
     public var supportsFavoriteAlbum: Bool {
         switch self {
-        case .spotify, .apple: true
+        case .spotify, .apple, .subsonic: true
         default: false
         }
+    }
+
+    /// Service supports favoriting artists: Subsonic's star, which
+    /// Navidrome shows as its artists' hearts.
+    public var supportsFavoriteArtist: Bool {
+        self == .subsonic
     }
 
     public var brandColor: Color {

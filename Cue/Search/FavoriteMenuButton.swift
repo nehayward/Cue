@@ -61,12 +61,9 @@ struct FavoriteMenuButton: View {
                     // Same session-local echo as Plex, so the row's heart
                     // flips on tap instead of on the next library sync.
                     favoriteRatingCache.set(newFavorite ? 1 : 0, for: contentID)
-                    // star/unstar works for songs, albums and artists alike.
-                    if newFavorite {
-                        await MusicSearchService.shared.likeSubsonicTrack(id: contentID)
-                    } else {
-                        await MusicSearchService.shared.unlikeSubsonicTrack(id: contentID)
-                    }
+                    // A song, album or artist, each named by its own
+                    // parameter.
+                    await MusicSearchService.shared.setSubsonicFavorite(newFavorite, id: contentID, type: contentType)
                 default:
                     break
                 }
@@ -112,12 +109,17 @@ struct FavoriteMenuButton: View {
                     isFavorite = fetched > 0
                 }
             case .subsonic:
-                // The mapping carries starred state as userRating; only rows
-                // without it (Sonos queue items) need the network read.
-                if let starred = item.metadata?.userRating {
-                    isFavorite = starred > 0
-                } else if contentType.isTrack {
-                    isFavorite = await MusicSearchService.shared.isSubsonicTrackLiked(id: contentID)
+                // A tap this session first, then the starred state the
+                // mapping carries as userRating: the row's copy is from when
+                // it was read, so a heart tapped since would come back
+                // stale. Only rows with neither (Sonos queue items) need
+                // the network read.
+                if let known = favoriteRatingCache.ratings[contentID] ?? item.metadata?.userRating {
+                    isFavorite = known > 0
+                } else {
+                    let starred = await MusicSearchService.shared.isSubsonicFavorite(id: contentID, type: contentType)
+                    favoriteRatingCache.set(starred ? 1 : 0, for: contentID)
+                    isFavorite = starred
                 }
             default:
                 break

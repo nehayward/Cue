@@ -46,6 +46,10 @@ struct PlayableMenuView: View {
                 WatchMenuSection(item: item)
 
                 addToPlexCollectionButton
+
+                if item.content.service.supportsFavoriteArtist, !OnDeviceLibrary.isContainer(item) {
+                    FavoriteMenuButton(item: item)
+                }
             case .playlist, .libraryPlaylist, .libraryImportedPlaylists:
                 ControlGroup("Queue \(item.title)") {
                     Button {
@@ -222,8 +226,11 @@ struct PlayableMenuView: View {
             }
         }
         
-        if [.spotify, .apple].contains(item.content.service),
-           [.album, .libraryAlbum].contains(item.content.type) {
+        // Not an album gathered from what's on this device, which no
+        // server knows by its id.
+        if item.content.service.supportsFavoriteAlbum,
+           [.album, .libraryAlbum].contains(item.content.type),
+           !OnDeviceLibrary.isContainer(item) {
             FavoriteMenuButton(item: item)
         }
         

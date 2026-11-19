@@ -307,6 +307,45 @@ final class SubsonicTests: XCTestCase {
         XCTAssertNotNil(result.song?.first?.starred)
     }
 
+    /// The Favorites list's one read: artists, albums and songs, each with
+    /// the date it was starred.
+    func testDecodeStarred2() throws {
+        let json = """
+        {
+          "subsonic-response": {
+            "status": "ok",
+            "version": "1.16.1",
+            "starred2": {
+              "artist": [
+                { "id": "ar-1", "name": "Daft Punk", "starred": "2024-03-01T10:00:00Z" }
+              ],
+              "album": [
+                { "id": "al-1", "name": "Discovery", "artist": "Daft Punk", "artistId": "ar-1",
+                  "starred": "2024-02-01T10:00:00Z" }
+              ],
+              "song": [
+                { "id": "tr-1", "title": "One More Time", "albumId": "al-1",
+                  "starred": "2024-01-01T10:00:00Z" }
+              ]
+            }
+          }
+        }
+        """
+        let body = try JSONDecoder().decode(SubsonicEnvelope.self, from: Data(json.utf8)).subsonicResponse
+        let starred = try XCTUnwrap(body.starred2)
+        XCTAssertEqual(starred.artist?.first?.starred, "2024-03-01T10:00:00Z")
+        XCTAssertEqual(starred.album?.first?.displayName, "Discovery")
+        XCTAssertEqual(starred.song?.first?.id, "tr-1")
+    }
+
+    /// Each kind is named by its own parameter, which servers other than
+    /// Navidrome need for an album or an artist.
+    func testStarKindParameters() {
+        XCTAssertEqual(SubsonicAPI.StarKind.song.parameter, "id")
+        XCTAssertEqual(SubsonicAPI.StarKind.album.parameter, "albumId")
+        XCTAssertEqual(SubsonicAPI.StarKind.artist.parameter, "artistId")
+    }
+
     func testDecodeErrorResponse() throws {
         let json = """
         {

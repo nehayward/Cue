@@ -76,12 +76,13 @@ struct RouterDestinationView: View {
             case let .playableLibraryList(title: title, items: items, action: action):
                 PlayableList(items: items, action: action)
                     .navigationTitle(title)
-            case let .playableList(title: title, playAllItem: playAllItem, showSectionIndex: showSectionIndex, allowsGrid: allowsGrid, sortOptions: sortOptions, sortKey: sortKey, refreshAction: refreshAction, searchAction: searchAction, loadingStatus: loadingStatus, changeToken: changeToken, action: action):
+            case let .playableList(title: title, playAllItem: playAllItem, showSectionIndex: showSectionIndex, allowsGrid: allowsGrid, layoutKey: layoutKey, sortOptions: sortOptions, sortKey: sortKey, refreshAction: refreshAction, searchAction: searchAction, loadingStatus: loadingStatus, changeToken: changeToken, action: action):
                 PlayableListView(
                     title: title,
                     playAllItem: playAllItem,
                     showSectionIndex: showSectionIndex,
                     allowsGrid: allowsGrid,
+                    layoutKey: layoutKey,
                     sortOptions: sortOptions,
                     // Titles repeat across services — Plex and Subsonic
                     // both have a "Songs" — so a list with its own sort
@@ -94,8 +95,8 @@ struct RouterDestinationView: View {
                     action: action
                 )
                 .navigationTitle(title)
-            case let .playableGridScreen(title: title, items: items, sort: sort, action: action):
-                PlayableGridScreen(items: items, sort: sort, action: action)
+            case let .playableGridScreen(title: title, items: items, sort: sort, layoutKey: layoutKey, action: action):
+                PlayableGridScreen(items: items, sort: sort, layoutKey: layoutKey, action: action)
                     .navigationTitle(title)
             case .houseHold:
                 HouseholdScreen()

@@ -83,6 +83,14 @@ enum PlayableListLayout: String, CaseIterable, Identifiable {
     var other: PlayableListLayout {
         self == .list ? .grid : .list
     }
+
+    /// What a list that keeps a layout of its own, rather than the album
+    /// lists' shared one, remembers under `key`: a grid until one is picked.
+    /// Read when needed rather than held in `@AppStorage`, so the list can
+    /// name its key.
+    static func remembered(under key: String) -> PlayableListLayout {
+        UserDefaults.standard.string(forKey: key).flatMap(PlayableListLayout.init(rawValue:)) ?? .grid
+    }
 }
 
 struct PlayableListView: View {
@@ -112,6 +120,9 @@ struct PlayableListView: View {
     /// Bumped on every reload so a load still running for the previous sort
     /// can tell that its rows are no longer wanted.
     @State private var loadGeneration = 0
+    /// The layout picked on this screen, for a list with a `layoutKey`;
+    /// before a pick, the one remembered.
+    @State private var pickedLayout: PlayableListLayout?
 
     var title: String = ""
     var playAllItem: PlayableContent? = nil
@@ -122,6 +133,11 @@ struct PlayableListView: View {
     /// album lists, where the art is what you scan for. Adds a View toggle
     /// to the toolbar; the choice is shared across every list that offers it.
     var allowsGrid: Bool = false
+    /// Where a list that can be a grid keeps a List or Grid of its own,
+    /// rather than the album lists' shared one: a list unlike them, as
+    /// Subsonic's Favorites (artists, albums and songs together), which
+    /// opens as a grid. Nil shares it.
+    var layoutKey: String? = nil
     /// Empty for lists with a single fixed order — no menu is shown then.
     var sortOptions: [PlayableListSort] = []
     /// Where to remember the chosen sort, so it survives leaving the screen.
@@ -293,9 +309,9 @@ struct PlayableListView: View {
                 // gives you, the way a button names what it does.
                 ToolbarItem(placement: .primaryAction) {
                     Button {
-                        layout = layout.other
+                        toggleLayout()
                     } label: {
-                        Label("Show as \(layout.other.label)", systemImage: layout.other.systemImage)
+                        Label("Show as \(currentLayout.other.label)", systemImage: currentLayout.other.systemImage)
                     }
                 }
             }
@@ -387,7 +403,27 @@ struct PlayableListView: View {
         await initialLoad()
     }
 
-    private var isGrid: Bool { allowsGrid && layout == .grid }
+    private var isGrid: Bool { allowsGrid && currentLayout == .grid }
+
+    /// Rows or a grid: the album lists' shared choice, or the list's own,
+    /// read from the defaults until one is picked here, so a list left as
+    /// rows opens as rows without a frame of the grid first.
+    private var currentLayout: PlayableListLayout {
+        guard let layoutKey else { return layout }
+        return pickedLayout ?? PlayableListLayout.remembered(under: layoutKey)
+    }
+
+    /// Saved on the tap alone: a write to the defaults re-runs every view
+    /// holding `@AppStorage`.
+    private func toggleLayout() {
+        let next = currentLayout.other
+        guard let layoutKey else {
+            layout = next
+            return
+        }
+        pickedLayout = next
+        UserDefaults.standard.set(next.rawValue, forKey: layoutKey)
+    }
 
     /// What the A–Z index files each row under, or nil for no index: the
     /// chosen order's own key when there is a sort menu, the title when the

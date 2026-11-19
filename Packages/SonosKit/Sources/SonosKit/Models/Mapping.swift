@@ -1293,7 +1293,10 @@ extension SubsonicAlbum {
                 albumID: id,
                 // Release year as a date so the artist screen's year sorting
                 // (and Discography's oldest-first playback) can order albums.
-                albumYear: year.flatMap { Calendar.current.date(from: DateComponents(year: $0)) }
+                albumYear: year.flatMap { Calendar.current.date(from: DateComponents(year: $0)) },
+                // Same starred-as-rating carry as songs, so a starred album
+                // draws its heart in the lists and its menu needs no fetch.
+                userRating: starred != nil ? 1 : 0
             )
         )
     }
@@ -1312,7 +1315,8 @@ extension SubsonicArtist {
                 type: .artist,
                 location: nil
             ),
-            metadata: .init(popularity: nil)
+            // Starred as a rating, as on songs and albums.
+            metadata: .init(popularity: nil, userRating: starred != nil ? 1 : 0)
         )
     }
 }

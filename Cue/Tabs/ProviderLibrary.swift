@@ -1,3 +1,4 @@
+import Defaults
 import MusicSearchKit
 import OrderedCollections
 import SonosKit
@@ -215,8 +216,11 @@ struct ProviderLibrary {
                 // Off for now: the index fights the paginated loads
                 // (scrolling to a letter jumps past unloaded pages).
                 showSectionIndex: false,
-                refreshAction: SubsonicLibraryLists.serverListRefresh(musicSearchService: musicSearchService),
-                action: { offset in await musicSearchService.subsonicArtists(offset: offset) }
+                allowsGrid: true,
+                // All of them, or only the favorites.
+                sortOptions: SubsonicLibraryLists.artistSortOptions(musicSearchService: musicSearchService),
+                sortKey: SubsonicLibraryLists.artistSortKey,
+                refreshAction: SubsonicLibraryLists.serverListRefresh(musicSearchService: musicSearchService)
             )
         case .albums:
             return .playableList(
@@ -244,6 +248,8 @@ struct ProviderLibrary {
                 },
                 loadingStatus: SubsonicLibraryLists.songSyncStatus(musicSearchService: musicSearchService)
             )
+        case .favorites:
+            return SubsonicLibraryLists.favoritesDestination(musicSearchService: musicSearchService)
         case .recentlyAdded:
             return .playableList(
                 title: "Recently Added",
@@ -253,7 +259,12 @@ struct ProviderLibrary {
                 action: { offset in await musicSearchService.subsonicRecentAlbums(offset: offset) }
             )
         case .playlists:
-            return .playableGridScreen(title: "Playlists", items: Bindable(subsonicBrowseService).userPlaylists, action: { _ in })
+            return .playableGridScreen(
+                title: "Playlists",
+                items: Bindable(subsonicBrowseService).userPlaylists,
+                layoutKey: AppStorageKeys.subsonicPlaylistsLayout,
+                action: { _ in }
+            )
         default:
             return nil
         }

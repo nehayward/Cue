@@ -370,18 +370,48 @@ public final class SubsonicAPI: DirectStreamProvider {
 
     // MARK: - Favorites
 
-    @discardableResult
-    public func star(id: String) async -> Bool {
-        await get("star", queryItems: [URLQueryItem(name: "id", value: id)])?.isOK ?? false
+    /// What `star` and `unstar` are given: a song by `id`, an album by
+    /// `albumId` and an artist by `artistId`, as the API names the ID3
+    /// browsing Cue does. Navidrome takes any of them as `id`; other servers
+    /// read `id` as a song or a folder. Playlists can't be starred.
+    public enum StarKind: Sendable {
+        case song, album, artist
+
+        var parameter: String {
+            switch self {
+            case .song: "id"
+            case .album: "albumId"
+            case .artist: "artistId"
+            }
+        }
     }
 
     @discardableResult
-    public func unstar(id: String) async -> Bool {
-        await get("unstar", queryItems: [URLQueryItem(name: "id", value: id)])?.isOK ?? false
+    public func star(id: String, kind: StarKind = .song) async -> Bool {
+        await get("star", queryItems: [URLQueryItem(name: kind.parameter, value: id)])?.isOK ?? false
     }
 
-    public func isStarred(id: String) async -> Bool {
-        await song(for: id)?.starred != nil
+    @discardableResult
+    public func unstar(id: String, kind: StarKind = .song) async -> Bool {
+        await get("unstar", queryItems: [URLQueryItem(name: kind.parameter, value: id)])?.isOK ?? false
+    }
+
+    /// Read from the item itself, which carries its starred date.
+    public func isStarred(id: String, kind: StarKind = .song) async -> Bool {
+        switch kind {
+        case .song: await song(for: id)?.starred != nil
+        case .album: await album(for: id)?.starred != nil
+        case .artist: await artist(for: id)?.starred != nil
+        }
+    }
+
+    /// The artists, albums and songs the user has starred, each carrying the
+    /// date it was starred: Navidrome's favorites. One `getStarred2`, which
+    /// takes no paging, so this is the whole list. `nil` when the request
+    /// failed.
+    public func starredFavorites() async -> (artists: [SubsonicArtist], albums: [SubsonicAlbum], songs: [SubsonicSong])? {
+        guard let starred = await get("getStarred2")?.starred2 else { return nil }
+        return (starred.artist ?? [], starred.album ?? [], starred.song ?? [])
     }
 
     // MARK: - Play reporting

@@ -28,7 +28,9 @@ public enum RouterDestination: Hashable, Identifiable {
     case speakerSettings(room: Room)
     case playableContentList(group: GroupRoom? = nil, contentType: ContentType)
     case playableLibraryList(title: String, items: Binding<OrderedSet<PlayableContent>>, action: ((Int) async -> Void))
-    case playableGridScreen(title: String, items: Binding<OrderedSet<PlayableContent>>, sort: PlayableGridSort? = nil, action: ((Int) async -> Void))
+    /// `layoutKey` names where a grid that can also be rows keeps which it
+    /// is; nil keeps it a grid.
+    case playableGridScreen(title: String, items: Binding<OrderedSet<PlayableContent>>, sort: PlayableGridSort? = nil, layoutKey: String? = nil, action: ((Int) async -> Void))
     case fullPlayHistoryList
     case servicePreferenceScreen
     /// The download manager: what's coming down, what's here, and the
@@ -49,7 +51,9 @@ public enum RouterDestination: Hashable, Identifiable {
     case houseHold
     case spotifyUserPlaylist
     case genreList
-    case playableList(title: String, playAllItem: PlayableContent? = nil, showSectionIndex: Bool = true, allowsGrid: Bool = false, sortOptions: [PlayableListSort] = [], sortKey: String? = nil, refreshAction: (() async -> Void)? = nil, searchAction: ((String, Int) async -> [PlayableContent])? = nil, loadingStatus: (() -> String?)? = nil, changeToken: (() -> Int)? = nil, action: ((Int) async -> [PlayableContent])? = nil)
+    /// `layoutKey` is for a list that keeps a List or Grid of its own rather
+    /// than the album lists' shared one (`PlayableListView.layoutKey`).
+    case playableList(title: String, playAllItem: PlayableContent? = nil, showSectionIndex: Bool = true, allowsGrid: Bool = false, layoutKey: String? = nil, sortOptions: [PlayableListSort] = [], sortKey: String? = nil, refreshAction: (() async -> Void)? = nil, searchAction: ((String, Int) async -> [PlayableContent])? = nil, loadingStatus: (() -> String?)? = nil, changeToken: (() -> Int)? = nil, action: ((Int) async -> [PlayableContent])? = nil)
     case folderBrowse(item: PlayableContent, title: String)
     /// A page of TuneIn's directory — a genre, a region, a curated list —
     /// reached from the Radio tab's links. Pages link on to more pages, so
@@ -97,7 +101,7 @@ public enum RouterDestination: Hashable, Identifiable {
             return "fullPlayHistoryList"
         case .playableLibraryList(title: _, items: _, action: _):
             return "playableLibraryList"
-        case .playableGridScreen(title: _, items: _, sort: _, action: _):
+        case .playableGridScreen(title: _, items: _, sort: _, layoutKey: _, action: _):
             return "playableGridScreen"
         case .houseHold:
             return "houseHold"
@@ -121,7 +125,7 @@ public enum RouterDestination: Hashable, Identifiable {
             return "spotifyUserPlaylist"
         case .genreList:
             return "genre"
-        case .playableList(let title, _, _, _, _, _, _, _, _, _, _):
+        case .playableList(let title, _, _, _, _, _, _, _, _, _, _, _):
             return title
         case .folderBrowse(let item, _):
             return item.id
@@ -168,13 +172,13 @@ public enum RouterDestination: Hashable, Identifiable {
             return group1 == group2 && contentType1 == contentType2
         case let (.playableLibraryList(_, items1, _), .playableLibraryList(_, items2, _)):
             return items1.wrappedValue == items2.wrappedValue
-        case let (.playableList(title, _, _, _, _, _, _, _, _, _, _), .playableList(title2, _, _, _, _, _, _, _, _, _, _)):
+        case let (.playableList(title, _, _, _, _, _, _, _, _, _, _, _), .playableList(title2, _, _, _, _, _, _, _, _, _, _, _)):
             return title == title2
         case let (.folderBrowse(folderID1, title1), .folderBrowse(folderID2, title2)):
             return folderID1 == folderID2 && title1 == title2
         case let (.tuneInBrowse(_, url1), .tuneInBrowse(_, url2)):
             return url1 == url2
-        case let (.playableGridScreen(_, items1, _, _), .playableGridScreen(_, items2, _, _)):
+        case let (.playableGridScreen(_, items1, _, _, _), .playableGridScreen(_, items2, _, _, _)):
             return items1.wrappedValue == items2.wrappedValue
         case (.fullPlayHistoryList, .fullPlayHistoryList):
             return true
@@ -244,7 +248,7 @@ public enum RouterDestination: Hashable, Identifiable {
             hasher.combine(contentType)
         case let .playableLibraryList(_, items, _):
             hasher.combine(items.wrappedValue)
-        case let .playableGridScreen(_, items, _, _):
+        case let .playableGridScreen(_, items, _, _, _):
             hasher.combine(items.wrappedValue)
         case .fullPlayHistoryList:
             hasher.combine("fullPlayHistoryList")
@@ -274,7 +278,7 @@ public enum RouterDestination: Hashable, Identifiable {
             hasher.combine("spotifyUserPlaylist")
         case .genreList:
             hasher.combine("genreList")
-        case .playableList(let title, playAllItem: _, showSectionIndex: _, allowsGrid: _, sortOptions: _, sortKey: _, refreshAction: _, searchAction: _, loadingStatus: _, changeToken: _, action: _):
+        case .playableList(let title, playAllItem: _, showSectionIndex: _, allowsGrid: _, layoutKey: _, sortOptions: _, sortKey: _, refreshAction: _, searchAction: _, loadingStatus: _, changeToken: _, action: _):
             hasher.combine(title)
         case .folderBrowse(let folderID, let title):
             hasher.combine(folderID)

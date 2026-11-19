@@ -8,7 +8,7 @@ import WidgetKit
 struct PlayIntent: LiveActivityIntent {
     static var isDiscoverable: Bool = false
     static var title: LocalizedStringResource = "Play Item"
-    static var description: IntentDescription = "Go to the next song in queue if available."
+    static var description: IntentDescription = "Play an item from your history on a speaker."
     static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
 
     static var liveActivityManager = LiveActivityManagerFactory.shared
@@ -28,7 +28,7 @@ struct PlayIntent: LiveActivityIntent {
     private var type: String
     
     static var parameterSummary: some ParameterSummary {
-        Summary("Next item in queue on \(\.$room)")
+        Summary("Play item on \(\.$room)")
     }
     
     init(room: SonosDeviceEntity, title: String, id: String, service: String, type: String) {
@@ -51,7 +51,15 @@ struct PlayIntent: LiveActivityIntent {
         }
         
         let item = PlayableContent(title: "", subtitle: "", thumbnail: nil, artwork: nil, content: MediaContent(service: MusicService(service: service)!, id: id, type: ContentType(type)!, location: nil))
-        try await SonosService.shared.queue(playable: item, group: group, position: .next)
+        // As a tap on it in Cue: Play Now, or Replace Queue when that's the
+        // choice in Settings (a playlist always replaces). It was Play Next,
+        // so over a song already playing the widget's Play only lined it
+        // up, and it played once Next was pressed.
+        let position = QueuePosition.defaultPosition(
+            for: item.content.type,
+            replaceQueueByDefault: UserDefaults.standard.bool(forKey: AppStorageKeys.defaultPlayAction)
+        )
+        try await SonosService.shared.queue(playable: item, group: group, position: position)
         await SonosService.shared.play(ip: group.coordinatorRoom.ip)
         
         #if canImport(WidgetKit)

@@ -25,6 +25,7 @@ struct SubsonicResponseBody: Decodable {
     let albumList2: SubsonicAlbumList?
     let topSongs: SubsonicSongList?
     let scanStatus: SubsonicScanStatus?
+    let starred2: SubsonicStarred2?
     let lyricsList: SubsonicLyricsList?
     let lyrics: SubsonicLegacyLyrics?
 
@@ -40,6 +41,15 @@ public struct SubsonicSearchResult3: Decodable, Sendable {
     public let artist: [SubsonicArtist]?
     public let album: [SubsonicAlbum]?
     public let song: [SubsonicSong]?
+}
+
+/// `getStarred2`: everything the current user has starred, in one response.
+/// The endpoint takes no paging parameters, so what it returns is the whole
+/// list.
+struct SubsonicStarred2: Decodable {
+    let song: [SubsonicSong]?
+    let album: [SubsonicAlbum]?
+    let artist: [SubsonicArtist]?
 }
 
 struct SubsonicArtistIndexes: Decodable {
