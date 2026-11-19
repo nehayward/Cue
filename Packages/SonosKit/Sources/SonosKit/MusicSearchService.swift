@@ -3120,4 +3120,20 @@ public final class MusicSearchService {
     public func isSubsonicTrackLiked(id: String) async -> Bool {
         await subsonic.isStarred(id: id)
     }
+
+    /// The albums starred on the server (Navidrome's favorites), a page at a
+    /// time, as `getAlbumList2` lists them.
+    public func subsonicFavoriteAlbums(offset: Int = 0) async -> [PlayableContent] {
+        await subsonicAlbums(offset: offset, sort: .favorites)
+    }
+
+    /// The artists starred on the server, A – Z. The API has no paged list
+    /// of starred artists as it has of albums, so this is `getStarred2`'s,
+    /// whole on the first page.
+    public func subsonicFavoriteArtists(offset: Int = 0) async -> [PlayableContent] {
+        guard offset == 0, let starred = await subsonic.starredArtistsAndAlbums() else { return [] }
+        return starred.artists
+            .sorted { ($0.name ?? "").localizedStandardCompare($1.name ?? "") == .orderedAscending }
+            .map(\.toPlayable)
+    }
 }

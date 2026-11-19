@@ -68,6 +68,26 @@ struct SubsonicBrowseScreen: View {
                         Label("Songs", systemImage: "music.note")
                     }
 
+                    // What's starred on the server: Navidrome's favorites.
+                    NavigationLink(value: RouterDestination.playableList(
+                        title: "Favorite Albums",
+                        showSectionIndex: false,
+                        allowsGrid: true,
+                        refreshAction: serverListRefresh,
+                        action: { offset in await musicSearchService.subsonicFavoriteAlbums(offset: offset) }
+                    )) {
+                        Label("Favorite Albums", systemImage: "heart.square")
+                    }
+
+                    NavigationLink(value: RouterDestination.playableList(
+                        title: "Favorite Artists",
+                        showSectionIndex: false,
+                        refreshAction: serverListRefresh,
+                        action: { offset in await musicSearchService.subsonicFavoriteArtists(offset: offset) }
+                    )) {
+                        Label("Favorite Artists", systemImage: "heart.circle")
+                    }
+
                     NavigationLink(value: RouterDestination.playableGridScreen(
                         title: "Playlists",
                         items: $subsonicBrowseService.userPlaylists,

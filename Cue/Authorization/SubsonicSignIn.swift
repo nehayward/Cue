@@ -19,6 +19,9 @@ final class SubsonicSignIn {
 
     var isConfigured: Bool { subsonic.isConfigured }
 
+    /// What the stored server calls itself ("Navidrome"), once it has said.
+    var serverName: String? { subsonic.serverName }
+
     /// Why the last try was turned down, if it was.
     var failure: String? {
         if case let .failure(message) = result { message } else { nil }
@@ -50,6 +53,18 @@ final class SubsonicSignIn {
         password = subsonic.password
     }
 
+    /// Asks the stored server its name, for a login saved before Cue kept it.
+    func refreshServerName() async {
+        guard isConfigured, serverName == nil else { return }
+        await subsonic.refreshServerName()
+    }
+
+    /// Drops what went wrong last, once a field has changed since.
+    func clearFailure() {
+        guard failure != nil else { return }
+        result = nil
+    }
+
     /// Reduces a pasted browser URL to the server's REST root, in place, so
     /// the field shows the address that will actually be used. A scheme the
     /// user didn't type stays off until connecting settles it, since a public
@@ -78,6 +93,7 @@ final class SubsonicSignIn {
         subsonic.serverAddress = address
         subsonic.username = username
         subsonic.password = password
+        subsonic.serverName = check.serverName
         // Anything cached from a previous server belongs to that server.
         MusicSearchService.shared.clearSubsonicSongCache()
         // A working server means the service is authorized — surface it in
@@ -95,6 +111,7 @@ final class SubsonicSignIn {
         subsonic.serverAddress = ""
         subsonic.username = ""
         subsonic.password = ""
+        subsonic.serverName = nil
         MusicSearchService.shared.clearSubsonicSongCache()
         // Mirror the connect path, which enables the service — otherwise the
         // Settings toggle stays visually on for a service that can't play.

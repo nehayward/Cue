@@ -322,6 +322,63 @@ final class SubsonicTests: XCTestCase {
         XCTAssertEqual(body.error?.code, 40)
     }
 
+    /// OpenSubsonic servers name themselves in every response, which the
+    /// settings sheet and its Connected toast show.
+    func testDecodesWhatTheServerCallsItself() throws {
+        let json = """
+        {
+          "subsonic-response": {
+            "status": "ok", "version": "1.16.1",
+            "type": "navidrome", "serverVersion": "0.53.3 (13af8ed4)", "openSubsonic": true
+          }
+        }
+        """
+        let body = try JSONDecoder().decode(SubsonicEnvelope.self, from: Data(json.utf8)).subsonicResponse
+        XCTAssertTrue(body.isOK)
+        XCTAssertEqual(body.type, "navidrome")
+        XCTAssertEqual(SubsonicAPI.displayName(forServerType: body.type), "Navidrome")
+    }
+
+    /// Every response is decoded with the same body, so a `type` that isn't
+    /// a string mustn't fail it.
+    func testAServerTypeThatIsntTextIsLeftOut() throws {
+        let json = """
+        { "subsonic-response": { "status": "ok", "version": "1.16.1", "type": 3 } }
+        """
+        let body = try JSONDecoder().decode(SubsonicEnvelope.self, from: Data(json.utf8)).subsonicResponse
+        XCTAssertTrue(body.isOK)
+        XCTAssertNil(body.type)
+    }
+
+    func testServerDisplayNames() {
+        XCTAssertEqual(SubsonicAPI.displayName(forServerType: "gonic"), "gonic")
+        XCTAssertEqual(SubsonicAPI.displayName(forServerType: "lms"), "LMS")
+        XCTAssertEqual(SubsonicAPI.displayName(forServerType: "airsonic"), "Airsonic")
+        XCTAssertNil(SubsonicAPI.displayName(forServerType: nil))
+        XCTAssertNil(SubsonicAPI.displayName(forServerType: " "))
+    }
+
+    /// The Favorite Artists list reads `getStarred2`.
+    func testDecodesStarredArtistsAndAlbums() throws {
+        let json = """
+        {
+          "subsonic-response": {
+            "status": "ok", "version": "1.16.1",
+            "starred2": {
+              "artist": [ { "id": "ar-1", "name": "Daft Punk", "coverArt": "ar-1", "starred": "2024-03-01T10:00:00Z" } ],
+              "album": [ { "id": "al-1", "name": "Discovery", "artist": "Daft Punk", "starred": "2024-02-01T10:00:00Z" } ]
+            }
+          }
+        }
+        """
+        let body = try JSONDecoder().decode(SubsonicEnvelope.self, from: Data(json.utf8)).subsonicResponse
+        let starred = try XCTUnwrap(body.starred2)
+        XCTAssertEqual(starred.artist?.first?.name, "Daft Punk")
+        XCTAssertEqual(starred.artist?.first?.starred, "2024-03-01T10:00:00Z")
+        XCTAssertEqual(starred.album?.first?.id, "al-1")
+        XCTAssertNil(starred.song)
+    }
+
     func testDecodePlaylistWithEntries() throws {
         let json = """
         {

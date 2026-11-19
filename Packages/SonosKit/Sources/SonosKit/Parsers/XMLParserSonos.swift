@@ -982,7 +982,7 @@ final class XMLParserSonos {
 //    }
     
     func parseFavorites(IP: String, xml: String) -> [PlayableContent] {
-        let parser = FavoritesParser()
+        let parser = FavoritesParser(IP: IP)
         let contents = parser.parse(xml: xml)
         return contents
     }

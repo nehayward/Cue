@@ -22,6 +22,7 @@ public final class SubsonicAPI: DirectStreamProvider {
     private enum StorageKey {
         static let server = "com.cue.subsonic.server"
         static let username = "com.cue.subsonic.username"
+        static let serverName = "com.cue.subsonic.serverName"
         /// Legacy pre-keychain locations for the secrets — read once for
         /// migration and cleared; never written to on a working keychain.
         static let password = "com.cue.subsonic.password"
@@ -64,6 +65,13 @@ public final class SubsonicAPI: DirectStreamProvider {
         }
     }
 
+    /// What the server calls itself ("Navidrome"), as it said when the login
+    /// was last checked, for the settings sheet. Nil until a server has
+    /// said, and for servers that don't (plain Subsonic, older ones).
+    public var serverName: String? {
+        didSet { UserDefaults.standard.set(serverName, forKey: StorageKey.serverName) }
+    }
+
     public var isConfigured: Bool {
         Self.storedServerURL != nil && !username.isEmpty && !password.isEmpty
     }
@@ -73,6 +81,7 @@ public final class SubsonicAPI: DirectStreamProvider {
         let defaults = UserDefaults.standard
         self.serverAddress = defaults.string(forKey: StorageKey.server) ?? ""
         self.username = defaults.string(forKey: StorageKey.username) ?? ""
+        self.serverName = defaults.string(forKey: StorageKey.serverName)
         // Also migrates a pre-keychain login on first touch.
         self.password = Self.storedSecrets()?.password ?? ""
     }
@@ -91,6 +100,16 @@ public final class SubsonicAPI: DirectStreamProvider {
         return await ping(url: url)
     }
 
+    /// Asks the stored server what it calls itself, for a login saved before
+    /// Cue kept that. Leaves `serverName` as it was when there's no answer.
+    public func refreshServerName() async {
+        guard let url = Self.storedURL(endpoint: "ping") else { return }
+        let outcome = await probe(url: url)
+        if outcome.answered, let name = outcome.serverName {
+            serverName = name
+        }
+    }
+
     /// Verifies credentials **without** storing them, so a login is only
     /// persisted once the server has actually accepted it.
     public func ping(address: String, username: String, password: String) async -> PingResult {
@@ -103,6 +122,8 @@ public final class SubsonicAPI: DirectStreamProvider {
         /// The address that was checked last, with its scheme: on success,
         /// the one to store.
         public let address: String?
+        /// What the server calls itself ("Navidrome"), when it said.
+        public var serverName: String? = nil
     }
 
     /// Verifies a login without storing it, and settles which address to
@@ -118,7 +139,7 @@ public final class SubsonicAPI: DirectStreamProvider {
         var check = LoginCheck(result: .failure("Enter a server address."), address: nil)
         for candidate in Self.candidateAddresses(for: address) {
             let outcome = await probe(address: candidate, username: username, password: password)
-            check = LoginCheck(result: outcome.result, address: candidate)
+            check = LoginCheck(result: outcome.result, address: candidate, serverName: outcome.serverName)
             // A Subsonic answer, even a rejected password, means this is the
             // server.
             if outcome.answered { break }
@@ -126,12 +147,12 @@ public final class SubsonicAPI: DirectStreamProvider {
         return check
     }
 
-    private func probe(address: String, username: String, password: String) async -> (result: PingResult, answered: Bool) {
+    private func probe(address: String, username: String, password: String) async -> (result: PingResult, answered: Bool, serverName: String?) {
         guard let normalized = Self.normalizedAddress(address), let base = URL(string: normalized) else {
-            return (.failure("Enter a server address."), false)
+            return (.failure("Enter a server address."), false, nil)
         }
         guard !username.isEmpty, !password.isEmpty else {
-            return (.failure("Enter your username and password."), false)
+            return (.failure("Enter your username and password."), false, nil)
         }
         guard let url = Self.url(
             endpoint: "ping",
@@ -139,7 +160,7 @@ public final class SubsonicAPI: DirectStreamProvider {
             username: username,
             password: password,
             salt: Self.makeSalt()
-        ) else { return (.failure("Invalid server address."), false) }
+        ) else { return (.failure("Invalid server address."), false, nil) }
         return await probe(url: url, timeout: 15)
     }
 
@@ -148,8 +169,8 @@ public final class SubsonicAPI: DirectStreamProvider {
     }
 
     /// `answered` is whether a Subsonic server replied at all, accepting the
-    /// login or not.
-    private func probe(url: URL, timeout: TimeInterval? = nil) async -> (result: PingResult, answered: Bool) {
+    /// login or not, and `serverName` what it calls itself.
+    private func probe(url: URL, timeout: TimeInterval? = nil) async -> (result: PingResult, answered: Bool, serverName: String?) {
         var request = URLRequest(url: url)
         if let timeout {
             request.timeoutInterval = timeout
@@ -157,12 +178,27 @@ public final class SubsonicAPI: DirectStreamProvider {
         do {
             let (data, _) = try await session.data(for: request)
             guard let body = try? decoder.decode(SubsonicEnvelope.self, from: data).subsonicResponse else {
-                return (.failure("That address answered, but not as a Subsonic server. Check the port, and the path if it's behind a proxy."), false)
+                return (.failure("That address answered, but not as a Subsonic server. Check the port, and the path if it's behind a proxy."), false, nil)
             }
-            if body.isOK { return (.success, true) }
-            return (.failure(Self.message(forServerError: body.error)), true)
+            let serverName = Self.displayName(forServerType: body.type)
+            if body.isOK { return (.success, true, serverName) }
+            return (.failure(Self.message(forServerError: body.error)), true, serverName)
         } catch {
-            return (.failure(Self.message(forConnectionError: error)), false)
+            return (.failure(Self.message(forConnectionError: error)), false, nil)
+        }
+    }
+
+    /// A server's name as its project writes it, from OpenSubsonic's `type`
+    /// ("navidrome" is Navidrome). Nil when the server didn't say.
+    static func displayName(forServerType type: String?) -> String? {
+        guard let type = type?.trimmingCharacters(in: .whitespacesAndNewlines), !type.isEmpty else { return nil }
+        switch type.lowercased() {
+        case "navidrome": return "Navidrome"
+        // gonic writes its name in lower case.
+        case "gonic": return "gonic"
+        case "ampache": return "Ampache"
+        case "lms": return "LMS"
+        default: return type.prefix(1).uppercased() + type.dropFirst()
         }
     }
 
@@ -382,6 +418,14 @@ public final class SubsonicAPI: DirectStreamProvider {
 
     public func isStarred(id: String) async -> Bool {
         await song(for: id)?.starred != nil
+    }
+
+    /// The artists and albums the user has starred, each carrying the date
+    /// it was starred: Navidrome's favorites. One `getStarred2`, which takes
+    /// no paging, so this is the whole list. `nil` when the request failed.
+    public func starredArtistsAndAlbums() async -> (artists: [SubsonicArtist], albums: [SubsonicAlbum])? {
+        guard let starred = await get("getStarred2")?.starred2 else { return nil }
+        return (starred.artist ?? [], starred.album ?? [])
     }
 
     // MARK: - Play reporting

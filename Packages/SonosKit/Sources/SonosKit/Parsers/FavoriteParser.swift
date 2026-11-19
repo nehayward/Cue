@@ -1,6 +1,10 @@
 import Foundation
 
 final class FavoritesParser: NSObject, XMLParserDelegate {
+    /// The speaker the favorites were read from, which serves the covers of
+    /// its Music Library (`/getaa?u=x-file-cifs…`): those come as a path
+    /// with no host, and only the speaker can answer them.
+    private let IP: String
     private var favorites: [PlayableContent] = []
     private var currentElement = ""
     private var isParsingResult = false
@@ -15,6 +19,10 @@ final class FavoritesParser: NSObject, XMLParserDelegate {
     // DIDL-Lite parsing state
     private var currentClass = ""
     private var tempElementContent = ""
+
+    init(IP: String) {
+        self.IP = IP
+    }
     
     func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String: String] = [:]) {
         currentElement = elementName
@@ -43,10 +51,7 @@ final class FavoritesParser: NSObject, XMLParserDelegate {
             // Create favorite content when item ends
             if !currentTitle.isEmpty && !currentTrackID.isEmpty {
                 let contentType = ContentType(extractContentType(from: currentURIMetadata)) ?? .favorite
-                var sonosAlbumArtURL: URL?
-                if !currentAlbumArtURI.isEmpty {
-                    sonosAlbumArtURL = URL(string: currentAlbumArtURI)
-                }
+                let sonosAlbumArtURL = Self.artworkURL(currentAlbumArtURI, speakerIP: IP)
                 
                 let isRadioStation = currentURIMetadata.contains("audioBroadcast") || currentURIMetadata.contains("radio")
                 let mediaContent = MediaContent(service: .unknown, id: currentTrackID, type: contentType, location: nil)
@@ -97,6 +102,20 @@ final class FavoritesParser: NSObject, XMLParserDelegate {
         return favorites
     }
     
+    /// A favorite's cover. A streaming service's is a whole address; one
+    /// from the Music Library on a NAS or computer is a path on the speaker
+    /// (`/getaa?s=1&u=x-file-cifs…`), which taken as it came was a URL with
+    /// no host, so those favorites never showed a cover. The queue, the
+    /// library and Now Playing put the speaker in front of it the same way.
+    static func artworkURL(_ uri: String, speakerIP: String) -> URL? {
+        let uri = uri.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !uri.isEmpty else { return nil }
+        if uri.hasPrefix("/") {
+            return URL(string: "http://\(speakerIP):1400\(uri)")
+        }
+        return URL(string: uri)
+    }
+
     private func extractContentType(from didlXML: String) -> String {
         let pattern = "<upnp:class>([^<]+)</upnp:class>"
         if let regex = try? NSRegularExpression(pattern: pattern),

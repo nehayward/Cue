@@ -7,10 +7,14 @@ import Foundation
 /// They rank albums by the plays clients have scrobbled to the server, and
 /// Cue streams without scrobbling, so on a server only Cue plays from they
 /// are empty — a sort that shows nothing.
+///
+/// Favorites lists only the albums starred on the server (Navidrome's
+/// favorites), newest star first on Navidrome.
 public enum SubsonicAlbumSort: String, CaseIterable, Sendable, Identifiable {
     case title
     case artist
     case recentlyAdded
+    case favorites
 
     public var id: String { rawValue }
 
@@ -19,6 +23,7 @@ public enum SubsonicAlbumSort: String, CaseIterable, Sendable, Identifiable {
         case .title: "Title"
         case .artist: "Artist"
         case .recentlyAdded: "Recently Added"
+        case .favorites: "Favorites"
         }
     }
 
@@ -28,6 +33,7 @@ public enum SubsonicAlbumSort: String, CaseIterable, Sendable, Identifiable {
         case .title: "alphabeticalByName"
         case .artist: "alphabeticalByArtist"
         case .recentlyAdded: "newest"
+        case .favorites: "starred"
         }
     }
 }
