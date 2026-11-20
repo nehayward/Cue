@@ -228,6 +228,63 @@ enum AudiobookChapterReader {
         return found
     }
 
+    // MARK: - Names from a printed edition
+
+    /// What's kept of a printed edition's names for a book's chapters.
+    enum KeptNames {
+        case named([AudiobookChapter])
+        /// Looked for, and no edition's contents fitted.
+        case noFit
+        /// Never looked for, or not for a while.
+        case unknown
+    }
+
+    /// How long "no edition fits" is believed: a book's editions on Open
+    /// Library seldom change, and asking runs to a megabyte for a popular one.
+    private static let noNamesLifetime: TimeInterval = 30 * 24 * 60 * 60
+
+    /// The names kept for `chapters` of `title` by `author`, found by
+    /// `lookUpNames`.
+    static func keptNames(for chapters: [AudiobookChapter], title: String, author: String?, duration: TimeInterval) async -> KeptNames {
+        let key = namesKey(chapters, title: title, author: author)
+        guard let cached = await ChapterMarkCache.shared.marks(for: key) else { return .unknown }
+        guard !cached.isEmpty else { return .noFit }
+        return .named(.from(files: [(title: "", marks: cached)], timeline: AudiobookTimeline(partDurations: [duration])))
+    }
+
+    /// Names for chapters that say only their place ("Chapter 8", "Track
+    /// 001"), from the contents of a printed edition of the book on Open
+    /// Library, its parts grouped into the book's chapters by length
+    /// (`AudiobookChapterNaming`): Audible's reading of The Hobbit has
+    /// "Chapter 1" to "Chapter 21" for its 19 chapters. Nil when no
+    /// edition's contents fit, or Open Library couldn't be asked; an answer
+    /// is kept (none for a month), a failure isn't.
+    static func lookUpNames(for chapters: [AudiobookChapter], title: String, author: String?) async -> [AudiobookChapter]? {
+        let started = Date.now
+        guard let contents = await OpenLibraryContents.contents(title: title, author: author) else {
+            log.error("chapters: couldn't ask Open Library for \(title, privacy: .public)'s contents")
+            return nil
+        }
+        let named = AudiobookChapterNaming.named(chapters, by: contents)
+        let took = String(format: "%.1f", Date.now.timeIntervalSince(started))
+        if let named {
+            log.info("chapters: \(title, privacy: .public)'s \(chapters.count) named as \(named.count) from Open Library (\(contents.count) editions with contents, \(took, privacy: .public) s)")
+        } else {
+            log.notice("chapters: no edition's contents on Open Library fit \(title, privacy: .public)'s \(chapters.count) (\(contents.count) with contents, \(took, privacy: .public) s)")
+        }
+        let marks = (named ?? []).map { AudiobookChapterMark(title: $0.title, start: $0.start, end: $0.end) }
+        await ChapterMarkCache.shared.keep([namesKey(chapters, title: title, author: author): marks], noneLifetime: noNamesLifetime)
+        return named
+    }
+
+    /// The book and the chapters to be named: new marks (a file replaced,
+    /// Audible's for another edition) are named afresh.
+    private static func namesKey(_ chapters: [AudiobookChapter], title: String, author: String?) -> String {
+        let starts = chapters.reduce(0) { $0 + Int($1.start.rounded()) }
+        let end = Int((chapters.last?.end ?? 0).rounded())
+        return "contents:\(OpenLibraryContents.plain(title)):\(OpenLibraryContents.plain(author ?? "")):\(chapters.count):\(starts):\(end)"
+    }
+
     // MARK: - Marks a server listed
 
     /// The marks kept for a file by `key`, a server's or the file's own;
@@ -257,10 +314,12 @@ private actor ChapterMarkCache {
     private static let noneLifetime: TimeInterval = 24 * 60 * 60
     private static let fileName = "AudiobookChapterMarks.json"
 
-    /// What was read, and when: "none" is believed only for a while.
+    /// What was read, and when: "none" is believed only for a while, a day
+    /// unless it says otherwise.
     private struct Entry: Codable, Sendable {
         var marks: [AudiobookChapterMark]
         var readAt: Date = .now
+        var noneLifetime: TimeInterval?
     }
 
     private lazy var entries = CachesWriter.read([String: Entry].self, from: Self.fileName) ?? [:]
@@ -269,15 +328,16 @@ private actor ChapterMarkCache {
     /// kept, or "none" has gone stale.
     func marks(for key: String) -> [AudiobookChapterMark]? {
         guard let entry = entries[key] else { return nil }
-        if entry.marks.isEmpty, Date.now.timeIntervalSince(entry.readAt) > Self.noneLifetime { return nil }
+        if entry.marks.isEmpty, Date.now.timeIntervalSince(entry.readAt) > entry.noneLifetime ?? Self.noneLifetime { return nil }
         return entry.marks
     }
 
-    /// Keeps each key's marks, an empty list as "none".
-    func keep(_ marks: [String: [AudiobookChapterMark]]) async {
+    /// Keeps each key's marks, an empty list as "none", believed for
+    /// `noneLifetime` (a day when nil).
+    func keep(_ marks: [String: [AudiobookChapterMark]], noneLifetime: TimeInterval? = nil) async {
         guard !marks.isEmpty else { return }
         for (key, found) in marks {
-            entries[key] = Entry(marks: found)
+            entries[key] = Entry(marks: found, noneLifetime: noneLifetime)
         }
         await CachesWriter.shared.write(entries, to: Self.fileName)
     }

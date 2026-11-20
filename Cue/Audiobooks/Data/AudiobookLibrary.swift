@@ -266,21 +266,25 @@ enum AudiobookLibrary {
     /// the server out of reach — the copy kept with its download
     /// (`AudiobookDownloads`). Nil when neither has it, or it has no files.
     static func load(_ book: PlayableContent) async -> Audiobook? {
+        // Chapters that say only their place ("Chapter 8") take the names
+        // found for them before, or have them looked up behind the read.
+        let names = AudiobookChapterNames.shared
         // A book in the Files folder is on this device already: no server,
         // nothing to download, its place this device's alone.
         if book.content.service == .files {
             guard let loaded = await loadFiles(book) else { return nil }
-            AudiobookReadCache.keep(loaded)
-            return loaded
+            let named = await names.name(loaded)
+            AudiobookReadCache.keep(named)
+            return named
         }
         // Offline, asking the server would only wait out its timeout.
         if OfflineMode.shared.isActive, let copy = AudiobookDownloads.copy(of: book) {
-            return copy
+            return await names.name(copy)
         }
         guard var loaded = await loadFromServer(book) else {
             if let copy = AudiobookDownloads.copy(of: book) {
                 log.notice("\(book.title, privacy: .public): server out of reach, opened the downloaded copy")
-                return copy
+                return await names.name(copy)
             }
             return nil
         }
@@ -290,6 +294,7 @@ enum AudiobookLibrary {
             log.notice("\(book.title, privacy: .public): no chapters this read, kept the last read's \(last.chapters.count)")
             loaded.chapters = last.chapters
         }
+        loaded = await names.name(loaded)
         AudiobookReadCache.keep(loaded)
         AudiobookDownloads.refresh(loaded)
         // Its files on this device play whatever the server can open.
