@@ -25,8 +25,9 @@ struct AudiobookDetailView: View {
 
     /// The book as the server read it, else as it last read, which is there
     /// from the first frame: the page opens whole rather than filling in.
+    /// Chapter names found once it was read come in as they land.
     private var audiobook: Audiobook? {
-        loaded ?? AudiobookLibrary.lastRead(of: book)
+        (loaded ?? AudiobookLibrary.lastRead(of: book)).map { AudiobookChapterNames.shared.applied(to: $0) }
     }
 
     private var shown: PlayableContent { audiobook?.book ?? book }

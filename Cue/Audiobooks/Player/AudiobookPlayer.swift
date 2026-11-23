@@ -143,6 +143,9 @@ final class AudiobookPlayer {
             if current.book.content.service == .audiobookshelf, !AudiobookshelfAPI.hasOpenSession(for: itemID) {
                 Task { _ = await AudiobookshelfAPI.shared.startSession(itemID: itemID) }
             }
+            // Chapters that say only their place get their names, kept from
+            // before or looked up (`AudiobookChapterNames`).
+            Task { await AudiobookChapterNames.shared.nameLoaded(current) }
         }
         backgroundObserver = NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
@@ -1222,6 +1225,18 @@ final class AudiobookPlayer {
         forgetFailures()
         stopMonitoring()
         flush()
+    }
+
+    /// Names found for the loaded book's chapters after it was read
+    /// (`AudiobookChapterNames`), taken only while it's still that book with
+    /// those chapters. Its parts run together into the book's chapters, so
+    /// the chapter playing is found again.
+    func adoptChapters(_ named: [AudiobookChapter], replacing numbered: [AudiobookChapter], of book: PlayableContent) {
+        guard var audiobook = current, audiobook.book.isSameBook(as: book), audiobook.chapters == numbered else { return }
+        audiobook.chapters = named
+        current = audiobook
+        updateChapter()
+        Self.saveCurrent(audiobook)
     }
 
     private func setCurrent(_ audiobook: Audiobook?) {
